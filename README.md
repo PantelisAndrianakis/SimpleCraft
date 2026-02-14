@@ -13,19 +13,19 @@ The easiest way to build and run SimpleCraft is to use the provided convenience 
 
 ```
 # Building
-build.bat         # Build only.
-build.bat run     # Build and run in one step.
-build.bat dist    # Create distribution package (ZIP).
-build.bat dist -o # Create package and open folder.
+Build.bat         # Build only.
+Build.bat run     # Build and run in one step.
+Build.bat dist    # Create distribution package (ZIP).
+Build.bat dist -o # Create package and open folder.
 
 # Running (requires building first)
 SimpleCraft.bat   # Runs the game (JAR must exist).
 
 # Clean up build artifacts
-clean.bat         # Removes build directories.
+Clean.bat         # Removes build directories.
 
 # Get help and environment info
-help.bat          # Displays available scripts and system info.
+Help.bat          # Displays available scripts and system info.
 ```
 
 ### Manual Build
@@ -37,11 +37,11 @@ gradlew.bat run
 ```
 
 ### Distribution Packages
-You can create distribution packages using the `build.bat` script with the `dist` parameter:
+You can create distribution packages using the `Build.bat` script with the `dist` parameter:
 
 ```
-build.bat dist       # Build distribution packages.
-build.bat dist -o    # Build and open the output folder.
+Build.bat dist       # Build distribution packages.
+Build.bat dist -o    # Build and open the output folder.
 ```
 
 The distribution package is available in the `build/distributions/` folder as `SimpleCraft.zip`.
