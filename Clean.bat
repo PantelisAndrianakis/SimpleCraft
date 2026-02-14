@@ -5,8 +5,8 @@
 ::              SimpleCraft project, removing build outputs
 ::              and optionally the Gradle cache.
 :: Usage: Clean.bat
-::   - Automatically removes the build directory
-::   - Optionally removes the .gradle cache directory
+::   - Automatically removes the build directory.
+::   - Optionally removes the .gradle cache directory.
 :: ======================================================
 
 @echo off
@@ -66,6 +66,5 @@ echo Cleaning completed.
 echo.
 echo To rebuild the project, use:
 echo   * Build.bat
-echo   * Start.bat
 
 exit /b 0

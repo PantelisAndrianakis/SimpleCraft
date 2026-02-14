@@ -38,7 +38,7 @@ dependencies
     implementation 'com.simsilica:lemur:1.16.0'
     implementation 'com.simsilica:lemur-proto:1.13.0'
 
-    // --- OpenSimplex2 noise is a single .java file dropped into src, no dependency needed ---
+    // --- OpenSimplex2 noise is a single .java file dropped into src, no dependency needed. ---
 }
 
 // Make sure assets folder is on the classpath so jME3 can find them.
@@ -123,7 +123,7 @@ distributions.main.contents
                 into 'assets/'
             }
             
-            // Add license and readme
+            // Add license and readme.
             from(rootDir)
             {
                 include 'LICENSE.txt'

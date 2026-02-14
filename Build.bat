@@ -6,9 +6,9 @@
 ::              and running the game after building.
 :: Usage: Build.bat [options]
 ::   Options:
-::     run, -r, --run     Run the game after building
-::     dist, -d, --dist   Build distribution package
-::     -o, --open         Open explorer after building dist
+::     run, -r, --run     Run the game after building.
+::     dist, -d, --dist   Build distribution package.
+::     -o, --open         Open explorer after building dist.
 :: ======================================================
 
 @echo off
@@ -74,9 +74,9 @@ if %BUILD_DIST% equ 1 (
     echo  * build\distributions\SimpleCraft.zip
     echo.
     echo To use a distribution package:
-    echo  1. Extract the archive
-    echo  2. Navigate to the extracted SimpleCraft folder
-    echo  3. Run start.bat to launch the game
+    echo  1. Extract the archive.
+    echo  2. Navigate to the extracted SimpleCraft folder.
+    echo  3. Run SimpleCraft.bat to launch the game.
     echo.
     
     :: Optionally open the distributions folder.
@@ -101,8 +101,8 @@ if %RUN_AFTER_BUILD% equ 1 (
 ) else (
     echo.
     echo To run the game, use one of:
-    echo   * build.bat run
-    echo   * build.bat --run
+    echo   * Build.bat run
+    echo   * Build.bat --run
     echo   * gradlew.bat run
 )
 

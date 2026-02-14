@@ -21,12 +21,12 @@
 @rem
 @rem ##########################################################################
 
-@rem Set local scope for the variables with windows NT shell
+@rem Set local scope for the variables with windows NT shell.
 if "%OS%"=="Windows_NT" setlocal
 
 set DIRNAME=%~dp0
 if "%DIRNAME%"=="" set DIRNAME=.
-@rem This is normally unused
+@rem This is normally unused.
 set APP_BASE_NAME=%~n0
 set APP_HOME=%DIRNAME%
 
@@ -66,16 +66,16 @@ echo location of your Java installation. 1>&2
 goto fail
 
 :execute
-@rem Setup the command line
+@rem Setup the command line.
 
-@rem Check for wrapper JAR and download if missing
+@rem Check for wrapper JAR and download if missing.
 if not exist "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" (
     echo Gradle wrapper JAR not found. Attempting to download...
     
-    @rem Make sure the directory exists
+    @rem Make sure the directory exists.
     if not exist "%APP_HOME%\gradle\wrapper" mkdir "%APP_HOME%\gradle\wrapper"
     
-    @rem Use PowerShell to download the file
+    @rem Use PowerShell to download the file.
     powershell -Command "& {Invoke-WebRequest -Uri 'https://github.com/gradle/gradle/raw/v9.3.1/gradle/wrapper/gradle-wrapper.jar' -OutFile '%APP_HOME%\gradle\wrapper\gradle-wrapper.jar'}"
     
     if exist "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" (
@@ -86,14 +86,14 @@ if not exist "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" (
     )
 )
 
-@rem Check for wrapper properties file and create if missing
+@rem Check for wrapper properties file and create if missing.
 if not exist "%APP_HOME%\gradle\wrapper\gradle-wrapper.properties" (
     echo Gradle wrapper properties file not found. Creating default...
     
-    @rem Make sure the directory exists
+    @rem Make sure the directory exists.
     if not exist "%APP_HOME%\gradle\wrapper" mkdir "%APP_HOME%\gradle\wrapper"
     
-    @rem Create default properties file
+    @rem Create default properties file.
     (
         echo distributionBase=GRADLE_USER_HOME
         echo distributionPath=wrapper/dists
@@ -114,11 +114,11 @@ if not exist "%APP_HOME%\gradle\wrapper\gradle-wrapper.properties" (
 
 set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
 
-@rem Execute Gradle
+@rem Execute Gradle.
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
 
 :end
-@rem End local scope for the variables with windows NT shell
+@rem End local scope for the variables with windows NT shell.
 if %OS%==Windows_NT endlocal
 
 :omega
