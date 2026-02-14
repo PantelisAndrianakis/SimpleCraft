@@ -1,6 +1,10 @@
 # Gradle
 .gradle/
+**/.gradle/
+gradle/
+**/gradle/
 build/
+**/build/
 
 # IDE
 .idea/
