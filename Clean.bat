@@ -1,4 +1,16 @@
+:: ======================================================
+:: SimpleCraft Clean Script
+:: ======================================================
+:: Description: This script cleans build artifacts from the
+::              SimpleCraft project, removing build outputs
+::              and optionally the Gradle cache.
+:: Usage: Clean.bat
+::   - Automatically removes the build directory
+::   - Optionally removes the .gradle cache directory
+:: ======================================================
+
 @echo off
+title SimpleCraft Cleanup
 setlocal
 echo =================================================
 echo         SimpleCraft Clean Script

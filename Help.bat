@@ -1,4 +1,18 @@
+:: ======================================================
+:: SimpleCraft Helper Script
+:: ======================================================
+:: Description: This script displays help information about
+::              SimpleCraft scripts and environment details,
+::              including Java and Gradle installation status
+::              and build artifacts.
+:: Usage: Help.bat
+::   - Displays available scripts and their purposes
+::   - Shows Java and Gradle installation information
+::   - Displays build status of SimpleCraft artifacts
+:: ======================================================
+
 @echo off
+title SimpleCraft Help
 echo =================================================
 echo       SimpleCraft Helper Script
 echo =================================================

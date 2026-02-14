@@ -1,4 +1,19 @@
+:: ======================================================
+:: SimpleCraft Game Launcher
+:: ======================================================
+:: Description: This script launches the SimpleCraft game,
+::              checking for Java prerequisites and running
+::              the game JAR with necessary JVM arguments.
+:: Requirements:
+::   - Java 25 or later
+::   - SimpleCraft.jar built using Build.bat
+:: Usage: SimpleCraft.bat
+::   - Simply run this script to start the game
+::   - Will verify Java installation before launching
+:: ======================================================
+
 @echo off
+title SimpleCraft
 setlocal enabledelayedexpansion
 echo =================================================
 echo       Starting SimpleCraft

@@ -1,4 +1,18 @@
+:: ======================================================
+:: SimpleCraft Build Script
+:: ======================================================
+:: Description: This script builds the SimpleCraft project
+::              with options for creating distributions
+::              and running the game after building.
+:: Usage: Build.bat [options]
+::   Options:
+::     run, -r, --run     Run the game after building
+::     dist, -d, --dist   Build distribution package
+::     -o, --open         Open explorer after building dist
+:: ======================================================
+
 @echo off
+title SimpleCraft Build
 setlocal enabledelayedexpansion
 
 echo =================================================
