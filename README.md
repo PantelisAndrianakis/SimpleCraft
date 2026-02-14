@@ -48,6 +48,6 @@ The distribution package is available in the `build/distributions/` folder as `S
 
 This package includes everything needed to run the game. Extract the zip file and use the included `start.bat` to launch the game.
 
-## [License](LICENSE.txt)
+## License
 
-All rights reserved.
+This project is licensed under the terms included in the [LICENSE.txt](LICENSE.txt) file.
