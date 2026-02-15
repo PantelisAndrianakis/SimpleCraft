@@ -1,25 +1,25 @@
 plugins
 {
-    id 'java'
-    id 'application'
+	id 'java'
+	id 'application'
 }
 
 // Java configuration.
 java
 {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 // Entry point.
 application
 {
-    mainClass = 'simplecraft.SimpleCraft'
+	mainClass = 'simplecraft.SimpleCraft'
 }
 
 repositories
 {
-    mavenCentral()
+	mavenCentral()
 }
 
 // JMonkeyEngine version — 3.8.0 is the latest stable.
@@ -27,106 +27,135 @@ def jmeVersion = '3.8.0-stable'
 
 dependencies
 {
-    // --- jMonkeyEngine Core ---
-    implementation "org.jmonkeyengine:jme3-core:${jmeVersion}"
-    implementation "org.jmonkeyengine:jme3-desktop:${jmeVersion}"
-    implementation "org.jmonkeyengine:jme3-lwjgl3:${jmeVersion}"
-    implementation "org.jmonkeyengine:jme3-effects:${jmeVersion}"
-    implementation "org.jmonkeyengine:jme3-plugins:${jmeVersion}"
+	// --- jMonkeyEngine Core ---
+	implementation "org.jmonkeyengine:jme3-core:${jmeVersion}"
+	implementation "org.jmonkeyengine:jme3-desktop:${jmeVersion}"
+	implementation "org.jmonkeyengine:jme3-lwjgl3:${jmeVersion}"
+	implementation "org.jmonkeyengine:jme3-effects:${jmeVersion}"
+	implementation "org.jmonkeyengine:jme3-plugins:${jmeVersion}"
 
-    // --- Lemur UI ---
-    implementation 'com.simsilica:lemur:1.16.0'
-    implementation 'com.simsilica:lemur-proto:1.13.0'
+	// --- Lemur UI ---
+	implementation 'com.simsilica:lemur:1.16.0'
+	implementation 'com.simsilica:lemur-proto:1.13.0'
 
-    // --- OpenSimplex2 noise is a single .java file dropped into src, no dependency needed. ---
+	// --- OpenSimplex2 noise is a single .java file dropped into src, no dependency needed. ---
 }
 
 // Make sure assets folder is on the classpath so jME3 can find them.
 sourceSets
 {
-    main
-    {
-        resources
-        {
-            srcDirs 'assets', 'src/main/resources'
-        }
-    }
+	main
+	{
+		resources
+		{
+			srcDirs 'assets', 'src/main/resources'
+		}
+	}
 }
 
 // Handle duplicate files in resources.
 processResources
 {
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 // Configure JAR to be runnable.
 jar
 {
-    manifest
-    {
-        attributes 'Main-Class': application.mainClass.get()
-    }
+	manifest
+	{
+		attributes 'Main-Class': application.mainClass.get()
+	}
 
-    // Bundle all dependencies into the JAR for easy distribution.
-    from
-    {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
+	// Bundle all dependencies into the JAR for easy distribution.
+	from
+	{
+		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+	}
 
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 // JVM args for running.
 run
 {
-    jvmArgs =
-    [
-        '--add-opens=java.base/java.lang=ALL-UNNAMED',
-        '--add-opens=java.base/java.nio=ALL-UNNAMED',
-        '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
-        '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED'
-    ]
+	jvmArgs =
+	[
+		'--add-opens=java.base/java.lang=ALL-UNNAMED',
+		'--add-opens=java.base/java.nio=ALL-UNNAMED',
+		'--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+		'--add-opens=java.base/java.lang.reflect=ALL-UNNAMED'
+	]
 }
 
-// Configure distributions (zip file only).
-distributions
+// Disable the default distribution tasks.
+distZip
 {
-    main
-    {
-        distributionBaseName = 'SimpleCraft'
-    }
+	enabled = false
+}
+distTar
+{
+	enabled = false
+}
+installDist
+{
+	enabled = false
+}
+startScripts
+{
+	enabled = false
 }
 
-// Disable tar task.
-tasks.distTar.enabled = false
-
-// Configure distribution contents.
-distributions.main.contents
+// Create a custom distribution task.
+task createCustomDist(type: Zip)
 {
-            // Include the SimpleCraft.bat at the root of the distribution.
-            from('src/main/resources')
-            {
-                include 'SimpleCraft.bat'
-                into '/'
-            }
-            
-            // Create a custom jar with a simpler name in libs folder.
-            from(jar)
-            {
-                rename { 'SimpleCraft.jar' }
-                into 'libs/'
-            }
-            
-            // Include assets directory.
-            from('assets')
-            {
-                into 'assets/'
-            }
-            
-            // Add license and readme.
-            from(rootDir)
-            {
-                include 'LICENSE.txt'
-                include 'README.md'
-            }
+	archiveFileName = 'SimpleCraft.zip'
+	destinationDirectory = file('build/distributions')
+	
+	// Include SimpleCraft.bat at the root.
+	from('src/main/resources')
+	{
+		include 'SimpleCraft.bat'
+	}
+	
+	// Include assets folder.
+	from('assets')
+	{
+		into 'assets'
+	}
+	
+	// Include license and readme.
+	from(rootDir)
+	{
+		include 'LICENSE.txt'
+		include 'README.md'
+	}
+	
+	// Create libs folder with all JARs.
+	from(jar)
+	{
+		rename { 'SimpleCraft.jar' }
+		into 'libs'
+	}
+	
+	from(configurations.runtimeClasspath)
+	{
+		exclude jar.archiveFileName.get()
+		into 'libs'
+	}
+}
+
+// Make the custom task depend on the jar.
+createCustomDist.dependsOn jar
+
+// Override the assembleDist task to use our custom distribution.
+assembleDist
+{
+	dependsOn createCustomDist
+}
+
+// Also override the build task to ensure our distribution is built.
+build
+{
+	dependsOn createCustomDist
 }

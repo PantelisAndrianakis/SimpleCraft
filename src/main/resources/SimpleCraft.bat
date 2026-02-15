@@ -51,7 +51,7 @@ if !JAVA_VERSION! LSS 25 (
 )
 
 :: Check if JAR file exists.
-set JAR_PATH=SimpleCraft\libs\SimpleCraft.jar
+set JAR_PATH=libs\SimpleCraft.jar
 if not exist "%JAR_PATH%" (
     echo Error: SimpleCraft JAR not found at %JAR_PATH%
     echo.
