@@ -7,7 +7,7 @@ import com.jme3.system.JmeContext;
 import com.simsilica.lemur.GuiGlobals;
 
 /**
- * SimpleCraft — A simple offline voxel game.
+ * SimpleCraft — A simple offline voxel game.<br>
  * Main entry point.
  */
 public class SimpleCraft extends SimpleApplication
@@ -24,20 +24,20 @@ public class SimpleCraft extends SimpleApplication
 	
 	public static void main(String[] args)
 	{
-		final SimpleCraft app = getInstance();
+		final SimpleCraft simpleCraft = getInstance();
 		
 		final AppSettings settings = new AppSettings(true);
 		settings.setTitle("SimpleCraft");
 		settings.setWidth(1280);
 		settings.setHeight(720);
 		settings.setVSync(true);
-		app.setSettings(settings);
-		app.setShowSettings(false);
+		simpleCraft.setSettings(settings);
+		simpleCraft.setShowSettings(false);
 		
 		// Use JME context display mode for better window control.
-		app.start(JmeContext.Type.Display);
+		simpleCraft.start(JmeContext.Type.Display);
 	}
-
+	
 	@Override
 	public void simpleInitApp()
 	{
@@ -52,7 +52,7 @@ public class SimpleCraft extends SimpleApplication
 		// TODO: Attach SplashState as first state.
 		System.out.println("SimpleCraft started successfully!");
 	}
-
+	
 	@Override
 	public void simpleUpdate(float tpf)
 	{

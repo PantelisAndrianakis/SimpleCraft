@@ -1,0 +1,53 @@
+{
+	"editor.formatOnSave": true,
+	"editor.detectIndentation": false,
+	"editor.insertSpaces": false,
+	"editor.tabSize": 4,
+	"editor.rulers": [
+		300
+	],
+	"editor.formatOnPaste": true,
+	"editor.formatOnType": false,
+	"editor.codeActionsOnSave": {
+		"source.organizeImports": "explicit",
+		"source.fixAll": "explicit"
+	},
+	// Java formatter settings.
+	"java.format.enabled": true,
+	"java.format.settings.url": "${workspaceFolder}/.vscode/formatter.xml",
+	"java.format.settings.profile": "SimpleCraft Style",
+	"java.format.onType.enabled": false,
+	"java.format.comments.enabled": true,
+	// Import order for SimpleCraft.
+	"java.completion.importOrder": [
+		"java",
+		"javax",
+		"org",
+		"com",
+		"simplecraft"
+	],
+	// Code generation settings.
+	"java.completion.guessMethodArguments": "off",
+	"java.codeGeneration.useBlocks": true,
+	"java.codeGeneration.generateComments": true,
+	"java.codeGeneration.toString.template": "${object.className} [${member.name()}=${member.value}, ${otherMembers}]",
+	"java.codeGeneration.hashCodeEquals.useInstanceof": true,
+	"java.codeGeneration.hashCodeEquals.useJava7Objects": true,
+	// Cleanup actions.
+	"java.cleanup.actions": [
+		"addOverride",
+		"addDeprecated",
+		"organizeImports",
+		"lambdaExpression",
+		"tryWithResource",
+		"redundantModifiers",
+		"redundantSuperCall"
+	],
+	"java.configuration.updateBuildConfiguration": "automatic",
+	"[java]": {
+		"editor.defaultFormatter": "redhat.java",
+		"editor.formatOnSave": true,
+		"editor.detectIndentation": false,
+		"editor.insertSpaces": false
+	}
+}

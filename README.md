@@ -48,6 +48,16 @@ The distribution package is available in the `build/distributions/` folder as `S
 
 This package includes everything needed to run the game. Extract the zip file and use the included `SimpleCraft.bat` to launch the game.
 
+## Coding Style
+
+This project follows the [CODING_STYLE.md](CODING_STYLE.md) guidelines:
+- Allman brace style (braces on new lines).
+- 4-space indentation using tabs.
+- 120 character line limit.
+- Organized imports with `simplecraft` packages first.
+
+The style is automatically enforced when using VS Code with the provided configuration files in the `.vscode` directory.
+
 ## License
 
 This project is licensed under the terms included in the [LICENSE.txt](LICENSE.txt) file.
