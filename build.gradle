@@ -41,14 +41,15 @@ dependencies
 	// --- OpenSimplex2 noise is a single .java file dropped into src, no dependency needed. ---
 }
 
-// Make sure assets folder is on the classpath so jME3 can find them.
+// Make sure assets folder is available at runtime but not bundled in JAR.
 sourceSets
 {
 	main
 	{
 		resources
 		{
-			srcDirs 'assets', 'src/main/resources'
+			// Only include properties files, etc. from resources, not assets.
+			srcDirs 'src/main/resources'
 		}
 	}
 }
@@ -59,7 +60,7 @@ processResources
 	duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
-// Configure JAR to be runnable.
+// Configure JAR to be runnable (fat JAR with all dependencies).
 jar
 {
 	manifest
@@ -73,6 +74,10 @@ jar
 		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
 	}
 
+	// Exclude assets and bat file from being bundled in the JAR.
+	exclude 'assets/**'
+	exclude 'SimpleCraft.bat'
+	
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
@@ -118,7 +123,7 @@ task createCustomDist(type: Zip)
 		include 'SimpleCraft.bat'
 	}
 	
-	// Include assets folder.
+	// Include assets folder (not bundled in JAR).
 	from('assets')
 	{
 		into 'assets'
@@ -131,17 +136,10 @@ task createCustomDist(type: Zip)
 		include 'README.md'
 	}
 	
-	// Create libs folder with all JARs.
+	// Include the fat JAR at the root.
 	from(jar)
 	{
 		rename { 'SimpleCraft.jar' }
-		into 'libs'
-	}
-	
-	from(configurations.runtimeClasspath)
-	{
-		exclude jar.archiveFileName.get()
-		into 'libs'
 	}
 }
 

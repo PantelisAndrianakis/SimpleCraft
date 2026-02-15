@@ -20,60 +20,58 @@ echo       Starting SimpleCraft
 echo =================================================
 echo.
 
-:: Check if Java is installed and has correct version.
-echo Checking Java installation...
-where java >nul 2>&1
+:: Check if Java is installed.
+java -version >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo Error: Java not found in PATH!
-    echo Please install Java 25 or later and ensure it's in your PATH.
-    echo Alternatively, set the JAVA_HOME environment variable.
-    pause
-    exit /b 1
+	echo Error: Java is not installed or not in PATH.
+	echo Please install Java 25 or later from https://adoptium.net/
+	pause
+	exit /b 1
 )
 
-:: Verify Java version.
-for /f "tokens=3" %%g in ('java -version 2^>^&1 ^| find "version"') do (
-    set JAVA_VERSION=%%g
+:: Check Java version.
+for /f "tokens=3" %%g in ('java -version 2^>^&1 ^| findstr /i "version"') do (
+	set JAVA_VERSION_STR=%%g
+	set JAVA_VERSION_STR=!JAVA_VERSION_STR:"=!
+	for /f "delims=.-_ tokens=1" %%v in ("!JAVA_VERSION_STR!") do set JAVA_VERSION=%%v
 )
-
-set JAVA_VERSION=!JAVA_VERSION:"=!
-set JAVA_VERSION=!JAVA_VERSION:~0,2!
 
 if !JAVA_VERSION! LSS 25 (
-    echo Warning: SimpleCraft requires Java 25 or later.
-    echo Your Java version appears to be !JAVA_VERSION!
-    echo The application may not run correctly.
-    echo.
-    
-    choice /C YN /M "Do you want to continue anyway?"
-    if !ERRORLEVEL! EQU 2 exit /b 0
-    echo.
+	echo Error: Java 25 or later is required.
+	echo Current version: !JAVA_VERSION_STR!
+	pause
+	exit /b 1
 )
 
 :: Check if JAR file exists.
-set JAR_PATH=libs\SimpleCraft.jar
+set JAR_PATH=SimpleCraft.jar
 if not exist "%JAR_PATH%" (
-    echo Error: SimpleCraft JAR not found at %JAR_PATH%
-    echo.
-    echo Please build the project first by running:
-    echo   Build.bat
-    echo.
-    pause
-    exit /b 1
+	echo Error: SimpleCraft.jar not found in current directory.
+	echo Expected: %CD%\%JAR_PATH%
+	pause
+	exit /b 1
 )
 
-:: Add JVM args needed for jMonkeyEngine.
-set JVM_ARGS=--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+:: Check if assets folder exists.
+if not exist "assets" (
+	echo Warning: assets folder not found. Game may not run correctly.
+)
 
-:: Run the JAR directly.
-echo Running SimpleCraft...
-java %JVM_ARGS% -jar %JAR_PATH%
+echo Found Java version !JAVA_VERSION_STR!
+echo Starting SimpleCraft...
+echo.
 
+:: Run the game.
+java ^
+	--add-opens=java.base/java.lang=ALL-UNNAMED ^
+	--add-opens=java.base/java.nio=ALL-UNNAMED ^
+	--add-opens=java.base/sun.nio.ch=ALL-UNNAMED ^
+	--add-opens=java.base/java.lang.reflect=ALL-UNNAMED ^
+	-jar SimpleCraft.jar
+
+:: Pause if there was an error.
 if %ERRORLEVEL% neq 0 (
-    echo.
-    echo SimpleCraft failed to run with error code %ERRORLEVEL%
-    pause
-    exit /b %ERRORLEVEL%
+	echo.
+	echo SimpleCraft failed to run with error code %ERRORLEVEL%
+	pause
 )
-
-exit /b 0
