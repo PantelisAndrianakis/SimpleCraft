@@ -65,6 +65,11 @@ jar
 {
 	manifest
 	{
+		attributes 'Build-By': System.getProperty('user.name')
+		attributes 'Build-Date': new Date().format('yyyy-MM-dd HH:mm:ss z')
+		attributes 'Build-JDK': "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})"
+		attributes 'Created-By': 'Gradle ' + gradle.gradleVersion
+		attributes 'Implementation-Title': project.name
 		attributes 'Main-Class': application.mainClass.get()
 	}
 
