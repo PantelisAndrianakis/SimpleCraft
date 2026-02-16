@@ -8,7 +8,10 @@ import com.jme3.app.state.BaseAppState;
 
 /**
  * Manages game state transitions and maintains the current game state.<br>
- * Handles special cases like overlay states (PAUSED) and return navigation (OPTIONS).
+ * Handles special cases like overlay states (PAUSED) and return navigation (OPTIONS).<br>
+ * Supports optional fade transitions via {@link #switchTo(GameState, boolean)}.
+ * @author Pantelis Andrianakis
+ * @since February 16th 2026
  */
 public class GameStateManager
 {
@@ -51,13 +54,27 @@ public class GameStateManager
 	}
 	
 	/**
-	 * Switch to a new game state.<br>
+	 * Switch to a new game state instantly (no fade transition).
+	 * @param newState The state to switch to
+	 */
+	public void switchTo(GameState newState)
+	{
+		switchTo(newState, false);
+	}
+	
+	/**
+	 * Switch to a new game state with an optional fade transition.<br>
+	 * When fade is true and the current state is a {@link FadeableAppState} with a configured fade-out duration,<br>
+	 * the current state fades out before the switch occurs.<br>
+	 * The new state's fade-in (if configured) begins automatically when it is enabled.<br>
+	 * <br>
 	 * Handles special cases:<br>
 	 * - PAUSED: Overlays on PLAYING (disables PLAYING instead of detaching)<br>
 	 * - OPTIONS: Tracks previous state for return navigation
 	 * @param newState The state to switch to
+	 * @param fade Whether to use fade transitions
 	 */
-	public void switchTo(GameState newState)
+	public void switchTo(GameState newState, boolean fade)
 	{
 		if (!_registeredStates.containsKey(newState))
 		{
@@ -65,6 +82,74 @@ public class GameStateManager
 			return;
 		}
 		
+		// If fading is requested and the current state supports it, fade out first.
+		if (fade && _currentAppState instanceof FadeableAppState)
+		{
+			final FadeableAppState fadeable = (FadeableAppState) _currentAppState;
+			if (fadeable.getFadeOutDuration() > 0f && !fadeable.isFading())
+			{
+				fadeable.startFadeOut(() -> executeSwitch(newState));
+				return;
+			}
+		}
+		
+		executeSwitch(newState);
+	}
+	
+	/**
+	 * Return to the previous state (used when exiting OPTIONS).<br>
+	 * Uses an instant transition (no fade).
+	 */
+	public void returnToPrevious()
+	{
+		returnToPrevious(false);
+	}
+	
+	/**
+	 * Return to the previous state with an optional fade transition.
+	 * @param fade Whether to use fade transitions
+	 */
+	public void returnToPrevious(boolean fade)
+	{
+		if (_stateHistory.isEmpty())
+		{
+			System.err.println("WARNING: No previous state to return to.");
+			return;
+		}
+		
+		final GameState previousState = _stateHistory.pop();
+		
+		// If fading is requested and current state supports it, fade out first.
+		if (fade && _currentAppState instanceof FadeableAppState)
+		{
+			final FadeableAppState fadeable = (FadeableAppState) _currentAppState;
+			if (fadeable.getFadeOutDuration() > 0f && !fadeable.isFading())
+			{
+				fadeable.startFadeOut(() -> executeReturnTo(previousState));
+				return;
+			}
+		}
+		
+		executeReturnTo(previousState);
+	}
+	
+	/**
+	 * Get the current game state.
+	 * @return The current GameState enum value, or null if no state is active
+	 */
+	public GameState getCurrentState()
+	{
+		return _currentState;
+	}
+	
+	// --- Internal switch logic ---
+	
+	/**
+	 * Execute the actual state transition (called directly or after a fade-out completes).
+	 * @param newState The state to switch to
+	 */
+	private void executeSwitch(GameState newState)
+	{
 		// Special case: PAUSED is an overlay on PLAYING.
 		if (newState == GameState.PAUSED)
 		{
@@ -143,18 +228,11 @@ public class GameStateManager
 	}
 	
 	/**
-	 * Return to the previous state (used when exiting OPTIONS).
+	 * Execute a return-to-previous transition (called directly or after a fade-out completes).
+	 * @param previousState The state to return to
 	 */
-	public void returnToPrevious()
+	private void executeReturnTo(GameState previousState)
 	{
-		if (_stateHistory.isEmpty())
-		{
-			System.err.println("WARNING: No previous state to return to.");
-			return;
-		}
-		
-		final GameState previousState = _stateHistory.pop();
-		
 		// Detach current.
 		if (_currentAppState != null)
 		{
@@ -170,14 +248,5 @@ public class GameStateManager
 			_currentAppState = previousAppState;
 			System.out.println("Returned to state: " + previousState);
 		}
-	}
-	
-	/**
-	 * Get the current game state.
-	 * @return The current GameState enum value, or null if no state is active
-	 */
-	public GameState getCurrentState()
-	{
-		return _currentState;
 	}
 }

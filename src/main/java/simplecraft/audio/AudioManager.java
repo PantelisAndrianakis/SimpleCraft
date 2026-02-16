@@ -12,6 +12,8 @@ import com.jme3.math.Vector3f;
 /**
  * Manages all audio playback including music with crossfading and sound effects.<br>
  * Gracefully handles missing audio files without crashing.
+ * @author Pantelis Andrianakis
+ * @since February 16th 2026
  */
 public class AudioManager
 {
@@ -32,6 +34,12 @@ public class AudioManager
 	private float _fadeDuration = 0f;
 	private float _fadeOutStartVolume = 0f;
 	
+	// Fade-in state for simple fade-ins (not crossfades).
+	private boolean _fadingIn = false;
+	private float _fadeInTargetVolume = 0f;
+	private float _fadeInDuration = 0f;
+	private float _fadeInTimer = 0f;
+	
 	// Active SFX for cleanup.
 	private final List<AudioNode> _activeSfx;
 	
@@ -45,7 +53,7 @@ public class AudioManager
 	
 	/**
 	 * Play a music track on loop. Stops any currently playing music.
-	 * @param assetPath Path to the .ogg file (e.g., "Audio/Music/theme.ogg")
+	 * @param assetPath Path to the .ogg file (e.g., "music/perspectives.ogg")
 	 */
 	public void playMusic(String assetPath)
 	{
@@ -60,6 +68,7 @@ public class AudioManager
 			// Load and play new music.
 			final AudioNode music = new AudioNode(_assetManager, assetPath, AudioData.DataType.Stream);
 			music.setLooping(true);
+			music.setPositional(false);
 			music.setVolume(_masterVolume * _musicVolume);
 			music.play();
 			
@@ -69,6 +78,44 @@ public class AudioManager
 		catch (Exception e)
 		{
 			System.err.println("WARNING: Could not load music: " + assetPath + " - " + e.getMessage());
+		}
+	}
+	
+	/**
+	 * Play a music track with a fade-in from silence.
+	 * @param assetPath Path to the .ogg file
+	 * @param fadeDuration Duration of the fade-in in seconds
+	 */
+	public void fadeInMusic(String assetPath, float fadeDuration)
+	{
+		try
+		{
+			// Stop current music if playing.
+			if (_currentMusic != null)
+			{
+				_currentMusic.stop();
+			}
+			
+			// Load new music and start at volume 0.
+			final AudioNode music = new AudioNode(_assetManager, assetPath, AudioData.DataType.Stream);
+			music.setLooping(true);
+			music.setPositional(false);
+			music.setVolume(0f);
+			music.play();
+			
+			_currentMusic = music;
+			
+			// Setup fade-in state.
+			_fadingIn = true;
+			_fadeInTimer = 0f;
+			_fadeInDuration = fadeDuration;
+			_fadeInTargetVolume = _masterVolume * _musicVolume;
+			
+			System.out.println("Fading in music: " + assetPath + " over " + fadeDuration + "s");
+		}
+		catch (Exception e)
+		{
+			System.err.println("WARNING: Could not load music for fade-in: " + assetPath + " - " + e.getMessage());
 		}
 	}
 	
@@ -84,6 +131,7 @@ public class AudioManager
 			// Load new music.
 			final AudioNode newMusic = new AudioNode(_assetManager, assetPath, AudioData.DataType.Stream);
 			newMusic.setLooping(true);
+			newMusic.setPositional(false);
 			newMusic.setVolume(0f);
 			newMusic.play();
 			
@@ -203,11 +251,27 @@ public class AudioManager
 	
 	/**
 	 * Update audio manager state. Must be called every frame.<br>
-	 * Handles crossfade interpolation and cleanup of finished SFX.
+	 * Handles crossfade interpolation, fade-ins, and cleanup of finished SFX.
 	 * @param tpf Time per frame in seconds
 	 */
 	public void update(float tpf)
 	{
+		// Handle simple fade-in (not part of crossfade).
+		if (_fadingIn && _currentMusic != null)
+		{
+			_fadeInTimer += tpf;
+			final float progress = Math.min(1f, _fadeInTimer / _fadeInDuration);
+			
+			final float volume = _fadeInTargetVolume * progress;
+			_currentMusic.setVolume(volume);
+			
+			if (progress >= 1f)
+			{
+				_fadingIn = false;
+				System.out.println("Music fade-in complete.");
+			}
+		}
+		
 		// Handle crossfade.
 		if (_fadingOutMusic != null || _fadingInMusic != null)
 		{
@@ -256,8 +320,8 @@ public class AudioManager
 	 */
 	private void updateAllVolumes()
 	{
-		// Update current music.
-		if (_currentMusic != null && _fadingInMusic != _currentMusic)
+		// Update current music (unless it's in the middle of a fade-in).
+		if (_currentMusic != null && !_fadingIn && _fadingInMusic != _currentMusic)
 		{
 			_currentMusic.setVolume(_masterVolume * _musicVolume);
 		}

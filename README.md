@@ -58,6 +58,16 @@ This project follows the [CODING_STYLE.md](CODING_STYLE.md) guidelines:
 
 The style is automatically enforced when using VS Code with the provided configuration files in the `.vscode` directory.
 
+## Acknowledgments
+
+This project was made possible by the following libraries:
+
+- jMonkeyEngine - core game engine and rendering.
+- Lemur UI - UI controls and layout.
+- OpenSimplex2 noise - included directly as a single Java file (no external dependency).
+
+Thanks to the authors and projects above for making development and distribution of SimpleCraft possible.
+
 ## License
 
 This project is licensed under the terms included in the [LICENSE.txt](LICENSE.txt) file.

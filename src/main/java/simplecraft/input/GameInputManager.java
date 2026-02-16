@@ -11,6 +11,8 @@ import com.jme3.input.controls.MouseButtonTrigger;
  * Manages all game input mappings.<br>
  * Centralizes action names and input bindings for keyboard and mouse.<br>
  * Controller support will be added later.
+ * @author Pantelis Andrianakis
+ * @since February 16th 2026
  */
 public class GameInputManager
 {
