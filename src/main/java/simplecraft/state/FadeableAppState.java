@@ -2,12 +2,13 @@ package simplecraft.state;
 
 import com.jme3.app.state.BaseAppState;
 import com.jme3.material.Material;
-import com.jme3.material.RenderState;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
+import simplecraft.state.GameStateManager.GameState;
 
 /**
  * Base state class that provides configurable fade-in and fade-out screen transitions.<br>
@@ -16,7 +17,7 @@ import simplecraft.SimpleCraft;
  * and optionally {@link #onUpdateState}, {@link #onFadeInComplete}, {@link #onFadeOutComplete}.<br>
  * <br>
  * The fade is rendered as a full-screen colored overlay in the GUI node.<br>
- * States can be switched with or without fading via {@link GameStateManager#switchTo(GameStateManager.GameState, boolean)}.
+ * States can be switched with or without fading via {@link GameStateManager#switchTo(GameState, boolean)}.
  * @author Pantelis Andrianakis
  * @since February 17th 2026
  */
@@ -271,7 +272,7 @@ public abstract class FadeableAppState extends BaseAppState
 		
 		_fadeMaterial = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
 		_fadeMaterial.setColor("Color", new ColorRGBA(color.r, color.g, color.b, initialAlpha));
-		_fadeMaterial.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
+		_fadeMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		
 		_fadeOverlay.setMaterial(_fadeMaterial);
 		_fadeOverlay.setLocalTranslation(0, 0, 10); // In front of all GUI content.

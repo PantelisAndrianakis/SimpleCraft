@@ -17,7 +17,7 @@ public class GameStateManager
 {
 	public enum GameState
 	{
-		SPLASH,
+		INTRO,
 		MAIN_MENU,
 		OPTIONS,
 		PLAYING,

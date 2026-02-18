@@ -3,7 +3,7 @@ package simplecraft;
 import java.io.File;
 
 import com.jme3.app.SimpleApplication;
-import com.jme3.math.ColorRGBA;
+import com.jme3.asset.plugins.FileLocator;
 import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext;
 import com.simsilica.lemur.GuiGlobals;
@@ -11,6 +11,12 @@ import com.simsilica.lemur.GuiGlobals;
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
 import simplecraft.state.GameStateManager;
+import simplecraft.state.GameStateManager.GameState;
+import simplecraft.state.IntroState;
+import simplecraft.state.MainMenuState;
+import simplecraft.state.PlayingState;
+import simplecraft.ui.CursorManager;
+import simplecraft.util.WindowIconLoader;
 
 /**
  * SimpleCraft - A simple voxel game built in Java.<br>
@@ -40,6 +46,9 @@ public class SimpleCraft extends SimpleApplication
 		settings.setGammaCorrection(false);
 		settings.setSamples(0);
 		
+		// Set window icons (taskbar + title bar).
+		WindowIconLoader.applyIcons(settings);
+		
 		app.setSettings(settings);
 		app.setShowSettings(false);
 		
@@ -50,27 +59,30 @@ public class SimpleCraft extends SimpleApplication
 	@Override
 	public void simpleInitApp()
 	{
-		// Set a dark gray background during initialization to minimize white flash.
-		// This will be visible for a very short time before the splash screen takes over.
-		viewPort.setBackgroundColor(new ColorRGBA(0.05f, 0.05f, 0.05f, 1.0f));
-		
 		// Initialize Lemur UI system.
 		GuiGlobals.initialize(this);
+		
+		// Disable stats view and FPS counter.
+		setDisplayStatView(false);
+		setDisplayFps(false);
 		
 		// Register the current working directory as an asset locator.
 		final String workingDir = System.getProperty("user.dir");
 		System.out.println("Working directory: " + workingDir);
 		
 		// Register both file and classpath locators for the current directory.
-		assetManager.registerLocator(workingDir, com.jme3.asset.plugins.FileLocator.class);
+		assetManager.registerLocator(workingDir, FileLocator.class);
 		
 		// Also register the assets folder directly.
 		final String assetsPath = workingDir + File.separator + "assets";
 		System.out.println("Registering assets path: " + assetsPath);
-		assetManager.registerLocator(assetsPath, com.jme3.asset.plugins.FileLocator.class);
+		assetManager.registerLocator(assetsPath, FileLocator.class);
 		
 		// Disable default flyCam to avoid input conflicts.
 		flyCam.setEnabled(false);
+		
+		// Initialize cursor manager to set custom cursor.
+		CursorManager.initialize(inputManager);
 		
 		// Initialize core managers in order.
 		System.out.println("Initializing core managers...");
@@ -85,11 +97,12 @@ public class SimpleCraft extends SimpleApplication
 		_gameStateManager = new GameStateManager(stateManager);
 		
 		// Register game states.
-		_gameStateManager.registerState(GameStateManager.GameState.SPLASH, new simplecraft.state.SplashState());
-		_gameStateManager.registerState(GameStateManager.GameState.MAIN_MENU, new simplecraft.state.MainMenuState());
+		_gameStateManager.registerState(GameState.INTRO, new IntroState());
+		_gameStateManager.registerState(GameState.MAIN_MENU, new MainMenuState());
+		_gameStateManager.registerState(GameState.PLAYING, new PlayingState());
 		
 		// Switch to initial splash state.
-		_gameStateManager.switchTo(GameStateManager.GameState.SPLASH);
+		_gameStateManager.switchTo(GameState.INTRO);
 		
 		System.out.println("SimpleCraft started successfully!");
 	}

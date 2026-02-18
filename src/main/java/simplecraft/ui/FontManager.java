@@ -1,4 +1,4 @@
-package simplecraft.util;
+package simplecraft.ui;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -8,8 +8,10 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import com.jme3.asset.AssetKey;
 import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapCharacter;
 import com.jme3.font.BitmapCharacterSet;
@@ -32,12 +34,16 @@ import com.jme3.util.BufferUtils;
  */
 public class FontManager
 {
+	// Public font paths.
+	public static final String BLUE_HIGHWAY_REGULAR_PATH = "fonts/blue_highway_rg.otf";
+	public static final String BLUE_HIGHWAY_LINOCUT_PATH = "fonts/blue_highway_linocut.otf";
+	
 	private static final int CHARS_PER_ROW = 16;
 	private static final int START_CHAR = 32; // Space.
 	private static final int END_CHAR = 127; // DEL (exclusive).
 	private static final int PADDING = 2;
 	
-	private static final HashMap<String, BitmapFont> _cache = new HashMap<>();
+	private static final Map<String, BitmapFont> _cache = new ConcurrentHashMap<>();
 	
 	/**
 	 * Get (or generate) a BitmapFont from a TTF or OTF font file in the asset path.<br>
@@ -62,7 +68,7 @@ public class FontManager
 		try
 		{
 			// Load the font file via jME3's AssetManager (supports registered locators).
-			final InputStream stream = assetManager.locateAsset(new com.jme3.asset.AssetKey<>(assetPath)).openStream();
+			final InputStream stream = assetManager.locateAsset(new AssetKey<>(assetPath)).openStream();
 			
 			// Font.TRUETYPE_FONT handles both TTF and OTF formats.
 			awtFont = Font.createFont(Font.TRUETYPE_FONT, stream);
