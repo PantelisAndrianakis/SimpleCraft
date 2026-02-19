@@ -20,6 +20,11 @@ import simplecraft.ui.FontManager;
 public class IntroState extends FadeableAppState
 {
 	private static final float HOLD_DURATION = 2.5f;
+	// Reference resolution for font scaling (1080p baseline).
+	private static final float REFERENCE_WIDTH = 1920f;
+	private static final float REFERENCE_HEIGHT = 1080f;
+	// Base font size at reference resolution.
+	private static final float BASE_FONT_SIZE = 96f;
 	
 	private Label _titleLabel;
 	private Geometry _background;
@@ -51,6 +56,18 @@ public class IntroState extends FadeableAppState
 	protected void onEnterState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final float screenWidth = app.getCamera().getWidth();
+		final float screenHeight = app.getCamera().getHeight();
+		
+		// Calculate resolution scale factor (using average of width/height ratios for balanced scaling).
+		final float widthScale = screenWidth / REFERENCE_WIDTH;
+		final float heightScale = screenHeight / REFERENCE_HEIGHT;
+		// Use the smaller scale to ensure text fits on screen, or average for balanced look.
+		final float scaleFactor = Math.min(widthScale, heightScale); // Conservative: text always fits.
+		// Alternative: final float scaleFactor = (widthScale + heightScale) / 2f; // Balanced scaling.
+		
+		// Calculate adaptive font size.
+		final float adaptiveFontSize = BASE_FONT_SIZE * scaleFactor;
 		
 		// Hide the mouse cursor.
 		app.getInputManager().setCursorVisible(false);
@@ -59,7 +76,7 @@ public class IntroState extends FadeableAppState
 		app.getViewPort().setBackgroundColor(ColorRGBA.White);
 		
 		// Create black background quad (will be visible after fade-in).
-		final Quad quad = new Quad(app.getCamera().getWidth(), app.getCamera().getHeight());
+		final Quad quad = new Quad(screenWidth, screenHeight);
 		_background = new Geometry("BlackBackground", quad);
 		
 		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
@@ -71,15 +88,15 @@ public class IntroState extends FadeableAppState
 		
 		// Create title text in white (so it's visible on black background).
 		_titleLabel = new Label("SimpleCraft");
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, 72));
-		_titleLabel.setFontSize(72);
+		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, (int) adaptiveFontSize));
+		_titleLabel.setFontSize(adaptiveFontSize);
 		_titleLabel.setColor(ColorRGBA.White); // White text on black background.
 		
 		// Center the label.
 		final float labelWidth = _titleLabel.getPreferredSize().x;
 		final float labelHeight = _titleLabel.getPreferredSize().y;
-		final float x = (app.getCamera().getWidth() - labelWidth) / 2f;
-		final float y = (app.getCamera().getHeight() + labelHeight) / 1.9f;
+		final float x = (screenWidth - labelWidth) / 2f;
+		final float y = (screenHeight + labelHeight) / 1.9f;
 		_titleLabel.setLocalTranslation(x, y, 0);
 		
 		app.getGuiNode().attachChild(_titleLabel);

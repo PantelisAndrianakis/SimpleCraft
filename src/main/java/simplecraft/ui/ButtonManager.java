@@ -10,6 +10,7 @@ import com.jme3.scene.Spatial;
 import com.simsilica.lemur.HAlignment;
 import com.simsilica.lemur.Label;
 import com.simsilica.lemur.Panel;
+import com.simsilica.lemur.VAlignment;
 import com.simsilica.lemur.component.TbtQuadBackgroundComponent;
 import com.simsilica.lemur.event.CursorButtonEvent;
 import com.simsilica.lemur.event.CursorEventControl;
@@ -21,7 +22,8 @@ import simplecraft.SimpleCraft;
 /**
  * Utility class for creating styled UI buttons with 9-slice texture backgrounds.<br>
  * Supports normal, hover, and pressed visual states using TbtQuadBackgroundComponent.<br>
- * Provides three sizing modes: texture-based, fixed pixel, and screen percentage.
+ * Provides three sizing modes: texture-based, fixed pixel, and screen percentage.<br>
+ * Font size automatically scales with button height for consistent visuals at any resolution.
  * @author Pantelis Andrianakis
  * @since February 18th 2026
  */
@@ -37,7 +39,10 @@ public class ButtonManager
 	private static final int INSET_RIGHT = 4;
 	private static final int INSET_BOTTOM = 4;
 	
-	private static final int BUTTON_FONT_SIZE = 28;
+	// Font size as a proportion of button height. 52% fills the button well.
+	private static final float FONT_HEIGHT_RATIO = 0.52f;
+	private static final int FALLBACK_FONT_SIZE = 28;
+	
 	private static final float BG_Z_OFFSET = 0.01f;
 	private static final long CLICK_COOLDOWN_MS = 300;
 	
@@ -50,7 +55,7 @@ public class ButtonManager
 	 */
 	public static Panel createMenuButton(AssetManager assetManager, String text, Runnable action)
 	{
-		return createMenuButtonInternal(assetManager, text, BUTTON_FONT_SIZE, -1, -1, action);
+		return createMenuButtonInternal(assetManager, text, FALLBACK_FONT_SIZE, -1, -1, action);
 	}
 	
 	/**
@@ -64,7 +69,8 @@ public class ButtonManager
 	 */
 	public static Panel createMenuButton(AssetManager assetManager, String text, float xSize, float ySize, Runnable action)
 	{
-		return createMenuButtonInternal(assetManager, text, BUTTON_FONT_SIZE, xSize, ySize, action);
+		final int fontSize = Math.max(10, (int) (ySize * FONT_HEIGHT_RATIO));
+		return createMenuButtonInternal(assetManager, text, fontSize, xSize, ySize, action);
 	}
 	
 	/**
@@ -81,7 +87,8 @@ public class ButtonManager
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final float xSize = app.getCamera().getWidth() * xPercentage;
 		final float ySize = app.getCamera().getHeight() * yPercentage;
-		return createMenuButtonInternal(assetManager, text, BUTTON_FONT_SIZE, xSize, ySize, action);
+		final int fontSize = Math.max(10, (int) (ySize * FONT_HEIGHT_RATIO));
+		return createMenuButtonInternal(assetManager, text, fontSize, xSize, ySize, action);
 	}
 	
 	/**
@@ -101,6 +108,7 @@ public class ButtonManager
 		button.setFont(FontManager.getFont(assetManager, FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, fontSize));
 		button.setFontSize(fontSize);
 		button.setTextHAlignment(HAlignment.Center);
+		button.setTextVAlignment(VAlignment.Center);
 		
 		// Set explicit size if provided, otherwise let the texture define the size.
 		if (xSize > 0 && ySize > 0)

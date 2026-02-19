@@ -43,6 +43,23 @@ public class FontManager
 	private static final int END_CHAR = 127; // DEL (exclusive).
 	private static final int PADDING = 2;
 	
+	// Extra Unicode characters to include in the font atlas beyond ASCII 32-126.
+	private static final char[] EXTRA_CHARS =
+	{
+		'\u25A0', // ■ Black square.
+		'\u25C0', // ◀ Left-pointing triangle.
+		'\u25B6', // ▶ Right-pointing triangle.
+		'\u25CF', // ● Black circle.
+		'\u00B7', // · Middle dot.
+	};
+	
+	// Public symbol constants for use by UI components.
+	public static final String SYMBOL_SQUARE = "\u25A0";
+	public static final String SYMBOL_ARROW_LEFT = "\u25C0";
+	public static final String SYMBOL_ARROW_RIGHT = "\u25B6";
+	public static final String SYMBOL_CIRCLE = "\u25CF";
+	public static final String SYMBOL_DOT = "\u00B7";
+	
 	private static final Map<String, BitmapFont> _cache = new ConcurrentHashMap<>();
 	
 	/**
@@ -128,23 +145,47 @@ public class FontManager
 	
 	private static BitmapFont generateFont(AssetManager assetManager, Font awtFont, int size)
 	{
-		final int numChars = END_CHAR - START_CHAR;
+		// Build combined character list: ASCII range + extra Unicode symbols.
+		final int asciiCount = END_CHAR - START_CHAR;
+		final int totalChars = asciiCount + EXTRA_CHARS.length;
+		final char[] allChars = new char[totalChars];
+		
+		for (int i = 0; i < asciiCount; i++)
+		{
+			allChars[i] = (char) (START_CHAR + i);
+		}
+		
+		for (int i = 0; i < EXTRA_CHARS.length; i++)
+		{
+			allChars[asciiCount + i] = EXTRA_CHARS[i];
+		}
+		
+		// Create a fallback system font for characters the primary font cannot display.
+		final Font fallbackFont = new Font("Dialog", awtFont.getStyle(), awtFont.getSize());
+		
+		// Determine which font to use per character.
+		final Font[] fontPerChar = new Font[totalChars];
+		for (int i = 0; i < totalChars; i++)
+		{
+			fontPerChar[i] = awtFont.canDisplay(allChars[i]) ? awtFont : fallbackFont;
+		}
 		
 		// First pass: measure all characters using a temporary Graphics2D.
 		final BufferedImage tempImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		final Graphics2D tempGraphics = tempImage.createGraphics();
-		tempGraphics.setFont(awtFont);
 		
-		final FontMetrics metrics = tempGraphics.getFontMetrics();
-		final int charHeight = metrics.getHeight();
-		final int ascent = metrics.getAscent();
+		final FontMetrics primaryMetrics = tempGraphics.getFontMetrics(awtFont);
+		final FontMetrics fallbackMetrics = tempGraphics.getFontMetrics(fallbackFont);
+		final int charHeight = Math.max(primaryMetrics.getHeight(), fallbackMetrics.getHeight());
+		final int ascent = Math.max(primaryMetrics.getAscent(), fallbackMetrics.getAscent());
 		
-		final int[] charWidths = new int[numChars];
+		final int[] charWidths = new int[totalChars];
 		int maxCharWidth = 0;
 		
-		for (int i = 0; i < numChars; i++)
+		for (int i = 0; i < totalChars; i++)
 		{
-			charWidths[i] = metrics.charWidth((char) (START_CHAR + i));
+			final FontMetrics metrics = tempGraphics.getFontMetrics(fontPerChar[i]);
+			charWidths[i] = metrics.charWidth(allChars[i]);
 			
 			if (charWidths[i] > maxCharWidth)
 			{
@@ -157,7 +198,7 @@ public class FontManager
 		// Calculate atlas dimensions (power-of-two for GPU compatibility).
 		final int cellWidth = maxCharWidth + PADDING * 2;
 		final int cellHeight = charHeight + PADDING * 2;
-		final int rows = (numChars + CHARS_PER_ROW - 1) / CHARS_PER_ROW;
+		final int rows = (totalChars + CHARS_PER_ROW - 1) / CHARS_PER_ROW;
 		
 		final int atlasWidth = nextPowerOfTwo(CHARS_PER_ROW * cellWidth);
 		final int atlasHeight = nextPowerOfTwo(rows * cellHeight);
@@ -169,7 +210,6 @@ public class FontManager
 		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-		graphics.setFont(awtFont);
 		graphics.setColor(Color.WHITE);
 		
 		// Build the BitmapCharacterSet alongside rendering.
@@ -180,7 +220,7 @@ public class FontManager
 		charSet.setWidth(atlasWidth);
 		charSet.setHeight(atlasHeight);
 		
-		for (int i = 0; i < numChars; i++)
+		for (int i = 0; i < totalChars; i++)
 		{
 			final int col = i % CHARS_PER_ROW;
 			final int row = i / CHARS_PER_ROW;
@@ -188,8 +228,9 @@ public class FontManager
 			final int x = col * cellWidth + PADDING;
 			final int y = row * cellHeight + PADDING;
 			
-			// Draw the glyph. drawString baseline is at y + ascent.
-			graphics.drawString(String.valueOf((char) (START_CHAR + i)), x, y + ascent);
+			// Draw the glyph using the appropriate font (primary or fallback).
+			graphics.setFont(fontPerChar[i]);
+			graphics.drawString(String.valueOf(allChars[i]), x, y + ascent);
 			
 			// Register the character in the set.
 			final BitmapCharacter bc = new BitmapCharacter();
@@ -202,7 +243,7 @@ public class FontManager
 			bc.setXAdvance(charWidths[i]);
 			bc.setPage(0);
 			
-			charSet.addCharacter(START_CHAR + i, bc);
+			charSet.addCharacter(allChars[i], bc);
 		}
 		
 		graphics.dispose();

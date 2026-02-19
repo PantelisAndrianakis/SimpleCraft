@@ -7,18 +7,15 @@
 :: Requirements:
 ::   - Java 25 or later
 ::   - SimpleCraft.jar built using Build.bat
-:: Usage: SimpleCraft.bat
+:: Usage: SimpleCraft.bat [/debug]
 ::   - Simply run this script to start the game
 ::   - Will verify Java installation before launching
+::   - Use /debug to show console window for debugging
 :: ======================================================
 
 @echo off
 title SimpleCraft
 setlocal enabledelayedexpansion
-echo =================================================
-echo       Starting SimpleCraft
-echo =================================================
-echo.
 
 :: Check if Java is installed.
 java -version >nul 2>&1
@@ -57,21 +54,25 @@ if not exist "assets" (
 	echo Warning: assets folder not found. Game may not run correctly.
 )
 
-echo Found Java version !JAVA_VERSION_STR!
-echo Starting SimpleCraft...
-echo.
-
-:: Run the game.
-java ^
-	--add-opens=java.base/java.lang=ALL-UNNAMED ^
-	--add-opens=java.base/java.nio=ALL-UNNAMED ^
-	--add-opens=java.base/sun.nio.ch=ALL-UNNAMED ^
-	--add-opens=java.base/java.lang.reflect=ALL-UNNAMED ^
-	-jar SimpleCraft.jar
-
-:: Pause if there was an error.
-if %ERRORLEVEL% neq 0 (
+:: Launch game
+if "%1"=="/debug" (
+	echo Found Java version !JAVA_VERSION_STR!
+	echo Starting SimpleCraft...
 	echo.
-	echo SimpleCraft failed to run with error code %ERRORLEVEL%
-	pause
+	java ^
+		--add-opens=java.base/java.lang=ALL-UNNAMED ^
+		--add-opens=java.base/java.nio=ALL-UNNAMED ^
+		--add-opens=java.base/sun.nio.ch=ALL-UNNAMED ^
+		--add-opens=java.base/java.lang.reflect=ALL-UNNAMED ^
+		-jar SimpleCraft.jar
+	
+	:: Pause if there was an error.
+	if %ERRORLEVEL% neq 0 (
+		echo.
+		echo SimpleCraft failed to run with error code %ERRORLEVEL%
+		pause
+	)
+) else (
+	:: Normal mode - no console
+	start /min java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -jar SimpleCraft.jar
 )

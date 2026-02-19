@@ -10,10 +10,12 @@ import com.simsilica.lemur.GuiGlobals;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
+import simplecraft.settings.SettingsManager;
 import simplecraft.state.GameStateManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.state.IntroState;
 import simplecraft.state.MainMenuState;
+import simplecraft.state.OptionsState;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.CursorManager;
 import simplecraft.util.WindowIconLoader;
@@ -27,6 +29,7 @@ import simplecraft.util.WindowIconLoader;
 public class SimpleCraft extends SimpleApplication
 {
 	// Core managers.
+	private SettingsManager _settingsManager;
 	private GameStateManager _gameStateManager;
 	private AudioManager _audioManager;
 	private GameInputManager _gameInputManager;
@@ -35,14 +38,19 @@ public class SimpleCraft extends SimpleApplication
 	{
 		final SimpleCraft app = getInstance();
 		
+		// Load settings early for display configuration.
+		app._settingsManager = new SettingsManager();
+		app._settingsManager.load();
+		
 		final AppSettings settings = new AppSettings(true);
 		settings.setTitle("SimpleCraft");
-		settings.setWidth(1280);
-		settings.setHeight(720);
+		settings.setWidth(app._settingsManager.getScreenWidth());
+		settings.setHeight(app._settingsManager.getScreenHeight());
+		settings.setFullscreen(app._settingsManager.isFullscreen());
 		settings.setVSync(true);
 		
 		// Try to set initial framebuffer clear color (may help with white flash).
-		settings.setFrameRate(60);
+		settings.setFrameRate(SettingsManager.getNativeRefreshRate());
 		settings.setGammaCorrection(false);
 		settings.setSamples(0);
 		
@@ -62,9 +70,9 @@ public class SimpleCraft extends SimpleApplication
 		// Initialize Lemur UI system.
 		GuiGlobals.initialize(this);
 		
-		// Disable stats view and FPS counter.
-		setDisplayStatView(false);
-		setDisplayFps(false);
+		// Apply debug display settings from persisted settings.
+		setDisplayStatView(_settingsManager.isShowStats());
+		setDisplayFps(_settingsManager.isShowFps());
 		
 		// Register the current working directory as an asset locator.
 		final String workingDir = System.getProperty("user.dir");
@@ -87,18 +95,24 @@ public class SimpleCraft extends SimpleApplication
 		// Initialize core managers in order.
 		System.out.println("Initializing core managers...");
 		
-		// 1. Input Manager (sets up all input mappings).
+		// Input Manager (sets up all input mappings).
 		_gameInputManager = new GameInputManager(inputManager);
 		
-		// 2. Audio Manager (handles music and SFX).
+		// Audio Manager (handles music and SFX).
 		_audioManager = new AudioManager(assetManager);
 		
-		// 3. Game State Manager (manages state transitions).
+		// Apply saved volume settings to Audio Manager.
+		_audioManager.setMasterVolume(_settingsManager.getMasterVolume());
+		_audioManager.setMusicVolume(_settingsManager.getMusicVolume());
+		_audioManager.setSfxVolume(_settingsManager.getSfxVolume());
+		
+		// Game State Manager (manages state transitions).
 		_gameStateManager = new GameStateManager(stateManager);
 		
 		// Register game states.
 		_gameStateManager.registerState(GameState.INTRO, new IntroState());
 		_gameStateManager.registerState(GameState.MAIN_MENU, new MainMenuState());
+		_gameStateManager.registerState(GameState.OPTIONS, new OptionsState());
 		_gameStateManager.registerState(GameState.PLAYING, new PlayingState());
 		
 		// Switch to initial splash state.
@@ -115,6 +129,11 @@ public class SimpleCraft extends SimpleApplication
 		{
 			_audioManager.update(tpf);
 		}
+	}
+	
+	public SettingsManager getSettingsManager()
+	{
+		return _settingsManager;
 	}
 	
 	public GameStateManager getGameStateManager()

@@ -1,10 +1,24 @@
-# SimpleCraft
+<p align="center">
+  <img src="assets/images/app_icons/icon_128.png" alt="SimpleCraft Logo" width="128" height="128">
+</p>
 
-A simple voxel game built in Java.
+<h1 align="center">SimpleCraft</h1>
+
+<p align="center">A simple voxel game built in Java.</p>
+
+#
 
 ## Requirements
 
-- JDK 25
+| Component | Requirement |
+|-----------|-------------|
+| **OS** | Windows 10/11 (64-bit), Linux, or macOS 10.15+ |
+| **Processor** | Intel Core i3 or AMD Ryzen 3 (2 cores, 2.5 GHz+) |
+| **Memory** | 4 GB RAM |
+| **Graphics** | OpenGL 3.2 compatible GPU with 1 GB VRAM |
+| **Display** | 1152×864 resolution or higher |
+| **Storage** | 500 MB available space |
+| **Java** | JDK 25 or compatible runtime |
 
 ## Build & Run
 
@@ -70,4 +84,5 @@ Thanks to the authors and projects above for making development and distribution
 
 ## License
 
-This project is licensed under the terms included in the [LICENSE.txt](LICENSE.txt) file.
+This project is licensed under the [MIT License](LICENSE.txt).
+
