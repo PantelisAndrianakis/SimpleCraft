@@ -1,4 +1,4 @@
-package simplecraft.util;
+package simplecraft.settings;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -11,11 +11,11 @@ import javax.imageio.ImageIO;
 import com.jme3.system.AppSettings;
 
 /**
- * Utility class for loading and applying window icons.
+ * Manages loading and applying window icons.
  * @author Pantelis Andrianakis
  * @since February 18th 2026
  */
-public class WindowIconLoader
+public class WindowIconManager
 {
 	private static final String[] ICON_PATHS =
 	{

@@ -5,12 +5,14 @@ import java.io.File;
 import com.jme3.app.SimpleApplication;
 import com.jme3.asset.plugins.FileLocator;
 import com.jme3.system.AppSettings;
-import com.jme3.system.JmeContext;
+import com.jme3.system.JmeContext.Type;
 import com.simsilica.lemur.GuiGlobals;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
 import simplecraft.settings.SettingsManager;
+import simplecraft.settings.WindowDisplayManager;
+import simplecraft.settings.WindowIconManager;
 import simplecraft.state.GameStateManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.state.IntroState;
@@ -18,7 +20,6 @@ import simplecraft.state.MainMenuState;
 import simplecraft.state.OptionsState;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.CursorManager;
-import simplecraft.util.WindowIconLoader;
 
 /**
  * SimpleCraft - A simple voxel game built in Java.<br>
@@ -46,7 +47,7 @@ public class SimpleCraft extends SimpleApplication
 		settings.setTitle("SimpleCraft");
 		settings.setWidth(app._settingsManager.getScreenWidth());
 		settings.setHeight(app._settingsManager.getScreenHeight());
-		settings.setFullscreen(app._settingsManager.isFullscreen());
+		settings.setFullscreen(false); // Always start windowed; borderless fullscreen is applied post-init.
 		settings.setVSync(true);
 		
 		// Try to set initial framebuffer clear color (may help with white flash).
@@ -55,13 +56,13 @@ public class SimpleCraft extends SimpleApplication
 		settings.setSamples(0);
 		
 		// Set window icons (taskbar + title bar).
-		WindowIconLoader.applyIcons(settings);
+		WindowIconManager.applyIcons(settings);
 		
 		app.setSettings(settings);
 		app.setShowSettings(false);
 		
 		// Use JME context display mode for better window control.
-		app.start(JmeContext.Type.Display);
+		app.start(Type.Display);
 	}
 	
 	@Override
@@ -117,6 +118,12 @@ public class SimpleCraft extends SimpleApplication
 		
 		// Switch to initial splash state.
 		_gameStateManager.switchTo(GameState.INTRO);
+		
+		// If fullscreen is enabled, apply borderless windowed fullscreen now that the window exists.
+		if (_settingsManager.isFullscreen())
+		{
+			WindowDisplayManager.applyBorderlessFullscreen();
+		}
 		
 		System.out.println("SimpleCraft started successfully!");
 	}

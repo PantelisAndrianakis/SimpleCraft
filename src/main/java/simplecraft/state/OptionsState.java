@@ -7,9 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWVidMode;
-
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
 import com.jme3.input.KeyInput;
@@ -25,7 +22,6 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.Spatial.CullHint;
-import com.jme3.system.AppSettings;
 import com.jme3.ui.Picture;
 import com.simsilica.lemur.Axis;
 import com.simsilica.lemur.Button;
@@ -46,6 +42,7 @@ import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
 import simplecraft.settings.SettingsManager;
+import simplecraft.settings.WindowDisplayManager;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
 import simplecraft.ui.QuestionManager;
@@ -605,7 +602,7 @@ public class OptionsState extends FadeableAppState
 			final boolean newValue = !settings.isFullscreen();
 			settings.setFullscreen(newValue);
 			updateToggleButton(_fullscreenToggle, newValue);
-			applyDisplaySettings();
+			WindowDisplayManager.applyCurrentSettings();
 		});
 		final Label fsLabel = createNameLabel(app, "Fullscreen");
 		_displayContent.addChild(createToggleRow(app, fsLabel, _fullscreenToggle));
@@ -615,7 +612,7 @@ public class OptionsState extends FadeableAppState
 			final boolean newValue = !settings.isFullscreen();
 			settings.setFullscreen(newValue);
 			updateToggleButton(_fullscreenToggle, newValue);
-			applyDisplaySettings();
+			WindowDisplayManager.applyCurrentSettings();
 		};
 		_displayContentSlots.add(new FocusSlot(fsLabel, toggleFullscreen, toggleFullscreen, toggleFullscreen));
 		addRowSpacer(_displayContent);
@@ -2200,7 +2197,7 @@ public class OptionsState extends FadeableAppState
 		settings.setResolutionByIndex(_resolutionIndex);
 		_resolutionValueLabel.setText(formatResolution(_resolutionIndex));
 		
-		applyDisplaySettings();
+		WindowDisplayManager.applyCurrentSettings();
 	}
 	
 	/**
@@ -2243,65 +2240,6 @@ public class OptionsState extends FadeableAppState
 		refreshKeybindButtons();
 		
 		// Apply display settings (UI will rebuild via screen size detection).
-		applyDisplaySettings();
-	}
-	
-	/**
-	 * Apply the current display settings from SettingsManager immediately.<br>
-	 * Enqueues the change on the render thread for safe execution.
-	 */
-	private void applyDisplaySettings()
-	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final SettingsManager settingsManager = app.getSettingsManager();
-		final int width = settingsManager.getScreenWidth();
-		final int height = settingsManager.getScreenHeight();
-		final boolean fullscreen = settingsManager.isFullscreen();
-		
-		app.enqueue(() ->
-		{
-			final long windowHandle = GLFW.glfwGetCurrentContext();
-			if (windowHandle == 0)
-			{
-				System.err.println("WARNING: WindowDisplaySettings: Could not get GLFW window handle.");
-				return null;
-			}
-			
-			final long monitor = GLFW.glfwGetPrimaryMonitor();
-			
-			if (fullscreen)
-			{
-				// Switch to fullscreen at the requested resolution.
-				final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(monitor);
-				final int refreshRate = (vidMode != null) ? vidMode.refreshRate() : 60;
-				GLFW.glfwSetWindowMonitor(windowHandle, monitor, 0, 0, width, height, refreshRate);
-			}
-			else
-			{
-				// Switch to windowed mode and resize.
-				GLFW.glfwSetWindowMonitor(windowHandle, 0, 0, 0, width, height, -1);
-				
-				// Center the window on the primary monitor.
-				final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(monitor);
-				if (vidMode != null)
-				{
-					final int posX = (vidMode.width() - width) / 2;
-					final int posY = (vidMode.height() - height) / 2;
-					GLFW.glfwSetWindowPos(windowHandle, posX, posY);
-				}
-			}
-			
-			// Update jME3's internal settings to match.
-			final AppSettings appSettings = app.getContext().getSettings();
-			appSettings.setWidth(width);
-			appSettings.setHeight(height);
-			appSettings.setFullscreen(fullscreen);
-			
-			// Notify jME3 of the new size so camera and viewports update.
-			app.reshape(width, height);
-			
-			System.out.println("WindowDisplaySettings: Applied " + width + "x" + height + " fullscreen=" + fullscreen);
-			return null;
-		});
+		WindowDisplayManager.applyCurrentSettings();
 	}
 }
