@@ -1,7 +1,9 @@
 package simplecraft.state;
 
 import java.awt.Font;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -12,6 +14,7 @@ import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
 import com.jme3.input.KeyInput;
 import com.jme3.input.RawInputListener;
+import com.jme3.input.controls.ActionListener;
 import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.JoyButtonEvent;
 import com.jme3.input.event.KeyInputEvent;
@@ -163,6 +166,69 @@ public class OptionsState extends FadeableAppState
 	private long _listenStartTime;
 	private RawInputListener _rawInputListener;
 	
+	// --- Keyboard navigation (flat focus list) ---
+	
+	private static final ColorRGBA FOCUS_HIGHLIGHT_COLOR = new ColorRGBA(1f, 0.85f, 0f, 1f);
+	
+	/**
+	 * A focusable slot in the navigation list.<br>
+	 * Stores the label to highlight and callbacks for directional input and confirmation.
+	 */
+	private static class FocusSlot
+	{
+		final Label label;
+		final Runnable onFocus;
+		final Runnable onUnfocus;
+		final Runnable onLeft;
+		final Runnable onRight;
+		final Runnable onConfirm;
+		
+		/** Label-based content slot (label is highlighted yellow/white). */
+		FocusSlot(Label label, Runnable onLeft, Runnable onRight, Runnable onConfirm)
+		{
+			this.label = label;
+			this.onFocus = null;
+			this.onUnfocus = null;
+			this.onLeft = onLeft;
+			this.onRight = onRight;
+			this.onConfirm = onConfirm;
+		}
+		
+		/** Custom slot with explicit focus/unfocus callbacks (for tab rows, bottom buttons). */
+		FocusSlot(Runnable onFocus, Runnable onUnfocus, Runnable onLeft, Runnable onRight, Runnable onConfirm)
+		{
+			this.label = null;
+			this.onFocus = onFocus;
+			this.onUnfocus = onUnfocus;
+			this.onLeft = onLeft;
+			this.onRight = onRight;
+			this.onConfirm = onConfirm;
+		}
+	}
+	
+	// Per-tab content focus slots.
+	private final List<FocusSlot> _displayContentSlots = new ArrayList<>();
+	private final List<FocusSlot> _audioContentSlots = new ArrayList<>();
+	private final List<FocusSlot> _keyMovementSlots = new ArrayList<>();
+	private final List<FocusSlot> _keyActionsSlots = new ArrayList<>();
+	private final List<FocusSlot> _keyMouseSlots = new ArrayList<>();
+	
+	// Special navigation slots.
+	private FocusSlot _tabRowSlot;
+	private FocusSlot _subTabRowSlot;
+	private FocusSlot _bottomRowSlot;
+	
+	// Assembled flat focus list and current index (-1 = no focus, mouse-only mode).
+	private final List<FocusSlot> _focusList = new ArrayList<>();
+	private int _focusIndex = -1;
+	private int _bottomFocusIndex = 1; // 0 = Defaults, 1 = Back.
+	
+	// Bottom button references for focus highlighting.
+	private Panel _defaultsButton;
+	private Panel _backButton;
+	
+	private ActionListener _navigationListener;
+	
 	public OptionsState()
 	{
 		setFadeIn(0.6f, new ColorRGBA(0, 0, 0, 1));
@@ -182,7 +248,10 @@ public class OptionsState extends FadeableAppState
 	@Override
 	protected void onEnterState()
 	{
+		_focusIndex = -1;
+		_bottomFocusIndex = 1;
 		buildGui();
+		registerNavigationListener();
 	}
 	
 	@Override
@@ -190,6 +259,7 @@ public class OptionsState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
+		unregisterNavigationListener();
 		cancelListening();
 		QuestionManager.dismiss();
 		app.getSettingsManager().save();
@@ -207,8 +277,10 @@ public class OptionsState extends FadeableAppState
 		final int currentHeight = app.getCamera().getHeight();
 		if (currentWidth != _lastScreenWidth || currentHeight != _lastScreenHeight)
 		{
+			unregisterNavigationListener();
 			detachAllGui();
 			buildGui();
+			registerNavigationListener();
 			return;
 		}
 		
@@ -348,6 +420,7 @@ public class OptionsState extends FadeableAppState
 			QuestionManager.show("Reset to defaults?", this::applyDefaults, null);
 		});
 		_buttonRow.addChild(defaultsButton);
+		_defaultsButton = defaultsButton;
 		
 		final Label buttonSpacer = new Label("");
 		buttonSpacer.setPreferredSize(new Vector3f(screenWidth * 0.016f, 1, 0));
@@ -359,6 +432,7 @@ public class OptionsState extends FadeableAppState
 			app.getGameStateManager().returnToPrevious(true);
 		});
 		_buttonRow.addChild(backButton);
+		_backButton = backButton;
 		
 		final float buttonRowWidth = _buttonRow.getPreferredSize().x;
 		_buttonRow.setLocalTranslation(screenCenterX - (buttonRowWidth / 2f), screenHeight * 0.12f, 0);
@@ -384,6 +458,12 @@ public class OptionsState extends FadeableAppState
 		
 		// Show only the active tab content.
 		showTab(_activeTab);
+		
+		// Build special navigation slots.
+		buildSpecialSlots(app);
+		
+		// Assemble the flat focus list.
+		rebuildFocusList();
 	}
 	
 	/**
@@ -475,6 +555,19 @@ public class OptionsState extends FadeableAppState
 		_listeningAction = null;
 		_listeningButton = null;
 		_listeningForMouse = false;
+		
+		// Clear navigation state.
+		_displayContentSlots.clear();
+		_audioContentSlots.clear();
+		_keyMovementSlots.clear();
+		_keyActionsSlots.clear();
+		_keyMouseSlots.clear();
+		_focusList.clear();
+		_tabRowSlot = null;
+		_subTabRowSlot = null;
+		_bottomRowSlot = null;
+		_defaultsButton = null;
+		_backButton = null;
 	}
 	
 	// ========== TAB CONTENT BUILDERS ==========
@@ -484,6 +577,8 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void buildDisplayContent(SimpleCraft app, SettingsManager settings, float sliderWidth)
 	{
+		_displayContentSlots.clear();
+		
 		// Resolution selector.
 		_resolutionIndex = settings.getResolutionIndex();
 		if (_resolutionIndex < 0)
@@ -492,7 +587,14 @@ public class OptionsState extends FadeableAppState
 			_resolutionIndex = SettingsManager.getAvailableResolutions().length - 1;
 		}
 		_resolutionValueLabel = createValueLabel(formatResolution(_resolutionIndex));
-		_displayContent.addChild(createResolutionRow(app));
+		final Label resLabel = createNameLabel(app, "Resolution");
+		_displayContent.addChild(createResolutionRow(app, resLabel));
+		// @formatter:off
+		_displayContentSlots.add(new FocusSlot(resLabel,
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(-1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(1); },
+			null));
+		// @formatter:on
 		addRowSpacer(_displayContent);
 		
 		// Fullscreen toggle.
@@ -503,10 +605,19 @@ public class OptionsState extends FadeableAppState
 			final boolean newValue = !settings.isFullscreen();
 			settings.setFullscreen(newValue);
 			updateToggleButton(_fullscreenToggle, newValue);
-			
 			applyDisplaySettings();
 		});
-		_displayContent.addChild(createToggleRow(app, "Fullscreen", _fullscreenToggle));
+		final Label fsLabel = createNameLabel(app, "Fullscreen");
+		_displayContent.addChild(createToggleRow(app, fsLabel, _fullscreenToggle));
+		final Runnable toggleFullscreen = () ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final boolean newValue = !settings.isFullscreen();
+			settings.setFullscreen(newValue);
+			updateToggleButton(_fullscreenToggle, newValue);
+			applyDisplaySettings();
+		};
+		_displayContentSlots.add(new FocusSlot(fsLabel, toggleFullscreen, toggleFullscreen, toggleFullscreen));
 		addRowSpacer(_displayContent);
 		
 		// Render Distance slider.
@@ -516,7 +627,14 @@ public class OptionsState extends FadeableAppState
 		_renderDistanceSlider.getModel().setMaximum(16);
 		_renderDistanceSlider.getModel().setValue(settings.getRenderDistance());
 		_renderDistanceValueLabel = createValueLabel(String.valueOf(settings.getRenderDistance()));
-		_displayContent.addChild(createSliderRow(app, "Render Distance", _renderDistanceSlider, _renderDistanceValueLabel));
+		final Label rdLabel = createNameLabel(app, "Render Distance");
+		_displayContent.addChild(createSliderRow(app, rdLabel, _renderDistanceSlider, _renderDistanceValueLabel));
+		// @formatter:off
+		_displayContentSlots.add(new FocusSlot(rdLabel,
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, -1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, 1); },
+			null));
+		// @formatter:on
 		addRowSpacer(_displayContent);
 		
 		// Show Stats toggle.
@@ -529,7 +647,17 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_showStatsToggle, newValue);
 			app.setDisplayStatView(newValue);
 		});
-		_displayContent.addChild(createToggleRow(app, "Show Stats", _showStatsToggle));
+		final Label ssLabel = createNameLabel(app, "Show Stats");
+		_displayContent.addChild(createToggleRow(app, ssLabel, _showStatsToggle));
+		final Runnable toggleStats = () ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final boolean newValue = !settings.isShowStats();
+			settings.setShowStats(newValue);
+			updateToggleButton(_showStatsToggle, newValue);
+			app.setDisplayStatView(newValue);
+		};
+		_displayContentSlots.add(new FocusSlot(ssLabel, toggleStats, toggleStats, toggleStats));
 		addRowSpacer(_displayContent);
 		
 		// Show FPS toggle.
@@ -542,7 +670,17 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_showFpsToggle, newValue);
 			app.setDisplayFps(newValue);
 		});
-		_displayContent.addChild(createToggleRow(app, "Show FPS", _showFpsToggle));
+		final Label fpsLabel = createNameLabel(app, "Show FPS");
+		_displayContent.addChild(createToggleRow(app, fpsLabel, _showFpsToggle));
+		final Runnable toggleFps = () ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final boolean newValue = !settings.isShowFps();
+			settings.setShowFps(newValue);
+			updateToggleButton(_showFpsToggle, newValue);
+			app.setDisplayFps(newValue);
+		};
+		_displayContentSlots.add(new FocusSlot(fpsLabel, toggleFps, toggleFps, toggleFps));
 		
 		// Setup versioned references and style sliders.
 		_renderDistanceRef = _renderDistanceSlider.getModel().createReference();
@@ -554,6 +692,8 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void buildAudioContent(SimpleCraft app, SettingsManager settings, float sliderWidth)
 	{
+		_audioContentSlots.clear();
+		
 		// Master Volume.
 		_masterSlider = new Slider(Axis.X);
 		_masterSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
@@ -561,7 +701,14 @@ public class OptionsState extends FadeableAppState
 		_masterSlider.getModel().setMaximum(100);
 		_masterSlider.getModel().setValue(settings.getMasterVolume() * 100.0);
 		_masterValueLabel = createValueLabel(String.format("%.2f", settings.getMasterVolume()));
-		_audioContent.addChild(createSliderRow(app, "Master Volume", _masterSlider, _masterValueLabel));
+		final Label masterLabel = createNameLabel(app, "Master Volume");
+		_audioContent.addChild(createSliderRow(app, masterLabel, _masterSlider, _masterValueLabel));
+		// @formatter:off
+		_audioContentSlots.add(new FocusSlot(masterLabel,
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, -1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, 1); },
+			null));
+		// @formatter:on
 		addRowSpacer(_audioContent);
 		
 		// Music Volume.
@@ -571,7 +718,14 @@ public class OptionsState extends FadeableAppState
 		_musicSlider.getModel().setMaximum(100);
 		_musicSlider.getModel().setValue(settings.getMusicVolume() * 100.0);
 		_musicValueLabel = createValueLabel(String.format("%.2f", settings.getMusicVolume()));
-		_audioContent.addChild(createSliderRow(app, "Music Volume", _musicSlider, _musicValueLabel));
+		final Label musicLabel = createNameLabel(app, "Music Volume");
+		_audioContent.addChild(createSliderRow(app, musicLabel, _musicSlider, _musicValueLabel));
+		// @formatter:off
+		_audioContentSlots.add(new FocusSlot(musicLabel,
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, -1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, 1); },
+			null));
+		// @formatter:on
 		addRowSpacer(_audioContent);
 		
 		// SFX Volume.
@@ -581,7 +735,14 @@ public class OptionsState extends FadeableAppState
 		_sfxSlider.getModel().setMaximum(100);
 		_sfxSlider.getModel().setValue(settings.getSfxVolume() * 100.0);
 		_sfxValueLabel = createValueLabel(String.format("%.2f", settings.getSfxVolume()));
-		_audioContent.addChild(createSliderRow(app, "SFX Volume", _sfxSlider, _sfxValueLabel));
+		final Label sfxLabel = createNameLabel(app, "SFX Volume");
+		_audioContent.addChild(createSliderRow(app, sfxLabel, _sfxSlider, _sfxValueLabel));
+		// @formatter:off
+		_audioContentSlots.add(new FocusSlot(sfxLabel,
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, -1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, 1); },
+			null));
+		// @formatter:on
 		
 		// Setup versioned references and style sliders.
 		_masterVolumeRef = _masterSlider.getModel().createReference();
@@ -603,6 +764,9 @@ public class OptionsState extends FadeableAppState
 		
 		_keybindButtons.clear();
 		_mouseBindButtons.clear();
+		_keyMovementSlots.clear();
+		_keyActionsSlots.clear();
+		_keyMouseSlots.clear();
 		
 		// --- Rebindable Keyboard Actions (routed to the correct sub-tab container) ---
 		for (String[] entry : GameInputManager.BINDABLE_ACTIONS)
@@ -611,15 +775,18 @@ public class OptionsState extends FadeableAppState
 			final String displayName = entry[1];
 			final String section = entry[2];
 			
-			// Determine which sub-tab container this action belongs to.
+			// Determine which sub-tab container and slot list this action belongs to.
 			final Container target;
+			final List<FocusSlot> targetSlots;
 			if ("Movement".equals(section))
 			{
 				target = _keyMovementContent;
+				targetSlots = _keyMovementSlots;
 			}
 			else
 			{
 				target = _keyActionsContent;
+				targetSlots = _keyActionsSlots;
 			}
 			
 			// Create the key button for this action.
@@ -635,8 +802,16 @@ public class OptionsState extends FadeableAppState
 				startListening(actionRef, keyButton, false);
 			});
 			
-			target.addChild(createKeybindingRow(app, displayName, keyButton));
+			final Label nameLabel = createKeybindNameLabel(app, displayName);
+			target.addChild(createKeybindingRow(app, nameLabel, keyButton));
 			addRowSpacer(target);
+			
+			// Focus slot: Enter starts listening.
+			targetSlots.add(new FocusSlot(nameLabel, null, null, () ->
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				startListening(actionRef, keyButton, false);
+			}));
 		}
 		
 		// --- Mouse-Rebindable Actions ---
@@ -656,11 +831,19 @@ public class OptionsState extends FadeableAppState
 				startListening(actionRef, mouseButton, true);
 			});
 			
-			_keyMouseContent.addChild(createKeybindingRow(app, displayName, mouseButton));
+			final Label nameLabel = createKeybindNameLabel(app, displayName);
+			_keyMouseContent.addChild(createKeybindingRow(app, nameLabel, mouseButton));
 			addRowSpacer(_keyMouseContent);
+			
+			// Focus slot: Enter starts listening.
+			_keyMouseSlots.add(new FocusSlot(nameLabel, null, null, () ->
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				startListening(actionRef, mouseButton, true);
+			}));
 		}
 		
-		// --- Fixed Mouse / System Bindings (styled but not clickable) ---
+		// --- Fixed Mouse / System Bindings (styled but not clickable, no focus slots) ---
 		for (String[] entry : GameInputManager.FIXED_BINDINGS)
 		{
 			final String displayName = entry[0];
@@ -959,20 +1142,17 @@ public class OptionsState extends FadeableAppState
 	/**
 	 * Create a row with a right-aligned action name and a left-aligned rebindable key button,<br>
 	 * centered on screen with a gap between them.
+	 * @param app The application instance
+	 * @param nameLabel Pre-created name label for the row
+	 * @param keyButton The rebindable key Button
+	 * @return A configured Container
 	 */
-	private Container createKeybindingRow(SimpleCraft app, String actionName, Button keyButton)
+	private Container createKeybindingRow(SimpleCraft app, Label nameLabel, Button keyButton)
 	{
 		final Container row = new Container();
 		row.setBackground(null);
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		final Label nameLabel = new Label(actionName);
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
-		nameLabel.setFontSize(_labelFontSize);
-		nameLabel.setColor(ColorRGBA.White);
-		nameLabel.setTextHAlignment(HAlignment.Right);
-		nameLabel.setTextVAlignment(VAlignment.Center);
-		nameLabel.setPreferredSize(new Vector3f(_keybindLabelWidth, _sliderHeight, 0));
 		row.addChild(nameLabel);
 		
 		final Label gap = new Label("");
@@ -1052,6 +1232,7 @@ public class OptionsState extends FadeableAppState
 		}
 		
 		updateTabStyles();
+		rebuildFocusList();
 	}
 	
 	/**
@@ -1088,6 +1269,7 @@ public class OptionsState extends FadeableAppState
 		_keyMouseContent.setCullHint(subTab == SUB_TAB_MOUSE ? CullHint.Inherit : CullHint.Always);
 		
 		updateSubTabStyles();
+		rebuildFocusList();
 	}
 	
 	/**
@@ -1296,8 +1478,13 @@ public class OptionsState extends FadeableAppState
 	
 	/**
 	 * Create a horizontal row containing a label, slider, and value display.
+	 * @param app The application instance
+	 * @param nameLabel Pre-created name label for the row
+	 * @param slider The Lemur Slider control
+	 * @param valueLabel The value display label
+	 * @return A configured Container with all elements
 	 */
-	private Container createSliderRow(SimpleCraft app, String labelText, Slider slider, Label valueLabel)
+	private Container createSliderRow(SimpleCraft app, Label nameLabel, Slider slider, Label valueLabel)
 	{
 		final Container row = new Container();
 		row.setBackground(null);
@@ -1305,13 +1492,6 @@ public class OptionsState extends FadeableAppState
 		
 		final BitmapFont arrowFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _sliderButtonFontSize);
 		
-		final Label nameLabel = new Label(labelText);
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
-		nameLabel.setFontSize(_labelFontSize);
-		nameLabel.setColor(ColorRGBA.White);
-		nameLabel.setTextHAlignment(HAlignment.Left);
-		nameLabel.setTextVAlignment(VAlignment.Center);
-		nameLabel.setPreferredSize(new Vector3f(_labelWidth, _sliderHeight, 0));
 		row.addChild(nameLabel);
 		
 		// External left arrow with click-to-decrement.
@@ -1362,8 +1542,11 @@ public class OptionsState extends FadeableAppState
 	
 	/**
 	 * Create the resolution selector row with left/right arrow buttons.
+	 * @param app The application instance
+	 * @param nameLabel Pre-created name label for the row
+	 * @return A configured Container with label, arrows, and value display
 	 */
-	private Container createResolutionRow(SimpleCraft app)
+	private Container createResolutionRow(SimpleCraft app, Label nameLabel)
 	{
 		final Container row = new Container();
 		row.setBackground(null);
@@ -1371,13 +1554,6 @@ public class OptionsState extends FadeableAppState
 		
 		final BitmapFont arrowFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _sliderButtonFontSize);
 		
-		final Label nameLabel = new Label("Resolution");
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
-		nameLabel.setFontSize(_labelFontSize);
-		nameLabel.setColor(ColorRGBA.White);
-		nameLabel.setTextHAlignment(HAlignment.Left);
-		nameLabel.setTextVAlignment(VAlignment.Center);
-		nameLabel.setPreferredSize(new Vector3f(_labelWidth, _sliderHeight, 0));
 		row.addChild(nameLabel);
 		
 		final Button leftArrow = new Button(FontManager.SYMBOL_ARROW_LEFT);
@@ -1421,25 +1597,57 @@ public class OptionsState extends FadeableAppState
 	
 	/**
 	 * Create a row with a label and a toggle button.
+	 * @param app The application instance
+	 * @param nameLabel Pre-created name label for the row
+	 * @param toggleButton The toggle Button control
+	 * @return A configured Container with label and toggle
 	 */
-	private Container createToggleRow(SimpleCraft app, String labelText, Button toggleButton)
+	private Container createToggleRow(SimpleCraft app, Label nameLabel, Button toggleButton)
 	{
 		final Container row = new Container();
 		row.setBackground(null);
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		final Label nameLabel = new Label(labelText);
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
-		nameLabel.setFontSize(_labelFontSize);
-		nameLabel.setColor(ColorRGBA.White);
-		nameLabel.setTextHAlignment(HAlignment.Left);
-		nameLabel.setTextVAlignment(VAlignment.Center);
-		nameLabel.setPreferredSize(new Vector3f(_labelWidth, _sliderHeight, 0));
 		row.addChild(nameLabel);
-		
 		row.addChild(toggleButton);
 		
 		return row;
+	}
+	
+	/**
+	 * Create a styled name label for use in content rows.
+	 * @param app The application instance
+	 * @param text The label text
+	 * @return A configured Label
+	 */
+	private Label createNameLabel(SimpleCraft app, String text)
+	{
+		final Label label = new Label(text);
+		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
+		label.setFontSize(_labelFontSize);
+		label.setColor(ColorRGBA.White);
+		label.setTextHAlignment(HAlignment.Left);
+		label.setTextVAlignment(VAlignment.Center);
+		label.setPreferredSize(new Vector3f(_labelWidth, _sliderHeight, 0));
+		return label;
+	}
+	
+	/**
+	 * Create a styled name label for keybinding rows (right-aligned, wider).
+	 * @param app The application instance
+	 * @param text The label text
+	 * @return A configured Label
+	 */
+	private Label createKeybindNameLabel(SimpleCraft app, String text)
+	{
+		final Label label = new Label(text);
+		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
+		label.setFontSize(_labelFontSize);
+		label.setColor(ColorRGBA.White);
+		label.setTextHAlignment(HAlignment.Right);
+		label.setTextVAlignment(VAlignment.Center);
+		label.setPreferredSize(new Vector3f(_keybindLabelWidth, _sliderHeight, 0));
+		return label;
 	}
 	
 	/**
@@ -1506,6 +1714,470 @@ public class OptionsState extends FadeableAppState
 		final float width = container.getPreferredSize().x;
 		final float height = container.getPreferredSize().y;
 		container.setLocalTranslation(screenCenterX - (width / 2f), (screenHeight + height) / 2f - screenHeight * 0.06f, 0);
+	}
+	
+	// ========== KEYBOARD NAVIGATION ==========
+	
+	/**
+	 * Register the keyboard navigation action listener.<br>
+	 * W/S navigates the flat focus list, A/D adjusts values or switches tabs, Enter confirms.
+	 */
+	private void registerNavigationListener()
+	{
+		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		_navigationListener = (name, isPressed, tpf) ->
+		{
+			if (!isPressed)
+			{
+				return;
+			}
+			
+			// Ignore navigation while listening for a keybinding.
+			if (_listeningAction != null)
+			{
+				return;
+			}
+			
+			// When a question dialog is active, delegate navigation to it.
+			if (QuestionManager.isActive())
+			{
+				handleQuestionNavigation(app, name);
+				return;
+			}
+			
+			// Escape always triggers back navigation, even in mouse-only mode.
+			if (GameInputManager.UI_BACK.equals(name))
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				app.getGameStateManager().returnToPrevious(true);
+				return;
+			}
+			
+			// First keyboard input activates focus on the tab row.
+			if (_focusIndex < 0)
+			{
+				_focusIndex = 0;
+				focusCurrentSlot();
+				return;
+			}
+			
+			switch (name)
+			{
+				case GameInputManager.UI_UP:
+				{
+					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+					moveFocus(-1);
+					break;
+				}
+				case GameInputManager.UI_DOWN:
+				{
+					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+					moveFocus(1);
+					break;
+				}
+				case GameInputManager.UI_LEFT:
+				{
+					handleSlotAction(getCurrentSlot(), true);
+					break;
+				}
+				case GameInputManager.UI_RIGHT:
+				{
+					handleSlotAction(getCurrentSlot(), false);
+					break;
+				}
+				case GameInputManager.UI_CONFIRM:
+				{
+					handleSlotConfirm(getCurrentSlot());
+					break;
+				}
+			}
+		};
+		
+		app.getInputManager().addListener(_navigationListener, GameInputManager.UI_UP, GameInputManager.UI_DOWN, GameInputManager.UI_LEFT, GameInputManager.UI_RIGHT, GameInputManager.UI_CONFIRM, GameInputManager.UI_BACK);
+	}
+	
+	/**
+	 * Unregister the keyboard navigation action listener.
+	 */
+	private void unregisterNavigationListener()
+	{
+		if (_navigationListener != null)
+		{
+			SimpleCraft.getInstance().getInputManager().removeListener(_navigationListener);
+			_navigationListener = null;
+		}
+	}
+	
+	/**
+	 * Handle keyboard navigation when a QuestionManager dialog is active.
+	 */
+	private void handleQuestionNavigation(SimpleCraft app, String name)
+	{
+		switch (name)
+		{
+			case GameInputManager.UI_LEFT:
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				QuestionManager.navigateLeft();
+				break;
+			}
+			case GameInputManager.UI_RIGHT:
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				QuestionManager.navigateRight();
+				break;
+			}
+			case GameInputManager.UI_CONFIRM:
+			{
+				QuestionManager.confirmSelection();
+				break;
+			}
+			case GameInputManager.UI_BACK:
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				QuestionManager.dismiss();
+				break;
+			}
+		}
+	}
+	
+	/**
+	 * Build the three special navigation slots (tab row, sub-tab row, bottom buttons).
+	 */
+	private void buildSpecialSlots(SimpleCraft app)
+	{
+		// Tab row slot: A/D cycle tabs.
+		// @formatter:off
+		_tabRowSlot = new FocusSlot(
+			() -> highlightActiveTab(true),
+			() -> highlightActiveTab(false),
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleTabFromSlot(-1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleTabFromSlot(1); },
+			null
+		);
+		// @formatter:on
+		
+		// Sub-tab row slot: A/D cycle sub-tabs.
+		// @formatter:off
+		_subTabRowSlot = new FocusSlot(
+			() -> highlightActiveSubTab(true),
+			() -> highlightActiveSubTab(false),
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleSubTabFromSlot(-1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleSubTabFromSlot(1); },
+			null
+		);
+		// @formatter:on
+		
+		// Bottom button slot: A/D switch between Defaults/Back, Enter activates.
+		// @formatter:off
+		_bottomRowSlot = new FocusSlot(
+			this::highlightBottomButtons,
+			this::unhighlightBottomButtons,
+			() -> { _bottomFocusIndex = 0; highlightBottomButtons(); },
+			() -> { _bottomFocusIndex = 1; highlightBottomButtons(); },
+			this::activateBottomButton
+		);
+		// @formatter:on
+	}
+	
+	/**
+	 * Assemble the flat focus list from the tab slot, active content slots, and bottom slot.
+	 */
+	private void rebuildFocusList()
+	{
+		// Unfocus current slot if valid.
+		if (_focusIndex >= 0 && _focusIndex < _focusList.size())
+		{
+			unfocusSlot(_focusList.get(_focusIndex));
+		}
+		
+		_focusList.clear();
+		
+		// Tab row always first.
+		_focusList.add(_tabRowSlot);
+		
+		// Content based on active tab.
+		switch (_activeTab)
+		{
+			case TAB_DISPLAY:
+			{
+				_focusList.addAll(_displayContentSlots);
+				break;
+			}
+			case TAB_AUDIO:
+			{
+				_focusList.addAll(_audioContentSlots);
+				break;
+			}
+			case TAB_KEYBINDINGS:
+			{
+				_focusList.add(_subTabRowSlot);
+				switch (_activeSubTab)
+				{
+					case SUB_TAB_MOVEMENT:
+					{
+						_focusList.addAll(_keyMovementSlots);
+						break;
+					}
+					case SUB_TAB_ACTIONS:
+					{
+						_focusList.addAll(_keyActionsSlots);
+						break;
+					}
+					case SUB_TAB_MOUSE:
+					{
+						_focusList.addAll(_keyMouseSlots);
+						break;
+					}
+				}
+				break;
+			}
+		}
+		
+		// Bottom buttons always last.
+		_focusList.add(_bottomRowSlot);
+		
+		// Re-apply focus if active.
+		if (_focusIndex >= 0)
+		{
+			_focusIndex = Math.min(_focusIndex, _focusList.size() - 1);
+			focusCurrentSlot();
+		}
+	}
+	
+	/**
+	 * Move focus up or down in the flat list with wrapping.
+	 * @param offset -1 for up, +1 for down
+	 */
+	private void moveFocus(int offset)
+	{
+		if (_focusList.isEmpty())
+		{
+			return;
+		}
+		
+		// Unfocus current.
+		unfocusSlot(_focusList.get(_focusIndex));
+		
+		final int count = _focusList.size();
+		_focusIndex = ((_focusIndex + offset) % count + count) % count;
+		
+		// Focus new.
+		focusCurrentSlot();
+	}
+	
+	/**
+	 * Get the currently focused slot, or null if no focus.
+	 */
+	private FocusSlot getCurrentSlot()
+	{
+		if (_focusIndex >= 0 && _focusIndex < _focusList.size())
+		{
+			return _focusList.get(_focusIndex);
+		}
+		return null;
+	}
+	
+	/**
+	 * Apply focus visuals to the current slot.
+	 */
+	private void focusCurrentSlot()
+	{
+		if (_focusIndex >= 0 && _focusIndex < _focusList.size())
+		{
+			focusSlot(_focusList.get(_focusIndex));
+		}
+	}
+	
+	/**
+	 * Apply focus visuals to a slot.
+	 */
+	private void focusSlot(FocusSlot slot)
+	{
+		if (slot == null)
+		{
+			return;
+		}
+		if (slot.label != null)
+		{
+			slot.label.setColor(FOCUS_HIGHLIGHT_COLOR);
+		}
+		if (slot.onFocus != null)
+		{
+			slot.onFocus.run();
+		}
+	}
+	
+	/**
+	 * Remove focus visuals from a slot.
+	 */
+	private void unfocusSlot(FocusSlot slot)
+	{
+		if (slot == null)
+		{
+			return;
+		}
+		if (slot.label != null)
+		{
+			slot.label.setColor(ColorRGBA.White);
+		}
+		if (slot.onUnfocus != null)
+		{
+			slot.onUnfocus.run();
+		}
+	}
+	
+	/**
+	 * Handle A/D input for a slot.
+	 */
+	private void handleSlotAction(FocusSlot slot, boolean isLeft)
+	{
+		if (slot == null)
+		{
+			return;
+		}
+		final Runnable action = isLeft ? slot.onLeft : slot.onRight;
+		if (action != null)
+		{
+			action.run();
+		}
+	}
+	
+	/**
+	 * Handle Enter input for a slot.
+	 */
+	private void handleSlotConfirm(FocusSlot slot)
+	{
+		if (slot != null && slot.onConfirm != null)
+		{
+			slot.onConfirm.run();
+		}
+	}
+	
+	/**
+	 * Cycle main tabs from the tab row slot and rebuild the focus list.
+	 */
+	private void cycleTabFromSlot(int direction)
+	{
+		final int tabCount = 3;
+		final int newTab = ((_activeTab + direction) % tabCount + tabCount) % tabCount;
+		showTab(newTab);
+		// showTab calls rebuildFocusList; re-apply focus on the tab row.
+		_focusIndex = 0;
+		focusCurrentSlot();
+	}
+	
+	/**
+	 * Cycle keybinding sub-tabs from the sub-tab row slot and rebuild the focus list.
+	 */
+	private void cycleSubTabFromSlot(int direction)
+	{
+		final int subTabCount = 3;
+		final int newSubTab = ((_activeSubTab + direction) % subTabCount + subTabCount) % subTabCount;
+		showSubTab(newSubTab);
+		// showSubTab calls rebuildFocusList; re-apply focus on the sub-tab row (index 1).
+		_focusIndex = 1;
+		focusCurrentSlot();
+	}
+	
+	/**
+	 * Highlight the active tab label with focus color or standard active color.
+	 */
+	private void highlightActiveTab(boolean focused)
+	{
+		final ColorRGBA activeColor = focused ? FOCUS_HIGHLIGHT_COLOR : TAB_ACTIVE_COLOR;
+		if (_tabDisplayButton != null)
+		{
+			_tabDisplayButton.setColor(_activeTab == TAB_DISPLAY ? activeColor : TAB_INACTIVE_COLOR);
+		}
+		if (_tabAudioButton != null)
+		{
+			_tabAudioButton.setColor(_activeTab == TAB_AUDIO ? activeColor : TAB_INACTIVE_COLOR);
+		}
+		if (_tabKeybindingsButton != null)
+		{
+			_tabKeybindingsButton.setColor(_activeTab == TAB_KEYBINDINGS ? activeColor : TAB_INACTIVE_COLOR);
+		}
+	}
+	
+	/**
+	 * Highlight the active sub-tab label with focus color or standard active color.
+	 */
+	private void highlightActiveSubTab(boolean focused)
+	{
+		final ColorRGBA activeColor = focused ? FOCUS_HIGHLIGHT_COLOR : TAB_ACTIVE_COLOR;
+		if (_subTabMovementButton != null)
+		{
+			_subTabMovementButton.setColor(_activeSubTab == SUB_TAB_MOVEMENT ? activeColor : TAB_INACTIVE_COLOR);
+		}
+		if (_subTabActionsButton != null)
+		{
+			_subTabActionsButton.setColor(_activeSubTab == SUB_TAB_ACTIONS ? activeColor : TAB_INACTIVE_COLOR);
+		}
+		if (_subTabMouseButton != null)
+		{
+			_subTabMouseButton.setColor(_activeSubTab == SUB_TAB_MOUSE ? activeColor : TAB_INACTIVE_COLOR);
+		}
+	}
+	
+	/**
+	 * Highlight the focused bottom button.
+	 */
+	private void highlightBottomButtons()
+	{
+		if (_defaultsButton != null)
+		{
+			ButtonManager.setFocused(_defaultsButton, _bottomFocusIndex == 0);
+		}
+		if (_backButton != null)
+		{
+			ButtonManager.setFocused(_backButton, _bottomFocusIndex == 1);
+		}
+	}
+	
+	/**
+	 * Remove focus highlight from both bottom buttons.
+	 */
+	private void unhighlightBottomButtons()
+	{
+		if (_defaultsButton != null)
+		{
+			ButtonManager.setFocused(_defaultsButton, false);
+		}
+		if (_backButton != null)
+		{
+			ButtonManager.setFocused(_backButton, false);
+		}
+	}
+	
+	/**
+	 * Activate the currently focused bottom button.
+	 */
+	private void activateBottomButton()
+	{
+		final SimpleCraft app = SimpleCraft.getInstance();
+		if (_bottomFocusIndex == 0)
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			QuestionManager.show("Reset to defaults?", this::applyDefaults, null);
+		}
+		else
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			app.getGameStateManager().returnToPrevious(true);
+		}
+	}
+	
+	/**
+	 * Adjust a slider by the given step, clamping to min/max.
+	 * @param slider The slider to adjust
+	 * @param step The amount to change (positive or negative)
+	 */
+	private void adjustSlider(Slider slider, double step)
+	{
+		final double newVal = Math.max(slider.getModel().getMinimum(), Math.min(slider.getModel().getMaximum(), slider.getModel().getValue() + step));
+		slider.getModel().setValue(newVal);
 	}
 	
 	// ========== RESOLUTION / DEFAULTS ==========

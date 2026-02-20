@@ -6,19 +6,7 @@
 
 <p align="center">A simple voxel game built in Java.</p>
 
-#
-
-## Requirements
-
-| Component | Requirement |
-|-----------|-------------|
-| **OS** | Windows 10/11 (64-bit), Linux, or macOS 10.15+ |
-| **Processor** | Intel Core i3 or AMD Ryzen 3 (2 cores, 2.5 GHz+) |
-| **Memory** | 4 GB RAM |
-| **Graphics** | OpenGL 3.2 compatible GPU with 1 GB VRAM |
-| **Display** | 1152×864 resolution or higher |
-| **Storage** | 500 MB available space |
-| **Java** | JDK 25 or compatible runtime |
+<br>
 
 ## Build & Run
 
@@ -62,15 +50,40 @@ The distribution package is available in the `build/distributions/` folder as `S
 
 This package includes everything needed to run the game. Extract the zip file and use the included `SimpleCraft.bat` to launch the game.
 
+<br>
+
 ## Coding Style
 
 This project follows the [CODING_STYLE.md](CODING_STYLE.md) guidelines:
-- Allman brace style (braces on new lines).
-- 4-space indentation using tabs.
-- 120 character line limit.
-- Organized imports with `simplecraft` packages first.
+
+1. **No Type Inference** - Always use explicit types. `var` is forbidden.
+2. **No Streams API** - Use traditional loops for visibility and performance.
+3. **No Null Annotations** - Use explicit null checks.
+4. **GC Awareness** - Avoid allocations in hot paths; prefer pooling.
+5. **Primitive Preference** - Avoid boxing/unboxing overhead.
+6. **Single-Line Code** - All control flow, conditions, signatures on single lines.
+7. **Allman Braces** - Opening braces on new lines always.
+8. **Complete Sentences** - Comments are documentation.
+9. **Don't Over-Engineer** - YAGNI (You Ain't Gonna Need It).
+10. **Traditional Switch Only** - No arrow syntax or switch expressions.
 
 The style is automatically enforced when using VS Code with the provided configuration files in the `.vscode` directory.
+
+<br>
+
+## Requirements
+
+| Component | Requirement |
+|-----------|-------------|
+| **OS** | Windows 10/11 (64-bit), Linux, or macOS 10.15+ |
+| **Processor** | Intel Core i3 or AMD Ryzen 3 (2 cores, 2.5 GHz+) |
+| **Memory** | 4 GB RAM |
+| **Graphics** | OpenGL 3.2 compatible GPU with 1 GB VRAM |
+| **Display** | 1152×864 resolution or higher |
+| **Storage** | 500 MB available space |
+| **Java** | JDK 25 or compatible runtime |
+
+<br>
 
 ## Acknowledgments
 
@@ -82,7 +95,10 @@ This project was made possible by the following libraries:
 
 Thanks to the authors and projects above for making development and distribution of SimpleCraft possible.
 
+<br>
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE.txt).
 
+<br>

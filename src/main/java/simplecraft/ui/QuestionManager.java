@@ -41,6 +41,13 @@ public class QuestionManager
 	private static Geometry _backdrop;
 	private static Container _dialogContainer;
 	
+	// Keyboard navigation state.
+	private static Panel _yesButton;
+	private static Panel _noButton;
+	private static Runnable _yesAction;
+	private static Runnable _noAction;
+	private static int _selectedIndex = -1; // -1 = no keyboard focus, 0 = Yes, 1 = No
+	
 	/**
 	 * Show a modal question dialog with Yes and No buttons.<br>
 	 * The dialog is centered on screen with a semi-transparent dark backdrop.<br>
@@ -58,6 +65,11 @@ public class QuestionManager
 		final AssetManager assetManager = app.getAssetManager();
 		final float screenWidth = app.getCamera().getWidth();
 		final float screenHeight = app.getCamera().getHeight();
+		
+		// Store action references for keyboard confirmation.
+		_yesAction = yesAction;
+		_noAction = noAction;
+		_selectedIndex = -1; // No keyboard focus until first keyboard input.
 		
 		// --- Semi-transparent backdrop ---
 		final Quad backdropQuad = new Quad(screenWidth, screenHeight);
@@ -93,17 +105,18 @@ public class QuestionManager
 		buttonRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
 		// Yes button.
-		final Panel yesButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "Yes", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
+		_yesButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "Yes", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final Runnable action = _yesAction;
 			dismiss();
 			
-			if (yesAction != null)
+			if (action != null)
 			{
-				yesAction.run();
+				action.run();
 			}
 		});
-		buttonRow.addChild(yesButton);
+		buttonRow.addChild(_yesButton);
 		
 		// Horizontal spacer between buttons.
 		final Label buttonSpacer = new Label("");
@@ -111,17 +124,18 @@ public class QuestionManager
 		buttonRow.addChild(buttonSpacer);
 		
 		// No button.
-		final Panel noButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "No", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
+		_noButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "No", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final Runnable action = _noAction;
 			dismiss();
 			
-			if (noAction != null)
+			if (action != null)
 			{
-				noAction.run();
+				action.run();
 			}
 		});
-		buttonRow.addChild(noButton);
+		buttonRow.addChild(_noButton);
 		
 		_dialogContainer.addChild(buttonRow);
 		
@@ -156,6 +170,12 @@ public class QuestionManager
 			app.getGuiNode().detachChild(_dialogContainer);
 			_dialogContainer = null;
 		}
+		
+		_yesButton = null;
+		_noButton = null;
+		_yesAction = null;
+		_noAction = null;
+		_selectedIndex = -1;
 	}
 	
 	/**
@@ -165,5 +185,84 @@ public class QuestionManager
 	public static boolean isActive()
 	{
 		return _dialogContainer != null;
+	}
+	
+	// ========== KEYBOARD NAVIGATION ==========
+	
+	/**
+	 * Move keyboard focus to the left button (Yes).
+	 */
+	public static void navigateLeft()
+	{
+		if (!isActive())
+		{
+			return;
+		}
+		
+		_selectedIndex = 0;
+		updateSelectionVisuals();
+	}
+	
+	/**
+	 * Move keyboard focus to the right button (No).
+	 */
+	public static void navigateRight()
+	{
+		if (!isActive())
+		{
+			return;
+		}
+		
+		_selectedIndex = 1;
+		updateSelectionVisuals();
+	}
+	
+	/**
+	 * Activate the currently focused button (Yes or No).<br>
+	 * Only fires if keyboard focus is active. On first press without prior navigation,<br>
+	 * activates focus on Yes without firing the action.
+	 */
+	public static void confirmSelection()
+	{
+		if (!isActive())
+		{
+			return;
+		}
+		
+		// First confirm press activates focus on Yes without firing.
+		if (_selectedIndex < 0)
+		{
+			_selectedIndex = 0;
+			updateSelectionVisuals();
+			SimpleCraft.getInstance().getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			return;
+		}
+		
+		final SimpleCraft app = SimpleCraft.getInstance();
+		app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+		
+		final Runnable action = (_selectedIndex == 0) ? _yesAction : _noAction;
+		dismiss();
+		
+		if (action != null)
+		{
+			action.run();
+		}
+	}
+	
+	/**
+	 * Update button visuals to reflect the current keyboard selection.<br>
+	 * The selected button shows the hover texture and yellow text; the other shows normal and white.
+	 */
+	private static void updateSelectionVisuals()
+	{
+		if (_yesButton != null)
+		{
+			ButtonManager.setFocused(_yesButton, _selectedIndex == 0);
+		}
+		if (_noButton != null)
+		{
+			ButtonManager.setFocused(_noButton, _selectedIndex == 1);
+		}
 	}
 }

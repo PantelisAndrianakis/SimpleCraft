@@ -49,6 +49,8 @@ public class GameInputManager
 	public static final String PAUSE = "pause";
 	public static final String UI_UP = "ui_up";
 	public static final String UI_DOWN = "ui_down";
+	public static final String UI_LEFT = "ui_left";
+	public static final String UI_RIGHT = "ui_right";
 	public static final String UI_CONFIRM = "ui_confirm";
 	public static final String UI_BACK = "ui_back";
 	
@@ -320,9 +322,18 @@ public class GameInputManager
 		}
 		
 		// Fixed UI navigation keys (not rebindable).
+		// Arrow keys.
 		_inputManager.addMapping(UI_UP, new KeyTrigger(KeyInput.KEY_UP));
 		_inputManager.addMapping(UI_DOWN, new KeyTrigger(KeyInput.KEY_DOWN));
+		_inputManager.addMapping(UI_LEFT, new KeyTrigger(KeyInput.KEY_LEFT));
+		_inputManager.addMapping(UI_RIGHT, new KeyTrigger(KeyInput.KEY_RIGHT));
+		// WASD as secondary UI navigation (unaffected by key rebinding).
+		_inputManager.addMapping(UI_UP, new KeyTrigger(KeyInput.KEY_W));
+		_inputManager.addMapping(UI_DOWN, new KeyTrigger(KeyInput.KEY_S));
+		_inputManager.addMapping(UI_LEFT, new KeyTrigger(KeyInput.KEY_A));
+		_inputManager.addMapping(UI_RIGHT, new KeyTrigger(KeyInput.KEY_D));
 		_inputManager.addMapping(UI_CONFIRM, new KeyTrigger(KeyInput.KEY_RETURN));
+		_inputManager.addMapping(UI_CONFIRM, new KeyTrigger(KeyInput.KEY_SPACE));
 		_inputManager.addMapping(UI_BACK, new KeyTrigger(KeyInput.KEY_ESCAPE));
 		_inputManager.addMapping(PAUSE, new KeyTrigger(KeyInput.KEY_ESCAPE));
 	}

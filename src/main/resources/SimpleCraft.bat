@@ -8,9 +8,9 @@
 ::   - Java 25 or later
 ::   - SimpleCraft.jar built using Build.bat
 :: Usage: SimpleCraft.bat [/debug]
-::   - Simply run this script to start the game
-::   - Will verify Java installation before launching
-::   - Use /debug to show console window for debugging
+::   - Simply run this script to start the game.
+::   - Will verify Java installation before launching.
+::   - Use /debug to show console window for debugging.
 :: ======================================================
 
 @echo off
@@ -54,17 +54,12 @@ if not exist "assets" (
 	echo Warning: assets folder not found. Game may not run correctly.
 )
 
-:: Launch game
+:: Launch game.
 if "%1"=="/debug" (
 	echo Found Java version !JAVA_VERSION_STR!
 	echo Starting SimpleCraft...
 	echo.
-	java ^
-		--add-opens=java.base/java.lang=ALL-UNNAMED ^
-		--add-opens=java.base/java.nio=ALL-UNNAMED ^
-		--add-opens=java.base/sun.nio.ch=ALL-UNNAMED ^
-		--add-opens=java.base/java.lang.reflect=ALL-UNNAMED ^
-		-jar SimpleCraft.jar
+	java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -jar SimpleCraft.jar
 	
 	:: Pause if there was an error.
 	if %ERRORLEVEL% neq 0 (
@@ -73,6 +68,6 @@ if "%1"=="/debug" (
 		pause
 	)
 ) else (
-	:: Normal mode - no console
-	start /min java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -jar SimpleCraft.jar
+	:: Normal mode - no console.
+	start /min javaw --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -jar SimpleCraft.jar
 )

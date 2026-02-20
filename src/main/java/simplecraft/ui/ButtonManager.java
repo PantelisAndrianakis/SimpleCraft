@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Spatial;
 import com.simsilica.lemur.HAlignment;
@@ -199,5 +200,22 @@ public class ButtonManager
 	private static TbtQuadBackgroundComponent createBackground(String texturePath)
 	{
 		return TbtQuadBackgroundComponent.create(texturePath, 1f, INSET_LEFT, INSET_TOP, INSET_RIGHT, INSET_BOTTOM, BG_Z_OFFSET, false);
+	}
+	
+	/**
+	 * Set a button's visual focus state. Focused buttons show the hover texture and yellow text,<br>
+	 * unfocused buttons show the normal texture and white text.<br>
+	 * Used by keyboard navigation systems.
+	 * @param button the button Panel to update (must have been created by ButtonManager)
+	 * @param focused true to show hover/focus visuals, false for normal state
+	 */
+	public static void setFocused(Panel button, boolean focused)
+	{
+		if (button instanceof Label)
+		{
+			final Label label = (Label) button;
+			label.setBackground(createBackground(focused ? BUTTON_HOVER_PATH : BUTTON_NORMAL_PATH));
+			label.setColor(focused ? new ColorRGBA(1f, 0.85f, 0f, 1f) : ColorRGBA.White);
+		}
 	}
 }
