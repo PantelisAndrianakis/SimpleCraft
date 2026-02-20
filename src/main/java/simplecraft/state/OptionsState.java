@@ -11,7 +11,6 @@ import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
 import com.jme3.input.KeyInput;
 import com.jme3.input.RawInputListener;
-import com.jme3.input.controls.ActionListener;
 import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.JoyButtonEvent;
 import com.jme3.input.event.KeyInputEvent;
@@ -23,6 +22,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.Spatial.CullHint;
 import com.jme3.ui.Picture;
+
 import com.simsilica.lemur.Axis;
 import com.simsilica.lemur.Button;
 import com.simsilica.lemur.Container;
@@ -41,6 +41,8 @@ import com.simsilica.lemur.event.DefaultCursorListener;
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
+import simplecraft.input.MenuNavigationManager;
+import simplecraft.input.MenuNavigationManager.NavigationSlot;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
 import simplecraft.ui.ButtonManager;
@@ -163,68 +165,27 @@ public class OptionsState extends FadeableAppState
 	private long _listenStartTime;
 	private RawInputListener _rawInputListener;
 	
-	// --- Keyboard navigation (flat focus list) ---
+	// --- Keyboard navigation (via MenuNavigationManager) ---
 	
-	private static final ColorRGBA FOCUS_HIGHLIGHT_COLOR = new ColorRGBA(1f, 0.85f, 0f, 1f);
-	
-	/**
-	 * A focusable slot in the navigation list.<br>
-	 * Stores the label to highlight and callbacks for directional input and confirmation.
-	 */
-	private static class FocusSlot
-	{
-		final Label label;
-		final Runnable onFocus;
-		final Runnable onUnfocus;
-		final Runnable onLeft;
-		final Runnable onRight;
-		final Runnable onConfirm;
-		
-		/** Label-based content slot (label is highlighted yellow/white). */
-		FocusSlot(Label label, Runnable onLeft, Runnable onRight, Runnable onConfirm)
-		{
-			this.label = label;
-			this.onFocus = null;
-			this.onUnfocus = null;
-			this.onLeft = onLeft;
-			this.onRight = onRight;
-			this.onConfirm = onConfirm;
-		}
-		
-		/** Custom slot with explicit focus/unfocus callbacks (for tab rows, bottom buttons). */
-		FocusSlot(Runnable onFocus, Runnable onUnfocus, Runnable onLeft, Runnable onRight, Runnable onConfirm)
-		{
-			this.label = null;
-			this.onFocus = onFocus;
-			this.onUnfocus = onUnfocus;
-			this.onLeft = onLeft;
-			this.onRight = onRight;
-			this.onConfirm = onConfirm;
-		}
-	}
-	
-	// Per-tab content focus slots.
-	private final List<FocusSlot> _displayContentSlots = new ArrayList<>();
-	private final List<FocusSlot> _audioContentSlots = new ArrayList<>();
-	private final List<FocusSlot> _keyMovementSlots = new ArrayList<>();
-	private final List<FocusSlot> _keyActionsSlots = new ArrayList<>();
-	private final List<FocusSlot> _keyMouseSlots = new ArrayList<>();
+	// Per-tab content navigation slots.
+	private final List<NavigationSlot> _displayContentSlots = new ArrayList<>();
+	private final List<NavigationSlot> _audioContentSlots = new ArrayList<>();
+	private final List<NavigationSlot> _keyMovementSlots = new ArrayList<>();
+	private final List<NavigationSlot> _keyActionsSlots = new ArrayList<>();
+	private final List<NavigationSlot> _keyMouseSlots = new ArrayList<>();
 	
 	// Special navigation slots.
-	private FocusSlot _tabRowSlot;
-	private FocusSlot _subTabRowSlot;
-	private FocusSlot _bottomRowSlot;
+	private NavigationSlot _tabRowSlot;
+	private NavigationSlot _subTabRowSlot;
+	private NavigationSlot _bottomRowSlot;
 	
-	// Assembled flat focus list and current index (-1 = no focus, mouse-only mode).
-	private final List<FocusSlot> _focusList = new ArrayList<>();
-	private int _focusIndex = -1;
 	private int _bottomFocusIndex = 1; // 0 = Defaults, 1 = Back.
 	
 	// Bottom button references for focus highlighting.
 	private Panel _defaultsButton;
 	private Panel _backButton;
 	
-	private ActionListener _navigationListener;
+	private MenuNavigationManager _navigation;
 	
 	public OptionsState()
 	{
@@ -245,10 +206,17 @@ public class OptionsState extends FadeableAppState
 	@Override
 	protected void onEnterState()
 	{
-		_focusIndex = -1;
-		_bottomFocusIndex = 1;
+		_navigation = new MenuNavigationManager();
+		
 		buildGui();
-		registerNavigationListener();
+		
+		_navigation.setBackAction(() ->
+		{
+			final SimpleCraft app = SimpleCraft.getInstance();
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			app.getGameStateManager().returnToPrevious(true);
+		});
+		_navigation.register();
 	}
 	
 	@Override
@@ -256,7 +224,12 @@ public class OptionsState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
-		unregisterNavigationListener();
+		if (_navigation != null)
+		{
+			_navigation.unregister();
+			_navigation = null;
+		}
+		
 		cancelListening();
 		QuestionManager.dismiss();
 		app.getSettingsManager().save();
@@ -274,10 +247,16 @@ public class OptionsState extends FadeableAppState
 		final int currentHeight = app.getCamera().getHeight();
 		if (currentWidth != _lastScreenWidth || currentHeight != _lastScreenHeight)
 		{
-			unregisterNavigationListener();
+			_navigation.unregister();
 			detachAllGui();
+			_navigation = new MenuNavigationManager();
+			_navigation.setBackAction(() ->
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				app.getGameStateManager().returnToPrevious(true);
+			});
 			buildGui();
-			registerNavigationListener();
+			_navigation.register();
 			return;
 		}
 		
@@ -559,7 +538,6 @@ public class OptionsState extends FadeableAppState
 		_keyMovementSlots.clear();
 		_keyActionsSlots.clear();
 		_keyMouseSlots.clear();
-		_focusList.clear();
 		_tabRowSlot = null;
 		_subTabRowSlot = null;
 		_bottomRowSlot = null;
@@ -587,7 +565,7 @@ public class OptionsState extends FadeableAppState
 		final Label resLabel = createNameLabel(app, "Resolution");
 		_displayContent.addChild(createResolutionRow(app, resLabel));
 		// @formatter:off
-		_displayContentSlots.add(new FocusSlot(resLabel,
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(resLabel,
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(-1); },
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(1); },
 			null));
@@ -614,7 +592,7 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_fullscreenToggle, newValue);
 			WindowDisplayManager.applyCurrentSettings();
 		};
-		_displayContentSlots.add(new FocusSlot(fsLabel, toggleFullscreen, toggleFullscreen, toggleFullscreen));
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(fsLabel, toggleFullscreen, toggleFullscreen, toggleFullscreen));
 		addRowSpacer(_displayContent);
 		
 		// Render Distance slider.
@@ -627,7 +605,7 @@ public class OptionsState extends FadeableAppState
 		final Label rdLabel = createNameLabel(app, "Render Distance");
 		_displayContent.addChild(createSliderRow(app, rdLabel, _renderDistanceSlider, _renderDistanceValueLabel));
 		// @formatter:off
-		_displayContentSlots.add(new FocusSlot(rdLabel,
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(rdLabel,
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, -1); },
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, 1); },
 			null));
@@ -654,7 +632,7 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_showStatsToggle, newValue);
 			app.setDisplayStatView(newValue);
 		};
-		_displayContentSlots.add(new FocusSlot(ssLabel, toggleStats, toggleStats, toggleStats));
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(ssLabel, toggleStats, toggleStats, toggleStats));
 		addRowSpacer(_displayContent);
 		
 		// Show FPS toggle.
@@ -677,7 +655,7 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_showFpsToggle, newValue);
 			app.setDisplayFps(newValue);
 		};
-		_displayContentSlots.add(new FocusSlot(fpsLabel, toggleFps, toggleFps, toggleFps));
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(fpsLabel, toggleFps, toggleFps, toggleFps));
 		
 		// Setup versioned references and style sliders.
 		_renderDistanceRef = _renderDistanceSlider.getModel().createReference();
@@ -701,7 +679,7 @@ public class OptionsState extends FadeableAppState
 		final Label masterLabel = createNameLabel(app, "Master Volume");
 		_audioContent.addChild(createSliderRow(app, masterLabel, _masterSlider, _masterValueLabel));
 		// @formatter:off
-		_audioContentSlots.add(new FocusSlot(masterLabel,
+		_audioContentSlots.add(MenuNavigationManager.labelSlot(masterLabel,
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, -1); },
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, 1); },
 			null));
@@ -718,7 +696,7 @@ public class OptionsState extends FadeableAppState
 		final Label musicLabel = createNameLabel(app, "Music Volume");
 		_audioContent.addChild(createSliderRow(app, musicLabel, _musicSlider, _musicValueLabel));
 		// @formatter:off
-		_audioContentSlots.add(new FocusSlot(musicLabel,
+		_audioContentSlots.add(MenuNavigationManager.labelSlot(musicLabel,
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, -1); },
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, 1); },
 			null));
@@ -735,7 +713,7 @@ public class OptionsState extends FadeableAppState
 		final Label sfxLabel = createNameLabel(app, "SFX Volume");
 		_audioContent.addChild(createSliderRow(app, sfxLabel, _sfxSlider, _sfxValueLabel));
 		// @formatter:off
-		_audioContentSlots.add(new FocusSlot(sfxLabel,
+		_audioContentSlots.add(MenuNavigationManager.labelSlot(sfxLabel,
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, -1); },
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, 1); },
 			null));
@@ -774,7 +752,7 @@ public class OptionsState extends FadeableAppState
 			
 			// Determine which sub-tab container and slot list this action belongs to.
 			final Container target;
-			final List<FocusSlot> targetSlots;
+			final List<NavigationSlot> targetSlots;
 			if ("Movement".equals(section))
 			{
 				target = _keyMovementContent;
@@ -804,7 +782,7 @@ public class OptionsState extends FadeableAppState
 			addRowSpacer(target);
 			
 			// Focus slot: Enter starts listening.
-			targetSlots.add(new FocusSlot(nameLabel, null, null, () ->
+			targetSlots.add(MenuNavigationManager.labelSlot(nameLabel, null, null, () ->
 			{
 				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				startListening(actionRef, keyButton, false);
@@ -833,7 +811,7 @@ public class OptionsState extends FadeableAppState
 			addRowSpacer(_keyMouseContent);
 			
 			// Focus slot: Enter starts listening.
-			_keyMouseSlots.add(new FocusSlot(nameLabel, null, null, () ->
+			_keyMouseSlots.add(MenuNavigationManager.labelSlot(nameLabel, null, null, () ->
 			{
 				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				startListening(actionRef, mouseButton, true);
@@ -870,6 +848,7 @@ public class OptionsState extends FadeableAppState
 		_listeningButton = keyButton;
 		_listeningForMouse = mouseMode;
 		_listenStartTime = System.currentTimeMillis();
+		_navigation.setLocked(true);
 		_listeningButton.setText("...");
 		_listeningButton.setColor(KEY_LISTENING_COLOR);
 		
@@ -1001,6 +980,7 @@ public class OptionsState extends FadeableAppState
 		removeRawListener();
 		_listeningAction = null;
 		_listeningButton = null;
+		_navigation.setLocked(false);
 		
 		// Update the button we were editing.
 		button.setText(GameInputManager.getKeyName(newKeyCode));
@@ -1040,6 +1020,7 @@ public class OptionsState extends FadeableAppState
 		removeRawListener();
 		_listeningAction = null;
 		_listeningButton = null;
+		_navigation.setLocked(false);
 		
 		button.setText(GameInputManager.getMouseButtonName(newButtonCode));
 		button.setColor(KEY_BUTTON_COLOR);
@@ -1084,6 +1065,7 @@ public class OptionsState extends FadeableAppState
 		_listeningAction = null;
 		_listeningButton = null;
 		_listeningForMouse = false;
+		_navigation.setLocked(false);
 	}
 	
 	/**
@@ -1716,137 +1698,13 @@ public class OptionsState extends FadeableAppState
 	// ========== KEYBOARD NAVIGATION ==========
 	
 	/**
-	 * Register the keyboard navigation action listener.<br>
-	 * W/S navigates the flat focus list, A/D adjusts values or switches tabs, Enter confirms.
-	 */
-	private void registerNavigationListener()
-	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		
-		_navigationListener = (name, isPressed, tpf) ->
-		{
-			if (!isPressed)
-			{
-				return;
-			}
-			
-			// Ignore navigation while listening for a keybinding.
-			if (_listeningAction != null)
-			{
-				return;
-			}
-			
-			// When a question dialog is active, delegate navigation to it.
-			if (QuestionManager.isActive())
-			{
-				handleQuestionNavigation(app, name);
-				return;
-			}
-			
-			// Escape always triggers back navigation, even in mouse-only mode.
-			if (GameInputManager.UI_BACK.equals(name))
-			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-				app.getGameStateManager().returnToPrevious(true);
-				return;
-			}
-			
-			// First keyboard input activates focus on the tab row.
-			if (_focusIndex < 0)
-			{
-				_focusIndex = 0;
-				focusCurrentSlot();
-				return;
-			}
-			
-			switch (name)
-			{
-				case GameInputManager.UI_UP:
-				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-					moveFocus(-1);
-					break;
-				}
-				case GameInputManager.UI_DOWN:
-				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-					moveFocus(1);
-					break;
-				}
-				case GameInputManager.UI_LEFT:
-				{
-					handleSlotAction(getCurrentSlot(), true);
-					break;
-				}
-				case GameInputManager.UI_RIGHT:
-				{
-					handleSlotAction(getCurrentSlot(), false);
-					break;
-				}
-				case GameInputManager.UI_CONFIRM:
-				{
-					handleSlotConfirm(getCurrentSlot());
-					break;
-				}
-			}
-		};
-		
-		app.getInputManager().addListener(_navigationListener, GameInputManager.UI_UP, GameInputManager.UI_DOWN, GameInputManager.UI_LEFT, GameInputManager.UI_RIGHT, GameInputManager.UI_CONFIRM, GameInputManager.UI_BACK);
-	}
-	
-	/**
-	 * Unregister the keyboard navigation action listener.
-	 */
-	private void unregisterNavigationListener()
-	{
-		if (_navigationListener != null)
-		{
-			SimpleCraft.getInstance().getInputManager().removeListener(_navigationListener);
-			_navigationListener = null;
-		}
-	}
-	
-	/**
-	 * Handle keyboard navigation when a QuestionManager dialog is active.
-	 */
-	private void handleQuestionNavigation(SimpleCraft app, String name)
-	{
-		switch (name)
-		{
-			case GameInputManager.UI_LEFT:
-			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-				QuestionManager.navigateLeft();
-				break;
-			}
-			case GameInputManager.UI_RIGHT:
-			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-				QuestionManager.navigateRight();
-				break;
-			}
-			case GameInputManager.UI_CONFIRM:
-			{
-				QuestionManager.confirmSelection();
-				break;
-			}
-			case GameInputManager.UI_BACK:
-			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-				QuestionManager.dismiss();
-				break;
-			}
-		}
-	}
-	
-	/**
 	 * Build the three special navigation slots (tab row, sub-tab row, bottom buttons).
 	 */
 	private void buildSpecialSlots(SimpleCraft app)
 	{
 		// Tab row slot: A/D cycle tabs.
 		// @formatter:off
-		_tabRowSlot = new FocusSlot(
+		_tabRowSlot = MenuNavigationManager.customSlot(
 			() -> highlightActiveTab(true),
 			() -> highlightActiveTab(false),
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleTabFromSlot(-1); },
@@ -1857,7 +1715,7 @@ public class OptionsState extends FadeableAppState
 		
 		// Sub-tab row slot: A/D cycle sub-tabs.
 		// @formatter:off
-		_subTabRowSlot = new FocusSlot(
+		_subTabRowSlot = MenuNavigationManager.customSlot(
 			() -> highlightActiveSubTab(true),
 			() -> highlightActiveSubTab(false),
 			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleSubTabFromSlot(-1); },
@@ -1868,7 +1726,7 @@ public class OptionsState extends FadeableAppState
 		
 		// Bottom button slot: A/D switch between Defaults/Back, Enter activates.
 		// @formatter:off
-		_bottomRowSlot = new FocusSlot(
+		_bottomRowSlot = MenuNavigationManager.customSlot(
 			this::highlightBottomButtons,
 			this::unhighlightBottomButtons,
 			() -> { _bottomFocusIndex = 0; highlightBottomButtons(); },
@@ -1883,48 +1741,57 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void rebuildFocusList()
 	{
-		// Unfocus current slot if valid.
-		if (_focusIndex >= 0 && _focusIndex < _focusList.size())
-		{
-			unfocusSlot(_focusList.get(_focusIndex));
-		}
-		
-		_focusList.clear();
+		_navigation.clearSlots();
 		
 		// Tab row always first.
-		_focusList.add(_tabRowSlot);
+		_navigation.addSlot(_tabRowSlot);
 		
 		// Content based on active tab.
 		switch (_activeTab)
 		{
 			case TAB_DISPLAY:
 			{
-				_focusList.addAll(_displayContentSlots);
+				for (NavigationSlot slot : _displayContentSlots)
+				{
+					_navigation.addSlot(slot);
+				}
 				break;
 			}
 			case TAB_AUDIO:
 			{
-				_focusList.addAll(_audioContentSlots);
+				for (NavigationSlot slot : _audioContentSlots)
+				{
+					_navigation.addSlot(slot);
+				}
 				break;
 			}
 			case TAB_KEYBINDINGS:
 			{
-				_focusList.add(_subTabRowSlot);
+				_navigation.addSlot(_subTabRowSlot);
 				switch (_activeSubTab)
 				{
 					case SUB_TAB_MOVEMENT:
 					{
-						_focusList.addAll(_keyMovementSlots);
+						for (NavigationSlot slot : _keyMovementSlots)
+						{
+							_navigation.addSlot(slot);
+						}
 						break;
 					}
 					case SUB_TAB_ACTIONS:
 					{
-						_focusList.addAll(_keyActionsSlots);
+						for (NavigationSlot slot : _keyActionsSlots)
+						{
+							_navigation.addSlot(slot);
+						}
 						break;
 					}
 					case SUB_TAB_MOUSE:
 					{
-						_focusList.addAll(_keyMouseSlots);
+						for (NavigationSlot slot : _keyMouseSlots)
+						{
+							_navigation.addSlot(slot);
+						}
 						break;
 					}
 				}
@@ -1933,123 +1800,10 @@ public class OptionsState extends FadeableAppState
 		}
 		
 		// Bottom buttons always last.
-		_focusList.add(_bottomRowSlot);
+		_navigation.addSlot(_bottomRowSlot);
 		
 		// Re-apply focus if active.
-		if (_focusIndex >= 0)
-		{
-			_focusIndex = Math.min(_focusIndex, _focusList.size() - 1);
-			focusCurrentSlot();
-		}
-	}
-	
-	/**
-	 * Move focus up or down in the flat list with wrapping.
-	 * @param offset -1 for up, +1 for down
-	 */
-	private void moveFocus(int offset)
-	{
-		if (_focusList.isEmpty())
-		{
-			return;
-		}
-		
-		// Unfocus current.
-		unfocusSlot(_focusList.get(_focusIndex));
-		
-		final int count = _focusList.size();
-		_focusIndex = ((_focusIndex + offset) % count + count) % count;
-		
-		// Focus new.
-		focusCurrentSlot();
-	}
-	
-	/**
-	 * Get the currently focused slot, or null if no focus.
-	 */
-	private FocusSlot getCurrentSlot()
-	{
-		if (_focusIndex >= 0 && _focusIndex < _focusList.size())
-		{
-			return _focusList.get(_focusIndex);
-		}
-		return null;
-	}
-	
-	/**
-	 * Apply focus visuals to the current slot.
-	 */
-	private void focusCurrentSlot()
-	{
-		if (_focusIndex >= 0 && _focusIndex < _focusList.size())
-		{
-			focusSlot(_focusList.get(_focusIndex));
-		}
-	}
-	
-	/**
-	 * Apply focus visuals to a slot.
-	 */
-	private void focusSlot(FocusSlot slot)
-	{
-		if (slot == null)
-		{
-			return;
-		}
-		if (slot.label != null)
-		{
-			slot.label.setColor(FOCUS_HIGHLIGHT_COLOR);
-		}
-		if (slot.onFocus != null)
-		{
-			slot.onFocus.run();
-		}
-	}
-	
-	/**
-	 * Remove focus visuals from a slot.
-	 */
-	private void unfocusSlot(FocusSlot slot)
-	{
-		if (slot == null)
-		{
-			return;
-		}
-		if (slot.label != null)
-		{
-			slot.label.setColor(ColorRGBA.White);
-		}
-		if (slot.onUnfocus != null)
-		{
-			slot.onUnfocus.run();
-		}
-	}
-	
-	/**
-	 * Handle A/D input for a slot.
-	 */
-	private void handleSlotAction(FocusSlot slot, boolean isLeft)
-	{
-		if (slot == null)
-		{
-			return;
-		}
-		final Runnable action = isLeft ? slot.onLeft : slot.onRight;
-		if (action != null)
-		{
-			action.run();
-		}
-	}
-	
-	/**
-	 * Handle Enter input for a slot.
-	 */
-	private void handleSlotConfirm(FocusSlot slot)
-	{
-		if (slot != null && slot.onConfirm != null)
-		{
-			slot.onConfirm.run();
-		}
+		_navigation.clampAndRefocus();
 	}
 	
 	/**
@@ -2061,8 +1815,7 @@ public class OptionsState extends FadeableAppState
 		final int newTab = ((_activeTab + direction) % tabCount + tabCount) % tabCount;
 		showTab(newTab);
 		// showTab calls rebuildFocusList; re-apply focus on the tab row.
-		_focusIndex = 0;
-		focusCurrentSlot();
+		_navigation.setFocusIndex(0);
 	}
 	
 	/**
@@ -2074,8 +1827,7 @@ public class OptionsState extends FadeableAppState
 		final int newSubTab = ((_activeSubTab + direction) % subTabCount + subTabCount) % subTabCount;
 		showSubTab(newSubTab);
 		// showSubTab calls rebuildFocusList; re-apply focus on the sub-tab row (index 1).
-		_focusIndex = 1;
-		focusCurrentSlot();
+		_navigation.setFocusIndex(1);
 	}
 	
 	/**
@@ -2083,7 +1835,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void highlightActiveTab(boolean focused)
 	{
-		final ColorRGBA activeColor = focused ? FOCUS_HIGHLIGHT_COLOR : TAB_ACTIVE_COLOR;
+		final ColorRGBA activeColor = focused ? MenuNavigationManager.FOCUS_HIGHLIGHT_COLOR : TAB_ACTIVE_COLOR;
 		if (_tabDisplayButton != null)
 		{
 			_tabDisplayButton.setColor(_activeTab == TAB_DISPLAY ? activeColor : TAB_INACTIVE_COLOR);
@@ -2103,7 +1855,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void highlightActiveSubTab(boolean focused)
 	{
-		final ColorRGBA activeColor = focused ? FOCUS_HIGHLIGHT_COLOR : TAB_ACTIVE_COLOR;
+		final ColorRGBA activeColor = focused ? MenuNavigationManager.FOCUS_HIGHLIGHT_COLOR : TAB_ACTIVE_COLOR;
 		if (_subTabMovementButton != null)
 		{
 			_subTabMovementButton.setColor(_activeSubTab == SUB_TAB_MOVEMENT ? activeColor : TAB_INACTIVE_COLOR);

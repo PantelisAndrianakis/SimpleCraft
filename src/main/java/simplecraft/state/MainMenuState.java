@@ -1,22 +1,20 @@
 package simplecraft.state;
 
 import java.awt.Font;
-import java.util.ArrayList;
-import java.util.List;
 
 import com.jme3.app.Application;
-import com.jme3.input.controls.ActionListener;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
+
 import com.simsilica.lemur.Container;
 import com.simsilica.lemur.Label;
 import com.simsilica.lemur.Panel;
 
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
-import simplecraft.input.GameInputManager;
+import simplecraft.input.MenuNavigationManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
@@ -36,7 +34,7 @@ public class MainMenuState extends FadeableAppState
 	
 	private static final int LOGO_SIZE = 128;
 	private static final int LOGO_TITLE_SPACING = 5;
-	private static final int BUTTON_SPACING = 10;
+	private static final int BUTTON_SPACING = 22;
 	private static final int VERSION_MARGIN = 10;
 	
 	private Label _titleLabel;
@@ -45,11 +43,8 @@ public class MainMenuState extends FadeableAppState
 	private Container _buttonContainer;
 	private Label _versionLabel;
 	
-	// Keyboard navigation (-1 means no focus, mouse-only mode).
-	private final List<Panel> _menuButtons = new ArrayList<>();
-	private final List<Runnable> _menuActions = new ArrayList<>();
-	private int _focusIndex = -1;
-	private ActionListener _navigationListener;
+	// Keyboard navigation.
+	private MenuNavigationManager _navigation;
 	
 	public MainMenuState()
 	{
@@ -86,7 +81,7 @@ public class MainMenuState extends FadeableAppState
 		_background.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
 		_background.setWidth(screenWidth);
 		_background.setHeight(screenHeight);
-		_background.setLocalTranslation(0, 0, -10); // Position at bottom-left with negative Z to ensure it's behind everything.
+		_background.setLocalTranslation(0, 0, -10);
 		_background.setCullHint(Spatial.CullHint.Never);
 		
 		// --- Title Label ---
@@ -111,10 +106,8 @@ public class MainMenuState extends FadeableAppState
 		_buttonContainer = new Container();
 		_buttonContainer.setBackground(null);
 		
-		// Clear navigation lists. Start with no focus (mouse-only mode).
-		_menuButtons.clear();
-		_menuActions.clear();
-		_focusIndex = -1;
+		// --- Navigation ---
+		_navigation = new MenuNavigationManager();
 		
 		// Start button.
 		final Runnable startAction = () ->
@@ -122,10 +115,9 @@ public class MainMenuState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.PLAYING, true);
 		};
-		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Start", 0.15f, 0.065f, startAction);
+		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Start", 0.18f, 0.065f, startAction);
 		_buttonContainer.addChild(startButton);
-		_menuButtons.add(startButton);
-		_menuActions.add(startAction);
+		_navigation.addSlot(MenuNavigationManager.buttonSlot(startButton, startAction));
 		
 		addButtonSpacer();
 		
@@ -135,10 +127,9 @@ public class MainMenuState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.OPTIONS, true);
 		};
-		final Panel optionsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Options", 0.15f, 0.065f, optionsAction);
+		final Panel optionsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Options", 0.18f, 0.065f, optionsAction);
 		_buttonContainer.addChild(optionsButton);
-		_menuButtons.add(optionsButton);
-		_menuActions.add(optionsAction);
+		_navigation.addSlot(MenuNavigationManager.buttonSlot(optionsButton, optionsAction));
 		
 		addButtonSpacer();
 		
@@ -148,10 +139,9 @@ public class MainMenuState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			QuestionManager.show("Exit game?", () -> app.stop(), null);
 		};
-		final Panel exitButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Exit", 0.15f, 0.065f, exitAction);
+		final Panel exitButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Exit", 0.18f, 0.065f, exitAction);
 		_buttonContainer.addChild(exitButton);
-		_menuButtons.add(exitButton);
-		_menuActions.add(exitAction);
+		_navigation.addSlot(MenuNavigationManager.buttonSlot(exitButton, exitAction));
 		
 		final float buttonContainerWidth = _buttonContainer.getPreferredSize().x;
 		final float buttonContainerHeight = _buttonContainer.getPreferredSize().y;
@@ -163,8 +153,6 @@ public class MainMenuState extends FadeableAppState
 		_titleLabel.setLocalTranslation(titleGroupX, titleY, 0);
 		
 		// Logo: to the right of the title, vertically centered with title.
-		// Lemur title Y is top edge; font renders lower due to internal padding.
-		// Offset logo down by ~41% of titleHeight to align with visual text center.
 		final float logoX = titleGroupX + titleWidth + LOGO_TITLE_SPACING;
 		final float logoY = titleY - (titleHeight * 0.41f) - (LOGO_SIZE / 2f);
 		_logo.setLocalTranslation(logoX, logoY, 0);
@@ -191,8 +179,13 @@ public class MainMenuState extends FadeableAppState
 		app.getGuiNode().attachChild(_buttonContainer);
 		app.getGuiNode().attachChild(_versionLabel);
 		
-		// Register keyboard navigation listener.
-		registerNavigationListener(app);
+		// Register navigation (Escape shows exit confirmation).
+		_navigation.setBackAction(() ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			QuestionManager.show("Exit game?", () -> app.stop(), null);
+		});
+		_navigation.register();
 		
 		// Start menu music.
 		app.getAudioManager().playMusic(AudioManager.PERSPECTIVES_MUSIC_PATH);
@@ -203,8 +196,11 @@ public class MainMenuState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
-		// Unregister navigation listener.
-		unregisterNavigationListener(app);
+		if (_navigation != null)
+		{
+			_navigation.unregister();
+			_navigation = null;
+		}
 		
 		// Dismiss any active question dialog.
 		QuestionManager.dismiss();
@@ -240,9 +236,6 @@ public class MainMenuState extends FadeableAppState
 			_versionLabel = null;
 		}
 		
-		_menuButtons.clear();
-		_menuActions.clear();
-		
 		// Don't stop music when leaving menu - let next state handle music.
 	}
 	
@@ -254,146 +247,5 @@ public class MainMenuState extends FadeableAppState
 		final Label spacer = new Label("");
 		spacer.setPreferredSize(new Vector3f(1, BUTTON_SPACING, 0));
 		_buttonContainer.addChild(spacer);
-	}
-	
-	// ========== KEYBOARD NAVIGATION ==========
-	
-	/**
-	 * Register the keyboard navigation action listener.<br>
-	 * Listens for WASD (mapped to UI_*), arrow keys, Enter, and Escape for menu navigation.
-	 */
-	private void registerNavigationListener(SimpleCraft app)
-	{
-		_navigationListener = (name, isPressed, tpf) ->
-		{
-			if (!isPressed)
-			{
-				return;
-			}
-			
-			// When a question dialog is active, delegate navigation to it.
-			if (QuestionManager.isActive())
-			{
-				switch (name)
-				{
-					case GameInputManager.UI_LEFT:
-					{
-						app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-						QuestionManager.navigateLeft();
-						break;
-					}
-					case GameInputManager.UI_RIGHT:
-					{
-						app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-						QuestionManager.navigateRight();
-						break;
-					}
-					case GameInputManager.UI_CONFIRM:
-					{
-						QuestionManager.confirmSelection();
-						break;
-					}
-					case GameInputManager.UI_BACK:
-					{
-						app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-						QuestionManager.dismiss();
-						break;
-					}
-				}
-				return;
-			}
-			
-			// Menu button navigation.
-			switch (name)
-			{
-				case GameInputManager.UI_UP:
-				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-					moveFocus(-1);
-					break;
-				}
-				case GameInputManager.UI_DOWN:
-				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-					moveFocus(1);
-					break;
-				}
-				case GameInputManager.UI_CONFIRM:
-				{
-					activateFocused();
-					break;
-				}
-				case GameInputManager.UI_BACK:
-				{
-					// Escape on main menu shows exit confirmation.
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-					QuestionManager.show("Exit game?", () -> app.stop(), null);
-					break;
-				}
-			}
-		};
-		
-		app.getInputManager().addListener(_navigationListener, GameInputManager.UI_UP, GameInputManager.UI_DOWN, GameInputManager.UI_LEFT, GameInputManager.UI_RIGHT, GameInputManager.UI_CONFIRM, GameInputManager.UI_BACK);
-	}
-	
-	/**
-	 * Unregister the keyboard navigation action listener.
-	 */
-	private void unregisterNavigationListener(SimpleCraft app)
-	{
-		if (_navigationListener != null)
-		{
-			app.getInputManager().removeListener(_navigationListener);
-			_navigationListener = null;
-		}
-	}
-	
-	/**
-	 * Move the button focus by the given offset, wrapping around at boundaries.<br>
-	 * On first keyboard input (_focusIndex == -1), focus activates at the top button.
-	 * @param offset positive to move down, negative to move up
-	 */
-	private void moveFocus(int offset)
-	{
-		if (_menuButtons.isEmpty())
-		{
-			return;
-		}
-		
-		if (_focusIndex < 0)
-		{
-			// First keyboard input: activate focus on the first button.
-			_focusIndex = 0;
-		}
-		else
-		{
-			final int count = _menuButtons.size();
-			_focusIndex = ((_focusIndex + offset) % count + count) % count;
-		}
-		
-		updateFocusVisuals();
-	}
-	
-	/**
-	 * Activate the currently focused button's action.
-	 */
-	private void activateFocused()
-	{
-		if (_focusIndex >= 0 && _focusIndex < _menuActions.size())
-		{
-			_menuActions.get(_focusIndex).run();
-		}
-	}
-	
-	/**
-	 * Update all button visuals to reflect the current focus index.<br>
-	 * The focused button shows the hover texture and yellow text; others show normal.
-	 */
-	private void updateFocusVisuals()
-	{
-		for (int i = 0; i < _menuButtons.size(); i++)
-		{
-			ButtonManager.setFocused(_menuButtons.get(i), _focusIndex >= 0 && i == _focusIndex);
-		}
 	}
 }

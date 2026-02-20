@@ -1,16 +1,22 @@
 package simplecraft.state;
 
 import com.jme3.app.Application;
+import com.jme3.input.controls.ActionListener;
 import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 
 import simplecraft.SimpleCraft;
+import simplecraft.input.GameInputManager;
+import simplecraft.state.GameStateManager.GameState;
 
 /**
  * Playing state - the main game scene.<br>
- * Currently an empty scene with sky background and basic lighting.
+ * Currently an empty scene with sky background and basic lighting.<br>
+ * Listens for the PAUSE action (Escape) to open the pause menu.<br>
+ * The pause listener is registered in initialize/cleanup so it remains<br>
+ * active even when the state is disabled (paused overlay is showing).
  * @author Pantelis Andrianakis
  * @since February 18th 2026
  */
@@ -18,17 +24,46 @@ public class PlayingState extends FadeableAppState
 {
 	private DirectionalLight _sun;
 	private AmbientLight _ambient;
+	private ActionListener _pauseListener;
 	
 	@Override
 	protected void initialize(Application app)
 	{
-		// Initialization happens once when state is first attached.
+		// Register the pause listener once. It stays active even when disabled, but the guard inside only triggers pause when the state is enabled.
+		final SimpleCraft simpleCraft = SimpleCraft.getInstance();
+		
+		_pauseListener = (String name, boolean isPressed, float tpf) ->
+		{
+			if (!isPressed)
+			{
+				return;
+			}
+			
+			if (!GameInputManager.PAUSE.equals(name))
+			{
+				return;
+			}
+			
+			// Only open pause if we are currently in PLAYING state (not already paused).
+			final GameStateManager gsm = simpleCraft.getGameStateManager();
+			if (gsm.getCurrentState() == GameState.PLAYING)
+			{
+				gsm.switchTo(GameState.PAUSED);
+			}
+		};
+		
+		simpleCraft.getInputManager().addListener(_pauseListener, GameInputManager.PAUSE);
 	}
 	
 	@Override
 	protected void cleanup(Application app)
 	{
-		// Cleanup happens once when state is permanently detached.
+		// Remove the pause listener when this state is permanently detached.
+		if (_pauseListener != null)
+		{
+			SimpleCraft.getInstance().getInputManager().removeListener(_pauseListener);
+			_pauseListener = null;
+		}
 	}
 	
 	@Override
@@ -79,7 +114,7 @@ public class PlayingState extends FadeableAppState
 	}
 	
 	@Override
-	public void update(float tpf)
+	protected void onUpdateState(float tpf)
 	{
 		// Game logic updates will go here in future sessions.
 	}

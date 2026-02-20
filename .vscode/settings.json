@@ -24,6 +24,8 @@
 		"javax",
 		"org",
 		"com",
+		"com.jme3",
+		"com.simsilica",
 		"simplecraft"
 	],
 	// Code generation settings.

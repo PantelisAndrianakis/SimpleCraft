@@ -6,6 +6,7 @@ import com.jme3.app.SimpleApplication;
 import com.jme3.asset.plugins.FileLocator;
 import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext.Type;
+
 import com.simsilica.lemur.GuiGlobals;
 
 import simplecraft.audio.AudioManager;
@@ -18,6 +19,7 @@ import simplecraft.state.GameStateManager.GameState;
 import simplecraft.state.IntroState;
 import simplecraft.state.MainMenuState;
 import simplecraft.state.OptionsState;
+import simplecraft.state.PauseMenuState;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.CursorManager;
 
@@ -115,6 +117,7 @@ public class SimpleCraft extends SimpleApplication
 		_gameStateManager.registerState(GameState.MAIN_MENU, new MainMenuState());
 		_gameStateManager.registerState(GameState.OPTIONS, new OptionsState());
 		_gameStateManager.registerState(GameState.PLAYING, new PlayingState());
+		_gameStateManager.registerState(GameState.PAUSED, new PauseMenuState());
 		
 		// Switch to initial splash state.
 		_gameStateManager.switchTo(GameState.INTRO);

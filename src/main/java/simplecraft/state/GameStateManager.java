@@ -203,6 +203,37 @@ public class GameStateManager
 			return;
 		}
 		
+		// Special case: Leaving PAUSED for a state other than PLAYING or OPTIONS (e.g., Quit to Menu).
+		// Must detach both the PAUSED overlay and the underlying PLAYING state.
+		if (_currentState == GameState.PAUSED && newState != GameState.PLAYING && newState != GameState.OPTIONS)
+		{
+			// Detach PAUSED overlay.
+			final BaseAppState pausedState = _registeredStates.get(GameState.PAUSED);
+			if (pausedState != null)
+			{
+				_stateManager.detach(pausedState);
+			}
+			
+			// Detach the underlying PLAYING state that was kept attached but disabled.
+			final BaseAppState playingState = _registeredStates.get(GameState.PLAYING);
+			if (playingState != null && _stateManager.hasState(playingState))
+			{
+				_stateManager.detach(playingState);
+			}
+			
+			// Clear history since we are fully leaving the play session.
+			_stateHistory.clear();
+			
+			// Attach the new state.
+			final BaseAppState newAppState = _registeredStates.get(newState);
+			_stateManager.attach(newAppState);
+			_currentState = newState;
+			_currentAppState = newAppState;
+			
+			System.out.println("Left PAUSED, switched to state: " + newState);
+			return;
+		}
+		
 		// Special case: OPTIONS tracks previous state.
 		if (newState == GameState.OPTIONS)
 		{

@@ -7,6 +7,7 @@ import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Quad;
+
 import com.simsilica.lemur.Label;
 
 import simplecraft.SimpleCraft;
