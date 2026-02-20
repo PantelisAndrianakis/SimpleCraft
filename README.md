@@ -67,7 +67,7 @@ This project follows the [CODING_STYLE.md](CODING_STYLE.md) guidelines:
 9. **Don't Over-Engineer** - YAGNI (You Ain't Gonna Need It).
 10. **Traditional Switch Only** - No arrow syntax or switch expressions.
 
-The style is automatically enforced when using VS Code with the provided configuration files in the `.vscode` directory.
+Using VS Code with the provided configuration files automatically enforces the style.
 
 <br>
 

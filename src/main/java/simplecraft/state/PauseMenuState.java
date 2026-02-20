@@ -3,12 +3,8 @@ package simplecraft.state;
 import java.awt.Font;
 
 import com.jme3.app.Application;
-import com.jme3.material.Material;
-import com.jme3.material.RenderState;
 import com.jme3.math.ColorRGBA;
-import com.jme3.renderer.queue.RenderQueue;
-import com.jme3.scene.Geometry;
-import com.jme3.scene.shape.Quad;
+import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
 
 import com.simsilica.lemur.Label;
@@ -24,7 +20,7 @@ import simplecraft.ui.QuestionManager;
 
 /**
  * Pause menu overlay rendered on top of PlayingState.<br>
- * Semi-transparent dark background with centered title, logo, and buttons.<br>
+ * Background with centered title, logo, and buttons.<br>
  * Provides Resume, Options, and Quit to Menu with keyboard navigation.<br>
  * Pressing Escape (UI_BACK) resumes the game.
  * @author Pantelis Andrianakis
@@ -32,9 +28,8 @@ import simplecraft.ui.QuestionManager;
  */
 public class PauseMenuState extends FadeableAppState
 {
-	private static final ColorRGBA OVERLAY_COLOR = new ColorRGBA(0f, 0f, 0f, 0.6f);
-	
 	// Title layout constants (matching main menu).
+	private static final String BACKGROUND_PATH = "assets/images/backgrounds/main_menu.png";
 	private static final String TITLE_LOGO_PATH = "assets/images/app_icons/icon_128.png";
 	private static final int LOGO_SIZE = 128;
 	private static final int LOGO_TITLE_SPACING = 5;
@@ -50,13 +45,20 @@ public class PauseMenuState extends FadeableAppState
 	private static final int BUTTON_COUNT = 3;
 	
 	// GUI elements.
-	private Geometry _overlay;
 	private Label _titleLabel;
+	private Picture _background;
 	private Picture _logo;
 	private Panel[] _buttons;
 	
 	// Keyboard navigation.
 	private MenuNavigationManager _navigation;
+	
+	public PauseMenuState()
+	{
+		// Set fade in/out with black color (matches MainMenuState style).
+		setFadeIn(0.5f, new ColorRGBA(0, 0, 0, 1));
+		setFadeOut(0.3f, new ColorRGBA(0, 0, 0, 1));
+	}
 	
 	@Override
 	protected void initialize(Application app)
@@ -101,7 +103,7 @@ public class PauseMenuState extends FadeableAppState
 	// ========== GUI CONSTRUCTION ==========
 	
 	/**
-	 * Build the pause menu overlay, title, logo, and buttons.
+	 * Build the pause menu background, title, logo, and buttons.
 	 */
 	private void buildGui()
 	{
@@ -110,16 +112,14 @@ public class PauseMenuState extends FadeableAppState
 		final int screenHeight = app.getCamera().getHeight();
 		final float centerX = screenWidth / 2f;
 		
-		// --- Semi-transparent dark overlay ---
-		final Quad overlayQuad = new Quad(screenWidth, screenHeight);
-		_overlay = new Geometry("PauseOverlay", overlayQuad);
-		final Material overlayMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
-		overlayMat.setColor("Color", OVERLAY_COLOR);
-		overlayMat.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
-		_overlay.setMaterial(overlayMat);
-		_overlay.setQueueBucket(RenderQueue.Bucket.Gui);
-		_overlay.setLocalTranslation(0, 0, 0);
-		app.getGuiNode().attachChild(_overlay);
+		// --- Background Image (stretched to fill screen) ---
+		_background = new Picture("Pause Background");
+		_background.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
+		_background.setWidth(screenWidth);
+		_background.setHeight(screenHeight);
+		_background.setLocalTranslation(0, 0, -10); // Behind everything.
+		_background.setCullHint(Spatial.CullHint.Never);
+		app.getGuiNode().attachChild(_background);
 		
 		// --- Title label (same as main menu) ---
 		final int titleFontSize = Math.max(24, Math.round(screenHeight * TITLE_FONT_RATIO));
@@ -215,10 +215,10 @@ public class PauseMenuState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
-		if (_overlay != null)
+		if (_background != null)
 		{
-			app.getGuiNode().detachChild(_overlay);
-			_overlay = null;
+			app.getGuiNode().detachChild(_background);
+			_background = null;
 		}
 		
 		if (_titleLabel != null)

@@ -26,6 +26,13 @@ public class PlayingState extends FadeableAppState
 	private AmbientLight _ambient;
 	private ActionListener _pauseListener;
 	
+	public PlayingState()
+	{
+		// Set fade in/out with black color.
+		setFadeIn(1.0f, new ColorRGBA(0, 0, 0, 1));
+		setFadeOut(1.0f, new ColorRGBA(0, 0, 0, 1));
+	}
+	
 	@Override
 	protected void initialize(Application app)
 	{
