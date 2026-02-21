@@ -9,15 +9,19 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
+import com.jme3.scene.Node;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
 import simplecraft.state.GameStateManager.GameState;
+import simplecraft.world.Chunk;
 import simplecraft.world.ChunkMeshBuilder;
+import simplecraft.world.ChunkMeshBuilder.ChunkMeshResult;
 
 /**
  * Playing state - the main game scene.<br>
- * Currently displays a single test cube to verify the mesh pipeline.<br>
+ * Creates a flat test chunk and builds the chunk mesh to verify<br>
+ * full chunk iteration, face culling, and multi-block rendering.<br>
  * Listens for the PAUSE action (Escape) to open the pause menu.<br>
  * The pause listener is registered in initialize/cleanup so it remains<br>
  * active even when the state is disabled (paused overlay is showing).
@@ -29,7 +33,7 @@ public class PlayingState extends FadeableAppState
 	private DirectionalLight _sun;
 	private AmbientLight _ambient;
 	private ActionListener _pauseListener;
-	private Geometry _testCubeGeometry;
+	private Node _chunkNode;
 	
 	public PlayingState()
 	{
@@ -99,24 +103,66 @@ public class PlayingState extends FadeableAppState
 		_ambient.setColor(new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
 		app.getRootNode().addLight(_ambient);
 		
-		// Build and attach test cube.
-		final Mesh cubeMesh = ChunkMeshBuilder.buildSingleCube();
-		_testCubeGeometry = new Geometry("TestCube", cubeMesh);
+		// Create a test chunk with flat terrain.
+		final Chunk chunk = new Chunk(0, 0);
+		chunk.fillFlat(4);
 		
-		// Use Lighting material with a solid green color (no texture needed for this test).
-		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
-		mat.setBoolean("UseMaterialColors", true);
-		mat.setColor("Diffuse", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
-		mat.setColor("Ambient", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
-		_testCubeGeometry.setMaterial(mat);
+		// Build the chunk meshes.
+		final ChunkMeshResult meshResult = ChunkMeshBuilder.buildChunkMesh(chunk);
 		
-		app.getRootNode().attachChild(_testCubeGeometry);
+		// Attach meshes to a chunk node.
+		_chunkNode = new Node("Chunk_0_0");
 		
-		System.out.println("Test cube attached — vertices: " + cubeMesh.getVertexCount() + ", triangles: " + cubeMesh.getTriangleCount());
+		// Opaque mesh (grass, dirt, stone, bedrock).
+		final Mesh opaqueMesh = meshResult.getOpaqueMesh();
+		if (opaqueMesh != null)
+		{
+			final Geometry opaqueGeometry = new Geometry("ChunkOpaque", opaqueMesh);
+			final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
+			mat.setBoolean("UseMaterialColors", true);
+			mat.setColor("Diffuse", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
+			mat.setColor("Ambient", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
+			opaqueGeometry.setMaterial(mat);
+			_chunkNode.attachChild(opaqueGeometry);
+			
+			System.out.println("Opaque mesh — vertices: " + opaqueMesh.getVertexCount() + ", triangles: " + opaqueMesh.getTriangleCount());
+		}
 		
-		// Position camera to see the cube.
-		app.getCamera().setLocation(new Vector3f(3, 3, 3));
-		app.getCamera().lookAt(new Vector3f(0.5f, 0.5f, 0.5f), Vector3f.UNIT_Y);
+		// Transparent mesh (leaves, water) — not present in fillFlat but ready for future use.
+		final Mesh transparentMesh = meshResult.getTransparentMesh();
+		if (transparentMesh != null)
+		{
+			final Geometry transparentGeometry = new Geometry("ChunkTransparent", transparentMesh);
+			final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
+			mat.setBoolean("UseMaterialColors", true);
+			mat.setColor("Diffuse", new ColorRGBA(0.3f, 0.5f, 0.9f, 0.7f));
+			mat.setColor("Ambient", new ColorRGBA(0.3f, 0.5f, 0.9f, 0.7f));
+			transparentGeometry.setMaterial(mat);
+			_chunkNode.attachChild(transparentGeometry);
+			
+			System.out.println("Transparent mesh — vertices: " + transparentMesh.getVertexCount() + ", triangles: " + transparentMesh.getTriangleCount());
+		}
+		
+		// Billboard mesh (flowers, torches, campfires) — not present in fillFlat but ready for future use.
+		final Mesh billboardMesh = meshResult.getBillboardMesh();
+		if (billboardMesh != null)
+		{
+			final Geometry billboardGeometry = new Geometry("ChunkBillboard", billboardMesh);
+			final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
+			mat.setBoolean("UseMaterialColors", true);
+			mat.setColor("Diffuse", new ColorRGBA(0.9f, 0.3f, 0.3f, 1.0f));
+			mat.setColor("Ambient", new ColorRGBA(0.9f, 0.3f, 0.3f, 1.0f));
+			billboardGeometry.setMaterial(mat);
+			_chunkNode.attachChild(billboardGeometry);
+			
+			System.out.println("Billboard mesh — vertices: " + billboardMesh.getVertexCount() + ", triangles: " + billboardMesh.getTriangleCount());
+		}
+		
+		app.getRootNode().attachChild(_chunkNode);
+		
+		// Position camera high enough to see the flat platform.
+		app.getCamera().setLocation(new Vector3f(24, 16, 24));
+		app.getCamera().lookAt(new Vector3f(8, 2, 8), Vector3f.UNIT_Y);
 		
 		// Disable cursor for first-person control.
 		app.getInputManager().setCursorVisible(false);
@@ -130,11 +176,11 @@ public class PlayingState extends FadeableAppState
 		// Re-enable cursor when leaving game.
 		app.getInputManager().setCursorVisible(true);
 		
-		// Clean up test cube.
-		if (_testCubeGeometry != null)
+		// Clean up chunk geometry.
+		if (_chunkNode != null)
 		{
-			app.getRootNode().detachChild(_testCubeGeometry);
-			_testCubeGeometry = null;
+			app.getRootNode().detachChild(_chunkNode);
+			_chunkNode = null;
 		}
 		
 		// Clean up lights.
