@@ -4,16 +4,20 @@ import com.jme3.app.Application;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
+import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.Mesh;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
 import simplecraft.state.GameStateManager.GameState;
+import simplecraft.world.ChunkMeshBuilder;
 
 /**
  * Playing state - the main game scene.<br>
- * Currently an empty scene with sky background and basic lighting.<br>
+ * Currently displays a single test cube to verify the mesh pipeline.<br>
  * Listens for the PAUSE action (Escape) to open the pause menu.<br>
  * The pause listener is registered in initialize/cleanup so it remains<br>
  * active even when the state is disabled (paused overlay is showing).
@@ -25,6 +29,7 @@ public class PlayingState extends FadeableAppState
 	private DirectionalLight _sun;
 	private AmbientLight _ambient;
 	private ActionListener _pauseListener;
+	private Geometry _testCubeGeometry;
 	
 	public PlayingState()
 	{
@@ -94,6 +99,25 @@ public class PlayingState extends FadeableAppState
 		_ambient.setColor(new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
 		app.getRootNode().addLight(_ambient);
 		
+		// Build and attach test cube.
+		final Mesh cubeMesh = ChunkMeshBuilder.buildSingleCube();
+		_testCubeGeometry = new Geometry("TestCube", cubeMesh);
+		
+		// Use Lighting material with a solid green color (no texture needed for this test).
+		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
+		mat.setBoolean("UseMaterialColors", true);
+		mat.setColor("Diffuse", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
+		mat.setColor("Ambient", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
+		_testCubeGeometry.setMaterial(mat);
+		
+		app.getRootNode().attachChild(_testCubeGeometry);
+		
+		System.out.println("Test cube attached — vertices: " + cubeMesh.getVertexCount() + ", triangles: " + cubeMesh.getTriangleCount());
+		
+		// Position camera to see the cube.
+		app.getCamera().setLocation(new Vector3f(3, 3, 3));
+		app.getCamera().lookAt(new Vector3f(0.5f, 0.5f, 0.5f), Vector3f.UNIT_Y);
+		
 		// Disable cursor for first-person control.
 		app.getInputManager().setCursorVisible(false);
 	}
@@ -105,6 +129,13 @@ public class PlayingState extends FadeableAppState
 		
 		// Re-enable cursor when leaving game.
 		app.getInputManager().setCursorVisible(true);
+		
+		// Clean up test cube.
+		if (_testCubeGeometry != null)
+		{
+			app.getRootNode().detachChild(_testCubeGeometry);
+			_testCubeGeometry = null;
+		}
 		
 		// Clean up lights.
 		if (_sun != null)

@@ -8,28 +8,28 @@ package simplecraft.world;
 public enum Block
 {
 	// @formatter:off
-	//               solid         transparent          liquid          tileEntity          hardness         bestTool             atlasIdx
-	AIR                      (RenderMode.CUBE_SOLID,     false, true,  false, false,  false, 0,        ToolType.NONE,   -1),
-	GRASS                    (RenderMode.CUBE_SOLID,     true,  false, false, false,  false, 3,        ToolType.SHOVEL, -1), // multi-face
-	DIRT                     (RenderMode.CUBE_SOLID,     true,  false, false, false,  false, 3,        ToolType.SHOVEL, 2),
-	STONE                    (RenderMode.CUBE_SOLID,     true,  false, false, false,  false, 8,        ToolType.PICKAXE, 3),
-	SAND                     (RenderMode.CUBE_SOLID,     true,  false, false, false,  false, 2,        ToolType.SHOVEL, 4),
-	WOOD                     (RenderMode.CUBE_SOLID,     true,  false, false, false,  false, 5,        ToolType.AXE,    -1), // multi-face
-	LEAVES                   (RenderMode.CUBE_TRANSPARENT, false, true, false, false, false, 1,        ToolType.AXE,    7),
-	WATER                    (RenderMode.CUBE_TRANSPARENT, false, true, true,  false, false, -1,       ToolType.NONE,   8),
-	IRON_ORE                 (RenderMode.CUBE_SOLID,     true,  false, false, false,  false, 10,       ToolType.PICKAXE, 9),
-	BEDROCK                  (RenderMode.CUBE_SOLID,     true,  false, false, false,  false, -1,       ToolType.NONE,   10),
-	BERRY_BUSH               (RenderMode.CROSS_BILLBOARD, false, true, false, false,  false, 1,        ToolType.AXE,    11),
-	CAMPFIRE                 (RenderMode.CROSS_BILLBOARD, false, true, false, true,   false, 3,        ToolType.AXE,    12),
-	CHEST                    (RenderMode.CUBE_SOLID,     true,  false, false, true,   false, 4,        ToolType.AXE,    -1), // multi-face
-	CRAFTING_TABLE            (RenderMode.CUBE_SOLID,     true,  false, false, true,   false, 4,        ToolType.AXE,    -1), // multi-face
-	FURNACE                  (RenderMode.CUBE_SOLID,     true,  false, false, true,   false, 6,        ToolType.PICKAXE, -1), // multi-face
-	TORCH                    (RenderMode.CROSS_BILLBOARD, false, true, false, true,   false, 1,        ToolType.NONE,   23),
-	RED_POPPY                (RenderMode.CROSS_BILLBOARD, false, true, false, false,  true,  1,        ToolType.NONE,   24),
-	DANDELION                (RenderMode.CROSS_BILLBOARD, false, true, false, false,  true,  1,        ToolType.NONE,   25),
-	BLUE_ORCHID              (RenderMode.CROSS_BILLBOARD, false, true, false, false,  true,  1,        ToolType.NONE,   26),
-	WHITE_DAISY              (RenderMode.CROSS_BILLBOARD, false, true, false, false,  true,  1,        ToolType.NONE,   27);
-    // @formatter:on
+	//                        RenderMode                   solid        transparent         liquid        tileEntity          decoration     hardness   tool              atlasIdx
+	AIR                      (RenderMode.CUBE_SOLID,       false, true,  false, false,  false, 0,        ToolType.NONE,    -1),
+	GRASS                    (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 3,        ToolType.SHOVEL,  -1), // multi-face
+	DIRT                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 3,        ToolType.SHOVEL,   2),
+	STONE                    (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 8,        ToolType.PICKAXE,  3),
+	SAND                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 2,        ToolType.SHOVEL,   4),
+	WOOD                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 5,        ToolType.AXE,     -1), // multi-face
+	LEAVES                   (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  false, 1,        ToolType.AXE,      7),
+	WATER                    (RenderMode.CUBE_TRANSPARENT, false, true,  true,  false,  false, -1,       ToolType.NONE,     8),
+	IRON_ORE                 (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 10,       ToolType.PICKAXE,  9),
+	BEDROCK                  (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, -1,       ToolType.NONE,    10),
+	BERRY_BUSH               (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  false, 1,        ToolType.AXE,     11),
+	CAMPFIRE                 (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false, 3,        ToolType.AXE,     12),
+	CHEST                    (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 4,        ToolType.AXE,     -1), // multi-face
+	CRAFTING_TABLE           (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 4,        ToolType.AXE,     -1), // multi-face
+	FURNACE                  (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 6,        ToolType.PICKAXE, -1), // multi-face
+	TORCH                    (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false, 1,        ToolType.NONE,    23),
+	RED_POPPY                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    24),
+	DANDELION                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    25),
+	BLUE_ORCHID              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    26),
+	WHITE_DAISY              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    27);
+	// @formatter:on
 	
 	// ========================================================
 	// Inner Enums
@@ -72,7 +72,7 @@ public enum Block
 	private final boolean _decoration;
 	private final int _hardness;
 	private final ToolType _bestTool;
-	private final int _atlasIndex; // -1 for multi-face or AIR
+	private final int _atlasIndex; // -1 for multi-face or AIR.
 	
 	// ========================================================
 	// Constructor
@@ -149,7 +149,8 @@ public enum Block
 	// ========================================================
 	
 	/**
-	 * Returns the default atlas index for this block. For uniform blocks this is the single texture index. For multi-face blocks this returns -1; use {@link #getAtlasIndex(Face)} instead.
+	 * Returns the default atlas index for this block. For uniform blocks this is the single texture index.<br>
+	 * For multi-face blocks this returns -1; use {@link #getAtlasIndex(Face)} instead.
 	 */
 	public int getAtlasIndex()
 	{
@@ -157,7 +158,9 @@ public enum Block
 	}
 	
 	/**
-	 * Returns the atlas index for a specific face. Multi-face blocks (GRASS, WOOD, CHEST, CRAFTING_TABLE, FURNACE) return different indices per face. Cross-billboard blocks ignore the face parameter.
+	 * Returns the atlas index for a specific face.<br>
+	 * Multi-face blocks (GRASS, WOOD, CHEST, CRAFTING_TABLE, FURNACE) return different indices per face.<br>
+	 * Cross-billboard blocks ignore the face parameter.
 	 */
 	public int getAtlasIndex(Face face)
 	{
@@ -274,7 +277,6 @@ public enum Block
 		{
 			return AIR;
 		}
-		
 		return VALUES[ordinal];
 	}
 }

@@ -77,6 +77,7 @@ public class Chunk
 		{
 			return Block.AIR;
 		}
+		
 		return Block.fromOrdinal(_blocks[x][y][z]);
 	}
 	
@@ -90,6 +91,7 @@ public class Chunk
 		{
 			return;
 		}
+		
 		_blocks[x][y][z] = (byte) block.ordinal();
 	}
 	
@@ -163,6 +165,7 @@ public class Chunk
 				return y;
 			}
 		}
+		
 		return -1;
 	}
 }
