@@ -25,7 +25,7 @@ public class IntroState extends FadeableAppState
 	private static final float REFERENCE_WIDTH = 1920f;
 	private static final float REFERENCE_HEIGHT = 1080f;
 	// Base font size at reference resolution.
-	private static final float BASE_FONT_SIZE = 96f;
+	private static final float BASE_FONT_SIZE = 48f;
 	
 	private Label _titleLabel;
 	private Geometry _background;
@@ -88,7 +88,7 @@ public class IntroState extends FadeableAppState
 		app.getGuiNode().attachChild(_background);
 		
 		// Create title text in white (so it's visible on black background).
-		_titleLabel = new Label("SimpleCraft");
+		_titleLabel = new Label("Mobius Development");
 		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, (int) adaptiveFontSize));
 		_titleLabel.setFontSize(adaptiveFontSize);
 		_titleLabel.setColor(ColorRGBA.White); // White text on black background.
