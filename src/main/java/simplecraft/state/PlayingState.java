@@ -17,6 +17,7 @@ import simplecraft.state.GameStateManager.GameState;
 import simplecraft.world.Chunk;
 import simplecraft.world.ChunkMeshBuilder;
 import simplecraft.world.ChunkMeshBuilder.ChunkMeshResult;
+import simplecraft.world.TextureAtlas;
 
 /**
  * Playing state - the main game scene.<br>
@@ -34,6 +35,7 @@ public class PlayingState extends FadeableAppState
 	private AmbientLight _ambient;
 	private ActionListener _pauseListener;
 	private Node _chunkNode;
+	private TextureAtlas _textureAtlas;
 	
 	public PlayingState()
 	{
@@ -103,6 +105,11 @@ public class PlayingState extends FadeableAppState
 		_ambient.setColor(new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
 		app.getRootNode().addLight(_ambient);
 		
+		// Build texture atlas.
+		_textureAtlas = new TextureAtlas();
+		_textureAtlas.buildAtlas(app.getAssetManager());
+		final Material atlasMaterial = _textureAtlas.createMaterial(app.getAssetManager());
+		
 		// Create a test chunk with flat terrain.
 		final Chunk chunk = new Chunk(0, 0);
 		chunk.fillFlat(4);
@@ -118,11 +125,7 @@ public class PlayingState extends FadeableAppState
 		if (opaqueMesh != null)
 		{
 			final Geometry opaqueGeometry = new Geometry("ChunkOpaque", opaqueMesh);
-			final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
-			mat.setBoolean("UseMaterialColors", true);
-			mat.setColor("Diffuse", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
-			mat.setColor("Ambient", new ColorRGBA(0.4f, 0.8f, 0.3f, 1.0f));
-			opaqueGeometry.setMaterial(mat);
+			opaqueGeometry.setMaterial(atlasMaterial);
 			_chunkNode.attachChild(opaqueGeometry);
 			
 			System.out.println("Opaque mesh — vertices: " + opaqueMesh.getVertexCount() + ", triangles: " + opaqueMesh.getTriangleCount());
@@ -133,11 +136,7 @@ public class PlayingState extends FadeableAppState
 		if (transparentMesh != null)
 		{
 			final Geometry transparentGeometry = new Geometry("ChunkTransparent", transparentMesh);
-			final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
-			mat.setBoolean("UseMaterialColors", true);
-			mat.setColor("Diffuse", new ColorRGBA(0.3f, 0.5f, 0.9f, 0.7f));
-			mat.setColor("Ambient", new ColorRGBA(0.3f, 0.5f, 0.9f, 0.7f));
-			transparentGeometry.setMaterial(mat);
+			transparentGeometry.setMaterial(atlasMaterial);
 			_chunkNode.attachChild(transparentGeometry);
 			
 			System.out.println("Transparent mesh — vertices: " + transparentMesh.getVertexCount() + ", triangles: " + transparentMesh.getTriangleCount());
@@ -148,11 +147,7 @@ public class PlayingState extends FadeableAppState
 		if (billboardMesh != null)
 		{
 			final Geometry billboardGeometry = new Geometry("ChunkBillboard", billboardMesh);
-			final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Light/Lighting.j3md");
-			mat.setBoolean("UseMaterialColors", true);
-			mat.setColor("Diffuse", new ColorRGBA(0.9f, 0.3f, 0.3f, 1.0f));
-			mat.setColor("Ambient", new ColorRGBA(0.9f, 0.3f, 0.3f, 1.0f));
-			billboardGeometry.setMaterial(mat);
+			billboardGeometry.setMaterial(atlasMaterial);
 			_chunkNode.attachChild(billboardGeometry);
 			
 			System.out.println("Billboard mesh — vertices: " + billboardMesh.getVertexCount() + ", triangles: " + billboardMesh.getTriangleCount());
@@ -195,6 +190,8 @@ public class PlayingState extends FadeableAppState
 			app.getRootNode().removeLight(_ambient);
 			_ambient = null;
 		}
+		
+		_textureAtlas = null;
 	}
 	
 	@Override

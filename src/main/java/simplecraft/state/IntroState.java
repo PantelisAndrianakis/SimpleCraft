@@ -25,7 +25,7 @@ public class IntroState extends FadeableAppState
 	private static final float REFERENCE_WIDTH = 1920f;
 	private static final float REFERENCE_HEIGHT = 1080f;
 	// Base font size at reference resolution.
-	private static final float BASE_FONT_SIZE = 48f;
+	private static final float BASE_FONT_SIZE = 64f;
 	
 	private Label _titleLabel;
 	private Geometry _background;

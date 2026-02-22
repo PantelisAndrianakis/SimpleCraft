@@ -24,8 +24,8 @@ public class ChunkMeshBuilder
 	// Atlas Constants
 	// ========================================================
 	
-	/** Number of tiles per row/column in the texture atlas. */
-	private static final int ATLAS_GRID_SIZE = 8;
+	/** Number of tiles per row/column in the texture atlas (from {@link TextureAtlas}). */
+	private static final int ATLAS_GRID_SIZE = TextureAtlas.GRID_SIZE;
 	
 	/** UV size of one tile in the atlas. */
 	private static final float TILE_UV = 1.0f / ATLAS_GRID_SIZE;
@@ -107,10 +107,12 @@ public class ChunkMeshBuilder
 	private static final float[] FACE_UVS =
 	{
 		// Per vertex: u, v
-		0, 0,
+		// V is flipped so V=0 (top of PNG) maps to vertex at y=1 (top of block face).
+		// Without this flip, flipY=false causes textures to render upside-down on side faces.
 		0, 1,
-		1, 1,
-		1, 0
+		0, 0,
+		1, 0,
+		1, 1
 	};
 	// @formatter:on
 	
