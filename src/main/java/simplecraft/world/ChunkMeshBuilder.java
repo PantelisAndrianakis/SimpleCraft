@@ -329,9 +329,30 @@ public class ChunkMeshBuilder
 	// ========================================================
 	
 	/**
+	 * Positive-direction faces used for leaves single-face rendering.<br>
+	 * When two leaves blocks share a boundary, only the positive-direction face (TOP, NORTH, EAST) is rendered.<br>
+	 * This avoids z-fighting from two overlapping transparent faces while keeping interiors visible.
+	 */
+	private static final boolean[] POSITIVE_FACE =
+	{
+		true, // TOP (Y+)
+		false, // BOTTOM (Y-)
+		true, // NORTH (Z+)
+		false, // SOUTH (Z-)
+		true, // EAST (X+)
+		false // WEST (X-)
+	};
+	
+	/**
 	 * Returns true if the given face of a CUBE_TRANSPARENT block should be rendered.<br>
-	 * Faces between two blocks of the same type are culled (water-water, leaves-leaves).<br>
-	 * Faces adjacent to AIR or a different block type are rendered.
+	 * <br>
+	 * <b>Water (liquid):</b> Only renders faces adjacent to AIR or out-of-bounds.<br>
+	 * No water faces against pool floor/walls or between water blocks.<br>
+	 * This creates a clean surface you can see through.<br>
+	 * <br>
+	 * <b>Leaves (non-liquid):</b> Renders faces against AIR/non-solid normally.<br>
+	 * When two leaves blocks share a boundary, renders exactly ONE face<br>
+	 * (the positive-direction side: TOP/NORTH/EAST) to avoid z-fighting.
 	 */
 	public static boolean isTransparentFaceVisible(Chunk chunk, int x, int y, int z, Face face, Block block)
 	{
@@ -348,8 +369,27 @@ public class ChunkMeshBuilder
 		
 		final Block neighbor = chunk.getBlock(nx, ny, nz);
 		
-		// Cull faces between identical transparent block types.
-		return neighbor != block;
+		if (block.isLiquid())
+		{
+			// Water only renders faces adjacent to air — clean pool surface.
+			return neighbor == Block.AIR;
+		}
+		
+		// Leaves: cull against solid blocks.
+		if (neighbor.isSolid())
+		{
+			return false;
+		}
+		
+		// Leaves-to-leaves: render only one face per shared boundary.
+		// Positive-direction face (TOP/NORTH/EAST) renders, negative is culled.
+		if (neighbor == block)
+		{
+			return POSITIVE_FACE[face.ordinal()];
+		}
+		
+		// Adjacent to air or other non-solid — always render.
+		return true;
 	}
 	
 	// ========================================================

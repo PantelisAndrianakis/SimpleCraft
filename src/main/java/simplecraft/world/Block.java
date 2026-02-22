@@ -1,34 +1,43 @@
 package simplecraft.world;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 /**
- * Defines all block types with their rendering, gameplay, and atlas properties.
+ * Defines all block types with their rendering, gameplay, and atlas properties.<br>
+ * Texture filenames are defined per block. Atlas indices are resolved dynamically by {@link TextureAtlas} during atlas building.
  * @author Pantelis Andrianakis
  * @since February 21st 2026
  */
 public enum Block
 {
 	// @formatter:off
-	//                        RenderMode                   solid        transparent         liquid        tileEntity          decoration     hardness   tool              atlasIdx
-	AIR                      (RenderMode.CUBE_SOLID,       false, true,  false, false,  false, 0,        ToolType.NONE,    -1),
-	GRASS                    (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 3,        ToolType.SHOVEL,  -1), // multi-face
-	DIRT                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 3,        ToolType.SHOVEL,   2),
-	STONE                    (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 8,        ToolType.PICKAXE,  3),
-	SAND                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 2,        ToolType.SHOVEL,   4),
-	WOOD                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 5,        ToolType.AXE,     -1), // multi-face
-	LEAVES                   (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  false, 1,        ToolType.AXE,      7),
-	WATER                    (RenderMode.CUBE_TRANSPARENT, false, true,  true,  false,  false, -1,       ToolType.NONE,     8),
-	IRON_ORE                 (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 10,       ToolType.PICKAXE,  9),
-	BEDROCK                  (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, -1,       ToolType.NONE,    10),
-	BERRY_BUSH               (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  false, 1,        ToolType.AXE,     11),
-	CAMPFIRE                 (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false, 3,        ToolType.AXE,     12),
-	CHEST                    (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 4,        ToolType.AXE,     -1), // multi-face
-	CRAFTING_TABLE           (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 4,        ToolType.AXE,     -1), // multi-face
-	FURNACE                  (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 6,        ToolType.PICKAXE, -1), // multi-face
-	TORCH                    (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false, 1,        ToolType.NONE,    23),
-	RED_POPPY                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    24),
-	DANDELION                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    25),
-	BLUE_ORCHID              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    26),
-	WHITE_DAISY              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    27);
+	//                        RenderMode                   solid        transparent         liquid        tileEntity          decoration     hardness   tool              sideTexture                topTexture                    bottomTexture                    frontTexture
+	AIR                      (RenderMode.CUBE_SOLID,       false, true,  false, false,  false, 0,        ToolType.NONE,    null,                      null,                         null,                            null),
+	GRASS                    (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 3,        ToolType.SHOVEL,  "grass_side.png",          "grass_top.png",              "dirt.png",                      null),
+	DIRT                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 3,        ToolType.SHOVEL,  "dirt.png",                null,                         null,                            null),
+	STONE                    (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 8,        ToolType.PICKAXE, "stone.png",               null,                         null,                            null),
+	SAND                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 2,        ToolType.SHOVEL,  "sand.png",                null,                         null,                            null),
+	WOOD                     (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 5,        ToolType.AXE,     "wood_side.png",           "wood_top.png",               null,                            null),
+	LEAVES                   (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  false, 1,        ToolType.AXE,     "leaves.png",              null,                         null,                            null),
+	WATER                    (RenderMode.CUBE_TRANSPARENT, false, true,  true,  false,  false, -1,       ToolType.NONE,    "water.png",               null,                         null,                            null),
+	IRON_ORE                 (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, 10,       ToolType.PICKAXE, "iron_ore.png",            null,                         null,                            null),
+	BEDROCK                  (RenderMode.CUBE_SOLID,       true,  false, false, false,  false, -1,       ToolType.NONE,    "bedrock.png",             null,                         null,                            null),
+	BERRY_BUSH               (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  false, 1,        ToolType.AXE,     "berry_bush.png",          null,                         null,                            null),
+	CAMPFIRE                 (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false, 3,        ToolType.AXE,     "campfire.png",            null,                         null,                            null),
+	CHEST                    (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 4,        ToolType.AXE,     "chest_side.png",          "chest_top.png",              null,                            "chest_front.png"),
+	CRAFTING_TABLE           (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 4,        ToolType.AXE,     "crafting_table_side.png", "crafting_table_top.png",     "crafting_table_bottom.png",     null),
+	FURNACE                  (RenderMode.CUBE_SOLID,       true,  false, false, true,   false, 6,        ToolType.PICKAXE, "furnace_side.png",        "furnace_top.png",            null,                            "furnace_front.png"),
+	TORCH                    (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false, 1,        ToolType.NONE,    "torch.png",               null,                         null,                            null),
+	TALL_GRASS               (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "tall_grass.png",          null,                         null,                            null),
+	RED_POPPY                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "red_poppy.png",           null,                         null,                            null),
+	DANDELION                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "dandelion.png",           null,                         null,                            null),
+	BLUE_ORCHID              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "blue_orchid.png",         null,                         null,                            null),
+	WHITE_DAISY              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "white_daisy.png",         null,                         null,                            null);
 	// @formatter:on
 	
 	// ========================================================
@@ -72,13 +81,31 @@ public enum Block
 	private final boolean _decoration;
 	private final int _hardness;
 	private final ToolType _bestTool;
-	private final int _atlasIndex; // -1 for multi-face or AIR.
+	
+	/** Side (SOUTH, EAST, WEST) texture. Also default for all faces and cross-billboards. */
+	private final String _sideTexture;
+	
+	/** Top face texture. Null = use side texture. */
+	private final String _topTexture;
+	
+	/** Bottom face texture. Null = use top texture (which falls back to side). */
+	private final String _bottomTexture;
+	
+	/** Front/NORTH face texture. Null = use side texture. */
+	private final String _frontTexture;
+	
+	// ========================================================
+	// Atlas Index Map (populated by TextureAtlas at startup)
+	// ========================================================
+	
+	/** Maps texture filename to atlas index. Populated by {@link TextureAtlas#buildAtlas}. */
+	private static final Map<String, Integer> ATLAS_INDEX_MAP = new HashMap<>();
 	
 	// ========================================================
 	// Constructor
 	// ========================================================
 	
-	Block(RenderMode renderMode, boolean solid, boolean transparent, boolean liquid, boolean tileEntity, boolean decoration, int hardness, ToolType bestTool, int atlasIndex)
+	Block(RenderMode renderMode, boolean solid, boolean transparent, boolean liquid, boolean tileEntity, boolean decoration, int hardness, ToolType bestTool, String sideTexture, String topTexture, String bottomTexture, String frontTexture)
 	{
 		_renderMode = renderMode;
 		_solid = solid;
@@ -88,7 +115,10 @@ public enum Block
 		_decoration = decoration;
 		_hardness = hardness;
 		_bestTool = bestTool;
-		_atlasIndex = atlasIndex;
+		_sideTexture = sideTexture;
+		_topTexture = topTexture;
+		_bottomTexture = bottomTexture;
+		_frontTexture = frontTexture;
 	}
 	
 	// ========================================================
@@ -145,121 +175,123 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Atlas Lookup
+	// Texture File Lookup
 	// ========================================================
 	
 	/**
-	 * Returns the default atlas index for this block. For uniform blocks this is the single texture index.<br>
-	 * For multi-face blocks this returns -1; use {@link #getAtlasIndex(Face)} instead.
+	 * Returns the texture filename for a specific face.<br>
+	 * Fallback chain: front → side, top → side, bottom → top → side.
 	 */
-	public int getAtlasIndex()
+	public String getTextureFile(Face face)
 	{
-		return _atlasIndex;
-	}
-	
-	/**
-	 * Returns the atlas index for a specific face.<br>
-	 * Multi-face blocks (GRASS, WOOD, CHEST, CRAFTING_TABLE, FURNACE) return different indices per face.<br>
-	 * Cross-billboard blocks ignore the face parameter.
-	 */
-	public int getAtlasIndex(Face face)
-	{
-		switch (this)
+		switch (face)
 		{
-			case GRASS:
+			case TOP:
 			{
-				switch (face)
-				{
-					case TOP:
-					{
-						return 0; // grass_top
-					}
-					case BOTTOM:
-					{
-						return 2; // dirt
-					}
-					default:
-					{
-						return 1; // grass_side
-					}
-				}
+				return _topTexture != null ? _topTexture : _sideTexture;
 			}
-			case WOOD:
+			case BOTTOM:
 			{
-				switch (face)
+				// Bottom falls back to top, then side.
+				if (_bottomTexture != null)
 				{
-					case TOP:
-					case BOTTOM:
-					{
-						return 6; // wood_top
-					}
-					default:
-					{
-						return 5; // wood_side
-					}
+					return _bottomTexture;
 				}
+				
+				return _topTexture != null ? _topTexture : _sideTexture;
 			}
-			case CHEST:
+			case NORTH:
 			{
-				switch (face)
-				{
-					case NORTH:
-					{
-						return 14; // chest_front (latch face)
-					}
-					case TOP:
-					case BOTTOM:
-					{
-						return 16; // chest_top
-					}
-					default:
-					{
-						return 15; // chest_side
-					}
-				}
-			}
-			case CRAFTING_TABLE:
-			{
-				switch (face)
-				{
-					case TOP:
-					{
-						return 17; // crafting_table_top (grid)
-					}
-					case BOTTOM:
-					{
-						return 19; // crafting_table_bottom
-					}
-					default:
-					{
-						return 18; // crafting_table_side
-					}
-				}
-			}
-			case FURNACE:
-			{
-				switch (face)
-				{
-					case NORTH:
-					{
-						return 20; // furnace_front (dark opening)
-					}
-					case TOP:
-					case BOTTOM:
-					{
-						return 22; // furnace_top
-					}
-					default:
-					{
-						return 21; // furnace_side
-					}
-				}
+				return _frontTexture != null ? _frontTexture : _sideTexture;
 			}
 			default:
 			{
-				return _atlasIndex;
+				// SOUTH, EAST, WEST.
+				return _sideTexture;
 			}
 		}
+	}
+	
+	// ========================================================
+	// Atlas Index Lookup
+	// ========================================================
+	
+	/**
+	 * Returns the atlas index for a specific face.<br>
+	 * Resolves face → texture filename → atlas index via the map populated by TextureAtlas.
+	 */
+	public int getAtlasIndex(Face face)
+	{
+		final String filename = getTextureFile(face);
+		if (filename == null)
+		{
+			return -1;
+		}
+		
+		return ATLAS_INDEX_MAP.getOrDefault(filename, -1);
+	}
+	
+	/**
+	 * Returns the default atlas index (using side texture).<br>
+	 * For cross-billboard blocks, this is the only texture.
+	 */
+	public int getAtlasIndex()
+	{
+		if (_sideTexture == null)
+		{
+			return -1;
+		}
+		
+		return ATLAS_INDEX_MAP.getOrDefault(_sideTexture, -1);
+	}
+	
+	// ========================================================
+	// Static Atlas Registration
+	// ========================================================
+	
+	/**
+	 * Registers an atlas index for a texture filename.<br>
+	 * Called by {@link TextureAtlas} during atlas building.
+	 */
+	public static void registerAtlasIndex(String filename, int index)
+	{
+		ATLAS_INDEX_MAP.put(filename, index);
+	}
+	
+	/**
+	 * Collects all unique texture filenames from all block types in a deterministic order.<br>
+	 * Used by {@link TextureAtlas} to build the atlas grid.
+	 * @return ordered list of unique texture filenames
+	 */
+	public static List<String> collectTextureFiles()
+	{
+		// LinkedHashSet preserves insertion order and removes duplicates.
+		final Set<String> uniqueFiles = new LinkedHashSet<>();
+		
+		for (Block block : VALUES)
+		{
+			if (block._sideTexture != null)
+			{
+				uniqueFiles.add(block._sideTexture);
+			}
+			
+			if (block._topTexture != null)
+			{
+				uniqueFiles.add(block._topTexture);
+			}
+			
+			if (block._bottomTexture != null)
+			{
+				uniqueFiles.add(block._bottomTexture);
+			}
+			
+			if (block._frontTexture != null)
+			{
+				uniqueFiles.add(block._frontTexture);
+			}
+		}
+		
+		return new ArrayList<>(uniqueFiles);
 	}
 	
 	// ========================================================
@@ -277,6 +309,7 @@ public enum Block
 		{
 			return AIR;
 		}
+		
 		return VALUES[ordinal];
 	}
 }

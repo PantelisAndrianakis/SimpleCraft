@@ -1,10 +1,12 @@
 package simplecraft.world;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 
@@ -40,44 +42,6 @@ public class TextureAtlas
 	/** Relative path to block texture PNGs within the assets directory. */
 	private static final String TEXTURE_PATH = "images/blocks/";
 	
-	/**
-	 * Ordered list of texture filenames matching atlas indices 0–27.<br>
-	 * Empty strings represent reserved/unused slots.
-	 */
-	// @formatter:off
-	private static final String[] TEXTURE_FILES =
-	{
-		"grass_top.png",             // 0
-		"grass_side.png",            // 1
-		"dirt.png",                  // 2
-		"stone.png",                 // 3
-		"sand.png",                  // 4
-		"wood_side.png",             // 5
-		"wood_top.png",              // 6
-		"leaves.png",                // 7
-		"water.png",                 // 8
-		"iron_ore.png",              // 9
-		"bedrock.png",               // 10
-		"berry_bush.png",            // 11
-		"campfire.png",              // 12
-		"",                          // 13 (reserved)
-		"chest_front.png",           // 14
-		"chest_side.png",            // 15
-		"chest_top.png",             // 16
-		"crafting_table_top.png",    // 17
-		"crafting_table_side.png",   // 18
-		"crafting_table_bottom.png", // 19
-		"furnace_front.png",         // 20
-		"furnace_side.png",          // 21
-		"furnace_top.png",           // 22
-		"torch.png",                 // 23
-		"red_poppy.png",             // 24
-		"dandelion.png",             // 25
-		"blue_orchid.png",           // 26
-		"white_daisy.png"            // 27
-	};
-	// @formatter:on
-	
 	// ========================================================
 	// Fields
 	// ========================================================
@@ -104,11 +68,14 @@ public class TextureAtlas
 		g.fillRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
 		g.dispose();
 		
-		// Stitch each texture into its atlas slot.
+		// Collect all unique texture filenames from Block definitions.
+		final List<String> textureFiles = Block.collectTextureFiles();
+		
+		// Stitch each texture into its atlas slot and register the index.
 		int loadedCount = 0;
-		for (int i = 0; i < TEXTURE_FILES.length; i++)
+		for (int i = 0; i < textureFiles.size(); i++)
 		{
-			final String filename = TEXTURE_FILES[i];
+			final String filename = textureFiles.get(i);
 			if (filename.isEmpty())
 			{
 				continue; // Reserved slot.
@@ -125,6 +92,9 @@ public class TextureAtlas
 				{
 					final BufferedImage tile = ImageIO.read(file);
 					final Graphics2D tileGraphics = _atlasImage.createGraphics();
+					// Use Src composite to REPLACE pixels (not blend over magenta).
+					// This preserves alpha=0 in textures like leaves and billboards.
+					tileGraphics.setComposite(AlphaComposite.Src);
 					tileGraphics.drawImage(tile, px, py, TILE_SIZE, TILE_SIZE, null);
 					tileGraphics.dispose();
 					loadedCount++;
@@ -138,9 +108,12 @@ public class TextureAtlas
 			{
 				System.out.println("WARNING: Missing block texture: " + filename);
 			}
+			
+			// Register the atlas index for this filename so Block.getAtlasIndex() can resolve it.
+			Block.registerAtlasIndex(filename, i);
 		}
 		
-		System.out.println("TextureAtlas built: " + ATLAS_SIZE + "x" + ATLAS_SIZE + " (" + loadedCount + "/" + TEXTURE_FILES.length + " textures loaded)");
+		System.out.println("TextureAtlas built: " + ATLAS_SIZE + "x" + ATLAS_SIZE + " (" + loadedCount + "/" + textureFiles.size() + " textures loaded)");
 	}
 	
 	// ========================================================
@@ -178,6 +151,12 @@ public class TextureAtlas
 			// Build material with the atlas texture.
 			_sharedMaterial = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
 			_sharedMaterial.setTexture("DiffuseMap", texture);
+			
+			// Discard pixels with alpha below 50%. This enables:
+			// - Leaves alpha cutout (see-through canopy holes)
+			// - Billboard transparency (flowers, torches, campfires)
+			// Opaque blocks are unaffected since all their pixels have alpha=1.
+			_sharedMaterial.setFloat("AlphaDiscardThreshold", 0.5f);
 			
 			System.out.println("TextureAtlas: Material created from " + tempAtlas.getAbsolutePath());
 		}
