@@ -22,6 +22,7 @@ import simplecraft.state.OptionsState;
 import simplecraft.state.PauseMenuState;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.CursorManager;
+import simplecraft.ui.MessageManager;
 
 /**
  * SimpleCraft - A simple voxel game built in Java.<br>
@@ -139,6 +140,9 @@ public class SimpleCraft extends SimpleApplication
 		{
 			_audioManager.update(tpf);
 		}
+		
+		// Update message toast timer for auto-dismiss.
+		MessageManager.update(tpf);
 	}
 	
 	public SettingsManager getSettingsManager()

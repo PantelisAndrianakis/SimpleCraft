@@ -5,14 +5,18 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.jme3.app.state.AppStateManager;
+import com.jme3.app.state.ScreenshotAppState;
 import com.jme3.input.InputManager;
 import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
+import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 
 import simplecraft.SimpleCraft;
+import simplecraft.ui.MessageManager;
 
 /**
  * Centralizes action names and input bindings for keyboard and mouse.<br>
@@ -47,6 +51,7 @@ public class GameInputManager
 	
 	// UI actions.
 	public static final String PAUSE = "pause";
+	public static final String SCREENSHOT = "screenshot";
 	public static final String UI_UP = "ui_up";
 	public static final String UI_DOWN = "ui_down";
 	public static final String UI_LEFT = "ui_left";
@@ -83,6 +88,7 @@ public class GameInputManager
 		{"Block Scroll", "Scroll Wheel"},
 		{"Look Around", "Mouse Move"},
 		{"Pause / Menu", "Escape"},
+		{"Screenshot", "F2"},
 		// @formatter:on
 	};
 	
@@ -280,6 +286,7 @@ public class GameInputManager
 		// Setup our custom mappings.
 		setupKeyboardMappings();
 		setupMouseMappings();
+		setupScreenshotKey();
 		
 		System.out.println("GameInputManager initialized with keyboard and mouse mappings.");
 	}
@@ -358,6 +365,68 @@ public class GameInputManager
 		_inputManager.addMapping(LOOK_RIGHT, new MouseAxisTrigger(MouseInput.AXIS_X, false));
 		_inputManager.addMapping(LOOK_UP, new MouseAxisTrigger(MouseInput.AXIS_Y, true));
 		_inputManager.addMapping(LOOK_DOWN, new MouseAxisTrigger(MouseInput.AXIS_Y, false));
+	}
+	
+	/**
+	 * Sets up screenshot functionality using jME3's ScreenshotAppState.
+	 * <p>
+	 * Creates the screenshot directory in the user's Pictures/SimpleCraft folder (path is OS-appropriate), attaches the ScreenshotAppState with numbering disabled, and registers F2 as the screenshot key.
+	 * <p>
+	 * Screenshots are saved with timestamps in the format: Screenshot_YYYY-MM-DD_HH-mm-ss.png
+	 */
+	private void setupScreenshotKey()
+	{
+		// Check if already attached to avoid duplicates.
+		final AppStateManager stateManager = SimpleCraft.getInstance().getStateManager();
+		if (stateManager.getState(ScreenshotAppState.class) != null)
+		{
+			return;
+		}
+		
+		// Initialize screenshot functionality. Saves to Pictures/SimpleCraft/ folder.
+		final String userHome = System.getProperty("user.home");
+		final String os = System.getProperty("os.name").toLowerCase();
+		
+		final String picturesPath;
+		if (os.contains("win"))
+		{
+			picturesPath = userHome + "\\Pictures\\SimpleCraft\\";
+		}
+		else // Mac and Linux.
+		{
+			picturesPath = userHome + "/Pictures/SimpleCraft/";
+		}
+		
+		// Ensure directory exists.
+		new java.io.File(picturesPath).mkdirs();
+		
+		// Disable ScreenshotAppState's built-in key capture and numbering — we handle it manually.
+		final ScreenshotAppState screenshotState = new ScreenshotAppState(picturesPath);
+		screenshotState.setIsNumbered(false);
+		stateManager.attach(screenshotState);
+		
+		// Use F2 instead of Print Screen to avoid Windows interception.
+		_inputManager.addMapping(SCREENSHOT, new KeyTrigger(KeyInput.KEY_F2));
+		
+		_inputManager.addListener(new ActionListener()
+		{
+			@Override
+			public void onAction(String name, boolean isPressed, float tpf)
+			{
+				if (isPressed && name.equals(SCREENSHOT))
+				{
+					// Timestamp filename prevents overwrites across sessions.
+					final String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
+					screenshotState.setFileName("Screenshot_" + timestamp);
+					screenshotState.takeScreenshot();
+					
+					// Show confirmation message with a 0.5 second delay to avoid capturing it in the screenshot.
+					MessageManager.show("Screenshot captured!", 2f, 0.5f);
+				}
+			}
+		}, SCREENSHOT);
+		
+		System.out.println("Screenshots will be saved to: " + picturesPath);
 	}
 	
 	// ========== REBINDING API ==========
