@@ -205,6 +205,20 @@ public class ChunkMeshBuilder
 	}
 	
 	// ========================================================
+	// Cross-Chunk Block Access
+	// ========================================================
+	
+	/**
+	 * Functional interface for looking up blocks at world coordinates.<br>
+	 * Used by the mesh builder to resolve neighbors across chunk boundaries.
+	 */
+	@FunctionalInterface
+	public interface WorldBlockAccess
+	{
+		Block getBlock(int worldX, int worldY, int worldZ);
+	}
+	
+	// ========================================================
 	// Private Constructor (static utility class)
 	// ========================================================
 	
@@ -222,9 +236,10 @@ public class ChunkMeshBuilder
 	 * opaque (CUBE_SOLID), transparent (CUBE_TRANSPARENT), and billboard (CROSS_BILLBOARD).<br>
 	 * Each mesh contains only the visible faces after neighbor culling.
 	 * @param chunk the chunk to build meshes from
+	 * @param worldAccess optional world-level block access for cross-chunk neighbor lookups (may be null)
 	 * @return a ChunkMeshResult containing the three meshes (any may be null)
 	 */
-	public static ChunkMeshResult buildChunkMesh(Chunk chunk)
+	public static ChunkMeshResult buildChunkMesh(Chunk chunk, WorldBlockAccess worldAccess)
 	{
 		// Separate buffer lists for each render mode.
 		final List<Float> opaquePositions = new ArrayList<>();
@@ -261,7 +276,7 @@ public class ChunkMeshBuilder
 						{
 							for (Face face : Face.values())
 							{
-								if (isFaceVisible(chunk, x, y, z, face))
+								if (isFaceVisible(chunk, x, y, z, face, worldAccess))
 								{
 									addFace(opaquePositions, opaqueNormals, opaqueTexCoords, opaqueIndices, x, y, z, face, block);
 								}
@@ -272,7 +287,7 @@ public class ChunkMeshBuilder
 						{
 							for (Face face : Face.values())
 							{
-								if (isTransparentFaceVisible(chunk, x, y, z, face, block))
+								if (isTransparentFaceVisible(chunk, x, y, z, face, block, worldAccess))
 								{
 									addFace(transparentPositions, transparentNormals, transparentTexCoords, transparentIndices, x, y, z, face, block);
 								}
@@ -303,22 +318,36 @@ public class ChunkMeshBuilder
 	
 	/**
 	 * Returns true if the given face of a CUBE_SOLID block at (x, y, z) should be rendered.<br>
-	 * A face is visible if the neighbor block in that direction is AIR, transparent, or out-of-bounds.
+	 * A face is visible if the neighbor block in that direction is AIR, transparent, or out-of-bounds.<br>
+	 * When worldAccess is provided, out-of-bounds neighbors are resolved from adjacent chunks.
 	 */
-	public static boolean isFaceVisible(Chunk chunk, int x, int y, int z, Face face)
+	public static boolean isFaceVisible(Chunk chunk, int x, int y, int z, Face face, WorldBlockAccess worldAccess)
 	{
 		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
 		final int nx = x + offset[0];
 		final int ny = y + offset[1];
 		final int nz = z + offset[2];
 		
-		// Out-of-bounds neighbors are treated as air (face is visible).
+		final Block neighbor;
 		if (!chunk.isInBounds(nx, ny, nz))
 		{
-			return true;
+			if (worldAccess != null && ny >= 0 && ny < Chunk.SIZE_Y)
+			{
+				// Convert to world coordinates and query across chunk boundaries.
+				final int worldX = chunk.getWorldX() + nx;
+				final int worldZ = chunk.getWorldZ() + nz;
+				neighbor = worldAccess.getBlock(worldX, ny, worldZ);
+			}
+			else
+			{
+				// No world access or out of vertical bounds — treat as air.
+				return true;
+			}
 		}
-		
-		final Block neighbor = chunk.getBlock(nx, ny, nz);
+		else
+		{
+			neighbor = chunk.getBlock(nx, ny, nz);
+		}
 		
 		// Face visible if neighbor is not a solid cube.
 		return neighbor == Block.AIR || neighbor.getRenderMode() != RenderMode.CUBE_SOLID;
@@ -352,22 +381,37 @@ public class ChunkMeshBuilder
 	 * <br>
 	 * <b>Leaves (non-liquid):</b> Renders faces against AIR/non-solid normally.<br>
 	 * When two leaves blocks share a boundary, renders exactly ONE face<br>
-	 * (the positive-direction side: TOP/NORTH/EAST) to avoid z-fighting.
+	 * (the positive-direction side: TOP/NORTH/EAST) to avoid z-fighting.<br>
+	 * <br>
+	 * When worldAccess is provided, out-of-bounds neighbors are resolved from adjacent chunks.
 	 */
-	public static boolean isTransparentFaceVisible(Chunk chunk, int x, int y, int z, Face face, Block block)
+	public static boolean isTransparentFaceVisible(Chunk chunk, int x, int y, int z, Face face, Block block, WorldBlockAccess worldAccess)
 	{
 		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
 		final int nx = x + offset[0];
 		final int ny = y + offset[1];
 		final int nz = z + offset[2];
 		
-		// Out-of-bounds neighbors are treated as air (face is visible).
+		final Block neighbor;
 		if (!chunk.isInBounds(nx, ny, nz))
 		{
-			return true;
+			if (worldAccess != null && ny >= 0 && ny < Chunk.SIZE_Y)
+			{
+				// Convert to world coordinates and query across chunk boundaries.
+				final int worldX = chunk.getWorldX() + nx;
+				final int worldZ = chunk.getWorldZ() + nz;
+				neighbor = worldAccess.getBlock(worldX, ny, worldZ);
+			}
+			else
+			{
+				// No world access or out of vertical bounds — treat as air.
+				return true;
+			}
 		}
-		
-		final Block neighbor = chunk.getBlock(nx, ny, nz);
+		else
+		{
+			neighbor = chunk.getBlock(nx, ny, nz);
+		}
 		
 		if (block.isLiquid())
 		{

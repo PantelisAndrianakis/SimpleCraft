@@ -24,6 +24,13 @@ import simplecraft.world.ChunkMeshBuilder.ChunkMeshResult;
 public class World
 {
 	// ========================================================
+	// Constants
+	// ========================================================
+	
+	/** Water level constant exposed for gameplay systems (e.g. player swimming). */
+	public static final int WATER_LEVEL = TerrainGenerator.WATER_LEVEL;
+	
+	// ========================================================
 	// Fields
 	// ========================================================
 	
@@ -65,34 +72,39 @@ public class World
 	// ========================================================
 	
 	/**
-	 * Generates a (2×radius+1)² grid of flat chunks centered on the origin.<br>
-	 * Each chunk is filled with flat terrain at Y=32, meshed, and attached to the world node.
+	 * Generates a (2×radius+1)² grid of noise-based terrain chunks centered on the origin.<br>
+	 * Each chunk is generated using TerrainGenerator, meshed, and attached to the world node.
 	 * @param radius the radius in chunks around the origin (e.g. 4 produces a 9×9 grid)
 	 */
 	public void generateInitialChunks(int radius)
 	{
 		final int chunkCount = (2 * radius + 1) * (2 * radius + 1);
-		int generated = 0;
 		
+		// Pass 1: Generate terrain for all chunks and store them.
+		// All chunks must exist before meshing so cross-chunk neighbor lookups work.
 		for (int cx = -radius; cx <= radius; cx++)
 		{
 			for (int cz = -radius; cz <= radius; cz++)
 			{
-				// Create and fill the chunk.
 				final Chunk chunk = new Chunk(cx, cz);
-				chunk.fillFlat(32);
-				
-				// Store in the map.
+				TerrainGenerator.generateChunk(chunk, _seed);
 				_chunks.put(chunkKey(cx, cz), chunk);
-				
-				// Build meshes and attach geometry.
-				attachChunkGeometry(chunk);
-				
-				generated++;
 			}
 		}
 		
-		System.out.println("World: Generated " + generated + "/" + chunkCount + " chunks (radius=" + radius + ", seed=" + _seed + ")");
+		// Pass 2: Build meshes and attach geometry (now all neighbors are available).
+		int meshed = 0;
+		for (int cx = -radius; cx <= radius; cx++)
+		{
+			for (int cz = -radius; cz <= radius; cz++)
+			{
+				final Chunk chunk = _chunks.get(chunkKey(cx, cz));
+				attachChunkGeometry(chunk);
+				meshed++;
+			}
+		}
+		
+		System.out.println("World: Generated " + meshed + "/" + chunkCount + " chunks (radius=" + radius + ", seed=" + _seed + ")");
 	}
 	
 	// ========================================================
@@ -105,7 +117,7 @@ public class World
 	 */
 	private void attachChunkGeometry(Chunk chunk)
 	{
-		final ChunkMeshResult meshResult = ChunkMeshBuilder.buildChunkMesh(chunk);
+		final ChunkMeshResult meshResult = ChunkMeshBuilder.buildChunkMesh(chunk, this::getBlock);
 		
 		final int cx = chunk.getChunkX();
 		final int cz = chunk.getChunkZ();
