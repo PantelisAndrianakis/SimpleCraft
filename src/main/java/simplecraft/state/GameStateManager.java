@@ -19,6 +19,7 @@ public class GameStateManager
 	{
 		INTRO,
 		MAIN_MENU,
+		WORLD_SELECT,
 		OPTIONS,
 		PLAYING,
 		PAUSED

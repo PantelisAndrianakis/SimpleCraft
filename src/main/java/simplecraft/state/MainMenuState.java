@@ -109,13 +109,13 @@ public class MainMenuState extends FadeableAppState
 		// --- Navigation ---
 		_navigation = new MenuNavigationManager();
 		
-		// Start button.
+		// Start Game button — transitions to World Select.
 		final Runnable startAction = () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			app.getGameStateManager().switchTo(GameState.PLAYING, true);
+			app.getGameStateManager().switchTo(GameState.WORLD_SELECT, true);
 		};
-		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Start", 0.18f, 0.065f, startAction);
+		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Start Game", 0.18f, 0.065f, startAction);
 		_buttonContainer.addChild(startButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(startButton, startAction));
 		

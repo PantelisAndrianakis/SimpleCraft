@@ -22,9 +22,11 @@ import simplecraft.world.Chunk;
 import simplecraft.world.ChunkMeshBuilder;
 import simplecraft.world.ChunkMeshBuilder.ChunkMeshResult;
 import simplecraft.world.TextureAtlas;
+import simplecraft.world.WorldInfo;
 
 /**
  * Playing state - the main game scene.<br>
+ * Uses the active world from {@link SimpleCraft#getActiveWorld()} for world name and seed.<br>
  * Creates a test chunk with ALL block types to verify textures,<br>
  * face culling, multi-face rendering, cross-billboards, and transparency.<br>
  * Listens for the PAUSE action (Escape) to open the pause menu.<br>
@@ -40,6 +42,7 @@ public class PlayingState extends FadeableAppState
 	private ActionListener _pauseListener;
 	private Node _chunkNode;
 	private TextureAtlas _textureAtlas;
+	private WorldInfo _activeWorld;
 	
 	public PlayingState()
 	{
@@ -92,6 +95,22 @@ public class PlayingState extends FadeableAppState
 	protected void onEnterState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		// Get the active world from the application.
+		_activeWorld = app.getActiveWorld();
+		
+		if (_activeWorld != null)
+		{
+			// Update last played timestamp and save.
+			_activeWorld.setLastPlayedAt(System.currentTimeMillis());
+			WorldInfo.save(_activeWorld, _activeWorld.getWorldDirectory());
+			
+			System.out.println("Entering world: " + _activeWorld.getName() + " with seed: " + _activeWorld.getSeed());
+		}
+		else
+		{
+			System.err.println("WARNING: No active world set. PlayingState entered without WorldInfo.");
+		}
 		
 		System.out.println("PlayingState entered.");
 		
@@ -411,11 +430,9 @@ public class PlayingState extends FadeableAppState
 		}
 		
 		_textureAtlas = null;
-	}
-	
-	@Override
-	protected void onUpdateState(float tpf)
-	{
-		// Game logic updates will go here in future sessions.
+		_activeWorld = null;
+		
+		// Clear active world reference when leaving the game session.
+		app.setActiveWorld(null);
 	}
 }

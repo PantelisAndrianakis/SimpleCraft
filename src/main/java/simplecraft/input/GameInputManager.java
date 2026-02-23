@@ -1,6 +1,9 @@
 package simplecraft.input;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -398,7 +401,7 @@ public class GameInputManager
 		}
 		
 		// Ensure directory exists.
-		new java.io.File(picturesPath).mkdirs();
+		new File(picturesPath).mkdirs();
 		
 		// Disable ScreenshotAppState's built-in key capture and numbering — we handle it manually.
 		final ScreenshotAppState screenshotState = new ScreenshotAppState(picturesPath);
@@ -416,7 +419,7 @@ public class GameInputManager
 				if (isPressed && name.equals(SCREENSHOT))
 				{
 					// Timestamp filename prevents overwrites across sessions.
-					final String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
+					final String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
 					screenshotState.setFileName("Screenshot_" + timestamp);
 					screenshotState.takeScreenshot();
 					

@@ -21,8 +21,10 @@ import simplecraft.state.MainMenuState;
 import simplecraft.state.OptionsState;
 import simplecraft.state.PauseMenuState;
 import simplecraft.state.PlayingState;
+import simplecraft.state.WorldSelectState;
 import simplecraft.ui.CursorManager;
 import simplecraft.ui.MessageManager;
+import simplecraft.world.WorldInfo;
 
 /**
  * SimpleCraft - A simple voxel game built in Java.<br>
@@ -37,6 +39,9 @@ public class SimpleCraft extends SimpleApplication
 	private GameStateManager _gameStateManager;
 	private AudioManager _audioManager;
 	private GameInputManager _gameInputManager;
+	
+	// Active world (set when entering a world from WorldSelectState).
+	private WorldInfo _activeWorld;
 	
 	public static void main(String[] args)
 	{
@@ -116,6 +121,7 @@ public class SimpleCraft extends SimpleApplication
 		// Register game states.
 		_gameStateManager.registerState(GameState.INTRO, new IntroState());
 		_gameStateManager.registerState(GameState.MAIN_MENU, new MainMenuState());
+		_gameStateManager.registerState(GameState.WORLD_SELECT, new WorldSelectState());
 		_gameStateManager.registerState(GameState.OPTIONS, new OptionsState());
 		_gameStateManager.registerState(GameState.PLAYING, new PlayingState());
 		_gameStateManager.registerState(GameState.PAUSED, new PauseMenuState());
@@ -163,6 +169,24 @@ public class SimpleCraft extends SimpleApplication
 	public GameInputManager getGameInputManager()
 	{
 		return _gameInputManager;
+	}
+	
+	/**
+	 * Get the currently active world (set when entering a world from WorldSelectState).
+	 * @return The active WorldInfo, or null if no world is active
+	 */
+	public WorldInfo getActiveWorld()
+	{
+		return _activeWorld;
+	}
+	
+	/**
+	 * Set the active world. Called by WorldSelectState when entering a world and cleared by PlayingState when exiting the game session.
+	 * @param activeWorld The world to set as active, or null to clear
+	 */
+	public void setActiveWorld(WorldInfo activeWorld)
+	{
+		_activeWorld = activeWorld;
 	}
 	
 	public static SimpleCraft getInstance()
