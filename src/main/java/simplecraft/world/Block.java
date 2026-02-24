@@ -37,7 +37,9 @@ public enum Block
 	RED_POPPY                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "red_poppy.png",           null,                         null,                            null),
 	DANDELION                (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "dandelion.png",           null,                         null,                            null),
 	BLUE_ORCHID              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "blue_orchid.png",         null,                         null,                            null),
-	WHITE_DAISY              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "white_daisy.png",         null,                         null,                            null);
+	WHITE_DAISY              (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,  1,        ToolType.NONE,    "white_daisy.png",         null,                         null,                            null),
+	TALL_SEAWEED             (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  true,  1,        ToolType.NONE,    "tall_seaweed.png",        "transparent.png",            "transparent.png",               null),
+	SHORT_SEAWEED            (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  true,  1,        ToolType.NONE,    "short_seaweed.png",       "transparent.png",            "transparent.png",               null);
 	// @formatter:on
 	
 	// ========================================================

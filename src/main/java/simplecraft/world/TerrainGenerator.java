@@ -71,6 +71,9 @@ public class TerrainGenerator
 		
 		// Place surface decorations (berry bushes, tall grass, flowers).
 		generateDecorations(chunk, seed, chunkWorldX, chunkWorldZ, heights);
+		
+		// Place seaweed on sand blocks underwater.
+		generateSeaweed(chunk, seed, chunkWorldX, chunkWorldZ, heights);
 	}
 	
 	// ========================================================
@@ -308,6 +311,78 @@ public class TerrainGenerator
 		}
 		
 		return flower;
+	}
+	
+	// ========================================================
+	// Underwater Seaweed
+	// ========================================================
+	
+	/**
+	 * Places tall and short seaweed on sand blocks that are underwater.<br>
+	 * Uses seeded random per column for deterministic placement.<br>
+	 * Tall seaweed stacks 2-4 blocks high; short seaweed is always 1 block.
+	 */
+	private static void generateSeaweed(Chunk chunk, long seed, int chunkWorldX, int chunkWorldZ, int[][] heights)
+	{
+		final long seaweedSeed = seed + 200;
+		
+		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		{
+			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			{
+				final int terrainHeight = heights[x][z];
+				
+				// Only place seaweed on sand blocks that are underwater.
+				if (terrainHeight >= WATER_LEVEL)
+				{
+					continue;
+				}
+				
+				if (chunk.getBlock(x, terrainHeight, z) != Block.SAND)
+				{
+					continue;
+				}
+				
+				// Need at least 1 block of water above sand for seaweed.
+				final int baseY = terrainHeight + 1;
+				if (baseY >= WATER_LEVEL)
+				{
+					continue;
+				}
+				
+				final int worldX = chunkWorldX + x;
+				final int worldZ = chunkWorldZ + z;
+				
+				// Seeded random for this column.
+				final Random columnRandom = new Random(seaweedSeed ^ (worldX * HASH_PRIME_X) ^ (worldZ * HASH_PRIME_Z));
+				final double roll = columnRandom.nextDouble();
+				
+				if (roll < 0.01)
+				{
+					// 1% chance: tall seaweed (2-4 blocks high).
+					final int waterDepth = WATER_LEVEL - terrainHeight;
+					final int maxHeight = Math.min(waterDepth, 4);
+					final int seaweedHeight = maxHeight <= 2 ? maxHeight : (2 + columnRandom.nextInt(3)); // 2 to 4
+					
+					for (int dy = 0; dy < seaweedHeight; dy++)
+					{
+						final int seaY = baseY + dy;
+						if (seaY < WATER_LEVEL && chunk.getBlock(x, seaY, z) == Block.WATER)
+						{
+							chunk.setBlock(x, seaY, z, Block.TALL_SEAWEED);
+						}
+					}
+				}
+				else if (roll < 0.03)
+				{
+					// 2% chance: short seaweed (1 block).
+					if (chunk.getBlock(x, baseY, z) == Block.WATER)
+					{
+						chunk.setBlock(x, baseY, z, Block.SHORT_SEAWEED);
+					}
+				}
+			}
+		}
 	}
 	
 	// ========================================================

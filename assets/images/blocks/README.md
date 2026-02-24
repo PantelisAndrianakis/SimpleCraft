@@ -93,3 +93,9 @@ An elegant blue orchid with elongated petals and a lighter blue center. The gree
 
 ### 28. `white_daisy.png - Simple and Sweet
 A classic daisy with bright white petals radiating from a sunny yellow center. The petals are rounded like little scoops of vanilla ice cream, and the green stem is straight and true. It's friendly, familiar, and reminds you of summer meadows.
+
+### 29. `tall_seaweed.png` - Dancing Kelp Forest
+A graceful, flowing clump of tall olive-green seaweed that sways with the ocean currents. Long, ribbon-like fronds stretch upward from a central stalk, with delicate translucent edges where light filters through. Some fronds curl slightly at the tips, and you can see subtle variations in color from deep green near the base to lighter, almost golden-green at the ends—like sunlight penetrating shallow coastal waters.
+
+### 30. `short_seaweed.png` - Tidal Pool Carpet
+A dense patch of shorter, rubbery seaweed that hugs the ocean floor. Thick, rounded blades cluster together in a lush underwater carpet, with occasional lighter highlights where bubbles get trapped between the fronds. Some blades have wavy, ruffled edges, and the color is a rich, deep green with hints of bronze—like the kind of seaweed you'd find clinging to rocks in a peaceful tidal pool.
