@@ -88,6 +88,7 @@ public class World
 			{
 				final Chunk chunk = new Chunk(cx, cz);
 				TerrainGenerator.generateChunk(chunk, _seed);
+				TreeGenerator.generateTrees(chunk, _seed);
 				_chunks.put(chunkKey(cx, cz), chunk);
 			}
 		}
