@@ -6,7 +6,7 @@ package simplecraft.world;
  * @author Pantelis Andrianakis
  * @since February 21st 2026
  */
-public class Chunk
+public class Region
 {
 	// ========================================================
 	// Constants
@@ -20,47 +20,47 @@ public class Chunk
 	// ========================================================
 	
 	private final byte[][][] _blocks = new byte[SIZE_XZ][SIZE_Y][SIZE_XZ];
-	private final int _chunkX;
-	private final int _chunkZ;
+	private final int _regionX;
+	private final int _regionZ;
 	
 	// ========================================================
 	// Constructor
 	// ========================================================
 	
-	public Chunk(int chunkX, int chunkZ)
+	public Region(int regionX, int regionZ)
 	{
-		_chunkX = chunkX;
-		_chunkZ = chunkZ;
+		_regionX = regionX;
+		_regionZ = regionZ;
 	}
 	
 	// ========================================================
 	// Position
 	// ========================================================
 	
-	public int getChunkX()
+	public int getRegionX()
 	{
-		return _chunkX;
+		return _regionX;
 	}
 	
-	public int getChunkZ()
+	public int getRegionZ()
 	{
-		return _chunkZ;
+		return _regionZ;
 	}
 	
 	/**
-	 * Returns the world X coordinate of this chunk's origin (local x=0).
+	 * Returns the world X coordinate of this region's origin (local x=0).
 	 */
 	public int getWorldX()
 	{
-		return _chunkX * SIZE_XZ;
+		return _regionX * SIZE_XZ;
 	}
 	
 	/**
-	 * Returns the world Z coordinate of this chunk's origin (local z=0).
+	 * Returns the world Z coordinate of this region's origin (local z=0).
 	 */
 	public int getWorldZ()
 	{
-		return _chunkZ * SIZE_XZ;
+		return _regionZ * SIZE_XZ;
 	}
 	
 	// ========================================================
@@ -96,7 +96,7 @@ public class Chunk
 	}
 	
 	/**
-	 * Returns true if the given local coordinates are within chunk bounds.
+	 * Returns true if the given local coordinates are within region bounds.
 	 */
 	public boolean isInBounds(int x, int y, int z)
 	{
@@ -108,7 +108,7 @@ public class Chunk
 	// ========================================================
 	
 	/**
-	 * Fills the chunk with a flat terrain for testing.<br>
+	 * Fills the region with a flat terrain for testing.<br>
 	 * BEDROCK at y=0, STONE up to height-3, DIRT up to height-1, GRASS at height, AIR above.
 	 * @param height the Y level of the grass surface layer
 	 */

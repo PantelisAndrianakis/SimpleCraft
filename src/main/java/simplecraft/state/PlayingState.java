@@ -18,7 +18,8 @@ import simplecraft.world.WorldInfo;
 /**
  * Playing state - the main game scene.<br>
  * Uses the active world from {@link SimpleCraft#getActiveWorld()} for world name and seed.<br>
- * Creates a multi-chunk flat world via {@link World#generateInitialChunks(int)}.<br>
+ * Creates a dynamically loaded world via {@link World#update(Vector3f, int)}.<br>
+ * Regions are loaded and unloaded each frame based on camera position and render distance.<br>
  * Listens for the PAUSE action (Escape) to open the pause menu.<br>
  * The pause listener is registered in initialize/cleanup so it remains<br>
  * active even when the state is disabled (paused overlay is showing).<br>
@@ -150,9 +151,8 @@ public class PlayingState extends FadeableAppState
 		// Get seed from active world.
 		final long seed = _activeWorld != null ? _activeWorld.getSeedValue() : 0;
 		
-		// Create world and generate initial chunk grid.
+		// Create world. Initial regions are loaded dynamically by the first update() call.
 		_world = new World(seed, atlasMaterial);
-		_world.generateInitialChunks(4); // 9×9 grid = 81 chunks.
 		
 		// Attach world node to the scene.
 		app.getRootNode().attachChild(_world.getWorldNode());
@@ -164,9 +164,22 @@ public class PlayingState extends FadeableAppState
 		app.getFlyByCamera().setEnabled(true);
 		app.getFlyByCamera().setMoveSpeed(10f);
 		
-		// Position camera high above the center to overlook the chunk grid.
+		// Position camera high above the center to overlook the region grid.
 		app.getCamera().setLocation(new Vector3f(64, 50, 64));
 		app.getCamera().lookAt(new Vector3f(0, 32, 0), Vector3f.UNIT_Y);
+	}
+	
+	@Override
+	public void update(float tpf)
+	{
+		super.update(tpf);
+		
+		if (_world != null)
+		{
+			final SimpleCraft app = SimpleCraft.getInstance();
+			final int renderDistance = app.getSettingsManager().getRenderDistance();
+			_world.update(app.getCamera().getLocation(), renderDistance);
+		}
 	}
 	
 	@Override

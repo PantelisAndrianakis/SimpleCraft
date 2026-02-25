@@ -5,7 +5,7 @@ import java.util.Random;
 import simplecraft.util.OpenSimplex2;
 
 /**
- * Generates terrain for chunks using 2D noise for heightmaps and 3D noise for ore veins.<br>
+ * Generates terrain for regions using 2D noise for heightmaps and 3D noise for ore veins.<br>
  * Produces rolling hills with grass, dirt, stone layers, water-filled valleys,<br>
  * iron ore clusters, berry bushes, tall grass, and flowers.
  * @author Pantelis Andrianakis
@@ -43,37 +43,37 @@ public class TerrainGenerator
 	// ========================================================
 	
 	/**
-	 * Generates terrain for the given chunk using the world seed.<br>
+	 * Generates terrain for the given region using the world seed.<br>
 	 * Fills terrain layers, scatters iron ore, and places surface decorations.
-	 * @param chunk the chunk to populate
+	 * @param region the region to populate
 	 * @param seed the world seed from WorldInfo
 	 */
-	public static void generateChunk(Chunk chunk, long seed)
+	public static void generateRegion(Region region, long seed)
 	{
-		final int chunkWorldX = chunk.getChunkX() * Chunk.SIZE_XZ;
-		final int chunkWorldZ = chunk.getChunkZ() * Chunk.SIZE_XZ;
+		final int regionWorldX = region.getRegionX() * Region.SIZE_XZ;
+		final int regionWorldZ = region.getRegionZ() * Region.SIZE_XZ;
 		
-		// Precompute terrain heights for the entire chunk.
-		final int[][] heights = new int[Chunk.SIZE_XZ][Chunk.SIZE_XZ];
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		// Precompute terrain heights for the entire region.
+		final int[][] heights = new int[Region.SIZE_XZ][Region.SIZE_XZ];
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			for (int z = 0; z < Region.SIZE_XZ; z++)
 			{
-				heights[x][z] = computeHeight(seed, chunkWorldX + x, chunkWorldZ + z);
+				heights[x][z] = computeHeight(seed, regionWorldX + x, regionWorldZ + z);
 			}
 		}
 		
 		// Fill terrain layers.
-		fillTerrain(chunk, heights);
+		fillTerrain(region, heights);
 		
 		// Scatter iron ore veins in stone.
-		generateOreVeins(chunk, seed, chunkWorldX, chunkWorldZ, heights);
+		generateOreVeins(region, seed, regionWorldX, regionWorldZ, heights);
 		
 		// Place surface decorations (berry bushes, tall grass, flowers).
-		generateDecorations(chunk, seed, chunkWorldX, chunkWorldZ, heights);
+		generateDecorations(region, seed, regionWorldX, regionWorldZ, heights);
 		
 		// Place seaweed on sand blocks underwater.
-		generateSeaweed(chunk, seed, chunkWorldX, chunkWorldZ, heights);
+		generateSeaweed(region, seed, regionWorldX, regionWorldZ, heights);
 	}
 	
 	// ========================================================
@@ -102,15 +102,15 @@ public class TerrainGenerator
 	/**
 	 * Fills each column with bedrock, stone, dirt, grass/sand, water, and air layers.
 	 */
-	private static void fillTerrain(Chunk chunk, int[][] heights)
+	private static void fillTerrain(Region region, int[][] heights)
 	{
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			for (int z = 0; z < Region.SIZE_XZ; z++)
 			{
 				final int terrainHeight = heights[x][z];
 				
-				for (int y = 0; y < Chunk.SIZE_Y; y++)
+				for (int y = 0; y < Region.SIZE_Y; y++)
 				{
 					final Block block;
 					if (y == 0)
@@ -152,7 +152,7 @@ public class TerrainGenerator
 						block = Block.AIR;
 					}
 					
-					chunk.setBlock(x, y, z, block);
+					region.setBlock(x, y, z, block);
 				}
 			}
 		}
@@ -166,23 +166,23 @@ public class TerrainGenerator
 	 * Scatters iron ore veins in stone using 3D noise.<br>
 	 * Only replaces STONE blocks below y=40 where noise exceeds the threshold.
 	 */
-	private static void generateOreVeins(Chunk chunk, long seed, int chunkWorldX, int chunkWorldZ, int[][] heights)
+	private static void generateOreVeins(Region region, long seed, int regionWorldX, int regionWorldZ, int[][] heights)
 	{
 		final long oreSeed = seed + 100;
 		
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			for (int z = 0; z < Region.SIZE_XZ; z++)
 			{
-				final int worldX = chunkWorldX + x;
-				final int worldZ = chunkWorldZ + z;
+				final int worldX = regionWorldX + x;
+				final int worldZ = regionWorldZ + z;
 				
 				// Only check below ore ceiling and below dirt layer.
 				final int maxY = Math.min(ORE_MAX_Y, heights[x][z] - 4);
 				
 				for (int y = 1; y <= maxY; y++)
 				{
-					if (chunk.getBlock(x, y, z) != Block.STONE)
+					if (region.getBlock(x, y, z) != Block.STONE)
 					{
 						continue;
 					}
@@ -190,7 +190,7 @@ public class TerrainGenerator
 					final float oreNoise = OpenSimplex2.noise3(oreSeed, worldX * 0.08, y * 0.08, worldZ * 0.08);
 					if (oreNoise > ORE_THRESHOLD)
 					{
-						chunk.setBlock(x, y, z, Block.IRON_ORE);
+						region.setBlock(x, y, z, Block.IRON_ORE);
 					}
 				}
 			}
@@ -206,11 +206,11 @@ public class TerrainGenerator
 	 * Uses seeded random per column for deterministic placement.<br>
 	 * Priority: berry bush (0.05%) > tall grass (10%) > flowers (1%).
 	 */
-	private static void generateDecorations(Chunk chunk, long seed, int chunkWorldX, int chunkWorldZ, int[][] heights)
+	private static void generateDecorations(Region region, long seed, int regionWorldX, int regionWorldZ, int[][] heights)
 	{
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			for (int z = 0; z < Region.SIZE_XZ; z++)
 			{
 				final int terrainHeight = heights[x][z];
 				
@@ -220,20 +220,20 @@ public class TerrainGenerator
 					continue;
 				}
 				
-				if (chunk.getBlock(x, terrainHeight, z) != Block.GRASS)
+				if (region.getBlock(x, terrainHeight, z) != Block.GRASS)
 				{
 					continue;
 				}
 				
 				// Ensure decoration Y is valid.
 				final int decoY = terrainHeight + 1;
-				if (decoY >= Chunk.SIZE_Y)
+				if (decoY >= Region.SIZE_Y)
 				{
 					continue;
 				}
 				
-				final int worldX = chunkWorldX + x;
-				final int worldZ = chunkWorldZ + z;
+				final int worldX = regionWorldX + x;
+				final int worldZ = regionWorldZ + z;
 				
 				// Skip if adjacent to water or on a steep slope.
 				if (isAdjacentToWater(heights, x, z) || isSteepSlope(heights, x, z, terrainHeight))
@@ -248,18 +248,18 @@ public class TerrainGenerator
 				if (roll < 0.0005)
 				{
 					// 0.05% chance: berry bush.
-					chunk.setBlock(x, decoY, z, Block.BERRY_BUSH);
+					region.setBlock(x, decoY, z, Block.BERRY_BUSH);
 				}
 				else if (roll < 0.1005)
 				{
 					// 10% chance: tall grass.
-					chunk.setBlock(x, decoY, z, Block.TALL_GRASS);
+					region.setBlock(x, decoY, z, Block.TALL_GRASS);
 				}
 				else if (roll < 0.1105)
 				{
 					// 1% chance: flower.
 					final Block flower = pickFlower(columnRandom, heights, x, z);
-					chunk.setBlock(x, decoY, z, flower);
+					region.setBlock(x, decoY, z, flower);
 				}
 			}
 		}
@@ -322,13 +322,13 @@ public class TerrainGenerator
 	 * Uses seeded random per column for deterministic placement.<br>
 	 * Tall seaweed stacks 2-4 blocks high; short seaweed is always 1 block.
 	 */
-	private static void generateSeaweed(Chunk chunk, long seed, int chunkWorldX, int chunkWorldZ, int[][] heights)
+	private static void generateSeaweed(Region region, long seed, int regionWorldX, int regionWorldZ, int[][] heights)
 	{
 		final long seaweedSeed = seed + 200;
 		
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			for (int z = 0; z < Region.SIZE_XZ; z++)
 			{
 				final int terrainHeight = heights[x][z];
 				
@@ -338,7 +338,7 @@ public class TerrainGenerator
 					continue;
 				}
 				
-				if (chunk.getBlock(x, terrainHeight, z) != Block.SAND)
+				if (region.getBlock(x, terrainHeight, z) != Block.SAND)
 				{
 					continue;
 				}
@@ -350,8 +350,8 @@ public class TerrainGenerator
 					continue;
 				}
 				
-				final int worldX = chunkWorldX + x;
-				final int worldZ = chunkWorldZ + z;
+				final int worldX = regionWorldX + x;
+				final int worldZ = regionWorldZ + z;
 				
 				// Seeded random for this column.
 				final Random columnRandom = new Random(seaweedSeed ^ (worldX * HASH_PRIME_X) ^ (worldZ * HASH_PRIME_Z));
@@ -367,18 +367,18 @@ public class TerrainGenerator
 					for (int dy = 0; dy < seaweedHeight; dy++)
 					{
 						final int seaY = baseY + dy;
-						if (seaY < WATER_LEVEL && chunk.getBlock(x, seaY, z) == Block.WATER)
+						if (seaY < WATER_LEVEL && region.getBlock(x, seaY, z) == Block.WATER)
 						{
-							chunk.setBlock(x, seaY, z, Block.TALL_SEAWEED);
+							region.setBlock(x, seaY, z, Block.TALL_SEAWEED);
 						}
 					}
 				}
 				else if (roll < 0.03)
 				{
 					// 2% chance: short seaweed (1 block).
-					if (chunk.getBlock(x, baseY, z) == Block.WATER)
+					if (region.getBlock(x, baseY, z) == Block.WATER)
 					{
-						chunk.setBlock(x, baseY, z, Block.SHORT_SEAWEED);
+						region.setBlock(x, baseY, z, Block.SHORT_SEAWEED);
 					}
 				}
 			}
@@ -399,7 +399,7 @@ public class TerrainGenerator
 			return true;
 		}
 		
-		if (x < Chunk.SIZE_XZ - 1 && heights[x + 1][z] <= WATER_LEVEL)
+		if (x < Region.SIZE_XZ - 1 && heights[x + 1][z] <= WATER_LEVEL)
 		{
 			return true;
 		}
@@ -409,7 +409,7 @@ public class TerrainGenerator
 			return true;
 		}
 		
-		if (z < Chunk.SIZE_XZ - 1 && heights[x][z + 1] <= WATER_LEVEL)
+		if (z < Region.SIZE_XZ - 1 && heights[x][z + 1] <= WATER_LEVEL)
 		{
 			return true;
 		}
@@ -427,7 +427,7 @@ public class TerrainGenerator
 			return true;
 		}
 		
-		if (x < Chunk.SIZE_XZ - 1 && Math.abs(heights[x + 1][z] - centerHeight) > 2)
+		if (x < Region.SIZE_XZ - 1 && Math.abs(heights[x + 1][z] - centerHeight) > 2)
 		{
 			return true;
 		}
@@ -437,7 +437,7 @@ public class TerrainGenerator
 			return true;
 		}
 		
-		if (z < Chunk.SIZE_XZ - 1 && Math.abs(heights[x][z + 1] - centerHeight) > 2)
+		if (z < Region.SIZE_XZ - 1 && Math.abs(heights[x][z + 1] - centerHeight) > 2)
 		{
 			return true;
 		}
@@ -452,9 +452,9 @@ public class TerrainGenerator
 	private static boolean isNearWater(int[][] heights, int x, int z, int radius)
 	{
 		final int minX = Math.max(0, x - radius);
-		final int maxX = Math.min(Chunk.SIZE_XZ - 1, x + radius);
+		final int maxX = Math.min(Region.SIZE_XZ - 1, x + radius);
 		final int minZ = Math.max(0, z - radius);
-		final int maxZ = Math.min(Chunk.SIZE_XZ - 1, z + radius);
+		final int maxZ = Math.min(Region.SIZE_XZ - 1, z + radius);
 		
 		for (int nx = minX; nx <= maxX; nx++)
 		{

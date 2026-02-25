@@ -17,7 +17,7 @@ public class TreeGenerator
 	// Constants
 	// ========================================================
 	
-	/** Minimum distance from chunk edge to place a tree (avoids cross-chunk leaf overflow). */
+	/** Minimum distance from region edge to place a tree (avoids cross-region leaf overflow). */
 	private static final int EDGE_PADDING = 3;
 	
 	/** Minimum horizontal distance between tree trunks. */
@@ -50,28 +50,28 @@ public class TreeGenerator
 	// ========================================================
 	
 	/**
-	 * Generates trees for the given chunk using the world seed.<br>
+	 * Generates trees for the given region using the world seed.<br>
 	 * Must be called after terrain generation but before mesh building.
-	 * @param chunk the chunk to populate with trees
+	 * @param region the region to populate with trees
 	 * @param seed the world seed from WorldInfo
 	 */
-	public static void generateTrees(Chunk chunk, long seed)
+	public static void generateTrees(Region region, long seed)
 	{
-		final int chunkWorldX = chunk.getChunkX() * Chunk.SIZE_XZ;
-		final int chunkWorldZ = chunk.getChunkZ() * Chunk.SIZE_XZ;
+		final int regionWorldX = region.getRegionX() * Region.SIZE_XZ;
+		final int regionWorldZ = region.getRegionZ() * Region.SIZE_XZ;
 		
 		// Tree seed offset to avoid correlation with terrain decorations.
 		final long treeSeed = seed + 300;
 		
 		// Track trunk positions for spacing checks.
-		final boolean[][] trunkPlaced = new boolean[Chunk.SIZE_XZ][Chunk.SIZE_XZ];
+		final boolean[][] trunkPlaced = new boolean[Region.SIZE_XZ][Region.SIZE_XZ];
 		
-		for (int x = EDGE_PADDING; x < Chunk.SIZE_XZ - EDGE_PADDING; x++)
+		for (int x = EDGE_PADDING; x < Region.SIZE_XZ - EDGE_PADDING; x++)
 		{
-			for (int z = EDGE_PADDING; z < Chunk.SIZE_XZ - EDGE_PADDING; z++)
+			for (int z = EDGE_PADDING; z < Region.SIZE_XZ - EDGE_PADDING; z++)
 			{
-				final int worldX = chunkWorldX + x;
-				final int worldZ = chunkWorldZ + z;
+				final int worldX = regionWorldX + x;
+				final int worldZ = regionWorldZ + z;
 				
 				// Seeded random for this column.
 				final Random columnRandom = new Random(treeSeed ^ (worldX * HASH_PRIME_X) ^ (worldZ * HASH_PRIME_Z));
@@ -84,7 +84,7 @@ public class TreeGenerator
 				}
 				
 				// Find highest GRASS block in this column.
-				final int groundY = findGrassTop(chunk, x, z);
+				final int groundY = findGrassTop(region, x, z);
 				if (groundY < 0)
 				{
 					continue;
@@ -106,15 +106,15 @@ public class TreeGenerator
 				final int treeType = selectTreeType(columnRandom);
 				
 				// Place the tree.
-				placeTree(chunk, x, z, groundY, treeType, columnRandom);
+				placeTree(region, x, z, groundY, treeType, columnRandom);
 				
 				// Mark trunk position for spacing checks.
 				trunkPlaced[x][z] = true;
 			}
 		}
 		
-		// Post-process the chunk repeatedly until no more changes are made.
-		postProcessTreesRepeatedly(chunk);
+		// Post-process the region repeatedly until no more changes are made.
+		postProcessTreesRepeatedly(region);
 	}
 	
 	// ========================================================
@@ -124,14 +124,14 @@ public class TreeGenerator
 	/**
 	 * Repeatedly post-processes trees until no more changes are made or max iterations reached.
 	 */
-	private static void postProcessTreesRepeatedly(Chunk chunk)
+	private static void postProcessTreesRepeatedly(Region region)
 	{
 		boolean changed = false;
 		int iterations = 0;
 		
 		do
 		{
-			changed = postProcessTrees(chunk);
+			changed = postProcessTrees(region);
 			iterations++;
 			
 			// Safety check to prevent infinite loops.
@@ -144,7 +144,7 @@ public class TreeGenerator
 	}
 	
 	/**
-	 * Post-processes the chunk to clean up tree tops and add leaves where needed.<br>
+	 * Post-processes the region to clean up tree tops and add leaves where needed.<br>
 	 * Rules:<br>
 	 * 1. If top block is wood and has no leaves around it, remove it.<br>
 	 * 2. If top block is wood, has leaves around it, add a leaf above it.<br>
@@ -152,28 +152,28 @@ public class TreeGenerator
 	 * 4. If the block below the top is wood and the top is leaf, convert the wood below to leaf.
 	 * @return true if any changes were made, false if nothing changed
 	 */
-	private static boolean postProcessTrees(Chunk chunk)
+	private static boolean postProcessTrees(Region region)
 	{
 		boolean changesMade = false;
 		
 		// First pass: Convert wood below top leaf to leaf.
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			for (int z = 0; z < Region.SIZE_XZ; z++)
 			{
-				final int highestY = findHighestBlock(chunk, x, z);
+				final int highestY = findHighestBlock(region, x, z);
 				if (highestY == -1)
 				{
 					continue;
 				}
 				
 				// Rule 4: If top block is leaf and block below is wood, convert wood to leaf.
-				if (chunk.getBlock(x, highestY, z) == Block.LEAVES)
+				if (region.getBlock(x, highestY, z) == Block.LEAVES)
 				{
 					final int belowY = highestY - 1;
-					if (belowY >= 0 && chunk.getBlock(x, belowY, z) == Block.WOOD)
+					if (belowY >= 0 && region.getBlock(x, belowY, z) == Block.WOOD)
 					{
-						chunk.setBlock(x, belowY, z, Block.LEAVES);
+						region.setBlock(x, belowY, z, Block.LEAVES);
 						changesMade = true;
 					}
 				}
@@ -181,45 +181,45 @@ public class TreeGenerator
 		}
 		
 		// Second pass: Regular tree top processing.
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int z = 0; z < Chunk.SIZE_XZ; z++)
+			for (int z = 0; z < Region.SIZE_XZ; z++)
 			{
-				final int highestY = findHighestBlock(chunk, x, z);
+				final int highestY = findHighestBlock(region, x, z);
 				if (highestY == -1)
 				{
 					continue;
 				}
 				
 				// Check if the top block is wood.
-				if (chunk.getBlock(x, highestY, z) == Block.WOOD)
+				if (region.getBlock(x, highestY, z) == Block.WOOD)
 				{
 					// First, ensure the wood has leaves on all four sides at the same level.
-					boolean hasNorthLeaf = z > 0 && chunk.getBlock(x, highestY, z - 1) == Block.LEAVES;
-					boolean hasSouthLeaf = z < Chunk.SIZE_XZ - 1 && chunk.getBlock(x, highestY, z + 1) == Block.LEAVES;
-					boolean hasWestLeaf = x > 0 && chunk.getBlock(x - 1, highestY, z) == Block.LEAVES;
-					boolean hasEastLeaf = x < Chunk.SIZE_XZ - 1 && chunk.getBlock(x + 1, highestY, z) == Block.LEAVES;
+					boolean hasNorthLeaf = z > 0 && region.getBlock(x, highestY, z - 1) == Block.LEAVES;
+					boolean hasSouthLeaf = z < Region.SIZE_XZ - 1 && region.getBlock(x, highestY, z + 1) == Block.LEAVES;
+					boolean hasWestLeaf = x > 0 && region.getBlock(x - 1, highestY, z) == Block.LEAVES;
+					boolean hasEastLeaf = x < Region.SIZE_XZ - 1 && region.getBlock(x + 1, highestY, z) == Block.LEAVES;
 					
 					// Add missing side leaves if there's support below.
-					if (!hasNorthLeaf && addSideLeafIfSupported(chunk, x, highestY, z - 1))
+					if (!hasNorthLeaf && addSideLeafIfSupported(region, x, highestY, z - 1))
 					{
 						changesMade = true;
 						hasNorthLeaf = true;
 					}
 					
-					if (!hasSouthLeaf && addSideLeafIfSupported(chunk, x, highestY, z + 1))
+					if (!hasSouthLeaf && addSideLeafIfSupported(region, x, highestY, z + 1))
 					{
 						changesMade = true;
 						hasSouthLeaf = true;
 					}
 					
-					if (!hasWestLeaf && addSideLeafIfSupported(chunk, x - 1, highestY, z))
+					if (!hasWestLeaf && addSideLeafIfSupported(region, x - 1, highestY, z))
 					{
 						changesMade = true;
 						hasWestLeaf = true;
 					}
 					
-					if (!hasEastLeaf && addSideLeafIfSupported(chunk, x + 1, highestY, z))
+					if (!hasEastLeaf && addSideLeafIfSupported(region, x + 1, highestY, z))
 					{
 						changesMade = true;
 						hasEastLeaf = true;
@@ -241,17 +241,17 @@ public class TreeGenerator
 							final int nx = x + dx;
 							final int nz = z + dz;
 							
-							if (nx >= 0 && nx < Chunk.SIZE_XZ && nz >= 0 && nz < Chunk.SIZE_XZ)
+							if (nx >= 0 && nx < Region.SIZE_XZ && nz >= 0 && nz < Region.SIZE_XZ)
 							{
 								// Check same level.
-								if (chunk.getBlock(nx, highestY, nz) == Block.LEAVES)
+								if (region.getBlock(nx, highestY, nz) == Block.LEAVES)
 								{
 									hasAdjacentLeaf = true;
 									break;
 								}
 								
 								// Check one level down (for leaves that might be slightly lower).
-								if (highestY - 1 >= 0 && chunk.getBlock(nx, highestY - 1, nz) == Block.LEAVES)
+								if (highestY - 1 >= 0 && region.getBlock(nx, highestY - 1, nz) == Block.LEAVES)
 								{
 									hasAdjacentLeaf = true;
 									break;
@@ -263,14 +263,14 @@ public class TreeGenerator
 					if (!hasAdjacentLeaf)
 					{
 						// Rule 1: No leaves around - remove the wood block.
-						chunk.setBlock(x, highestY, z, Block.AIR);
+						region.setBlock(x, highestY, z, Block.AIR);
 						changesMade = true;
 					}
 					else
 					{
 						// Rule 2: Has leaves around - add a leaf above if space allows.
 						final int aboveY = highestY + 1;
-						if (aboveY < Chunk.SIZE_Y && chunk.getBlock(x, aboveY, z) == Block.AIR)
+						if (aboveY < Region.SIZE_Y && region.getBlock(x, aboveY, z) == Block.AIR)
 						{
 							// Check if the position above has support from the side leaves.
 							boolean hasSupportAbove = false;
@@ -285,9 +285,9 @@ public class TreeGenerator
 									
 									final int nx = x + dx;
 									final int nz = z + dz;
-									if (nx >= 0 && nx < Chunk.SIZE_XZ && nz >= 0 && nz < Chunk.SIZE_XZ)
+									if (nx >= 0 && nx < Region.SIZE_XZ && nz >= 0 && nz < Region.SIZE_XZ)
 									{
-										if (chunk.getBlock(nx, highestY, nz) == Block.LEAVES)
+										if (region.getBlock(nx, highestY, nz) == Block.LEAVES)
 										{
 											hasSupportAbove = true;
 										}
@@ -297,7 +297,7 @@ public class TreeGenerator
 							
 							if (hasSupportAbove)
 							{
-								chunk.setBlock(x, aboveY, z, Block.LEAVES);
+								region.setBlock(x, aboveY, z, Block.LEAVES);
 								changesMade = true;
 							}
 						}
@@ -314,17 +314,17 @@ public class TreeGenerator
 	 * Used by post-processing to fill in missing side leaves around exposed wood tops.
 	 * @return true if a leaf was placed, false otherwise
 	 */
-	private static boolean addSideLeafIfSupported(Chunk chunk, int x, int y, int z)
+	private static boolean addSideLeafIfSupported(Region region, int x, int y, int z)
 	{
-		if (!chunk.isInBounds(x, y, z) || y - 1 < 0)
+		if (!region.isInBounds(x, y, z) || y - 1 < 0)
 		{
 			return false;
 		}
 		
-		final Block below = chunk.getBlock(x, y - 1, z);
+		final Block below = region.getBlock(x, y - 1, z);
 		if (below == Block.WOOD || below == Block.LEAVES)
 		{
-			placeLeaf(chunk, x, y, z);
+			placeLeaf(region, x, y, z);
 			return true;
 		}
 		
@@ -339,11 +339,11 @@ public class TreeGenerator
 	 * Finds the Y coordinate of the highest GRASS block in the given column.<br>
 	 * Returns -1 if no GRASS block exists.
 	 */
-	private static int findGrassTop(Chunk chunk, int x, int z)
+	private static int findGrassTop(Region region, int x, int z)
 	{
-		for (int y = Chunk.SIZE_Y - 1; y >= 0; y--)
+		for (int y = Region.SIZE_Y - 1; y >= 0; y--)
 		{
-			if (chunk.getBlock(x, y, z) == Block.GRASS)
+			if (region.getBlock(x, y, z) == Block.GRASS)
 			{
 				return y;
 			}
@@ -356,11 +356,11 @@ public class TreeGenerator
 	 * Finds the Y coordinate of the highest non-AIR block in the given column.<br>
 	 * Returns -1 if the column is entirely air.
 	 */
-	private static int findHighestBlock(Chunk chunk, int x, int z)
+	private static int findHighestBlock(Region region, int x, int z)
 	{
-		for (int y = Chunk.SIZE_Y - 1; y >= 0; y--)
+		for (int y = Region.SIZE_Y - 1; y >= 0; y--)
 		{
-			if (chunk.getBlock(x, y, z) != Block.AIR)
+			if (region.getBlock(x, y, z) != Block.AIR)
 			{
 				return y;
 			}
@@ -379,9 +379,9 @@ public class TreeGenerator
 	private static boolean hasTrunkNearby(boolean[][] trunkPlaced, int x, int z, int radius)
 	{
 		final int minX = Math.max(0, x - radius);
-		final int maxX = Math.min(Chunk.SIZE_XZ - 1, x + radius);
+		final int maxX = Math.min(Region.SIZE_XZ - 1, x + radius);
 		final int minZ = Math.max(0, z - radius);
-		final int maxZ = Math.min(Chunk.SIZE_XZ - 1, z + radius);
+		final int maxZ = Math.min(Region.SIZE_XZ - 1, z + radius);
 		
 		for (int nx = minX; nx <= maxX; nx++)
 		{
@@ -437,40 +437,40 @@ public class TreeGenerator
 	
 	/**
 	 * Places a tree of the given type at the specified position.
-	 * @param chunk the chunk to modify
+	 * @param region the region to modify
 	 * @param x local X of trunk base
 	 * @param z local Z of trunk base
 	 * @param groundY Y coordinate of the GRASS block (trunk starts at groundY+1)
 	 * @param treeType the tree type constant
 	 * @param random seeded random for variation
 	 */
-	private static void placeTree(Chunk chunk, int x, int z, int groundY, int treeType, Random random)
+	private static void placeTree(Region region, int x, int z, int groundY, int treeType, Random random)
 	{
 		switch (treeType)
 		{
 			case TREE_SMALL_OAK:
 			{
-				placeSmallOak(chunk, x, z, groundY, random);
+				placeSmallOak(region, x, z, groundY, random);
 				break;
 			}
 			case TREE_TALL_OAK:
 			{
-				placeTallOak(chunk, x, z, groundY, random);
+				placeTallOak(region, x, z, groundY, random);
 				break;
 			}
 			case TREE_BIRCH:
 			{
-				placeBirch(chunk, x, z, groundY, random);
+				placeBirch(region, x, z, groundY, random);
 				break;
 			}
 			case TREE_SHRUB:
 			{
-				placeShrub(chunk, x, z, groundY, random);
+				placeShrub(region, x, z, groundY, random);
 				break;
 			}
 			case TREE_SPRUCE:
 			{
-				placeSpruce(chunk, x, z, groundY, random);
+				placeSpruce(region, x, z, groundY, random);
 				break;
 			}
 		}
@@ -497,35 +497,35 @@ public class TreeGenerator
 	 *     D
 	 * </pre>
 	 */
-	private static void placeSmallOak(Chunk chunk, int x, int z, int groundY, Random random)
+	private static void placeSmallOak(Region region, int x, int z, int groundY, Random random)
 	{
 		final int trunkHeight = 4 + random.nextInt(2); // 4-5.
 		
 		// Replace grass with dirt under trunk.
-		chunk.setBlock(x, groundY, z, Block.DIRT);
+		region.setBlock(x, groundY, z, Block.DIRT);
 		
 		// Place trunk.
 		final int trunkTop = groundY + trunkHeight;
 		for (int y = groundY + 1; y <= trunkTop; y++)
 		{
-			placeTrunk(chunk, x, y, z);
+			placeTrunk(region, x, y, z);
 		}
 		
 		// Canopy layers (bottom to top) - dome profile.
 		// Layer 0: bottom fringe - 3×3 minus corners.
-		placeRoundedLayer(chunk, x, trunkTop - 1, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop - 1, z, 1, random);
 		
 		// Layer 1: lower wide - 5×5 rounded.
-		placeRoundedLayer(chunk, x, trunkTop, z, 2, random);
+		placeRoundedLayer(region, x, trunkTop, z, 2, random);
 		
 		// Layer 2: upper wide - 5×5 rounded.
-		placeRoundedLayer(chunk, x, trunkTop + 1, z, 2, random);
+		placeRoundedLayer(region, x, trunkTop + 1, z, 2, random);
 		
 		// Layer 3: upper - 3×3 minus corners.
-		placeRoundedLayer(chunk, x, trunkTop + 2, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop + 2, z, 1, random);
 		
 		// Layer 4: top - single block or cross (but keep it attached to the layer below)
-		placeTopLayer(chunk, x, trunkTop + 3, z, random);
+		placeTopLayer(region, x, trunkTop + 3, z, random);
 	}
 	
 	// ========================================================
@@ -553,35 +553,35 @@ public class TreeGenerator
 	 *     D
 	 * </pre>
 	 */
-	private static void placeTallOak(Chunk chunk, int x, int z, int groundY, Random random)
+	private static void placeTallOak(Region region, int x, int z, int groundY, Random random)
 	{
 		final int trunkHeight = 6 + random.nextInt(3); // 6-8.
 		
 		// Replace grass with dirt under trunk.
-		chunk.setBlock(x, groundY, z, Block.DIRT);
+		region.setBlock(x, groundY, z, Block.DIRT);
 		
 		// Place trunk.
 		final int trunkTop = groundY + trunkHeight;
 		for (int y = groundY + 1; y <= trunkTop; y++)
 		{
-			placeTrunk(chunk, x, y, z);
+			placeTrunk(region, x, y, z);
 		}
 		
 		// Canopy layers - tall dome profile.
 		// Bottom fringe.
-		placeRoundedLayer(chunk, x, trunkTop - 3, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop - 3, z, 1, random);
 		
 		// Wide layers (4 layers of 5×5 rounded).
-		placeRoundedLayer(chunk, x, trunkTop - 2, z, 2, random);
-		placeRoundedLayer(chunk, x, trunkTop - 1, z, 2, random);
-		placeRoundedLayer(chunk, x, trunkTop, z, 2, random);
-		placeRoundedLayer(chunk, x, trunkTop + 1, z, 2, random);
+		placeRoundedLayer(region, x, trunkTop - 2, z, 2, random);
+		placeRoundedLayer(region, x, trunkTop - 1, z, 2, random);
+		placeRoundedLayer(region, x, trunkTop, z, 2, random);
+		placeRoundedLayer(region, x, trunkTop + 1, z, 2, random);
 		
 		// Upper taper.
-		placeRoundedLayer(chunk, x, trunkTop + 2, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop + 2, z, 1, random);
 		
 		// Top layer (attached).
-		placeTopLayer(chunk, x, trunkTop + 3, z, random);
+		placeTopLayer(region, x, trunkTop + 3, z, random);
 	}
 	
 	// ========================================================
@@ -606,33 +606,33 @@ public class TreeGenerator
 	 *    D
 	 * </pre>
 	 */
-	private static void placeBirch(Chunk chunk, int x, int z, int groundY, Random random)
+	private static void placeBirch(Region region, int x, int z, int groundY, Random random)
 	{
 		final int trunkHeight = 5 + random.nextInt(3); // 5-7.
 		
 		// Replace grass with dirt under trunk.
-		chunk.setBlock(x, groundY, z, Block.DIRT);
+		region.setBlock(x, groundY, z, Block.DIRT);
 		
 		// Place trunk.
 		final int trunkTop = groundY + trunkHeight;
 		for (int y = groundY + 1; y <= trunkTop; y++)
 		{
-			placeTrunk(chunk, x, y, z);
+			placeTrunk(region, x, y, z);
 		}
 		
 		// Canopy: vertical stack of 3×3 rounded layers.
 		// Bottom.
-		placeRoundedLayer(chunk, x, trunkTop - 2, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop - 2, z, 1, random);
 		
 		// Middle layers (trunk visible).
-		placeRoundedLayer(chunk, x, trunkTop - 1, z, 1, random);
-		placeRoundedLayer(chunk, x, trunkTop, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop - 1, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop, z, 1, random);
 		
 		// Upper.
-		placeRoundedLayer(chunk, x, trunkTop + 1, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop + 1, z, 1, random);
 		
 		// Top.
-		placeTopLayer(chunk, x, trunkTop + 2, z, random);
+		placeTopLayer(region, x, trunkTop + 2, z, random);
 	}
 	
 	// ========================================================
@@ -653,26 +653,26 @@ public class TreeGenerator
 	 *    D
 	 * </pre>
 	 */
-	private static void placeShrub(Chunk chunk, int x, int z, int groundY, Random random)
+	private static void placeShrub(Region region, int x, int z, int groundY, Random random)
 	{
 		final int trunkHeight = 2 + random.nextInt(2); // 2-3.
 		
 		// Replace grass with dirt under trunk.
-		chunk.setBlock(x, groundY, z, Block.DIRT);
+		region.setBlock(x, groundY, z, Block.DIRT);
 		
 		// Place trunk.
 		final int trunkTop = groundY + trunkHeight;
 		for (int y = groundY + 1; y <= trunkTop; y++)
 		{
-			placeTrunk(chunk, x, y, z);
+			placeTrunk(region, x, y, z);
 		}
 		
 		// Compact canopy.
-		placeRoundedLayer(chunk, x, trunkTop, z, 1, random);
-		placeRoundedLayer(chunk, x, trunkTop + 1, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop, z, 1, random);
+		placeRoundedLayer(region, x, trunkTop + 1, z, 1, random);
 		
 		// Top.
-		placeTopLayer(chunk, x, trunkTop + 2, z, random);
+		placeTopLayer(region, x, trunkTop + 2, z, random);
 	}
 	
 	// ========================================================
@@ -702,18 +702,18 @@ public class TreeGenerator
 	 *      D
 	 * </pre>
 	 */
-	private static void placeSpruce(Chunk chunk, int x, int z, int groundY, Random random)
+	private static void placeSpruce(Region region, int x, int z, int groundY, Random random)
 	{
 		final int trunkHeight = 7 + random.nextInt(4); // 7-10.
 		
 		// Replace grass with dirt under trunk.
-		chunk.setBlock(x, groundY, z, Block.DIRT);
+		region.setBlock(x, groundY, z, Block.DIRT);
 		
 		// Place full trunk (runs through the entire canopy).
 		final int trunkTop = groundY + trunkHeight;
 		for (int y = groundY + 1; y <= trunkTop; y++)
 		{
-			placeTrunk(chunk, x, y, z);
+			placeTrunk(region, x, y, z);
 		}
 		
 		// Calculate where the canopy begins (leave 2-3 bare trunk blocks at the bottom).
@@ -736,7 +736,7 @@ public class TreeGenerator
 			{
 				if (currentY + dy <= trunkTop + 1) // Allow one layer above trunk.
 				{
-					placeRoundedLayer(chunk, x, currentY + dy, z, radius, random);
+					placeRoundedLayer(region, x, currentY + dy, z, radius, random);
 				}
 			}
 			
@@ -753,13 +753,13 @@ public class TreeGenerator
 		
 		// Add a top spike (single block) above the highest layer.
 		// final int spikeY = trunkTop + 2;
-		// if (spikeY < Chunk.SIZE_Y)
+		// if (spikeY < Region.SIZE_Y)
 		// {
 		// Check if there's leaf support below.
 		// boolean hasSupport = false;
 		// for (int dy = 1; dy <= 2 && !hasSupport; dy++)
 		// {
-		// if (spikeY - dy >= 0 && chunk.getBlock(x, spikeY - dy, z) == Block.LEAVES)
+		// if (spikeY - dy >= 0 && region.getBlock(x, spikeY - dy, z) == Block.LEAVES)
 		// {
 		// hasSupport = true;
 		// }
@@ -767,14 +767,14 @@ public class TreeGenerator
 		//
 		// if (hasSupport)
 		// {
-		// placeLeaf(chunk, x, spikeY, z);
+		// placeLeaf(region, x, spikeY, z);
 		// }
 		// }
 		
 		// Re-place trunk through canopy (trunk takes priority over leaves).
 		for (int y = canopyBase; y <= trunkTop; y++)
 		{
-			placeTrunk(chunk, x, y, z);
+			placeTrunk(region, x, y, z);
 		}
 	}
 	
@@ -786,31 +786,31 @@ public class TreeGenerator
 	 * Places a WOOD block at the given position.<br>
 	 * Trunk takes priority: overwrites leaves and decorations.
 	 */
-	private static void placeTrunk(Chunk chunk, int x, int y, int z)
+	private static void placeTrunk(Region region, int x, int y, int z)
 	{
-		if (!chunk.isInBounds(x, y, z))
+		if (!region.isInBounds(x, y, z))
 		{
 			return;
 		}
 		
-		chunk.setBlock(x, y, z, Block.WOOD);
+		region.setBlock(x, y, z, Block.WOOD);
 	}
 	
 	/**
 	 * Places a LEAVES block at the given position.<br>
 	 * Only overwrites AIR and other LEAVES. Does not overwrite WOOD or solid blocks.
 	 */
-	private static void placeLeaf(Chunk chunk, int x, int y, int z)
+	private static void placeLeaf(Region region, int x, int y, int z)
 	{
-		if (!chunk.isInBounds(x, y, z))
+		if (!region.isInBounds(x, y, z))
 		{
 			return;
 		}
 		
-		final Block existing = chunk.getBlock(x, y, z);
+		final Block existing = region.getBlock(x, y, z);
 		if (existing == Block.AIR || existing == Block.LEAVES)
 		{
-			chunk.setBlock(x, y, z, Block.LEAVES);
+			region.setBlock(x, y, z, Block.LEAVES);
 		}
 	}
 	
@@ -819,16 +819,16 @@ public class TreeGenerator
 	 * Radius 1 = 3×3 shape, radius 2 = 5×5 shape.<br>
 	 * Corners are always removed for a rounded look.<br>
 	 * Edge blocks on the perimeter have a 30% chance to be removed, creating organic variation.
-	 * @param chunk the chunk to modify
+	 * @param region the region to modify
 	 * @param centerX local X center
 	 * @param y the Y level for this layer
 	 * @param centerZ local Z center
 	 * @param radius leaf spread (1 or 2)
 	 * @param random seeded random for variation
 	 */
-	private static void placeRoundedLayer(Chunk chunk, int centerX, int y, int centerZ, int radius, Random random)
+	private static void placeRoundedLayer(Region region, int centerX, int y, int centerZ, int radius, Random random)
 	{
-		if (y < 0 || y >= Chunk.SIZE_Y)
+		if (y < 0 || y >= Region.SIZE_Y)
 		{
 			return;
 		}
@@ -841,9 +841,9 @@ public class TreeGenerator
 			{
 				final int checkX = centerX + dx;
 				final int checkZ = centerZ + dz;
-				if (chunk.isInBounds(checkX, y - 1, checkZ))
+				if (region.isInBounds(checkX, y - 1, checkZ))
 				{
-					final Block below = chunk.getBlock(checkX, y - 1, checkZ);
+					final Block below = region.getBlock(checkX, y - 1, checkZ);
 					if (below == Block.WOOD || below == Block.LEAVES)
 					{
 						hasSupport = true;
@@ -859,7 +859,7 @@ public class TreeGenerator
 			boolean hasTrunkBelow = false;
 			for (int dy = 1; dy <= 2 && !hasTrunkBelow; dy++)
 			{
-				if (y - dy >= 0 && chunk.getBlock(centerX, y - dy, centerZ) == Block.WOOD)
+				if (y - dy >= 0 && region.getBlock(centerX, y - dy, centerZ) == Block.WOOD)
 				{
 					hasTrunkBelow = true;
 				}
@@ -897,7 +897,7 @@ public class TreeGenerator
 				final int lx = centerX + dx;
 				final int lz = centerZ + dz;
 				
-				placeLeaf(chunk, lx, y, lz);
+				placeLeaf(region, lx, y, lz);
 			}
 		}
 	}
@@ -906,9 +906,9 @@ public class TreeGenerator
 	 * Places a top layer that's guaranteed to be supported.<br>
 	 * Either a single block or a plus-shaped cross, but ensures connection to the layer below.
 	 */
-	private static void placeTopLayer(Chunk chunk, int centerX, int y, int centerZ, Random random)
+	private static void placeTopLayer(Region region, int centerX, int y, int centerZ, Random random)
 	{
-		if (y < 0 || y >= Chunk.SIZE_Y)
+		if (y < 0 || y >= Region.SIZE_Y)
 		{
 			return;
 		}
@@ -921,9 +921,9 @@ public class TreeGenerator
 			{
 				final int checkX = centerX + dx;
 				final int checkZ = centerZ + dz;
-				if (chunk.isInBounds(checkX, y - 1, checkZ))
+				if (region.isInBounds(checkX, y - 1, checkZ))
 				{
-					final Block below = chunk.getBlock(checkX, y - 1, checkZ);
+					final Block below = region.getBlock(checkX, y - 1, checkZ);
 					if (below == Block.WOOD || below == Block.LEAVES)
 					{
 						hasSupport = true;
@@ -938,30 +938,30 @@ public class TreeGenerator
 		}
 		
 		// Always place center block.
-		placeLeaf(chunk, centerX, y, centerZ);
+		placeLeaf(region, centerX, y, centerZ);
 		
 		// 60% chance for a plus-shaped cross, but only if those positions have support.
 		if (random.nextDouble() < 0.60)
 		{
 			// Check each direction for support before placing.
-			if (y - 1 >= 0 && chunk.getBlock(centerX - 1, y - 1, centerZ) != Block.AIR)
+			if (y - 1 >= 0 && region.getBlock(centerX - 1, y - 1, centerZ) != Block.AIR)
 			{
-				placeLeaf(chunk, centerX - 1, y, centerZ);
+				placeLeaf(region, centerX - 1, y, centerZ);
 			}
 			
-			if (y - 1 >= 0 && chunk.getBlock(centerX + 1, y - 1, centerZ) != Block.AIR)
+			if (y - 1 >= 0 && region.getBlock(centerX + 1, y - 1, centerZ) != Block.AIR)
 			{
-				placeLeaf(chunk, centerX + 1, y, centerZ);
+				placeLeaf(region, centerX + 1, y, centerZ);
 			}
 			
-			if (y - 1 >= 0 && chunk.getBlock(centerX, y - 1, centerZ - 1) != Block.AIR)
+			if (y - 1 >= 0 && region.getBlock(centerX, y - 1, centerZ - 1) != Block.AIR)
 			{
-				placeLeaf(chunk, centerX, y, centerZ - 1);
+				placeLeaf(region, centerX, y, centerZ - 1);
 			}
 			
-			if (y - 1 >= 0 && chunk.getBlock(centerX, y - 1, centerZ + 1) != Block.AIR)
+			if (y - 1 >= 0 && region.getBlock(centerX, y - 1, centerZ + 1) != Block.AIR)
 			{
-				placeLeaf(chunk, centerX, y, centerZ + 1);
+				placeLeaf(region, centerX, y, centerZ + 1);
 			}
 		}
 	}

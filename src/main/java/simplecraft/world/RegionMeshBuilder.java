@@ -12,13 +12,13 @@ import simplecraft.world.Block.Face;
 import simplecraft.world.Block.RenderMode;
 
 /**
- * Static utility class that builds jME3 Mesh objects from chunk block data.<br>
- * Generates three separate meshes per chunk: opaque, transparent, and billboard.<br>
+ * Static utility class that builds jME3 Mesh objects from region block data.<br>
+ * Generates three separate meshes per region: opaque, transparent, and billboard.<br>
  * Pure function: data in, Mesh out. No instance state.
  * @author Pantelis Andrianakis
  * @since February 21st 2026
  */
-public class ChunkMeshBuilder
+public class RegionMeshBuilder
 {
 	// ========================================================
 	// Atlas Constants
@@ -168,20 +168,20 @@ public class ChunkMeshBuilder
 	};
 	
 	// ========================================================
-	// Chunk Mesh Result Container
+	// Region Mesh Result Container
 	// ========================================================
 	
 	/**
-	 * Holds the three meshes generated from a chunk.<br>
-	 * Any mesh may be null if the chunk contains no blocks of that render mode.
+	 * Holds the three meshes generated from a region.<br>
+	 * Any mesh may be null if the region contains no blocks of that render mode.
 	 */
-	public static class ChunkMeshResult
+	public static class RegionMeshResult
 	{
 		private final Mesh _opaqueMesh;
 		private final Mesh _transparentMesh;
 		private final Mesh _billboardMesh;
 		
-		public ChunkMeshResult(Mesh opaqueMesh, Mesh transparentMesh, Mesh billboardMesh)
+		public RegionMeshResult(Mesh opaqueMesh, Mesh transparentMesh, Mesh billboardMesh)
 		{
 			_opaqueMesh = opaqueMesh;
 			_transparentMesh = transparentMesh;
@@ -205,12 +205,12 @@ public class ChunkMeshBuilder
 	}
 	
 	// ========================================================
-	// Cross-Chunk Block Access
+	// Cross-Region Block Access
 	// ========================================================
 	
 	/**
 	 * Functional interface for looking up blocks at world coordinates.<br>
-	 * Used by the mesh builder to resolve neighbors across chunk boundaries.
+	 * Used by the mesh builder to resolve neighbors across region boundaries.
 	 */
 	@FunctionalInterface
 	public interface WorldBlockAccess
@@ -222,24 +222,24 @@ public class ChunkMeshBuilder
 	// Private Constructor (static utility class)
 	// ========================================================
 	
-	private ChunkMeshBuilder()
+	private RegionMeshBuilder()
 	{
 		// Static utility class — do not instantiate.
 	}
 	
 	// ========================================================
-	// Full Chunk Mesh Building
+	// Full Region Mesh Building
 	// ========================================================
 	
 	/**
-	 * Builds three separate meshes from the chunk's block data:<br>
+	 * Builds three separate meshes from the region's block data:<br>
 	 * opaque (CUBE_SOLID), transparent (CUBE_TRANSPARENT), and billboard (CROSS_BILLBOARD).<br>
 	 * Each mesh contains only the visible faces after neighbor culling.
-	 * @param chunk the chunk to build meshes from
-	 * @param worldAccess optional world-level block access for cross-chunk neighbor lookups (may be null)
-	 * @return a ChunkMeshResult containing the three meshes (any may be null)
+	 * @param region the region to build meshes from
+	 * @param worldAccess optional world-level block access for cross-region neighbor lookups (may be null)
+	 * @return a RegionMeshResult containing the three meshes (any may be null)
 	 */
-	public static ChunkMeshResult buildChunkMesh(Chunk chunk, WorldBlockAccess worldAccess)
+	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess)
 	{
 		// Separate buffer lists for each render mode.
 		final List<Float> opaquePositions = new ArrayList<>();
@@ -257,14 +257,14 @@ public class ChunkMeshBuilder
 		final List<Float> billboardTexCoords = new ArrayList<>();
 		final List<Integer> billboardIndices = new ArrayList<>();
 		
-		// Iterate every block in the chunk.
-		for (int x = 0; x < Chunk.SIZE_XZ; x++)
+		// Iterate every block in the region.
+		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
-			for (int y = 0; y < Chunk.SIZE_Y; y++)
+			for (int y = 0; y < Region.SIZE_Y; y++)
 			{
-				for (int z = 0; z < Chunk.SIZE_XZ; z++)
+				for (int z = 0; z < Region.SIZE_XZ; z++)
 				{
-					final Block block = chunk.getBlock(x, y, z);
+					final Block block = region.getBlock(x, y, z);
 					if (block == Block.AIR)
 					{
 						continue;
@@ -276,7 +276,7 @@ public class ChunkMeshBuilder
 						{
 							for (Face face : Face.values())
 							{
-								if (isFaceVisible(chunk, x, y, z, face, worldAccess))
+								if (isFaceVisible(region, x, y, z, face, worldAccess))
 								{
 									addFace(opaquePositions, opaqueNormals, opaqueTexCoords, opaqueIndices, x, y, z, face, block);
 								}
@@ -287,7 +287,7 @@ public class ChunkMeshBuilder
 						{
 							for (Face face : Face.values())
 							{
-								if (isTransparentFaceVisible(chunk, x, y, z, face, block, worldAccess))
+								if (isTransparentFaceVisible(region, x, y, z, face, block, worldAccess))
 								{
 									addFace(transparentPositions, transparentNormals, transparentTexCoords, transparentIndices, x, y, z, face, block);
 								}
@@ -309,7 +309,7 @@ public class ChunkMeshBuilder
 		final Mesh transparentMesh = transparentIndices.isEmpty() ? null : assembleMesh(transparentPositions, transparentNormals, transparentTexCoords, transparentIndices);
 		final Mesh billboardMesh = billboardIndices.isEmpty() ? null : assembleMesh(billboardPositions, billboardNormals, billboardTexCoords, billboardIndices);
 		
-		return new ChunkMeshResult(opaqueMesh, transparentMesh, billboardMesh);
+		return new RegionMeshResult(opaqueMesh, transparentMesh, billboardMesh);
 	}
 	
 	// ========================================================
@@ -319,9 +319,9 @@ public class ChunkMeshBuilder
 	/**
 	 * Returns true if the given face of a CUBE_SOLID block at (x, y, z) should be rendered.<br>
 	 * A face is visible if the neighbor block in that direction is AIR, transparent, or out-of-bounds.<br>
-	 * When worldAccess is provided, out-of-bounds neighbors are resolved from adjacent chunks.
+	 * When worldAccess is provided, out-of-bounds neighbors are resolved from adjacent regions.
 	 */
-	public static boolean isFaceVisible(Chunk chunk, int x, int y, int z, Face face, WorldBlockAccess worldAccess)
+	public static boolean isFaceVisible(Region region, int x, int y, int z, Face face, WorldBlockAccess worldAccess)
 	{
 		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
 		final int nx = x + offset[0];
@@ -329,13 +329,13 @@ public class ChunkMeshBuilder
 		final int nz = z + offset[2];
 		
 		final Block neighbor;
-		if (!chunk.isInBounds(nx, ny, nz))
+		if (!region.isInBounds(nx, ny, nz))
 		{
-			if (worldAccess != null && ny >= 0 && ny < Chunk.SIZE_Y)
+			if (worldAccess != null && ny >= 0 && ny < Region.SIZE_Y)
 			{
-				// Convert to world coordinates and query across chunk boundaries.
-				final int worldX = chunk.getWorldX() + nx;
-				final int worldZ = chunk.getWorldZ() + nz;
+				// Convert to world coordinates and query across region boundaries.
+				final int worldX = region.getWorldX() + nx;
+				final int worldZ = region.getWorldZ() + nz;
 				neighbor = worldAccess.getBlock(worldX, ny, worldZ);
 			}
 			else
@@ -346,7 +346,7 @@ public class ChunkMeshBuilder
 		}
 		else
 		{
-			neighbor = chunk.getBlock(nx, ny, nz);
+			neighbor = region.getBlock(nx, ny, nz);
 		}
 		
 		// Face visible if neighbor is not a solid cube.
@@ -383,9 +383,9 @@ public class ChunkMeshBuilder
 	 * When two leaves blocks share a boundary, renders exactly ONE face<br>
 	 * (the positive-direction side: TOP/NORTH/EAST) to avoid z-fighting.<br>
 	 * <br>
-	 * When worldAccess is provided, out-of-bounds neighbors are resolved from adjacent chunks.
+	 * When worldAccess is provided, out-of-bounds neighbors are resolved from adjacent regions.
 	 */
-	public static boolean isTransparentFaceVisible(Chunk chunk, int x, int y, int z, Face face, Block block, WorldBlockAccess worldAccess)
+	public static boolean isTransparentFaceVisible(Region region, int x, int y, int z, Face face, Block block, WorldBlockAccess worldAccess)
 	{
 		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
 		final int nx = x + offset[0];
@@ -393,13 +393,13 @@ public class ChunkMeshBuilder
 		final int nz = z + offset[2];
 		
 		final Block neighbor;
-		if (!chunk.isInBounds(nx, ny, nz))
+		if (!region.isInBounds(nx, ny, nz))
 		{
-			if (worldAccess != null && ny >= 0 && ny < Chunk.SIZE_Y)
+			if (worldAccess != null && ny >= 0 && ny < Region.SIZE_Y)
 			{
-				// Convert to world coordinates and query across chunk boundaries.
-				final int worldX = chunk.getWorldX() + nx;
-				final int worldZ = chunk.getWorldZ() + nz;
+				// Convert to world coordinates and query across region boundaries.
+				final int worldX = region.getWorldX() + nx;
+				final int worldZ = region.getWorldZ() + nz;
 				neighbor = worldAccess.getBlock(worldX, ny, worldZ);
 			}
 			else
@@ -410,7 +410,7 @@ public class ChunkMeshBuilder
 		}
 		else
 		{
-			neighbor = chunk.getBlock(nx, ny, nz);
+			neighbor = region.getBlock(nx, ny, nz);
 		}
 		
 		if (block.isLiquid())
@@ -609,7 +609,7 @@ public class ChunkMeshBuilder
 	
 	/**
 	 * Generates a Mesh for a single block at (0,0,0) with all 6 faces visible.<br>
-	 * Used for testing that the mesh pipeline works before building full chunks.
+	 * Used for testing that the mesh pipeline works before building full regions.
 	 */
 	public static Mesh buildSingleCube()
 	{

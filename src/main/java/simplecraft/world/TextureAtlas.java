@@ -20,7 +20,7 @@ import com.jme3.texture.Texture2D;
 /**
  * Builds a texture atlas by stitching individual 32×32 block PNGs into an 8×8 grid.<br>
  * Missing textures are filled with magenta as a visible indicator.<br>
- * Provides a shared {@link Material} for all chunk geometries.
+ * Provides a shared {@link Material} for all region geometries.
  * @author Pantelis Andrianakis
  * @since February 22nd 2026
  */
