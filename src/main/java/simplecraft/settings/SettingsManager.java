@@ -51,7 +51,7 @@ public class SettingsManager
 	private static final float DEFAULT_MASTER_VOLUME = 0.7f;
 	private static final float DEFAULT_MUSIC_VOLUME = 0.7f;
 	private static final float DEFAULT_SFX_VOLUME = 0.7f;
-	private static final int DEFAULT_RENDER_DISTANCE = 6;
+	private static final int DEFAULT_RENDER_DISTANCE = 15;
 	
 	// Default display values (native resolution, fullscreen).
 	private static final int DEFAULT_SCREEN_WIDTH;
@@ -203,7 +203,7 @@ public class SettingsManager
 						}
 						case KEY_RENDER_DISTANCE:
 						{
-							_renderDistance = Math.clamp(Integer.parseInt(value), 2, 16);
+							_renderDistance = Math.clamp(Integer.parseInt(value), 6, 20);
 							break;
 						}
 						case KEY_SCREEN_WIDTH:
@@ -432,7 +432,7 @@ public class SettingsManager
 	
 	public void setRenderDistance(int distance)
 	{
-		_renderDistance = Math.clamp(distance, 2, 16);
+		_renderDistance = Math.clamp(distance, 6, 20);
 	}
 	
 	public int getScreenWidth()

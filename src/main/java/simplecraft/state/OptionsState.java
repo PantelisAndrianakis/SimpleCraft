@@ -598,8 +598,8 @@ public class OptionsState extends FadeableAppState
 		// Render Distance slider.
 		_renderDistanceSlider = new Slider(Axis.X);
 		_renderDistanceSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
-		_renderDistanceSlider.getModel().setMinimum(2);
-		_renderDistanceSlider.getModel().setMaximum(16);
+		_renderDistanceSlider.getModel().setMinimum(6);
+		_renderDistanceSlider.getModel().setMaximum(20);
 		_renderDistanceSlider.getModel().setValue(settings.getRenderDistance());
 		_renderDistanceValueLabel = createValueLabel(String.valueOf(settings.getRenderDistance()));
 		final Label rdLabel = createNameLabel(app, "Render Distance");

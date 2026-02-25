@@ -205,6 +205,49 @@ public class RegionMeshBuilder
 	}
 	
 	// ========================================================
+	// Reusable Mesh Buffers
+	// ========================================================
+	
+	/**
+	 * Reusable buffer lists for mesh building.<br>
+	 * Avoids allocating 12 ArrayLists per region per frame.<br>
+	 * Call {@link #clear()} before each use.
+	 */
+	public static class MeshBuffers
+	{
+		final List<Float> opaquePositions = new ArrayList<>(4096);
+		final List<Float> opaqueNormals = new ArrayList<>(4096);
+		final List<Float> opaqueTexCoords = new ArrayList<>(4096);
+		final List<Integer> opaqueIndices = new ArrayList<>(4096);
+		
+		final List<Float> transparentPositions = new ArrayList<>(2048);
+		final List<Float> transparentNormals = new ArrayList<>(2048);
+		final List<Float> transparentTexCoords = new ArrayList<>(2048);
+		final List<Integer> transparentIndices = new ArrayList<>(2048);
+		
+		final List<Float> billboardPositions = new ArrayList<>(1024);
+		final List<Float> billboardNormals = new ArrayList<>(1024);
+		final List<Float> billboardTexCoords = new ArrayList<>(1024);
+		final List<Integer> billboardIndices = new ArrayList<>(1024);
+		
+		public void clear()
+		{
+			opaquePositions.clear();
+			opaqueNormals.clear();
+			opaqueTexCoords.clear();
+			opaqueIndices.clear();
+			transparentPositions.clear();
+			transparentNormals.clear();
+			transparentTexCoords.clear();
+			transparentIndices.clear();
+			billboardPositions.clear();
+			billboardNormals.clear();
+			billboardTexCoords.clear();
+			billboardIndices.clear();
+		}
+	}
+	
+	// ========================================================
 	// Cross-Region Block Access
 	// ========================================================
 	
@@ -234,28 +277,45 @@ public class RegionMeshBuilder
 	/**
 	 * Builds three separate meshes from the region's block data:<br>
 	 * opaque (CUBE_SOLID), transparent (CUBE_TRANSPARENT), and billboard (CROSS_BILLBOARD).<br>
-	 * Each mesh contains only the visible faces after neighbor culling.
+	 * Each mesh contains only the visible faces after neighbor culling.<br>
+	 * Allocates new buffer lists internally.
 	 * @param region the region to build meshes from
 	 * @param worldAccess optional world-level block access for cross-region neighbor lookups (may be null)
 	 * @return a RegionMeshResult containing the three meshes (any may be null)
 	 */
 	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess)
 	{
-		// Separate buffer lists for each render mode.
-		final List<Float> opaquePositions = new ArrayList<>();
-		final List<Float> opaqueNormals = new ArrayList<>();
-		final List<Float> opaqueTexCoords = new ArrayList<>();
-		final List<Integer> opaqueIndices = new ArrayList<>();
+		return buildRegionMesh(region, worldAccess, new MeshBuffers());
+	}
+	
+	/**
+	 * Builds three separate meshes from the region's block data using the provided reusable buffers.<br>
+	 * The buffers are cleared before use and can be reused across calls to reduce GC pressure.
+	 * @param region the region to build meshes from
+	 * @param worldAccess optional world-level block access for cross-region neighbor lookups (may be null)
+	 * @param buffers reusable buffer lists (cleared at start of call)
+	 * @return a RegionMeshResult containing the three meshes (any may be null)
+	 */
+	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess, MeshBuffers buffers)
+	{
+		// Clear buffers for reuse.
+		buffers.clear();
 		
-		final List<Float> transparentPositions = new ArrayList<>();
-		final List<Float> transparentNormals = new ArrayList<>();
-		final List<Float> transparentTexCoords = new ArrayList<>();
-		final List<Integer> transparentIndices = new ArrayList<>();
+		// Use buffer references directly.
+		final List<Float> opaquePositions = buffers.opaquePositions;
+		final List<Float> opaqueNormals = buffers.opaqueNormals;
+		final List<Float> opaqueTexCoords = buffers.opaqueTexCoords;
+		final List<Integer> opaqueIndices = buffers.opaqueIndices;
 		
-		final List<Float> billboardPositions = new ArrayList<>();
-		final List<Float> billboardNormals = new ArrayList<>();
-		final List<Float> billboardTexCoords = new ArrayList<>();
-		final List<Integer> billboardIndices = new ArrayList<>();
+		final List<Float> transparentPositions = buffers.transparentPositions;
+		final List<Float> transparentNormals = buffers.transparentNormals;
+		final List<Float> transparentTexCoords = buffers.transparentTexCoords;
+		final List<Integer> transparentIndices = buffers.transparentIndices;
+		
+		final List<Float> billboardPositions = buffers.billboardPositions;
+		final List<Float> billboardNormals = buffers.billboardNormals;
+		final List<Float> billboardTexCoords = buffers.billboardTexCoords;
+		final List<Integer> billboardIndices = buffers.billboardIndices;
 		
 		// Iterate every block in the region.
 		for (int x = 0; x < Region.SIZE_XZ; x++)
