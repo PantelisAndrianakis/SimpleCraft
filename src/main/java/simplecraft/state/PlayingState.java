@@ -7,10 +7,13 @@ import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.post.FilterPostProcessor;
+import com.jme3.post.filters.FogFilter;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
 import simplecraft.state.GameStateManager.GameState;
+import simplecraft.world.Region;
 import simplecraft.world.TextureAtlas;
 import simplecraft.world.World;
 import simplecraft.world.WorldInfo;
@@ -37,6 +40,28 @@ public class PlayingState extends FadeableAppState
 	private TextureAtlas _textureAtlas;
 	private World _world;
 	private WorldInfo _activeWorld;
+	private FilterPostProcessor _fpp;
+	private FogFilter _fogFilter;
+	
+	/** Sky color used for both viewport background and fog blending. */
+	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
+	
+	/** Whether distance fog is enabled. */
+	private static final boolean FOG_ENABLED = true;
+	
+	/** Fog density controls how quickly fog thickens with distance. */
+	private static final float FOG_DENSITY = 1.0f;
+	
+	/**
+	 * Fog distance multiplier relative to render distance.<br>
+	 * Higher values push fog further out (clearer nearby, less coverage at edge).<br>
+	 * Lower values bring fog closer (more coverage, hides pop-in better).<br>
+	 * Recommended range: 1.0 (heavy) to 5.0 (subtle).
+	 */
+	private static final float FOG_DISTANCE_MULTIPLIER = 5.0f;
+	
+	/** Last render distance used to update fog. Avoids recalculating every frame. */
+	private int _lastFogRenderDistance = -1;
 	
 	/** True while the game is paused. Set before the state transition to prevent teardown. */
 	private boolean _paused;
@@ -128,8 +153,8 @@ public class PlayingState extends FadeableAppState
 		
 		System.out.println("PlayingState entered.");
 		
-		// Set blue sky background.
-		app.getViewPort().setBackgroundColor(new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f));
+		// Set sky background color.
+		app.getViewPort().setBackgroundColor(SKY_COLOR);
 		
 		// Add sun (directional light from upper-right).
 		_sun = new DirectionalLight();
@@ -141,6 +166,19 @@ public class PlayingState extends FadeableAppState
 		_ambient = new AmbientLight();
 		_ambient.setColor(new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
 		app.getRootNode().addLight(_ambient);
+		
+		// Set up distance fog to hide terrain pop-in at render distance edges.
+		if (FOG_ENABLED)
+		{
+			_fogFilter = new FogFilter();
+			_fogFilter.setFogColor(SKY_COLOR);
+			_fogFilter.setFogDensity(FOG_DENSITY);
+			_fogFilter.setFogDistance(calculateFogDistance(app.getSettingsManager().getRenderDistance()));
+			
+			_fpp = new FilterPostProcessor(app.getAssetManager());
+			_fpp.addFilter(_fogFilter);
+			app.getViewPort().addProcessor(_fpp);
+		}
 		
 		// Build texture atlas and create shared material.
 		_textureAtlas = new TextureAtlas();
@@ -179,6 +217,13 @@ public class PlayingState extends FadeableAppState
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			_world.update(app.getCamera().getLocation(), renderDistance);
+			
+			// Update fog distance when render distance changes.
+			if (_fogFilter != null && renderDistance != _lastFogRenderDistance)
+			{
+				_lastFogRenderDistance = renderDistance;
+				_fogFilter.setFogDistance(calculateFogDistance(renderDistance));
+			}
 		}
 	}
 	
@@ -233,10 +278,31 @@ public class PlayingState extends FadeableAppState
 			_ambient = null;
 		}
 		
+		// Clean up post-processing (fog).
+		if (_fpp != null)
+		{
+			app.getViewPort().removeProcessor(_fpp);
+			_fpp = null;
+			_fogFilter = null;
+			_lastFogRenderDistance = -1;
+		}
+		
 		_textureAtlas = null;
 		_activeWorld = null;
 		
 		// Clear active world reference when leaving the game session.
 		app.setActiveWorld(null);
+	}
+	
+	/**
+	 * Calculates the fog distance based on render distance.<br>
+	 * Fog fully obscures terrain at the outermost ring of regions,<br>
+	 * hiding pop-in as new regions load at the boundary.
+	 * @param renderDistance the render distance in regions
+	 * @return the fog distance in world units (blocks)
+	 */
+	private static float calculateFogDistance(int renderDistance)
+	{
+		return renderDistance * Region.SIZE_XZ * FOG_DISTANCE_MULTIPLIER;
 	}
 }

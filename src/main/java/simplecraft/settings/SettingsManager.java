@@ -53,6 +53,11 @@ public class SettingsManager
 	private static final float DEFAULT_SFX_VOLUME = 0.7f;
 	private static final int DEFAULT_RENDER_DISTANCE = 15;
 	
+	/** Player-facing render distance range (1–15), internally offset by +5 to become 6–20 regions. */
+	public static final int MIN_RENDER_DISTANCE = 1;
+	public static final int MAX_RENDER_DISTANCE = 15;
+	private static final int RENDER_DISTANCE_OFFSET = 5;
+	
 	// Default display values (native resolution, fullscreen).
 	private static final int DEFAULT_SCREEN_WIDTH;
 	private static final int DEFAULT_SCREEN_HEIGHT;
@@ -203,7 +208,7 @@ public class SettingsManager
 						}
 						case KEY_RENDER_DISTANCE:
 						{
-							_renderDistance = Math.clamp(Integer.parseInt(value), 6, 20);
+							_renderDistance = Math.clamp(Integer.parseInt(value), MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE);
 							break;
 						}
 						case KEY_SCREEN_WIDTH:
@@ -427,12 +432,20 @@ public class SettingsManager
 	
 	public int getRenderDistance()
 	{
+		return _renderDistance + RENDER_DISTANCE_OFFSET;
+	}
+	
+	/**
+	 * Returns the player-facing render distance (1–15) for UI display.
+	 */
+	public int getDisplayRenderDistance()
+	{
 		return _renderDistance;
 	}
 	
 	public void setRenderDistance(int distance)
 	{
-		_renderDistance = Math.clamp(distance, 6, 20);
+		_renderDistance = Math.clamp(distance, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE);
 	}
 	
 	public int getScreenWidth()
