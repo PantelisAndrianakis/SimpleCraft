@@ -6,7 +6,9 @@ import com.jme3.app.Application;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
+import com.jme3.ui.Picture;
 
 import com.simsilica.lemur.Label;
 
@@ -20,25 +22,31 @@ import simplecraft.ui.FontManager;
  */
 public class IntroState extends FadeableAppState
 {
-	private static final float HOLD_DURATION = 2.5f;
+	private static final String BACKGROUND_PATH = "assets/images/backgrounds/epic_dragon_games.png";
+	
+	private static final float HOLD_DURATION = 3.0f;
 	// Reference resolution for font scaling (1080p baseline).
 	private static final float REFERENCE_WIDTH = 1920f;
 	private static final float REFERENCE_HEIGHT = 1080f;
 	// Base font size at reference resolution.
 	private static final float BASE_FONT_SIZE = 64f;
 	
+	// Text font color.
+	private static final ColorRGBA TEXT_COLOR = ColorRGBA.LightGray; // new ColorRGBA(0.55f, 0.2f, 0.85f, 1f)
+	
 	private Label _titleLabel;
-	private Geometry _background;
+	private Geometry _blackBackground;
+	private Picture _backgroundImage;
 	private float _holdTimer;
 	private boolean _firstFadeComplete;
 	
 	public IntroState()
 	{
 		// First fade: white to black (1.33 seconds).
-		setFadeIn(1.33f, new ColorRGBA(1, 1, 1, 1)); // Start white, fade to transparent.
+		setFadeIn(1.33f, ColorRGBA.LightGray); // Start light gray, fade to transparent.
 		
-		// Second fade: black fade-out (1 second).
-		setFadeOut(1.0f, new ColorRGBA(0, 0, 0, 1)); // Fade to black.
+		// Second fade: black fade-out (1.5 seconds).
+		setFadeOut(1.0f, ColorRGBA.Black); // Fade to black.
 	}
 	
 	@Override
@@ -65,7 +73,6 @@ public class IntroState extends FadeableAppState
 		final float heightScale = screenHeight / REFERENCE_HEIGHT;
 		// Use the smaller scale to ensure text fits on screen, or average for balanced look.
 		final float scaleFactor = Math.min(widthScale, heightScale); // Conservative: text always fits.
-		// Alternative: final float scaleFactor = (widthScale + heightScale) / 2f; // Balanced scaling.
 		
 		// Calculate adaptive font size.
 		final float adaptiveFontSize = BASE_FONT_SIZE * scaleFactor;
@@ -76,28 +83,38 @@ public class IntroState extends FadeableAppState
 		// Set initial background to white.
 		app.getViewPort().setBackgroundColor(ColorRGBA.White);
 		
-		// Create black background quad (will be visible after fade-in).
+		// Create black background quad (will be visible during fades).
 		final Quad quad = new Quad(screenWidth, screenHeight);
-		_background = new Geometry("BlackBackground", quad);
+		_blackBackground = new Geometry("BlackBackground", quad);
 		
 		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setColor("Color", ColorRGBA.Black);
-		_background.setMaterial(mat);
-		_background.setLocalTranslation(0, 0, -1); // Behind text.
+		_blackBackground.setMaterial(mat);
+		_blackBackground.setLocalTranslation(0, 0, -20); // Behind everything.
 		
-		app.getGuiNode().attachChild(_background);
+		app.getGuiNode().attachChild(_blackBackground);
 		
-		// Create title text in white (so it's visible on black background).
-		_titleLabel = new Label("Mobius Development");
+		// --- Background Image (stretched to fill screen) ---
+		_backgroundImage = new Picture("Intro Background");
+		_backgroundImage.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
+		_backgroundImage.setWidth(screenWidth);
+		_backgroundImage.setHeight(screenHeight);
+		_backgroundImage.setLocalTranslation(0, 0, -10);
+		_backgroundImage.setCullHint(Spatial.CullHint.Never);
+		
+		app.getGuiNode().attachChild(_backgroundImage);
+		
+		// Create title text "Epic Dragon Games" below the logo.
+		_titleLabel = new Label("Epic Dragon Games");
 		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, (int) adaptiveFontSize));
 		_titleLabel.setFontSize(adaptiveFontSize);
-		_titleLabel.setColor(ColorRGBA.White); // White text on black background.
+		_titleLabel.setColor(TEXT_COLOR);
 		
 		// Center the label.
 		final float labelWidth = _titleLabel.getPreferredSize().x;
 		final float labelHeight = _titleLabel.getPreferredSize().y;
 		final float x = (screenWidth - labelWidth) / 2f;
-		final float y = (screenHeight + labelHeight) / 1.9f;
+		final float y = (screenHeight + labelHeight) / 3.5f;
 		_titleLabel.setLocalTranslation(x, y, 0);
 		
 		app.getGuiNode().attachChild(_titleLabel);
@@ -105,7 +122,7 @@ public class IntroState extends FadeableAppState
 		_holdTimer = 0f;
 		_firstFadeComplete = false;
 		
-		System.out.println("IntroState: Starting - white screen with fade-in to black...");
+		System.out.println("IntroState: Starting - fade in from black...");
 	}
 	
 	@Override
@@ -113,11 +130,18 @@ public class IntroState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
-		// Clean up background.
-		if (_background != null)
+		// Clean up black background.
+		if (_blackBackground != null)
 		{
-			app.getGuiNode().detachChild(_background);
-			_background = null;
+			app.getGuiNode().detachChild(_blackBackground);
+			_blackBackground = null;
+		}
+		
+		// Clean up background image.
+		if (_backgroundImage != null)
+		{
+			app.getGuiNode().detachChild(_backgroundImage);
+			_backgroundImage = null;
 		}
 		
 		// Clean up title.
@@ -155,6 +179,6 @@ public class IntroState extends FadeableAppState
 	protected void onFadeInComplete()
 	{
 		_firstFadeComplete = true;
-		System.out.println("IntroState: First fade complete - now on black background with text, holding for " + HOLD_DURATION + "s");
+		System.out.println("IntroState: Fade in complete - now showing background image with text, holding for " + HOLD_DURATION + "s");
 	}
 }
