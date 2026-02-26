@@ -215,6 +215,7 @@ public class PlayingState extends FadeableAppState
 		// Clean up world geometry.
 		if (_world != null)
 		{
+			_world.shutdown();
 			app.getRootNode().detachChild(_world.getWorldNode());
 			_world = null;
 		}

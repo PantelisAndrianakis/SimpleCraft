@@ -59,7 +59,7 @@ if "%1"=="/debug" (
 	echo Found Java version !JAVA_VERSION_STR!
 	echo Starting SimpleCraft...
 	echo.
-	java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -jar SimpleCraft.jar
+	java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -XX:+UseZGC -jar SimpleCraft.jar
 	
 	:: Pause if there was an error.
 	if %ERRORLEVEL% neq 0 (
@@ -69,5 +69,5 @@ if "%1"=="/debug" (
 	)
 ) else (
 	:: Normal mode - no console.
-	start /min javaw --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -jar SimpleCraft.jar
+	start /min javaw --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -XX:+UseZGC -jar SimpleCraft.jar
 )

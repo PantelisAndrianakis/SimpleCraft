@@ -6,8 +6,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
@@ -18,7 +18,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
 
-import simplecraft.world.RegionMeshBuilder.MeshBuffers;
+import simplecraft.world.RegionLoader.ReadyRegion;
 import simplecraft.world.RegionMeshBuilder.RegionMeshResult;
 
 /**
@@ -26,22 +26,35 @@ import simplecraft.world.RegionMeshBuilder.RegionMeshResult;
  * Regions are stored in a HashMap keyed by a packed long of (regionX, regionZ).<br>
  * Provides world-coordinate block access that automatically resolves to the correct region.<br>
  * Dynamically loads and unloads regions around the camera position each frame.<br>
- * Uses a throttled priority queue to spread region loading across multiple frames,<br>
- * processing up to {@link #REGIONS_PER_FRAME} regions per update to avoid stuttering.
+ * <br>
+ * Terrain generation and mesh vertex building run on background threads via {@link RegionLoader}.<br>
+ * Each frame the main thread polls for completed results and performs only the lightweight<br>
+ * jME3 Mesh creation and scene-graph attach, limited to {@link #ATTACHES_PER_FRAME}.<br>
+ * The first update bypasses the throttle so the initial view is fully populated<br>
+ * (hidden behind the fade-in transition).<br>
+ * <br>
+ * Block changes are queued and processed asynchronously to prevent main-thread stalls.<br>
+ * Includes mesh dirty flag optimization to avoid unnecessary rebuilds.
  * @author Pantelis Andrianakis
  * @since February 23rd 2026
  */
 public class World
 {
 	// ========================================================
-	// Constants
+	// Constants.
 	// ========================================================
 	
 	/** Water level constant exposed for gameplay systems (e.g. player swimming). */
 	public static final int WATER_LEVEL = TerrainGenerator.WATER_LEVEL;
 	
-	/** Maximum number of regions to generate and attach per frame. */
-	private static final int REGIONS_PER_FRAME = 1;
+	/** Maximum number of regions to attach per frame (main-thread budget). */
+	private static final int ATTACHES_PER_FRAME = 2;
+	
+	/** Maximum number of block changes to process per frame. */
+	private static final int BLOCK_CHANGES_PER_FRAME = 5;
+	
+	/** Maximum number of remesh requests to submit per frame. */
+	private static final int REMESH_REQUESTS_PER_FRAME = 4;
 	
 	/** Cardinal neighbor offsets for region remeshing (N, S, E, W). */
 	// @formatter:off
@@ -49,23 +62,45 @@ public class World
 	// @formatter:on
 	
 	// ========================================================
-	// Fields
+	// Inner Classes.
+	// ========================================================
+	
+	/**
+	 * Represents a pending block change.
+	 */
+	private static class BlockChange
+	{
+		final int _worldX;
+		final int _worldY;
+		final int _worldZ;
+		final Block _newBlock;
+		
+		BlockChange(int x, int y, int z, Block block)
+		{
+			_worldX = x;
+			_worldY = y;
+			_worldZ = z;
+			_newBlock = block;
+		}
+	}
+	
+	// ========================================================
+	// Fields.
 	// ========================================================
 	
 	private final Map<Long, Region> _regions = new HashMap<>();
 	private final Map<Long, List<Geometry>> _regionGeometries = new HashMap<>();
 	private final Node _worldNode = new Node("WorldNode");
-	private final Material _sharedMaterial;
+	private final Material _opaqueMaterial;
+	private final Material _transparentMaterial;
+	private final Material _billboardMaterial;
 	private final long _seed;
 	
-	/** Reusable mesh buffers to reduce GC pressure during region meshing. */
-	private final MeshBuffers _meshBuffers = new MeshBuffers();
+	/** Background terrain generator and mesh builder. */
+	private final RegionLoader _regionLoader;
 	
-	/** Priority queue of region coordinate pairs (regionX, regionZ) awaiting generation and meshing. */
-	private final PriorityQueue<int[]> _loadQueue = new PriorityQueue<>(Comparator.comparingInt(a -> a[2]));
-	
-	/** Tracks region keys already present in the load queue to avoid duplicate entries. */
-	private final Set<Long> _queuedKeys = new HashSet<>();
+	/** Cached set of desired region keys for the current camera position and render distance. */
+	private Set<Long> _desiredRegions = new HashSet<>();
 	
 	/** Last known camera region coordinate. Initialized to MIN_VALUE so the first update always triggers. */
 	private int _lastCameraRegionX = Integer.MIN_VALUE;
@@ -74,11 +109,17 @@ public class World
 	/** Last known render distance. Initialized to -1 so the first update always triggers. */
 	private int _lastRenderDistance = -1;
 	
-	/** True until the first update completes. Bypasses throttle so all initial regions load at once. */
+	/** True until the first batch of regions is attached. Bypasses throttle for initial view. */
 	private boolean _initialLoad = true;
 	
+	/** Queue of pending block changes. */
+	private final ConcurrentLinkedQueue<BlockChange> _pendingChanges = new ConcurrentLinkedQueue<>();
+	
+	/** Set of regions needing remesh due to block changes. */
+	private final Set<Long> _pendingRemesh = new HashSet<>();
+	
 	// ========================================================
-	// Constructor
+	// Constructor.
 	// ========================================================
 	
 	/**
@@ -89,11 +130,24 @@ public class World
 	public World(long seed, Material sharedMaterial)
 	{
 		_seed = seed;
-		_sharedMaterial = sharedMaterial;
+		
+		// Opaque material — used as-is for solid blocks.
+		_opaqueMaterial = sharedMaterial;
+		
+		// Transparent material — shared by all transparent geometry (water, leaves).
+		_transparentMaterial = sharedMaterial.clone();
+		_transparentMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
+		_transparentMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		
+		// Billboard material — shared by all billboard geometry (flowers, torches).
+		_billboardMaterial = sharedMaterial.clone();
+		_billboardMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
+		
+		_regionLoader = new RegionLoader(seed);
 	}
 	
 	// ========================================================
-	// Region Key Encoding
+	// Region Key Encoding.
 	// ========================================================
 	
 	/**
@@ -122,206 +176,274 @@ public class World
 	}
 	
 	// ========================================================
-	// Dynamic Region Loading
+	// Dynamic Region Loading.
 	// ========================================================
 	
 	/**
 	 * Updates the loaded region set based on the camera position.<br>
-	 * Calculates the camera's current region coordinate and, if it has changed,<br>
-	 * determines which regions to load and unload based on the render distance.<br>
-	 * Newly needed regions are added to a priority queue sorted by distance to the camera.<br>
-	 * Each frame, up to {@link #REGIONS_PER_FRAME} regions are dequeued, generated, meshed,<br>
-	 * and attached. Unloaded regions are removed immediately.<br>
-	 * Border regions adjacent to newly loaded or unloaded regions are remeshed to maintain<br>
-	 * seamless terrain.
+	 * Also processes pending block changes and remesh requests.
 	 * @param cameraPos the camera's current world position
 	 * @param renderDistance the render distance in regions (from SettingsManager)
 	 */
 	public void update(Vector3f cameraPos, int renderDistance)
 	{
+		// Process pending block changes (limited per frame).
+		processBlockChanges();
+		
 		// Calculate which region the camera is currently in.
 		final int camRegionX = Math.floorDiv((int) Math.floor(cameraPos.x), Region.SIZE_XZ);
 		final int camRegionZ = Math.floorDiv((int) Math.floor(cameraPos.z), Region.SIZE_XZ);
 		
-		// Check if the camera moved to a different region or render distance changed.
-		final boolean cameraRegionChanged = (camRegionX != _lastCameraRegionX) || (camRegionZ != _lastCameraRegionZ) || (renderDistance != _lastRenderDistance);
+		// -------------------------------------------------------
+		// Phase 1: Diff detection (only when camera region or render distance changes).
+		// -------------------------------------------------------
+		final boolean changed = (camRegionX != _lastCameraRegionX) || (camRegionZ != _lastCameraRegionZ) || (renderDistance != _lastRenderDistance);
 		
-		if (cameraRegionChanged)
+		if (changed)
 		{
 			_lastCameraRegionX = camRegionX;
 			_lastCameraRegionZ = camRegionZ;
 			_lastRenderDistance = renderDistance;
 			
 			// Determine which regions should be loaded.
-			final Set<Long> desired = getDesiredRegions(camRegionX, camRegionZ, renderDistance);
+			_desiredRegions = getDesiredRegions(camRegionX, camRegionZ, renderDistance);
 			final Set<Long> loaded = new HashSet<>(_regions.keySet());
 			
-			// --- Unload (immediate) ---
+			// --- Unload (immediate — removing geometry is cheap) ---
 			final Set<Long> toUnload = new HashSet<>(loaded);
-			toUnload.removeAll(desired);
+			toUnload.removeAll(_desiredRegions);
 			
 			for (long key : toUnload)
 			{
 				detachRegionGeometry(key);
 				_regions.remove(key);
+				_regionLoader.cancelPending(key);
+				_regionLoader.removeFromCache(regionKeyX(key), regionKeyZ(key));
 			}
 			
-			// Remove queued entries that are no longer desired (camera moved away).
-			_loadQueue.removeIf(entry ->
+			// Cancel any other pending tasks that are no longer desired.
+			for (long key : loaded)
 			{
-				final long key = regionKey(entry[0], entry[1]);
-				if (!desired.contains(key))
+				if (!_desiredRegions.contains(key))
 				{
-					_queuedKeys.remove(key);
-					return true;
-				}
-				return false;
-			});
-			
-			// Re-prioritize existing queue entries with updated distances.
-			if (!_loadQueue.isEmpty())
-			{
-				final List<int[]> existing = new ArrayList<>(_loadQueue);
-				_loadQueue.clear();
-				for (int[] entry : existing)
-				{
-					final int dx = entry[0] - camRegionX;
-					final int dz = entry[1] - camRegionZ;
-					entry[2] = (dx * dx) + (dz * dz);
-					_loadQueue.add(entry);
+					_regionLoader.cancelPending(key);
 				}
 			}
 			
-			// Queue new regions that are neither loaded nor already queued.
-			for (long key : desired)
+			// Submit new regions to background loader, sorted by distance (closest first).
+			final List<long[]> toSubmit = new ArrayList<>();
+			for (long key : _desiredRegions)
 			{
-				if (!loaded.contains(key) && !_queuedKeys.contains(key))
+				if (!_regions.containsKey(key) && !_regionLoader.isPending(key))
 				{
 					final int rx = regionKeyX(key);
 					final int rz = regionKeyZ(key);
 					final int dx = rx - camRegionX;
 					final int dz = rz - camRegionZ;
-					final int distanceSq = (dx * dx) + (dz * dz);
-					_loadQueue.add(new int[]
+					toSubmit.add(new long[]
 					{
-						rx,
-						rz,
-						distanceSq
+						key,
+						(dx * dx) + (dz * dz)
 					});
-					_queuedKeys.add(key);
 				}
 			}
+			toSubmit.sort(Comparator.comparingLong(a -> a[1]));
 			
-			// Remesh neighbors of unloaded regions (their boundary faces should now be visible).
+			for (long[] entry : toSubmit)
+			{
+				final int rx = regionKeyX(entry[0]);
+				final int rz = regionKeyZ(entry[0]);
+				_regionLoader.requestLoad(rx, rz);
+			}
+			
+			// Mark neighbors of unloaded regions for async remesh (their boundary faces changed).
 			if (!toUnload.isEmpty())
 			{
-				final Set<Long> toRemesh = new HashSet<>();
-				
-				for (long key : toUnload)
-				{
-					final int cx = regionKeyX(key);
-					final int cz = regionKeyZ(key);
-					for (int[] offset : NEIGHBOR_OFFSETS)
-					{
-						final long neighborKey = regionKey(cx + offset[0], cz + offset[1]);
-						if (_regions.containsKey(neighborKey))
-						{
-							toRemesh.add(neighborKey);
-						}
-					}
-				}
-				
-				for (long key : toRemesh)
-				{
-					final Region region = _regions.get(key);
-					if (region != null)
-					{
-						detachRegionGeometry(key);
-						attachRegionGeometry(region);
-					}
-				}
+				markNeighborsForRemesh(toUnload, null);
 			}
 		}
 		
-		// --- Process load queue (throttled) ---
-		if (_loadQueue.isEmpty())
-		{
-			return;
-		}
+		// -------------------------------------------------------
+		// Phase 2: Submit pending remesh requests (only if dirty).
+		// -------------------------------------------------------
+		submitRemeshRequests();
 		
-		int loadedCount = 0;
+		// -------------------------------------------------------
+		// Phase 3: Poll completed regions, create meshes, and attach (every frame).
+		// -------------------------------------------------------
+		int attachedCount = 0;
 		final Set<Long> newlyLoaded = new HashSet<>();
-		final List<long[]> batchEntries = new ArrayList<>();
 		
-		// --- Pass 1: Generate terrain for all batch regions before meshing ---
-		// All regions must exist in the map so cross-region neighbor lookups work within the batch.
-		while (!_loadQueue.isEmpty() && (_initialLoad || loadedCount < REGIONS_PER_FRAME))
+		ReadyRegion ready;
+		while ((ready = _regionLoader.pollReady()) != null)
 		{
-			final int[] entry = _loadQueue.poll();
-			final int rx = entry[0];
-			final int rz = entry[1];
-			final long key = regionKey(rx, rz);
-			_queuedKeys.remove(key);
+			final Region region = ready.getRegion();
+			final long key = regionKey(region.getRegionX(), region.getRegionZ());
 			
-			// Skip if already loaded (e.g. duplicate or race condition).
-			if (_regions.containsKey(key))
+			// Discard if no longer desired (camera moved away during generation).
+			if (!_desiredRegions.contains(key))
 			{
 				continue;
 			}
 			
-			// Generate terrain and trees.
-			final Region region = new Region(rx, rz);
-			TerrainGenerator.generateRegion(region, _seed);
-			TreeGenerator.generateTrees(region, _seed);
-			_regions.put(key, region);
-			
-			newlyLoaded.add(key);
-			batchEntries.add(new long[]
+			if (_regions.containsKey(key))
 			{
-				key
-			});
-			loadedCount++;
+				// Remesh result for an already-loaded region — swap geometry.
+				detachRegionGeometry(key);
+				attachRegionGeometryFromData(region, ready.getMeshData());
+				
+				// Mark clean on main thread (safe — no race with background markMeshDirty).
+				region.markMeshClean();
+			}
+			else
+			{
+				// New region — add to map and attach (do NOT mark clean, needs remesh for boundaries).
+				_regions.put(key, region);
+				attachRegionGeometryFromData(region, ready.getMeshData());
+				newlyLoaded.add(key);
+			}
+			
+			attachedCount++;
+			
+			// Throttle: limit main-thread work per frame (bypass during initial load).
+			if (!_initialLoad && attachedCount >= ATTACHES_PER_FRAME)
+			{
+				break;
+			}
 		}
 		
-		// --- Pass 2: Build meshes and attach geometry ---
-		for (long[] entry : batchEntries)
-		{
-			final Region region = _regions.get(entry[0]);
-			attachRegionGeometry(region);
-		}
-		
-		// Remesh border neighbors of newly loaded regions.
+		// Mark existing neighbors of newly loaded regions for remesh.
+		// Their boundary faces changed because a new region appeared next to them.
+		// New regions themselves are already clean if all neighbors were cached during build,
+		// or dirty if not (will be remeshed when their missing neighbors eventually load).
 		if (!newlyLoaded.isEmpty())
 		{
-			// Clear initial load flag after the first batch.
 			_initialLoad = false;
-			final Set<Long> toRemesh = new HashSet<>();
-			
-			for (long key : newlyLoaded)
+			markNeighborsForRemesh(newlyLoaded, newlyLoaded);
+		}
+	}
+	
+	/**
+	 * Processes pending block changes (limited per frame).
+	 */
+	private void processBlockChanges()
+	{
+		int processed = 0;
+		BlockChange change;
+		while ((change = _pendingChanges.poll()) != null && processed < BLOCK_CHANGES_PER_FRAME)
+		{
+			applyBlockChange(change);
+			processed++;
+		}
+	}
+	
+	/**
+	 * Applies a single block change to the world.
+	 */
+	private void applyBlockChange(BlockChange change)
+	{
+		// Out of vertical bounds.
+		if (change._worldY < 0 || change._worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		// Convert world to region coordinates using floor division.
+		final int regionX = Math.floorDiv(change._worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(change._worldZ, Region.SIZE_XZ);
+		final long key = regionKey(regionX, regionZ);
+		
+		final Region region = _regions.get(key);
+		if (region == null)
+		{
+			return;
+		}
+		
+		// Convert world to local coordinates using floor modulus.
+		final int localX = Math.floorMod(change._worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(change._worldZ, Region.SIZE_XZ);
+		
+		// Update block (this will mark region dirty if block actually changed).
+		region.setBlock(localX, change._worldY, localZ, change._newBlock);
+		
+		// Update cache.
+		_regionLoader.updateRegionCache(region);
+		
+		// Mark for remesh (will only rebuild if dirty).
+		markForRemesh(key);
+		
+		// Also mark neighbors (since their faces might change).
+		for (int[] offset : NEIGHBOR_OFFSETS)
+		{
+			final long neighborKey = regionKey(regionX + offset[0], regionZ + offset[1]);
+			final Region neighbor = _regions.get(neighborKey);
+			if (neighbor != null)
 			{
-				final int cx = regionKeyX(key);
-				final int cz = regionKeyZ(key);
-				for (int[] offset : NEIGHBOR_OFFSETS)
+				// Neighbor is dirty because its face visibility changed.
+				neighbor.markMeshDirty();
+				_regionLoader.updateRegionCache(neighbor);
+				markForRemesh(neighborKey);
+			}
+		}
+	}
+	
+	/**
+	 * Marks a region for remesh due to block changes.
+	 */
+	private void markForRemesh(long key)
+	{
+		if (_regions.containsKey(key))
+		{
+			synchronized (_pendingRemesh)
+			{
+				_pendingRemesh.add(key);
+			}
+		}
+	}
+	
+	/**
+	 * Submits pending remesh requests to the background loader.<br>
+	 * Skips regions that are already clean (no changes).
+	 */
+	private void submitRemeshRequests()
+	{
+		synchronized (_pendingRemesh)
+		{
+			if (_pendingRemesh.isEmpty())
+			{
+				return;
+			}
+		}
+		
+		int submitted = 0;
+		final Set<Long> toRemove = new HashSet<>();
+		
+		synchronized (_pendingRemesh)
+		{
+			for (long key : _pendingRemesh)
+			{
+				if (submitted >= REMESH_REQUESTS_PER_FRAME)
 				{
-					final long neighborKey = regionKey(cx + offset[0], cz + offset[1]);
-					if (_regions.containsKey(neighborKey) && !newlyLoaded.contains(neighborKey))
-					{
-						toRemesh.add(neighborKey);
-					}
+					break;
+				}
+				
+				final int rx = regionKeyX(key);
+				final int rz = regionKeyZ(key);
+				
+				// Submit remesh request (uses thread-safe cache for neighbor lookups).
+				if (_regionLoader.requestRemesh(rx, rz))
+				{
+					toRemove.add(key);
+					submitted++;
+				}
+				else
+				{
+					// If request failed (e.g. region clean or already pending), remove from pending.
+					toRemove.add(key);
 				}
 			}
 			
-			for (long key : toRemesh)
-			{
-				final Region region = _regions.get(key);
-				if (region != null)
-				{
-					detachRegionGeometry(key);
-					attachRegionGeometry(region);
-				}
-			}
-			
-			System.out.println("World: Loaded " + loadedCount + ", queued " + _loadQueue.size() + ", total " + _regions.size() + " regions (camera region: " + camRegionX + ", " + camRegionZ + ")");
+			_pendingRemesh.removeAll(toRemove);
 		}
 	}
 	
@@ -347,18 +469,26 @@ public class World
 	}
 	
 	// ========================================================
-	// Region Geometry
+	// Region Geometry.
 	// ========================================================
 	
 	/**
-	 * Builds meshes for a region and attaches the resulting geometries to the world node.<br>
-	 * Creates up to three geometries per region: opaque, transparent, and billboard.<br>
-	 * Stores geometry references for later detachment.
+	 * Creates jME3 Meshes from pre-built vertex arrays and attaches geometry to the world node.<br>
+	 * Used for newly loaded regions where mesh data was built on a background thread.<br>
+	 * This is the lightweight path: only DirectBuffer allocation and scene-graph attach.
 	 */
-	private void attachRegionGeometry(Region region)
+	private void attachRegionGeometryFromData(Region region, RegionMeshBuilder.RegionMeshData meshData)
 	{
-		final RegionMeshResult meshResult = RegionMeshBuilder.buildRegionMesh(region, this::getBlock, _meshBuffers);
-		
+		final RegionMeshResult meshResult = RegionMeshBuilder.createMeshes(meshData);
+		attachGeometries(region, meshResult);
+	}
+	
+	/**
+	 * Attaches up to three geometries (opaque, transparent, billboard) from a mesh result.<br>
+	 * Shared by both the background-data path and the remesh path.
+	 */
+	private void attachGeometries(Region region, RegionMeshResult meshResult)
+	{
 		final int cx = region.getRegionX();
 		final int cz = region.getRegionZ();
 		final long key = regionKey(cx, cz);
@@ -372,7 +502,7 @@ public class World
 		if (opaqueMesh != null)
 		{
 			final Geometry opaqueGeometry = new Geometry(regionName + "_Opaque", opaqueMesh);
-			opaqueGeometry.setMaterial(_sharedMaterial);
+			opaqueGeometry.setMaterial(_opaqueMaterial);
 			opaqueGeometry.setLocalTranslation(regionOffset);
 			_worldNode.attachChild(opaqueGeometry);
 			geometries.add(opaqueGeometry);
@@ -382,12 +512,8 @@ public class World
 		final Mesh transparentMesh = meshResult.getTransparentMesh();
 		if (transparentMesh != null)
 		{
-			final Material transparentMaterial = _sharedMaterial.clone();
-			transparentMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
-			transparentMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
-			
 			final Geometry transparentGeometry = new Geometry(regionName + "_Transparent", transparentMesh);
-			transparentGeometry.setMaterial(transparentMaterial);
+			transparentGeometry.setMaterial(_transparentMaterial);
 			transparentGeometry.setQueueBucket(Bucket.Transparent);
 			transparentGeometry.setLocalTranslation(regionOffset);
 			_worldNode.attachChild(transparentGeometry);
@@ -398,11 +524,8 @@ public class World
 		final Mesh billboardMesh = meshResult.getBillboardMesh();
 		if (billboardMesh != null)
 		{
-			final Material billboardMaterial = _sharedMaterial.clone();
-			billboardMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
-			
 			final Geometry billboardGeometry = new Geometry(regionName + "_Billboard", billboardMesh);
-			billboardGeometry.setMaterial(billboardMaterial);
+			billboardGeometry.setMaterial(_billboardMaterial);
 			billboardGeometry.setLocalTranslation(regionOffset);
 			_worldNode.attachChild(billboardGeometry);
 			geometries.add(billboardGeometry);
@@ -428,7 +551,41 @@ public class World
 	}
 	
 	// ========================================================
-	// World-Coordinate Block Access
+	// Neighbor Remeshing.
+	// ========================================================
+	
+	/**
+	 * Marks loaded cardinal neighbors of the given region keys for async remesh.<br>
+	 * Used after loading or unloading regions to queue boundary face updates.<br>
+	 * The actual mesh rebuild runs on background threads via {@link #submitRemeshRequests()}.
+	 * @param regionKeys the keys whose neighbors should be marked for remesh
+	 * @param exclude optional set of keys to skip (e.g. newly loaded regions already marked), may be null
+	 */
+	private void markNeighborsForRemesh(Set<Long> regionKeys, Set<Long> exclude)
+	{
+		for (long key : regionKeys)
+		{
+			final int cx = regionKeyX(key);
+			final int cz = regionKeyZ(key);
+			for (int[] offset : NEIGHBOR_OFFSETS)
+			{
+				final long neighborKey = regionKey(cx + offset[0], cz + offset[1]);
+				if (_regions.containsKey(neighborKey) && (exclude == null || !exclude.contains(neighborKey)))
+				{
+					final Region neighbor = _regions.get(neighborKey);
+					if (neighbor != null)
+					{
+						neighbor.markMeshDirty();
+						_regionLoader.updateRegionCache(neighbor);
+						markForRemesh(neighborKey);
+					}
+				}
+			}
+		}
+	}
+	
+	// ========================================================
+	// World-Coordinate Block Access.
 	// ========================================================
 	
 	/**
@@ -464,35 +621,33 @@ public class World
 	/**
 	 * Sets the block at the given world coordinates.<br>
 	 * Converts world coordinates to region + local coordinates automatically.<br>
-	 * Silently ignores if the region is not loaded or coordinates are out of Y bounds.
+	 * The actual block change is queued and applied asynchronously to avoid main-thread stalls.
 	 */
 	public void setBlock(int worldX, int worldY, int worldZ, Block block)
 	{
-		// Out of vertical bounds.
-		if (worldY < 0 || worldY >= Region.SIZE_Y)
-		{
-			return;
-		}
-		
-		// Convert world to region coordinates using floor division.
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		
-		final Region region = _regions.get(regionKey(regionX, regionZ));
-		if (region == null)
-		{
-			return;
-		}
-		
-		// Convert world to local coordinates using floor modulus.
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		
-		region.setBlock(localX, worldY, localZ, block);
+		_pendingChanges.add(new BlockChange(worldX, worldY, worldZ, block));
 	}
 	
 	// ========================================================
-	// Accessors
+	// Lifecycle.
+	// ========================================================
+	
+	/**
+	 * Shuts down background threads and releases resources.<br>
+	 * Must be called when the world is destroyed (e.g. returning to main menu).
+	 */
+	public void shutdown()
+	{
+		_regionLoader.shutdown();
+		_pendingChanges.clear();
+		synchronized (_pendingRemesh)
+		{
+			_pendingRemesh.clear();
+		}
+	}
+	
+	// ========================================================
+	// Accessors.
 	// ========================================================
 	
 	/**

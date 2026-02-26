@@ -43,7 +43,7 @@ public enum Block
 	// @formatter:on
 	
 	// ========================================================
-	// Inner Enums
+	// Inner Enums.
 	// ========================================================
 	
 	public enum RenderMode
@@ -72,7 +72,7 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Fields
+	// Fields.
 	// ========================================================
 	
 	private final RenderMode _renderMode;
@@ -97,14 +97,14 @@ public enum Block
 	private final String _frontTexture;
 	
 	// ========================================================
-	// Atlas Index Map (populated by TextureAtlas at startup)
+	// Atlas Index Map (populated by TextureAtlas at startup).
 	// ========================================================
 	
 	/** Maps texture filename to atlas index. Populated by {@link TextureAtlas#buildAtlas}. */
 	private static final Map<String, Integer> ATLAS_INDEX_MAP = new HashMap<>();
 	
 	// ========================================================
-	// Constructor
+	// Constructor.
 	// ========================================================
 	
 	Block(RenderMode renderMode, boolean solid, boolean transparent, boolean liquid, boolean tileEntity, boolean decoration, int hardness, ToolType bestTool, String sideTexture, String topTexture, String bottomTexture, String frontTexture)
@@ -124,7 +124,7 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Rendering Properties
+	// Rendering Properties.
 	// ========================================================
 	
 	public RenderMode getRenderMode()
@@ -148,7 +148,7 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Gameplay Properties
+	// Gameplay Properties.
 	// ========================================================
 	
 	public boolean isTileEntity()
@@ -177,7 +177,7 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Texture File Lookup
+	// Texture File Lookup.
 	// ========================================================
 	
 	/**
@@ -215,7 +215,7 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Atlas Index Lookup
+	// Atlas Index Lookup.
 	// ========================================================
 	
 	/**
@@ -248,7 +248,7 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Static Atlas Registration
+	// Static Atlas Registration.
 	// ========================================================
 	
 	/**
@@ -297,7 +297,7 @@ public enum Block
 	}
 	
 	// ========================================================
-	// Lookup by Ordinal
+	// Lookup by Ordinal.
 	// ========================================================
 	
 	private static final Block[] VALUES = values();

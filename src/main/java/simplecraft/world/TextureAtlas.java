@@ -27,7 +27,7 @@ import com.jme3.texture.Texture2D;
 public class TextureAtlas
 {
 	// ========================================================
-	// Constants
+	// Constants.
 	// ========================================================
 	
 	/** Pixels per individual block texture. */
@@ -43,14 +43,14 @@ public class TextureAtlas
 	private static final String TEXTURE_PATH = "images/blocks/";
 	
 	// ========================================================
-	// Fields
+	// Fields.
 	// ========================================================
 	
 	private BufferedImage _atlasImage;
 	private Material _sharedMaterial;
 	
 	// ========================================================
-	// Atlas Building
+	// Atlas Building.
 	// ========================================================
 	
 	/**
@@ -117,7 +117,7 @@ public class TextureAtlas
 	}
 	
 	// ========================================================
-	// Material Creation
+	// Material Creation.
 	// ========================================================
 	
 	/**
@@ -178,7 +178,7 @@ public class TextureAtlas
 	}
 	
 	// ========================================================
-	// Debug Helper
+	// Debug Helper.
 	// ========================================================
 	
 	/**

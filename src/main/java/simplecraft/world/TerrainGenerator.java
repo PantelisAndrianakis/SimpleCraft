@@ -14,7 +14,7 @@ import simplecraft.util.OpenSimplex2;
 public class TerrainGenerator
 {
 	// ========================================================
-	// Constants
+	// Constants.
 	// ========================================================
 	
 	/** Sea level. Valleys below this height are filled with water. */
@@ -39,7 +39,7 @@ public class TerrainGenerator
 	private static final long HASH_PRIME_Z = 19349669L;
 	
 	// ========================================================
-	// Public API
+	// Public API.
 	// ========================================================
 	
 	/**
@@ -77,7 +77,7 @@ public class TerrainGenerator
 	}
 	
 	// ========================================================
-	// Height Computation
+	// Height Computation.
 	// ========================================================
 	
 	/**
@@ -96,7 +96,7 @@ public class TerrainGenerator
 	}
 	
 	// ========================================================
-	// Terrain Filling
+	// Terrain Filling.
 	// ========================================================
 	
 	/**
@@ -159,7 +159,7 @@ public class TerrainGenerator
 	}
 	
 	// ========================================================
-	// Ore Generation
+	// Ore Generation.
 	// ========================================================
 	
 	/**
@@ -198,7 +198,7 @@ public class TerrainGenerator
 	}
 	
 	// ========================================================
-	// Surface Decorations
+	// Surface Decorations.
 	// ========================================================
 	
 	/**
@@ -314,7 +314,7 @@ public class TerrainGenerator
 	}
 	
 	// ========================================================
-	// Underwater Seaweed
+	// Underwater Seaweed.
 	// ========================================================
 	
 	/**
@@ -386,7 +386,7 @@ public class TerrainGenerator
 	}
 	
 	// ========================================================
-	// Adjacency Checks
+	// Adjacency Checks.
 	// ========================================================
 	
 	/**

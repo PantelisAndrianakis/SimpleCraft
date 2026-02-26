@@ -14,7 +14,7 @@ import java.util.Random;
 public class TreeGenerator
 {
 	// ========================================================
-	// Constants
+	// Constants.
 	// ========================================================
 	
 	/** Minimum distance from region edge to place a tree (avoids cross-region leaf overflow). */
@@ -36,7 +36,7 @@ public class TreeGenerator
 	private static final int MAX_POST_PROCESS_ITERATIONS = 10;
 	
 	// ========================================================
-	// Tree Types
+	// Tree Types.
 	// ========================================================
 	
 	private static final int TREE_SMALL_OAK = 0;
@@ -46,7 +46,7 @@ public class TreeGenerator
 	private static final int TREE_SPRUCE = 4;
 	
 	// ========================================================
-	// Public API
+	// Public API.
 	// ========================================================
 	
 	/**
@@ -118,7 +118,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// Post-Processing
+	// Post-Processing.
 	// ========================================================
 	
 	/**
@@ -332,7 +332,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// Ground Detection
+	// Ground Detection.
 	// ========================================================
 	
 	/**
@@ -370,7 +370,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// Spacing Check
+	// Spacing Check.
 	// ========================================================
 	
 	/**
@@ -398,7 +398,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// Tree Type Selection
+	// Tree Type Selection.
 	// ========================================================
 	
 	/**
@@ -432,7 +432,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// Tree Placement
+	// Tree Placement.
 	// ========================================================
 	
 	/**
@@ -477,7 +477,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// SMALL_OAK (40%) - Compact rounded canopy
+	// SMALL_OAK (40%) — compact rounded canopy.
 	// ========================================================
 	
 	/**
@@ -524,12 +524,12 @@ public class TreeGenerator
 		// Layer 3: upper - 3×3 minus corners.
 		placeRoundedLayer(region, x, trunkTop + 2, z, 1, random);
 		
-		// Layer 4: top - single block or cross (but keep it attached to the layer below)
+		// Layer 4: top — single block or cross (but keep it attached to the layer below).
 		placeTopLayer(region, x, trunkTop + 3, z, random);
 	}
 	
 	// ========================================================
-	// TALL_OAK (25%) - Large rounded canopy
+	// TALL_OAK (25%) — large rounded canopy.
 	// ========================================================
 	
 	/**
@@ -585,7 +585,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// BIRCH (20%) - Narrow columnar canopy
+	// BIRCH (20%) — narrow columnar canopy.
 	// ========================================================
 	
 	/**
@@ -636,7 +636,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// SHRUB (15%) - Short but elevated canopy
+	// SHRUB (15%) — short but elevated canopy.
 	// ========================================================
 	
 	/**
@@ -676,7 +676,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// SPRUCE (20%) - Conical layered canopy
+	// SPRUCE (20%) — conical layered canopy.
 	// ========================================================
 	
 	/**
@@ -779,7 +779,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// Block Placement Helpers
+	// Block Placement Helpers.
 	// ========================================================
 	
 	/**

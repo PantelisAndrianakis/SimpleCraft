@@ -2,29 +2,36 @@ package simplecraft.world;
 
 /**
  * A 16-wide, 128-tall, 16-deep container of blocks.<br>
- * Block data is stored as byte ordinals for memory efficiency.
+ * Block data is stored as byte ordinals for memory efficiency.<br>
+ * Includes mesh dirty flags for intelligent rebuilding.
  * @author Pantelis Andrianakis
  * @since February 21st 2026
  */
 public class Region
 {
 	// ========================================================
-	// Constants
+	// Constants.
 	// ========================================================
 	
 	public static final int SIZE_XZ = 16;
 	public static final int SIZE_Y = 128;
 	
 	// ========================================================
-	// Fields
+	// Fields.
 	// ========================================================
 	
 	private final byte[][][] _blocks = new byte[SIZE_XZ][SIZE_Y][SIZE_XZ];
 	private final int _regionX;
 	private final int _regionZ;
 	
+	/** True if the mesh needs to be rebuilt due to block changes. */
+	private boolean _meshDirty = true;
+	
+	/** Timestamp of last mesh build (for debugging/performance monitoring). */
+	private long _lastMeshBuildTime = 0;
+	
 	// ========================================================
-	// Constructor
+	// Constructor.
 	// ========================================================
 	
 	public Region(int regionX, int regionZ)
@@ -34,7 +41,7 @@ public class Region
 	}
 	
 	// ========================================================
-	// Position
+	// Position.
 	// ========================================================
 	
 	public int getRegionX()
@@ -64,7 +71,44 @@ public class Region
 	}
 	
 	// ========================================================
-	// Block Access
+	// Mesh Dirty Flag.
+	// ========================================================
+	
+	/**
+	 * Marks the region's mesh as dirty, requiring a rebuild. Called when blocks in this region change.
+	 */
+	public void markMeshDirty()
+	{
+		_meshDirty = true;
+	}
+	
+	/**
+	 * Returns true if the region's mesh needs to be rebuilt.
+	 */
+	public boolean isMeshDirty()
+	{
+		return _meshDirty;
+	}
+	
+	/**
+	 * Marks the region's mesh as clean after a successful rebuild.
+	 */
+	public void markMeshClean()
+	{
+		_meshDirty = false;
+		_lastMeshBuildTime = System.currentTimeMillis();
+	}
+	
+	/**
+	 * Returns the timestamp of the last mesh build (for debugging).
+	 */
+	public long getLastMeshBuildTime()
+	{
+		return _lastMeshBuildTime;
+	}
+	
+	// ========================================================
+	// Block Access.
 	// ========================================================
 	
 	/**
@@ -83,7 +127,8 @@ public class Region
 	
 	/**
 	 * Sets the block at the given local coordinates.<br>
-	 * Silently ignores out-of-bounds positions.
+	 * Silently ignores out-of-bounds positions.<br>
+	 * Automatically marks the mesh as dirty.
 	 */
 	public void setBlock(int x, int y, int z, Block block)
 	{
@@ -92,7 +137,14 @@ public class Region
 			return;
 		}
 		
-		_blocks[x][y][z] = (byte) block.ordinal();
+		final byte newOrdinal = (byte) block.ordinal();
+		
+		// Only mark dirty if the block actually changed.
+		if (_blocks[x][y][z] != newOrdinal)
+		{
+			_blocks[x][y][z] = newOrdinal;
+			markMeshDirty();
+		}
 	}
 	
 	/**
@@ -104,12 +156,13 @@ public class Region
 	}
 	
 	// ========================================================
-	// Utilities
+	// Utilities.
 	// ========================================================
 	
 	/**
 	 * Fills the region with a flat terrain for testing.<br>
-	 * BEDROCK at y=0, STONE up to height-3, DIRT up to height-1, GRASS at height, AIR above.
+	 * BEDROCK at y=0, STONE up to height-3, DIRT up to height-1, GRASS at height, AIR above.<br>
+	 * Automatically marks mesh as dirty.
 	 * @param height the Y level of the grass surface layer
 	 */
 	public void fillFlat(int height)
@@ -145,6 +198,9 @@ public class Region
 				}
 			}
 		}
+		
+		// Mark dirty after filling.
+		markMeshDirty();
 	}
 	
 	/**
