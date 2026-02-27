@@ -12,6 +12,7 @@ import com.jme3.post.filters.FogFilter;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
+import simplecraft.player.PlayerController;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.world.Region;
 import simplecraft.world.TextureAtlas;
@@ -22,7 +23,7 @@ import simplecraft.world.WorldInfo;
  * Playing state - the main game scene.<br>
  * Uses the active world from {@link SimpleCraft#getActiveWorld()} for world name and seed.<br>
  * Creates a dynamically loaded world via {@link World#update(Vector3f, int)}.<br>
- * Regions are loaded and unloaded each frame based on camera position and render distance.<br>
+ * Regions are loaded and unloaded each frame based on player position and render distance.<br>
  * Listens for the PAUSE action (Escape) to open the pause menu.<br>
  * The pause listener is registered in initialize/cleanup so it remains<br>
  * active even when the state is disabled (paused overlay is showing).<br>
@@ -42,6 +43,7 @@ public class PlayingState extends FadeableAppState
 	private WorldInfo _activeWorld;
 	private FilterPostProcessor _fpp;
 	private FogFilter _fogFilter;
+	private PlayerController _playerController;
 	
 	/** Sky color used for both viewport background and fog blending. */
 	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
@@ -129,7 +131,7 @@ public class PlayingState extends FadeableAppState
 			// Reset paused flag so a subsequent onExitState (e.g. Return to Main Menu) does full teardown.
 			_paused = false;
 			app.getInputManager().setCursorVisible(false);
-			app.getFlyByCamera().setEnabled(true);
+			_playerController.registerInput();
 			return;
 		}
 		
@@ -195,16 +197,17 @@ public class PlayingState extends FadeableAppState
 		// Attach world node to the scene.
 		app.getRootNode().attachChild(_world.getWorldNode());
 		
+		// Disable the default fly camera — PlayerController handles all camera work.
+		app.getFlyByCamera().setEnabled(false);
+		app.getFlyByCamera().setDragToRotate(true);
+		
+		// Create and initialize the player controller.
+		_playerController = new PlayerController(app.getCamera(), app.getInputManager());
+		_playerController.setPosition(64, 50, 64);
+		_playerController.registerInput();
+		
 		// Disable cursor for first-person control.
 		app.getInputManager().setCursorVisible(false);
-		
-		// Enable fly camera for free movement.
-		app.getFlyByCamera().setEnabled(true);
-		app.getFlyByCamera().setMoveSpeed(10f);
-		
-		// Position camera high above the center to overlook the region grid.
-		app.getCamera().setLocation(new Vector3f(64, 50, 64));
-		app.getCamera().lookAt(new Vector3f(0, 32, 0), Vector3f.UNIT_Y);
 	}
 	
 	@Override
@@ -212,11 +215,14 @@ public class PlayingState extends FadeableAppState
 	{
 		super.update(tpf);
 		
-		if (_world != null)
+		if (_world != null && _playerController != null)
 		{
+			// Update player movement and camera.
+			_playerController.update(tpf);
+			
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
-			_world.update(app.getCamera().getLocation(), renderDistance);
+			_world.update(_playerController.getPosition(), renderDistance);
 			
 			// Update fog distance when render distance changes.
 			if (_fogFilter != null && renderDistance != _lastFogRenderDistance)
@@ -234,7 +240,10 @@ public class PlayingState extends FadeableAppState
 		
 		// Always disable controls (both for pause and full exit).
 		app.getInputManager().setCursorVisible(true);
-		app.getFlyByCamera().setEnabled(false);
+		if (_playerController != null)
+		{
+			_playerController.unregisterInput();
+		}
 		
 		// If pausing, keep the world alive — only disable controls above.
 		if (_paused)
@@ -256,6 +265,13 @@ public class PlayingState extends FadeableAppState
 		
 		// Reset paused flag.
 		_paused = false;
+		
+		// Clean up player controller.
+		if (_playerController != null)
+		{
+			_playerController.unregisterInput();
+			_playerController = null;
+		}
 		
 		// Clean up world geometry.
 		if (_world != null)
