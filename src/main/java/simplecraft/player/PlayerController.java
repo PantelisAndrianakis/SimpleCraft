@@ -9,12 +9,18 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 
 import simplecraft.input.GameInputManager;
+import simplecraft.player.PlayerCollision.CollisionResult;
+import simplecraft.world.World;
 
 /**
- * First-person player controller — fly mode (no physics).<br>
+ * First-person player controller with gravity and ground collision.<br>
  * Handles mouse look and WASD movement relative to camera facing direction.<br>
- * Movement uses yaw-only forward/right vectors so the player always moves<br>
- * on the horizontal plane regardless of where the camera is looking.<br>
+ * Horizontal movement uses yaw-only forward/right vectors so the player always<br>
+ * moves on the horizontal plane regardless of where the camera is looking.<br>
+ * Vertical movement is governed by gravity and ground detection via {@link PlayerCollision}.<br>
+ * <br>
+ * Fall damage is applied on landing when fall distance exceeds 3 blocks.<br>
+ * Landing in water cancels all fall damage.<br>
  * <br>
  * Registers as both {@link ActionListener} (movement key flags) and<br>
  * {@link AnalogListener} (mouse axes) on the jME3 {@link InputManager}.<br>
@@ -26,9 +32,14 @@ public class PlayerController implements ActionListener, AnalogListener
 {
 	private final Camera _camera;
 	private final InputManager _inputManager;
+	private final World _world;
+	private final PlayerCollision _collision;
 	
 	/** World position of the player (feet level). */
 	private final Vector3f _position = new Vector3f();
+	
+	/** Player velocity. Horizontal is set from input each frame; vertical accumulates from gravity. */
+	private final Vector3f _velocity = new Vector3f();
 	
 	/** Horizontal rotation in radians. 0 = looking along -Z (jME3 default). */
 	private float _yaw;
@@ -48,7 +59,12 @@ public class PlayerController implements ActionListener, AnalogListener
 	private boolean _moveLeft;
 	private boolean _moveRight;
 	private boolean _moveUp;
-	private boolean _moveDown;
+	// private boolean _moveDown;
+	
+	// Collision state flags.
+	private boolean _onGround;
+	private boolean _inWater;
+	private boolean _headSubmerged;
 	
 	/** Eye height offset above foot position. */
 	private static final float EYE_HEIGHT = 1.6f;
@@ -56,16 +72,22 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Maximum pitch angle in radians (±89 degrees). */
 	private static final float MAX_PITCH = 89f * FastMath.DEG_TO_RAD;
 	
+	/** Fall distance threshold in blocks before damage is dealt. */
+	private static final float FALL_DAMAGE_THRESHOLD = 3.0f;
+	
+	/** Damage multiplier per block fallen beyond the threshold. */
+	private static final float FALL_DAMAGE_MULTIPLIER = 2.0f;
+	
 	// Reusable vectors to avoid per-frame allocation.
 	private final Vector3f _forward = new Vector3f();
 	private final Vector3f _right = new Vector3f();
-	private final Vector3f _velocity = new Vector3f();
+	private final Vector3f _moveDir = new Vector3f();
 	private final Quaternion _rotation = new Quaternion();
 	
-	/** Player health. Reserved for future use. */
+	/** Player health. */
 	private float _health = 20f;
 	
-	/** Maximum health. Reserved for future use. */
+	/** Maximum health. */
 	private float _maxHealth = 20f;
 	
 	// Action names this controller listens to.
@@ -91,11 +113,14 @@ public class PlayerController implements ActionListener, AnalogListener
 	 * Create a new player controller.
 	 * @param camera the jME3 camera to control
 	 * @param inputManager the jME3 input manager to register listeners on
+	 * @param world the game world for block collision lookups
 	 */
-	public PlayerController(Camera camera, InputManager inputManager)
+	public PlayerController(Camera camera, InputManager inputManager, World world)
 	{
 		_camera = camera;
 		_inputManager = inputManager;
+		_world = world;
+		_collision = new PlayerCollision();
 	}
 	
 	/**
@@ -139,7 +164,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	}
 	
 	/**
-	 * Update player movement and camera each frame.
+	 * Update player movement, collision, and camera each frame.
 	 * @param tpf time per frame in seconds
 	 */
 	public void update(float tpf)
@@ -161,45 +186,67 @@ public class PlayerController implements ActionListener, AnalogListener
 		_right.y = 0;
 		_right.normalizeLocal();
 		
-		// Accumulate movement from flags.
-		_velocity.set(0, 0, 0);
+		// --- Horizontal movement (instant from input, not accumulated) ---
+		_moveDir.set(0, 0, 0);
 		
 		if (_moveForward)
 		{
-			_velocity.addLocal(_forward);
+			_moveDir.addLocal(_forward);
 		}
 		
 		if (_moveBack)
 		{
-			_velocity.subtractLocal(_forward);
+			_moveDir.subtractLocal(_forward);
 		}
 		
 		if (_moveLeft)
 		{
-			_velocity.subtractLocal(_right);
+			_moveDir.subtractLocal(_right);
 		}
 		
 		if (_moveRight)
 		{
-			_velocity.addLocal(_right);
-		}
-		
-		if (_moveUp)
-		{
-			_velocity.y += 1f;
-		}
-		
-		if (_moveDown)
-		{
-			_velocity.y -= 1f;
+			_moveDir.addLocal(_right);
 		}
 		
 		// Normalize so diagonal movement isn't faster, then apply speed.
-		if (_velocity.lengthSquared() > 0)
+		if (_moveDir.lengthSquared() > 0)
 		{
-			_velocity.normalizeLocal();
-			_velocity.multLocal(_moveSpeed * tpf);
-			_position.addLocal(_velocity);
+			_moveDir.normalizeLocal();
+			_moveDir.multLocal(_moveSpeed * tpf);
+			_position.x += _moveDir.x;
+			_position.z += _moveDir.z;
+		}
+		
+		// --- Vertical: gravity and collision ---
+		// Jump input: apply upward impulse only when grounded (not fly mode anymore).
+		if (_moveUp && _onGround)
+		{
+			_velocity.y = 8f; // Jump impulse (blocks per second).
+		}
+		
+		// Resolve gravity, ground snapping, water detection.
+		final CollisionResult result = _collision.resolveCollision(_position, _velocity, _world, tpf);
+		_onGround = result.isOnGround();
+		_inWater = result.isInWater();
+		_headSubmerged = result.isHeadSubmerged();
+		
+		// --- Fall damage ---
+		final float fallDistance = result.getFallDistance();
+		if (fallDistance > FALL_DAMAGE_THRESHOLD)
+		{
+			if (_inWater)
+			{
+				// Water breaks the fall — no damage.
+				System.out.println("Water saved you! Fall distance: " + String.format("%.1f", fallDistance) + " blocks.");
+			}
+			else
+			{
+				final float damage = (fallDistance - FALL_DAMAGE_THRESHOLD) * FALL_DAMAGE_MULTIPLIER;
+				_health -= damage;
+				_health = Math.max(0, _health);
+				System.out.println("Fall damage! Distance: " + String.format("%.1f", fallDistance) + " blocks, Damage: " + String.format("%.1f", damage) + ", Health: " + String.format("%.1f", _health) + "/" + String.format("%.0f", _maxHealth));
+			}
 		}
 		
 		// Update camera position (eye height above feet).
@@ -235,16 +282,14 @@ public class PlayerController implements ActionListener, AnalogListener
 			}
 			case GameInputManager.JUMP:
 			{
-				// In fly mode, JUMP moves up.
 				_moveUp = isPressed;
 				break;
 			}
-			case GameInputManager.SWIM_DOWN:
-			{
-				// In fly mode, SWIM_DOWN moves down.
-				_moveDown = isPressed;
-				break;
-			}
+			// case GameInputManager.SWIM_DOWN:
+			// {
+			// _moveDown = isPressed;
+			// break;
+			// }
 		}
 	}
 	
@@ -334,5 +379,20 @@ public class PlayerController implements ActionListener, AnalogListener
 	public void setMaxHealth(float maxHealth)
 	{
 		_maxHealth = maxHealth;
+	}
+	
+	public boolean isOnGround()
+	{
+		return _onGround;
+	}
+	
+	public boolean isInWater()
+	{
+		return _inWater;
+	}
+	
+	public boolean isHeadSubmerged()
+	{
+		return _headSubmerged;
 	}
 }

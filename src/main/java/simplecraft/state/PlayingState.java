@@ -201,9 +201,9 @@ public class PlayingState extends FadeableAppState
 		app.getFlyByCamera().setEnabled(false);
 		app.getFlyByCamera().setDragToRotate(true);
 		
-		// Create and initialize the player controller.
-		_playerController = new PlayerController(app.getCamera(), app.getInputManager());
-		_playerController.setPosition(64, 50, 64);
+		// Create and initialize the player controller with world reference for collision.
+		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world);
+		_playerController.setPosition(64, 80, 64);
 		_playerController.registerInput();
 		
 		// Disable cursor for first-person control.
