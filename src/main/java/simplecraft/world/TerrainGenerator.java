@@ -6,7 +6,8 @@ import simplecraft.util.OpenSimplex2;
 
 /**
  * Generates terrain for regions using 2D noise for heightmaps and 3D noise for ore veins.<br>
- * Produces rolling hills with grass, dirt, stone layers, water-filled valleys,<br>
+ * Produces varied terrain with broad hills, medium ridges, and sharp local ledges,<br>
+ * along with grass, dirt, stone layers, water-filled valleys,<br>
  * iron ore clusters, berry bushes, tall grass, and flowers.
  * @author Pantelis Andrianakis
  * @since February 23rd 2026
@@ -25,6 +26,9 @@ public class TerrainGenerator
 	
 	/** Maximum terrain height after clamping. */
 	private static final int MAX_HEIGHT = 100;
+	
+	/** Terrace step size in blocks. Heights are quantized to this interval, creating sharp ledges. */
+	private static final double TERRACE_SIZE = 3.0;
 	
 	/** 3D noise threshold for iron ore generation. */
 	private static final float ORE_THRESHOLD = 0.5f;
@@ -81,15 +85,24 @@ public class TerrainGenerator
 	// ========================================================
 	
 	/**
-	 * Computes terrain height at a world column using 2-octave noise.
+	 * Computes terrain height at a world column using 3-octave noise with terracing.<br>
+	 * Three octaves produce varied base terrain. A terracing step then quantizes<br>
+	 * heights into plateaus, creating sharp 2-3 block ledges between them.<br>
+	 * Fine detail noise is added back after terracing to break up uniformity.
 	 */
 	private static int computeHeight(long seed, int worldX, int worldZ)
 	{
 		// Octave 1: broad rolling hills.
-		double height = 32.0 + OpenSimplex2.noise2(seed, worldX * 0.01, worldZ * 0.01) * 16.0;
+		double height = 32.0 + OpenSimplex2.noise2(seed, worldX * 0.01, worldZ * 0.01) * 20.0;
 		
-		// Octave 2: finer detail.
-		height += OpenSimplex2.noise2(seed + 1, worldX * 0.02, worldZ * 0.02) * 8.0;
+		// Octave 2: medium ridges and valleys.
+		height += OpenSimplex2.noise2(seed + 1, worldX * 0.02, worldZ * 0.02) * 10.0;
+		
+		// Terrace: quantize to steps of TERRACE_SIZE to create sharp ledges.
+		height = Math.floor(height / TERRACE_SIZE) * TERRACE_SIZE;
+		
+		// Octave 3: fine detail added after terracing to break up flat plateaus.
+		height += OpenSimplex2.noise2(seed + 2, worldX * 0.06, worldZ * 0.06) * 2.0;
 		
 		// Clamp to valid range.
 		return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, (int) height));
@@ -125,8 +138,9 @@ public class TerrainGenerator
 					}
 					else if (y < terrainHeight)
 					{
-						// Dirt layer (4 blocks thick).
-						block = Block.DIRT;
+						// Fill layer (4 blocks thick).
+						// Use sand for underwater columns, dirt for land.
+						block = terrainHeight <= WATER_LEVEL ? Block.SAND : Block.DIRT;
 					}
 					else if (y == terrainHeight)
 					{
@@ -220,6 +234,7 @@ public class TerrainGenerator
 					continue;
 				}
 				
+				// Don't decorate beach sand.
 				if (region.getBlock(x, terrainHeight, z) != Block.GRASS)
 				{
 					continue;
