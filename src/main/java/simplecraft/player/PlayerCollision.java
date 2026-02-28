@@ -18,7 +18,11 @@ import simplecraft.world.World;
  * enough headroom (two non-solid blocks above the obstacle).<br>
  * <br>
  * Vertical collision handles both ground snapping (landing) and ceiling bonks (jumping).<br>
- * Water detection checks blocks at feet and eye level for liquid blocks.
+ * Water detection checks blocks at feet and eye level for liquid blocks.<br>
+ * <br>
+ * When in water, normal gravity is replaced with buoyancy physics:<br>
+ * reduced gravity, surface bobbing, swim-up/swim-down input, and velocity<br>
+ * dampening on water entry to break falls.
  * @author Pantelis Andrianakis
  * @since February 27th 2026
  */
@@ -27,8 +31,14 @@ public class PlayerCollision
 	/** Gravitational acceleration in blocks per second². */
 	private static final float GRAVITY = 20f;
 	
+	/** Reduced gravity when submerged in water. Player sinks slowly. */
+	private static final float WATER_GRAVITY = 5f;
+	
 	/** Maximum terminal velocity (negative = downward). */
 	private static final float TERMINAL_VELOCITY = -50f;
+	
+	/** Maximum terminal velocity in water (much slower sinking). */
+	private static final float WATER_TERMINAL_VELOCITY = -4f;
 	
 	/** Maximum time step to prevent tunneling on frame spikes. */
 	private static final float MAX_TPF = 0.05f;
@@ -51,6 +61,21 @@ public class PlayerCollision
 	
 	/** Height offset for water check at eye level. */
 	private static final float WATER_HEAD_OFFSET = 1.6f;
+	
+	/** Vertical swim speed when pressing swim-up or swim-down in water. */
+	private static final float SWIM_VERTICAL_SPEED = 3.5f;
+	
+	/** Velocity multiplier applied on water entry to break falls. */
+	private static final float WATER_ENTRY_DAMPEN = 0.3f;
+	
+	/** Distance from the water surface within which bobbing force is applied. */
+	private static final float SURFACE_BOB_RANGE = 0.5f;
+	
+	/** Upward force applied when near the water surface to keep the player floating. */
+	private static final float SURFACE_BOB_FORCE = 6f;
+	
+	/** Upward impulse when pressing swim-up at the water surface near a solid edge. */
+	private static final float HOP_OUT_IMPULSE = 5.5f;
 	
 	// ========================================================
 	// Collision Result.
@@ -102,6 +127,9 @@ public class PlayerCollision
 	/** Whether the player was on the ground last frame. Used to detect takeoff and landing. */
 	private boolean _wasOnGround = true;
 	
+	/** Whether the player was in water last frame. Used to detect water entry. */
+	private boolean _wasInWater;
+	
 	/** Reusable result object to avoid per-frame allocation. */
 	private final CollisionResult _result = new CollisionResult();
 	
@@ -112,7 +140,7 @@ public class PlayerCollision
 	/**
 	 * Resolves full player collision for one frame using axis-separated sweeps.<br>
 	 * Processes horizontal movement (X then Z) with step-up support, then applies<br>
-	 * gravity and resolves vertical collision (ground snap + ceiling bonk).<br>
+	 * gravity (or water buoyancy) and resolves vertical collision.<br>
 	 * Finally detects water at body and head level.<br>
 	 * Modifies position and velocity in place.
 	 * @param position the player's current feet position (modified in place)
@@ -121,9 +149,11 @@ public class PlayerCollision
 	 * @param deltaZ horizontal movement on the Z axis for this frame
 	 * @param world the world for block lookups
 	 * @param tpf time per frame in seconds
+	 * @param swimUp true when the swim-up key (Space) is held
+	 * @param swimDown true when the swim-down key (Shift) is held
 	 * @return collision result with ground, water, and fall distance information
 	 */
-	public CollisionResult resolveCollision(Vector3f position, Vector3f velocity, float deltaX, float deltaZ, World world, float tpf)
+	public CollisionResult resolveCollision(Vector3f position, Vector3f velocity, float deltaX, float deltaZ, World world, float tpf, boolean swimUp, boolean swimDown)
 	{
 		// Reset result.
 		_result._onGround = false;
@@ -133,6 +163,17 @@ public class PlayerCollision
 		
 		// Clamp time step to prevent tunneling on frame spikes.
 		tpf = Math.min(tpf, MAX_TPF);
+		
+		// --- Early water check at current position (before movement) ---
+		// This determines whether water physics apply this frame.
+		final boolean currentlyInWater = isPositionInWater(position, world);
+		
+		// --- Water entry: dampen velocity on first contact ---
+		if (currentlyInWater && !_wasInWater)
+		{
+			velocity.y *= WATER_ENTRY_DAMPEN;
+			System.out.println("Entered water");
+		}
 		
 		// --- Horizontal X axis ---
 		if (deltaX != 0)
@@ -184,11 +225,19 @@ public class PlayerCollision
 			}
 		}
 		
-		// --- Vertical: gravity and collision ---
-		velocity.y -= GRAVITY * tpf;
-		velocity.y = Math.max(velocity.y, TERMINAL_VELOCITY);
-		position.y += velocity.y * tpf;
-		resolveVertical(position, velocity, world);
+		// --- Vertical: gravity / water physics and collision ---
+		if (currentlyInWater)
+		{
+			resolveWaterVertical(position, velocity, world, tpf, swimUp, swimDown);
+		}
+		else
+		{
+			// Normal gravity.
+			velocity.y -= GRAVITY * tpf;
+			velocity.y = Math.max(velocity.y, TERMINAL_VELOCITY);
+			position.y += velocity.y * tpf;
+			resolveVertical(position, velocity, world);
+		}
 		
 		// --- Fall distance tracking ---
 		if (_wasOnGround && !_result._onGround)
@@ -221,7 +270,109 @@ public class PlayerCollision
 		final int waterHeadY = (int) Math.floor(position.y + WATER_HEAD_OFFSET);
 		_result._headSubmerged = world.getBlock(waterCheckX, waterHeadY, waterCheckZ).isLiquid();
 		
+		_wasInWater = _result._inWater;
+		
 		return _result;
+	}
+	
+	// ========================================================
+	// Water Vertical Resolution.
+	// ========================================================
+	
+	/**
+	 * Handles vertical movement while the player is in water.<br>
+	 * Replaces normal gravity with buoyancy, handles swim-up/swim-down input,<br>
+	 * and applies surface bobbing when the player is near the water-air boundary.
+	 */
+	private void resolveWaterVertical(Vector3f position, Vector3f velocity, World world, float tpf, boolean swimUp, boolean swimDown)
+	{
+		// Determine the water surface Y level.
+		// Walk upward from feet to find the first non-liquid block — that block's
+		// bottom face is the water surface.
+		final int checkX = (int) Math.floor(position.x);
+		final int checkZ = (int) Math.floor(position.z);
+		final int feetBlockY = (int) Math.floor(position.y);
+		float waterSurfaceY = feetBlockY + 1.0f; // Default: top of the block at feet.
+		for (int y = feetBlockY; y < feetBlockY + 10; y++)
+		{
+			if (!world.getBlock(checkX, y, checkZ).isLiquid())
+			{
+				waterSurfaceY = y; // Bottom of the first non-water block = surface.
+				break;
+			}
+		}
+		
+		// Distance from player feet to water surface (positive = below surface).
+		final float depthBelowSurface = waterSurfaceY - position.y;
+		
+		if (swimUp)
+		{
+			// Check for hop-out: at the surface with a solid block adjacent at foot level.
+			if (depthBelowSurface >= 0 && depthBelowSurface < SURFACE_BOB_RANGE && hasSolidNeighborAtFeet(position, world))
+			{
+				velocity.y = HOP_OUT_IMPULSE;
+			}
+			else
+			{
+				velocity.y = SWIM_VERTICAL_SPEED;
+			}
+		}
+		else if (swimDown)
+		{
+			velocity.y = -SWIM_VERTICAL_SPEED;
+		}
+		else
+		{
+			// No swim input — apply water gravity (slow sinking) with surface bobbing.
+			velocity.y -= WATER_GRAVITY * tpf;
+			velocity.y = Math.max(velocity.y, WATER_TERMINAL_VELOCITY);
+			
+			// Surface bobbing: when near the surface, apply upward force to float.
+			if (depthBelowSurface >= 0 && depthBelowSurface < SURFACE_BOB_RANGE)
+			{
+				// Strength increases the deeper below the surface the player is (within range).
+				final float bobStrength = (SURFACE_BOB_RANGE - depthBelowSurface) / SURFACE_BOB_RANGE;
+				velocity.y += SURFACE_BOB_FORCE * (1.0f - bobStrength) * tpf;
+				
+				// Dampen vertical velocity near the surface for gentle bobbing.
+				velocity.y *= 0.85f;
+			}
+		}
+		
+		position.y += velocity.y * tpf;
+		
+		// Still need to resolve solid collisions (ground under water, ceilings in caves).
+		resolveVertical(position, velocity, world);
+	}
+	
+	// ========================================================
+	// Water Position Check.
+	// ========================================================
+	
+	/**
+	 * Returns true if the player body center is in a liquid block at the given position.<br>
+	 * Used for early water detection before movement is applied.
+	 */
+	private boolean isPositionInWater(Vector3f position, World world)
+	{
+		final int bx = (int) Math.floor(position.x);
+		final int by = (int) Math.floor(position.y + WATER_BODY_OFFSET);
+		final int bz = (int) Math.floor(position.z);
+		return world.getBlock(bx, by, bz).isLiquid();
+	}
+	
+	/**
+	 * Returns true if there is a solid block adjacent to the player at foot level.<br>
+	 * Checks all four cardinal neighbors at the block the player's feet occupy.<br>
+	 * Used to detect whether the player can hop out of water onto a ledge.
+	 */
+	private boolean hasSolidNeighborAtFeet(Vector3f position, World world)
+	{
+		final int bx = (int) Math.floor(position.x);
+		final int by = (int) Math.floor(position.y);
+		final int bz = (int) Math.floor(position.z);
+		
+		return world.getBlock(bx + 1, by, bz).isSolid() || world.getBlock(bx - 1, by, bz).isSolid() || world.getBlock(bx, by, bz + 1).isSolid() || world.getBlock(bx, by, bz - 1).isSolid();
 	}
 	
 	// ========================================================

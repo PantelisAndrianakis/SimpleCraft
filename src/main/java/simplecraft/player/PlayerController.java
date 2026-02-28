@@ -25,6 +25,11 @@ import simplecraft.world.World;
  * Fall damage is applied on landing when fall distance exceeds 3 blocks.<br>
  * Landing in water cancels all fall damage.<br>
  * <br>
+ * When in water, movement speed is reduced to 60% and Space/Shift control<br>
+ * vertical swimming instead of jumping. An air meter drains while the player's<br>
+ * head is submerged; when air reaches zero, drowning damage is applied<br>
+ * continuously until the player surfaces.<br>
+ * <br>
  * Registers as both {@link ActionListener} (movement key flags) and<br>
  * {@link AnalogListener} (mouse axes) on the jME3 {@link InputManager}.<br>
  * Call {@link #update(float)} each frame from the owning state.
@@ -62,12 +67,15 @@ public class PlayerController implements ActionListener, AnalogListener
 	private boolean _moveLeft;
 	private boolean _moveRight;
 	private boolean _moveUp;
-	// private boolean _moveDown;
+	private boolean _moveDown;
 	
 	// Collision state flags.
 	private boolean _onGround;
 	private boolean _inWater;
 	private boolean _headSubmerged;
+	
+	/** True when the player is in water and actively moving (any directional input). */
+	private boolean _isSwimming;
 	
 	/** Eye height offset above foot position. */
 	private static final float EYE_HEIGHT = 1.6f;
@@ -81,6 +89,15 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Damage multiplier per block fallen beyond the threshold. */
 	private static final float FALL_DAMAGE_MULTIPLIER = 2.0f;
 	
+	/** Horizontal speed multiplier when in water (60% of normal). */
+	private static final float WATER_SPEED_MULTIPLIER = 0.6f;
+	
+	/** Drowning damage per second when air is depleted and head is submerged. */
+	private static final float DROWNING_DAMAGE_PER_SECOND = 2.0f;
+	
+	/** Rate at which air restores when head is above water (multiplier of drain rate). */
+	private static final float AIR_RESTORE_MULTIPLIER = 3.0f;
+	
 	// Reusable vectors to avoid per-frame allocation.
 	private final Vector3f _forward = new Vector3f();
 	private final Vector3f _right = new Vector3f();
@@ -92,6 +109,15 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/** Maximum health. */
 	private float _maxHealth = 20f;
+	
+	/** Remaining air in seconds. Drains while head is submerged. */
+	private float _air = 10f;
+	
+	/** Maximum air supply in seconds. */
+	private float _maxAir = 10f;
+	
+	/** Whether the drowning log has been printed this submersion (avoids log spam). */
+	private boolean _drowningLogged;
 	
 	// Action names this controller listens to.
 	private static final String[] ACTIONS =
@@ -220,26 +246,50 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 		
 		// Normalize so diagonal movement isn't faster, then apply speed.
+		// Reduce speed to 60% when in water.
 		float deltaX = 0;
 		float deltaZ = 0;
 		if (_moveDir.lengthSquared() > 0)
 		{
 			_moveDir.normalizeLocal();
-			_moveDir.multLocal(_moveSpeed * tpf);
+			float effectiveSpeed = _moveSpeed;
+			if (_inWater)
+			{
+				effectiveSpeed *= WATER_SPEED_MULTIPLIER;
+			}
+			_moveDir.multLocal(effectiveSpeed * tpf);
 			deltaX = _moveDir.x;
 			deltaZ = _moveDir.z;
 		}
 		
 		// --- Vertical: jump input ---
-		// Jump only when grounded and not in water (water swim mechanics handled in Session 11 Part 4).
-		if (_moveUp && _onGround && !_inWater)
+		boolean waterSurfaceJump = false;
+		if (_moveUp)
 		{
-			_velocity.y = 8f; // Jump impulse (blocks per second).
-			_onGround = false; // Prevent multi-frame jump while key held.
+			if (_inWater && !_headSubmerged)
+			{
+				// At water surface — jump out of water.
+				_velocity.y = 8f;
+				waterSurfaceJump = true;
+			}
+			else if (_onGround && !_inWater)
+			{
+				// Normal land jump.
+				_velocity.y = 8f;
+				_onGround = false;
+			}
 		}
 		
-		// Resolve horizontal collision (X then Z), gravity, ground snapping, ceiling bonks, water detection.
-		final CollisionResult result = _collision.resolveCollision(_position, _velocity, deltaX, deltaZ, _world, tpf);
+		// --- Swimming state ---
+		final boolean hasMovementInput = _moveForward || _moveBack || _moveLeft || _moveRight || _moveUp || _moveDown;
+		_isSwimming = _inWater && hasMovementInput;
+		
+		// Resolve collision. Pass swim input flags so the collision system can
+		// handle swim-up (Space) and swim-down (Shift) when in water.
+		// Don't pass swimUp when doing a surface jump — let the jump impulse work.
+		final boolean swimUp = _inWater && _moveUp && !waterSurfaceJump;
+		final boolean swimDown = _inWater && _moveDown;
+		final CollisionResult result = _collision.resolveCollision(_position, _velocity, deltaX, deltaZ, _world, tpf, swimUp, swimDown);
 		_onGround = result.isOnGround();
 		_inWater = result.isInWater();
 		_headSubmerged = result.isHeadSubmerged();
@@ -260,6 +310,36 @@ public class PlayerController implements ActionListener, AnalogListener
 				_health = Math.max(0, _health);
 				System.out.println("Fall damage! Distance: " + String.format("%.1f", fallDistance) + " blocks, Damage: " + String.format("%.1f", damage) + ", Health: " + String.format("%.1f", _health) + "/" + String.format("%.0f", _maxHealth));
 			}
+		}
+		
+		// --- Air and drowning ---
+		if (_headSubmerged)
+		{
+			_air -= tpf;
+			if (_air <= 0)
+			{
+				_air = 0;
+				
+				// Drowning damage — continuous while suffocating.
+				_health -= DROWNING_DAMAGE_PER_SECOND * tpf;
+				_health = Math.max(0, _health);
+				
+				if (!_drowningLogged)
+				{
+					System.out.println("Drowning!");
+					_drowningLogged = true;
+				}
+			}
+		}
+		else
+		{
+			// Head above water — restore air 3× faster than it drains.
+			if (_air < _maxAir)
+			{
+				_air += tpf * AIR_RESTORE_MULTIPLIER;
+				_air = Math.min(_air, _maxAir);
+			}
+			_drowningLogged = false;
 		}
 		
 		// Update camera position (eye height above feet).
@@ -298,11 +378,11 @@ public class PlayerController implements ActionListener, AnalogListener
 				_moveUp = isPressed;
 				break;
 			}
-			// case GameInputManager.SWIM_DOWN:
-			// {
-			// _moveDown = isPressed;
-			// break;
-			// }
+			case GameInputManager.SWIM_DOWN:
+			{
+				_moveDown = isPressed;
+				break;
+			}
 		}
 	}
 	
@@ -394,6 +474,16 @@ public class PlayerController implements ActionListener, AnalogListener
 		_maxHealth = maxHealth;
 	}
 	
+	public float getAir()
+	{
+		return _air;
+	}
+	
+	public float getMaxAir()
+	{
+		return _maxAir;
+	}
+	
 	public boolean isOnGround()
 	{
 		return _onGround;
@@ -407,5 +497,10 @@ public class PlayerController implements ActionListener, AnalogListener
 	public boolean isHeadSubmerged()
 	{
 		return _headSubmerged;
+	}
+	
+	public boolean isSwimming()
+	{
+		return _isSwimming;
 	}
 }
