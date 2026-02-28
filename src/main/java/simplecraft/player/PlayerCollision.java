@@ -2,20 +2,23 @@ package simplecraft.player;
 
 import com.jme3.math.Vector3f;
 
-import simplecraft.world.Block;
 import simplecraft.world.World;
 
 /**
- * Resolves player-world collision for gravity, ground detection, and water detection.<br>
+ * Resolves player-world collision using axis-separated AABB sweeps.<br>
  * The player bounding box is 0.6 wide (±0.3 from center) and 1.8 tall.<br>
  * Position represents the bottom-center (feet level) of the player.<br>
  * <br>
- * Ground detection checks the block directly below the player's feet.<br>
- * When the player is at or below the top surface of a solid block,<br>
- * position is snapped upward and vertical velocity is zeroed.<br>
+ * Movement is resolved one axis at a time (X → Z → Y) to prevent corner clipping.<br>
+ * Each axis move checks the resulting AABB against solid blocks and pushes back<br>
+ * or triggers a step-up when a 1-block ledge is detected.<br>
  * <br>
- * Water detection checks blocks at feet and eye level for liquid blocks,<br>
- * preparing flags for swimming mechanics in future sessions.
+ * Step-up occurs when the player walks into a 1-block-high wall while on the ground.<br>
+ * The player is raised by one block instead of being stopped, provided there is<br>
+ * enough headroom (two non-solid blocks above the obstacle).<br>
+ * <br>
+ * Vertical collision handles both ground snapping (landing) and ceiling bonks (jumping).<br>
+ * Water detection checks blocks at feet and eye level for liquid blocks.
  * @author Pantelis Andrianakis
  * @since February 27th 2026
  */
@@ -24,8 +27,24 @@ public class PlayerCollision
 	/** Gravitational acceleration in blocks per second². */
 	private static final float GRAVITY = 20f;
 	
-	/** Small offset below feet to sample the block under the player. */
-	private static final float GROUND_CHECK_OFFSET = 0.01f;
+	/** Maximum terminal velocity (negative = downward). */
+	private static final float TERMINAL_VELOCITY = -50f;
+	
+	/** Maximum time step to prevent tunneling on frame spikes. */
+	private static final float MAX_TPF = 0.05f;
+	
+	/** Half-width of the player bounding box. Full width is 0.6 blocks. */
+	private static final float HALF_WIDTH = 0.3f;
+	
+	/** Total height of the player bounding box in blocks. */
+	private static final float PLAYER_HEIGHT = 1.8f;
+	
+	/**
+	 * Small inset used when computing the upper bound of block ranges.<br>
+	 * Prevents the AABB from claiming to occupy a block when the edge is<br>
+	 * exactly on that block's boundary (e.g. edge at 6.0 should NOT include block 6).
+	 */
+	private static final float SKIN = 0.001f;
 	
 	/** Height offset for water check at body center. */
 	private static final float WATER_BODY_OFFSET = 0.5f;
@@ -87,19 +106,24 @@ public class PlayerCollision
 	private final CollisionResult _result = new CollisionResult();
 	
 	// ========================================================
-	// Collision Resolution.
+	// Collision Resolution — Main Entry Point.
 	// ========================================================
 	
 	/**
-	 * Applies gravity, resolves ground collision, and detects water.<br>
+	 * Resolves full player collision for one frame using axis-separated sweeps.<br>
+	 * Processes horizontal movement (X then Z) with step-up support, then applies<br>
+	 * gravity and resolves vertical collision (ground snap + ceiling bonk).<br>
+	 * Finally detects water at body and head level.<br>
 	 * Modifies position and velocity in place.
 	 * @param position the player's current feet position (modified in place)
 	 * @param velocity the player's current velocity (modified in place)
+	 * @param deltaX horizontal movement on the X axis for this frame
+	 * @param deltaZ horizontal movement on the Z axis for this frame
 	 * @param world the world for block lookups
 	 * @param tpf time per frame in seconds
 	 * @return collision result with ground, water, and fall distance information
 	 */
-	public CollisionResult resolveCollision(Vector3f position, Vector3f velocity, World world, float tpf)
+	public CollisionResult resolveCollision(Vector3f position, Vector3f velocity, float deltaX, float deltaZ, World world, float tpf)
 	{
 		// Reset result.
 		_result._onGround = false;
@@ -107,33 +131,64 @@ public class PlayerCollision
 		_result._headSubmerged = false;
 		_result._fallDistance = 0;
 		
-		// --- Apply gravity to vertical velocity ---
-		velocity.y -= GRAVITY * tpf;
+		// Clamp time step to prevent tunneling on frame spikes.
+		tpf = Math.min(tpf, MAX_TPF);
 		
-		// --- Move Y ---
-		position.y += velocity.y * tpf;
-		
-		// --- Ground detection ---
-		// Sample block coordinates below the player's feet.
-		final int blockX = (int) Math.floor(position.x);
-		final int blockZ = (int) Math.floor(position.z);
-		final int blockBelowY = (int) Math.floor(position.y - GROUND_CHECK_OFFSET);
-		
-		// Check if the block below feet is solid.
-		final Block blockBelow = world.getBlock(blockX, blockBelowY, blockZ);
-		if (blockBelow.isSolid())
+		// --- Horizontal X axis ---
+		if (deltaX != 0)
 		{
-			// Top surface of the solid block is blockBelowY + 1.
-			final float groundSurface = blockBelowY + 1.0f;
-			
-			// Snap feet to ground surface if at or below it.
-			if (position.y <= groundSurface)
+			position.x += deltaX;
+			if (hasSolidCollision(position.x, position.y, position.z, world))
 			{
-				position.y = groundSurface;
-				velocity.y = 0;
-				_result._onGround = true;
+				// Try step-up: only when the player was on ground last frame.
+				boolean steppedUp = false;
+				if (_wasOnGround)
+				{
+					final float steppedY = (float) Math.floor(position.y) + 1.0f;
+					if (!hasSolidCollision(position.x, steppedY, position.z, world))
+					{
+						position.y = steppedY;
+						steppedUp = true;
+					}
+				}
+				
+				if (!steppedUp)
+				{
+					pushBackX(position, deltaX, world);
+				}
 			}
 		}
+		
+		// --- Horizontal Z axis ---
+		if (deltaZ != 0)
+		{
+			position.z += deltaZ;
+			if (hasSolidCollision(position.x, position.y, position.z, world))
+			{
+				// Try step-up: only when the player was on ground last frame.
+				boolean steppedUp = false;
+				if (_wasOnGround)
+				{
+					final float steppedY = (float) Math.floor(position.y) + 1.0f;
+					if (!hasSolidCollision(position.x, steppedY, position.z, world))
+					{
+						position.y = steppedY;
+						steppedUp = true;
+					}
+				}
+				
+				if (!steppedUp)
+				{
+					pushBackZ(position, deltaZ, world);
+				}
+			}
+		}
+		
+		// --- Vertical: gravity and collision ---
+		velocity.y -= GRAVITY * tpf;
+		velocity.y = Math.max(velocity.y, TERMINAL_VELOCITY);
+		position.y += velocity.y * tpf;
+		resolveVertical(position, velocity, world);
 		
 		// --- Fall distance tracking ---
 		if (_wasOnGround && !_result._onGround)
@@ -167,5 +222,210 @@ public class PlayerCollision
 		_result._headSubmerged = world.getBlock(waterCheckX, waterHeadY, waterCheckZ).isLiquid();
 		
 		return _result;
+	}
+	
+	// ========================================================
+	// AABB Overlap Test.
+	// ========================================================
+	
+	/**
+	 * Returns true if the player AABB at the given position overlaps any solid block.
+	 */
+	private boolean hasSolidCollision(float posX, float posY, float posZ, World world)
+	{
+		final int minBX = (int) Math.floor(posX - HALF_WIDTH);
+		final int maxBX = (int) Math.floor(posX + HALF_WIDTH - SKIN);
+		final int minBY = (int) Math.floor(posY);
+		final int maxBY = (int) Math.floor(posY + PLAYER_HEIGHT - SKIN);
+		final int minBZ = (int) Math.floor(posZ - HALF_WIDTH);
+		final int maxBZ = (int) Math.floor(posZ + HALF_WIDTH - SKIN);
+		
+		for (int bx = minBX; bx <= maxBX; bx++)
+		{
+			for (int by = minBY; by <= maxBY; by++)
+			{
+				for (int bz = minBZ; bz <= maxBZ; bz++)
+				{
+					if (world.getBlock(bx, by, bz).isSolid())
+					{
+						return true;
+					}
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	// ========================================================
+	// Horizontal Push-Back.
+	// ========================================================
+	
+	/**
+	 * Pushes the player out of solid blocks along the X axis.<br>
+	 * Scans for the first solid block in the direction of movement and snaps the<br>
+	 * player edge to that block's face.
+	 */
+	private void pushBackX(Vector3f position, float deltaX, World world)
+	{
+		final int minBX = (int) Math.floor(position.x - HALF_WIDTH);
+		final int maxBX = (int) Math.floor(position.x + HALF_WIDTH - SKIN);
+		final int minBY = (int) Math.floor(position.y);
+		final int maxBY = (int) Math.floor(position.y + PLAYER_HEIGHT - SKIN);
+		final int minBZ = (int) Math.floor(position.z - HALF_WIDTH);
+		final int maxBZ = (int) Math.floor(position.z + HALF_WIDTH - SKIN);
+		
+		if (deltaX > 0)
+		{
+			// Moving +X: scan from left to right, push player's right edge to block's left face.
+			for (int bx = minBX; bx <= maxBX; bx++)
+			{
+				for (int by = minBY; by <= maxBY; by++)
+				{
+					for (int bz = minBZ; bz <= maxBZ; bz++)
+					{
+						if (world.getBlock(bx, by, bz).isSolid())
+						{
+							position.x = bx - HALF_WIDTH;
+							return;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			// Moving -X: scan from right to left, push player's left edge to block's right face.
+			for (int bx = maxBX; bx >= minBX; bx--)
+			{
+				for (int by = minBY; by <= maxBY; by++)
+				{
+					for (int bz = minBZ; bz <= maxBZ; bz++)
+					{
+						if (world.getBlock(bx, by, bz).isSolid())
+						{
+							position.x = bx + 1 + HALF_WIDTH;
+							return;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Pushes the player out of solid blocks along the Z axis.<br>
+	 * Scans for the first solid block in the direction of movement and snaps the<br>
+	 * player edge to that block's face.
+	 */
+	private void pushBackZ(Vector3f position, float deltaZ, World world)
+	{
+		final int minBX = (int) Math.floor(position.x - HALF_WIDTH);
+		final int maxBX = (int) Math.floor(position.x + HALF_WIDTH - SKIN);
+		final int minBY = (int) Math.floor(position.y);
+		final int maxBY = (int) Math.floor(position.y + PLAYER_HEIGHT - SKIN);
+		final int minBZ = (int) Math.floor(position.z - HALF_WIDTH);
+		final int maxBZ = (int) Math.floor(position.z + HALF_WIDTH - SKIN);
+		
+		if (deltaZ > 0)
+		{
+			// Moving +Z: push player's far edge to block's near face.
+			for (int bz = minBZ; bz <= maxBZ; bz++)
+			{
+				for (int by = minBY; by <= maxBY; by++)
+				{
+					for (int bx = minBX; bx <= maxBX; bx++)
+					{
+						if (world.getBlock(bx, by, bz).isSolid())
+						{
+							position.z = bz - HALF_WIDTH;
+							return;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			// Moving -Z: push player's near edge to block's far face.
+			for (int bz = maxBZ; bz >= minBZ; bz--)
+			{
+				for (int by = minBY; by <= maxBY; by++)
+				{
+					for (int bx = minBX; bx <= maxBX; bx++)
+					{
+						if (world.getBlock(bx, by, bz).isSolid())
+						{
+							position.z = bz + 1 + HALF_WIDTH;
+							return;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// ========================================================
+	// Vertical Collision (Ground Snap + Ceiling Bonk).
+	// ========================================================
+	
+	/**
+	 * Resolves vertical collision after gravity has been applied.<br>
+	 * When falling, finds the ground surface and snaps the player upward.<br>
+	 * When rising, finds the ceiling and stops upward velocity.
+	 */
+	private void resolveVertical(Vector3f position, Vector3f velocity, World world)
+	{
+		final int minBX = (int) Math.floor(position.x - HALF_WIDTH);
+		final int maxBX = (int) Math.floor(position.x + HALF_WIDTH - SKIN);
+		final int minBY = (int) Math.floor(position.y);
+		final int maxBY = (int) Math.floor(position.y + PLAYER_HEIGHT - SKIN);
+		final int minBZ = (int) Math.floor(position.z - HALF_WIDTH);
+		final int maxBZ = (int) Math.floor(position.z + HALF_WIDTH - SKIN);
+		
+		if (velocity.y <= 0)
+		{
+			// Falling or stationary — check for ground from bottom up.
+			for (int by = minBY; by <= maxBY; by++)
+			{
+				for (int bx = minBX; bx <= maxBX; bx++)
+				{
+					for (int bz = minBZ; bz <= maxBZ; bz++)
+					{
+						if (world.getBlock(bx, by, bz).isSolid())
+						{
+							final float groundSurface = by + 1.0f;
+							if (position.y < groundSurface)
+							{
+								position.y = groundSurface;
+								velocity.y = 0;
+							}
+							_result._onGround = true;
+							return;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			// Rising — check for ceiling from top down.
+			for (int by = maxBY; by >= minBY; by--)
+			{
+				for (int bx = minBX; bx <= maxBX; bx++)
+				{
+					for (int bz = minBZ; bz <= maxBZ; bz++)
+					{
+						if (world.getBlock(bx, by, bz).isSolid())
+						{
+							// Snap feet so the player's top is below this block.
+							position.y = by - PLAYER_HEIGHT;
+							velocity.y = 0;
+							return;
+						}
+					}
+				}
+			}
+		}
 	}
 }

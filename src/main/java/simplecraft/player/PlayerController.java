@@ -13,11 +13,14 @@ import simplecraft.player.PlayerCollision.CollisionResult;
 import simplecraft.world.World;
 
 /**
- * First-person player controller with gravity and ground collision.<br>
+ * First-person player controller with gravity, AABB collision, and step-up.<br>
  * Handles mouse look and WASD movement relative to camera facing direction.<br>
  * Horizontal movement uses yaw-only forward/right vectors so the player always<br>
  * moves on the horizontal plane regardless of where the camera is looking.<br>
  * Vertical movement is governed by gravity and ground detection via {@link PlayerCollision}.<br>
+ * <br>
+ * Horizontal movement deltas are passed to the collision system which resolves<br>
+ * axis-separated AABB sweeps with step-up support for 1-block ledges.<br>
  * <br>
  * Fall damage is applied on landing when fall distance exceeds 3 blocks.<br>
  * Landing in water cancels all fall damage.<br>
@@ -121,6 +124,13 @@ public class PlayerController implements ActionListener, AnalogListener
 		_inputManager = inputManager;
 		_world = world;
 		_collision = new PlayerCollision();
+		
+		// Reduce near clip so geometry at the player's collision boundary (0.3 blocks
+		// from walls) is never clipped. setFrustumPerspective rebuilds the full
+		// projection matrix cleanly — earlier attempts using setFrustumNear alone
+		// caused distortion because they only modified one frustum parameter.
+		final float aspect = (float) _camera.getWidth() / _camera.getHeight();
+		_camera.setFrustumPerspective(45f, aspect, 0.1f, 1000f);
 	}
 	
 	/**
@@ -210,23 +220,26 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 		
 		// Normalize so diagonal movement isn't faster, then apply speed.
+		float deltaX = 0;
+		float deltaZ = 0;
 		if (_moveDir.lengthSquared() > 0)
 		{
 			_moveDir.normalizeLocal();
 			_moveDir.multLocal(_moveSpeed * tpf);
-			_position.x += _moveDir.x;
-			_position.z += _moveDir.z;
+			deltaX = _moveDir.x;
+			deltaZ = _moveDir.z;
 		}
 		
-		// --- Vertical: gravity and collision ---
-		// Jump input: apply upward impulse only when grounded (not fly mode anymore).
-		if (_moveUp && _onGround)
+		// --- Vertical: jump input ---
+		// Jump only when grounded and not in water (water swim mechanics handled in Session 11 Part 4).
+		if (_moveUp && _onGround && !_inWater)
 		{
 			_velocity.y = 8f; // Jump impulse (blocks per second).
+			_onGround = false; // Prevent multi-frame jump while key held.
 		}
 		
-		// Resolve gravity, ground snapping, water detection.
-		final CollisionResult result = _collision.resolveCollision(_position, _velocity, _world, tpf);
+		// Resolve horizontal collision (X then Z), gravity, ground snapping, ceiling bonks, water detection.
+		final CollisionResult result = _collision.resolveCollision(_position, _velocity, deltaX, deltaZ, _world, tpf);
 		_onGround = result.isOnGround();
 		_inWater = result.isInWater();
 		_headSubmerged = result.isHeadSubmerged();
