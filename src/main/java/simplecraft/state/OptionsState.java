@@ -148,6 +148,7 @@ public class OptionsState extends FadeableAppState
 	private VersionedReference<Double> _renderDistanceRef;
 	private Button _showStatsToggle;
 	private Button _showFpsToggle;
+	private Button _showHighlightToggle;
 	
 	// Screen size tracking for rebuild after live display change.
 	private int _lastScreenWidth;
@@ -525,6 +526,7 @@ public class OptionsState extends FadeableAppState
 		_renderDistanceRef = null;
 		_showStatsToggle = null;
 		_showFpsToggle = null;
+		_showHighlightToggle = null;
 		
 		_keybindButtons.clear();
 		_mouseBindButtons.clear();
@@ -612,6 +614,27 @@ public class OptionsState extends FadeableAppState
 		// @formatter:on
 		addRowSpacer(_displayContent);
 		
+		// Show Highlight toggle.
+		_showHighlightToggle = createToggleButton(settings.isShowHighlight());
+		_showHighlightToggle.addClickCommands(source ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final boolean newValue = !settings.isShowHighlight();
+			settings.setShowHighlight(newValue);
+			updateToggleButton(_showHighlightToggle, newValue);
+		});
+		final Label wfLabel = createNameLabel(app, "Block Highlight");
+		_displayContent.addChild(createToggleRow(app, wfLabel, _showHighlightToggle));
+		final Runnable toggleHighlight = () ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final boolean newValue = !settings.isShowHighlight();
+			settings.setShowHighlight(newValue);
+			updateToggleButton(_showHighlightToggle, newValue);
+		};
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(wfLabel, toggleHighlight, toggleHighlight, toggleHighlight));
+		addRowSpacer(_displayContent);
+		
 		// Show Stats toggle.
 		_showStatsToggle = createToggleButton(settings.isShowStats());
 		_showStatsToggle.addClickCommands(source ->
@@ -656,6 +679,7 @@ public class OptionsState extends FadeableAppState
 			app.setDisplayFps(newValue);
 		};
 		_displayContentSlots.add(MenuNavigationManager.labelSlot(fpsLabel, toggleFps, toggleFps, toggleFps));
+		addRowSpacer(_displayContent);
 		
 		// Setup versioned references and style sliders.
 		_renderDistanceRef = _renderDistanceSlider.getModel().createReference();

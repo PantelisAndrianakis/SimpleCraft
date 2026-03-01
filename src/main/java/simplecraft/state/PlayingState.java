@@ -235,6 +235,7 @@ public class PlayingState extends FadeableAppState
 			// Update block interaction (raycasting, breaking, placing).
 			if (_blockInteraction != null)
 			{
+				_blockInteraction.setShowHighlight(app.getSettingsManager().isShowHighlight());
 				_blockInteraction.update(tpf);
 			}
 			

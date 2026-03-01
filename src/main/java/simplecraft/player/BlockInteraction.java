@@ -60,8 +60,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	/** Seconds between hits when holding attack (4 hits per second). */
 	private static final float HIT_COOLDOWN = 0.25f;
 	
-	/** Wireframe expansion beyond block edges to prevent z-fighting. */
-	private static final float WIREFRAME_EXPAND = 0.002f;
+	/** Highlight expansion beyond block edges to prevent z-fighting. */
+	private static final float HIGHLIGHT_EXPAND = 0.002f;
 	
 	/** Crack overlay offset from block face to prevent z-fighting. */
 	private static final float CRACK_OFFSET = 0.001f;
@@ -133,13 +133,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private final Node _overlayNode = new Node("BlockInteractionOverlay");
 	
 	// Materials.
-	private final Material _wireframeMaterial;
-	private final Material _wireframeUnbreakableMaterial;
+	private final Material _highlightMaterial;
+	private final Material _highlightUnbreakableMaterial;
 	private final Material _crackMaterial;
 	
-	// Wireframe highlight.
-	private Geometry _wireframeGeometry;
-	private boolean _wireframeVisible;
+	// Block highlight.
+	private Geometry _highlightGeometry;
+	private boolean _highlightVisible;
 	
 	// Crack overlay.
 	private Geometry _crackGeometry;
@@ -184,6 +184,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	// Block selection.
 	private int _selectedBlockIndex;
 	
+	/** Whether the block highlight is enabled (from display settings). */
+	private boolean _showHighlight = true;
+	
 	// Camera shake.
 	private float _shakeTimer;
 	private final Vector3f _shakeOffset = new Vector3f();
@@ -216,32 +219,32 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_world = world;
 		_playerController = playerController;
 		
-		// Create wireframe material (bright white, unshaded).
-		_wireframeMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-		_wireframeMaterial.setColor("Color", new ColorRGBA(1.0f, 1.0f, 1.0f, 0.9f));
-		_wireframeMaterial.getAdditionalRenderState().setWireframe(true);
-		_wireframeMaterial.getAdditionalRenderState().setLineWidth(2.0f);
-		_wireframeMaterial.getAdditionalRenderState().setDepthTest(false);
+		// Create highlight material (bright white, unshaded).
+		_highlightMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		_highlightMaterial.setColor("Color", new ColorRGBA(1.0f, 1.0f, 1.0f, 0.9f));
+		_highlightMaterial.getAdditionalRenderState().setWireframe(true);
+		_highlightMaterial.getAdditionalRenderState().setLineWidth(2.0f);
+		_highlightMaterial.getAdditionalRenderState().setDepthTest(false);
 		
-		// Create wireframe material for unbreakable blocks (vivid red).
-		_wireframeUnbreakableMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-		_wireframeUnbreakableMaterial.setColor("Color", new ColorRGBA(1.0f, 0.2f, 0.2f, 0.9f));
-		_wireframeUnbreakableMaterial.getAdditionalRenderState().setWireframe(true);
-		_wireframeUnbreakableMaterial.getAdditionalRenderState().setLineWidth(2.0f);
-		_wireframeUnbreakableMaterial.getAdditionalRenderState().setDepthTest(false);
+		// Create highlight material for unbreakable blocks (vivid red).
+		_highlightUnbreakableMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		_highlightUnbreakableMaterial.setColor("Color", new ColorRGBA(1.0f, 0.2f, 0.2f, 0.9f));
+		_highlightUnbreakableMaterial.getAdditionalRenderState().setWireframe(true);
+		_highlightUnbreakableMaterial.getAdditionalRenderState().setLineWidth(2.0f);
+		_highlightUnbreakableMaterial.getAdditionalRenderState().setDepthTest(false);
 		
 		// Create crack overlay material (semi-transparent black).
 		_crackMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		_crackMaterial.setColor("Color", new ColorRGBA(0, 0, 0, 0));
 		_crackMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		
-		// Build wireframe geometry.
-		final WireBox wireBox = new WireBox(0.5f + WIREFRAME_EXPAND, 0.5f + WIREFRAME_EXPAND, 0.5f + WIREFRAME_EXPAND);
-		_wireframeGeometry = new Geometry("BlockHighlight", wireBox);
-		_wireframeGeometry.setMaterial(_wireframeMaterial);
-		_wireframeGeometry.setQueueBucket(Bucket.Translucent);
-		_wireframeGeometry.setCullHint(Geometry.CullHint.Always); // Hidden initially.
-		_overlayNode.attachChild(_wireframeGeometry);
+		// Build highlight geometry.
+		final WireBox wireBox = new WireBox(0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND);
+		_highlightGeometry = new Geometry("BlockHighlight", wireBox);
+		_highlightGeometry.setMaterial(_highlightMaterial);
+		_highlightGeometry.setQueueBucket(Bucket.Translucent);
+		_highlightGeometry.setCullHint(Geometry.CullHint.Always); // Hidden initially.
+		_overlayNode.attachChild(_highlightGeometry);
 		
 		// Build crack overlay geometry (single quad, mesh updated dynamically).
 		// Initialize with a minimal valid mesh (1 degenerate triangle) so Lemur's
@@ -334,8 +337,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Perform raycast.
 		performRaycast();
 		
-		// Update wireframe highlight.
-		updateWireframe();
+		// Update box highlight.
+		updateHighlight();
 		
 		// Handle attack (breaking).
 		if (_attackHeld && _hasTarget)
@@ -1044,15 +1047,26 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	}
 	
 	// ========================================================
-	// Wireframe Highlight.
+	// Block Highlight.
 	// ========================================================
 	
 	/**
-	 * Updates the wireframe highlight position and visibility.
+	 * Updates the block highlight position and visibility.
 	 */
-	private void updateWireframe()
+	private void updateHighlight()
 	{
-		// Only show wireframe when a placeable block is equipped.
+		// Hide highlight if disabled in display settings.
+		if (!_showHighlight)
+		{
+			if (_highlightVisible)
+			{
+				_highlightGeometry.setCullHint(Geometry.CullHint.Always);
+				_highlightVisible = false;
+			}
+			return;
+		}
+		
+		// Only show highlight when a placeable block is equipped.
 		final Block selectedBlock = _playerController.getSelectedBlock();
 		if (_hasTarget && selectedBlock != null && selectedBlock != Block.AIR)
 		{
@@ -1110,10 +1124,10 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				else
 				{
 					// Non-solid, non-breakable — hide.
-					if (_wireframeVisible)
+					if (_highlightVisible)
 					{
-						_wireframeGeometry.setCullHint(Geometry.CullHint.Always);
-						_wireframeVisible = false;
+						_highlightGeometry.setCullHint(Geometry.CullHint.Always);
+						_highlightVisible = false;
 					}
 					return;
 				}
@@ -1129,10 +1143,10 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				}
 				else
 				{
-					if (_wireframeVisible)
+					if (_highlightVisible)
 					{
-						_wireframeGeometry.setCullHint(Geometry.CullHint.Always);
-						_wireframeVisible = false;
+						_highlightGeometry.setCullHint(Geometry.CullHint.Always);
+						_highlightVisible = false;
 					}
 					return;
 				}
@@ -1161,31 +1175,31 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				showZ = _targetZ;
 			}
 			
-			// Position wireframe.
-			_wireframeGeometry.setLocalTranslation(showX + 0.5f, showY + 0.5f, showZ + 0.5f);
+			// Position highlight.
+			_highlightGeometry.setLocalTranslation(showX + 0.5f, showY + 0.5f, showZ + 0.5f);
 			
 			// Swap material based on breakability.
 			if (targetBlock.isBreakable())
 			{
-				_wireframeGeometry.setMaterial(_wireframeMaterial);
+				_highlightGeometry.setMaterial(_highlightMaterial);
 			}
 			else
 			{
-				_wireframeGeometry.setMaterial(_wireframeUnbreakableMaterial);
+				_highlightGeometry.setMaterial(_highlightUnbreakableMaterial);
 			}
 			
-			if (!_wireframeVisible)
+			if (!_highlightVisible)
 			{
-				_wireframeGeometry.setCullHint(Geometry.CullHint.Never);
-				_wireframeVisible = true;
+				_highlightGeometry.setCullHint(Geometry.CullHint.Never);
+				_highlightVisible = true;
 			}
 		}
 		else
 		{
-			if (_wireframeVisible)
+			if (_highlightVisible)
 			{
-				_wireframeGeometry.setCullHint(Geometry.CullHint.Always);
-				_wireframeVisible = false;
+				_highlightGeometry.setCullHint(Geometry.CullHint.Always);
+				_highlightVisible = false;
 			}
 		}
 	}
@@ -1427,7 +1441,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	// ========================================================
 	
 	/**
-	 * Returns the overlay node containing wireframe and crack geometries.<br>
+	 * Returns the overlay node containing highlight and crack geometries.<br>
 	 * Must be attached to the scene by the owning state.
 	 */
 	public Node getOverlayNode()
@@ -1475,5 +1489,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public Block getSelectedBlock()
 	{
 		return PLACEABLE_BLOCKS[_selectedBlockIndex];
+	}
+	
+	/**
+	 * Sets whether the block highlight is shown (from display settings).
+	 */
+	public void setShowHighlight(boolean show)
+	{
+		_showHighlight = show;
 	}
 }

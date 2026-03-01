@@ -40,6 +40,7 @@ public class SettingsManager
 	private static final String KEY_FULLSCREEN = "fullscreen";
 	private static final String KEY_SHOW_STATS = "showStats";
 	private static final String KEY_SHOW_FPS = "showFps";
+	private static final String KEY_SHOW_HIGHLIGHT = "showHighlight";
 	
 	// Prefix for keybinding entries (e.g., "key.move_forward=17").
 	private static final String KEYBINDING_PREFIX = "key.";
@@ -64,6 +65,7 @@ public class SettingsManager
 	private static final boolean DEFAULT_FULLSCREEN = true;
 	private static final boolean DEFAULT_SHOW_STATS = false;
 	private static final boolean DEFAULT_SHOW_FPS = false;
+	private static final boolean DEFAULT_SHOW_HIGHLIGHT = true;
 	
 	// Native monitor refresh rate (used as frame rate cap fallback).
 	private static final int NATIVE_REFRESH_RATE;
@@ -141,6 +143,7 @@ public class SettingsManager
 	private boolean _fullscreen = DEFAULT_FULLSCREEN;
 	private boolean _showStats = DEFAULT_SHOW_STATS;
 	private boolean _showFps = DEFAULT_SHOW_FPS;
+	private boolean _showHighlight = DEFAULT_SHOW_HIGHLIGHT;
 	
 	// Custom keybinding overrides (action name -> key code). Empty means all defaults.
 	private final Map<String, Integer> _keybindings = new LinkedHashMap<>();
@@ -236,6 +239,11 @@ public class SettingsManager
 							_showFps = Boolean.parseBoolean(value);
 							break;
 						}
+						case KEY_SHOW_HIGHLIGHT:
+						{
+							_showHighlight = Boolean.parseBoolean(value);
+							break;
+						}
 						default:
 						{
 							// Check for keybinding entries (key.actionName=keyCode).
@@ -264,7 +272,7 @@ public class SettingsManager
 				}
 			}
 			
-			System.out.println("SettingsManager: Settings loaded. Master=" + _masterVolume + ", Music=" + _musicVolume + ", SFX=" + _sfxVolume + ", RenderDist=" + _renderDistance + ", Resolution=" + _screenWidth + "x" + _screenHeight + ", Fullscreen=" + _fullscreen + ", Stats=" + _showStats + ", FPS=" + _showFps);
+			System.out.println("SettingsManager: Settings loaded. Master=" + _masterVolume + ", Music=" + _musicVolume + ", SFX=" + _sfxVolume + ", RenderDist=" + _renderDistance + ", Resolution=" + _screenWidth + "x" + _screenHeight + ", Fullscreen=" + _fullscreen + ", Stats=" + _showStats + ", FPS=" + _showFps + ", Highlight=" + _showHighlight);
 		}
 		catch (Exception e)
 		{
@@ -309,6 +317,8 @@ public class SettingsManager
 				writer.newLine();
 				writer.write(KEY_SHOW_FPS + "=" + _showFps);
 				writer.newLine();
+				writer.write(KEY_SHOW_HIGHLIGHT + "=" + _showHighlight);
+				writer.newLine();
 				
 				// Write keybinding overrides.
 				for (Entry<String, Integer> entry : _keybindings.entrySet())
@@ -347,6 +357,7 @@ public class SettingsManager
 		_fullscreen = DEFAULT_FULLSCREEN;
 		_showStats = DEFAULT_SHOW_STATS;
 		_showFps = DEFAULT_SHOW_FPS;
+		_showHighlight = DEFAULT_SHOW_HIGHLIGHT;
 		_keybindings.clear();
 		_mouseBindings.clear();
 	}
@@ -486,6 +497,16 @@ public class SettingsManager
 	public void setShowFps(boolean showFps)
 	{
 		_showFps = showFps;
+	}
+	
+	public boolean isShowHighlight()
+	{
+		return _showHighlight;
+	}
+	
+	public void setShowHighlight(boolean showHighlight)
+	{
+		_showHighlight = showHighlight;
 	}
 	
 	// --- Keybinding Accessors ---
