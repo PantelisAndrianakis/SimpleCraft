@@ -628,6 +628,97 @@ public class World
 		_pendingChanges.add(new BlockChange(worldX, worldY, worldZ, block));
 	}
 	
+	/**
+	 * Sets the block at the given world coordinates immediately with instant visual update.<br>
+	 * The block data is updated on the region and the affected region's mesh is rebuilt<br>
+	 * synchronously on the main thread so the change is visible in the same frame.<br>
+	 * Boundary neighbors are also rebuilt if the block is at a region edge.<br>
+	 * Use this for player-initiated changes (block breaking/placing).
+	 */
+	public void setBlockImmediate(int worldX, int worldY, int worldZ, Block block)
+	{
+		// Out of vertical bounds.
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		// Convert world to region coordinates.
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final long key = regionKey(regionX, regionZ);
+		
+		final Region region = _regions.get(key);
+		if (region == null)
+		{
+			return;
+		}
+		
+		// Convert world to local coordinates.
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		
+		// Update block data.
+		region.setBlock(localX, worldY, localZ, block);
+		_regionLoader.updateRegionCache(region);
+		
+		// Immediate synchronous mesh rebuild for the affected region.
+		rebuildRegionSync(key, region);
+		
+		// If block is at a region boundary, rebuild the neighbor too.
+		if (localX == 0)
+		{
+			rebuildNeighborSync(regionX - 1, regionZ);
+		}
+		
+		if (localX == Region.SIZE_XZ - 1)
+		{
+			rebuildNeighborSync(regionX + 1, regionZ);
+		}
+		
+		if (localZ == 0)
+		{
+			rebuildNeighborSync(regionX, regionZ - 1);
+		}
+		
+		if (localZ == Region.SIZE_XZ - 1)
+		{
+			rebuildNeighborSync(regionX, regionZ + 1);
+		}
+	}
+	
+	/**
+	 * Rebuilds a region's mesh synchronously on the main thread and swaps the scene geometry.<br>
+	 * Removes the region from the async pending-remesh set since it's already up to date.
+	 */
+	private void rebuildRegionSync(long key, Region region)
+	{
+		final RegionMeshResult meshResult = RegionMeshBuilder.buildRegionMesh(region, this::getBlock);
+		detachRegionGeometry(key);
+		attachGeometries(region, meshResult);
+		region.markMeshClean();
+		
+		// Remove from async pending set — already rebuilt.
+		synchronized (_pendingRemesh)
+		{
+			_pendingRemesh.remove(key);
+		}
+	}
+	
+	/**
+	 * Rebuilds a neighbor region's mesh synchronously if it is loaded.
+	 */
+	private void rebuildNeighborSync(int regionX, int regionZ)
+	{
+		final long key = regionKey(regionX, regionZ);
+		final Region region = _regions.get(key);
+		if (region != null)
+		{
+			_regionLoader.updateRegionCache(region);
+			rebuildRegionSync(key, region);
+		}
+	}
+	
 	// ========================================================
 	// Lifecycle.
 	// ========================================================

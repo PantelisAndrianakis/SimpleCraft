@@ -12,6 +12,7 @@ import com.jme3.post.filters.FogFilter;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
+import simplecraft.player.BlockInteraction;
 import simplecraft.player.PlayerController;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.world.Region;
@@ -44,6 +45,7 @@ public class PlayingState extends FadeableAppState
 	private FilterPostProcessor _fpp;
 	private FogFilter _fogFilter;
 	private PlayerController _playerController;
+	private BlockInteraction _blockInteraction;
 	
 	/** Sky color used for both viewport background and fog blending. */
 	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
@@ -132,6 +134,7 @@ public class PlayingState extends FadeableAppState
 			_paused = false;
 			app.getInputManager().setCursorVisible(false);
 			_playerController.registerInput();
+			_blockInteraction.registerInput();
 			return;
 		}
 		
@@ -206,6 +209,11 @@ public class PlayingState extends FadeableAppState
 		_playerController.setPosition(64, 80, 64);
 		_playerController.registerInput();
 		
+		// Create and initialize block interaction (raycasting, breaking, placing).
+		_blockInteraction = new BlockInteraction(app.getCamera(), app.getInputManager(), _world, _playerController, app.getAssetManager());
+		_blockInteraction.registerInput();
+		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
+		
 		// Disable cursor for first-person control.
 		app.getInputManager().setCursorVisible(false);
 	}
@@ -223,6 +231,12 @@ public class PlayingState extends FadeableAppState
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			_world.update(_playerController.getPosition(), renderDistance);
+			
+			// Update block interaction (raycasting, breaking, placing).
+			if (_blockInteraction != null)
+			{
+				_blockInteraction.update(tpf);
+			}
 			
 			// Update fog distance when render distance changes.
 			if (_fogFilter != null && renderDistance != _lastFogRenderDistance)
@@ -243,6 +257,10 @@ public class PlayingState extends FadeableAppState
 		if (_playerController != null)
 		{
 			_playerController.unregisterInput();
+		}
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.unregisterInput();
 		}
 		
 		// If pausing, keep the world alive — only disable controls above.
@@ -271,6 +289,14 @@ public class PlayingState extends FadeableAppState
 		{
 			_playerController.unregisterInput();
 			_playerController = null;
+		}
+		
+		// Clean up block interaction.
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.unregisterInput();
+			app.getRootNode().detachChild(_blockInteraction.getOverlayNode());
+			_blockInteraction = null;
 		}
 		
 		// Clean up world geometry.

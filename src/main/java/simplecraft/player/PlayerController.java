@@ -10,6 +10,7 @@ import com.jme3.renderer.Camera;
 
 import simplecraft.input.GameInputManager;
 import simplecraft.player.PlayerCollision.CollisionResult;
+import simplecraft.world.Block;
 import simplecraft.world.World;
 
 /**
@@ -102,6 +103,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	private final Vector3f _forward = new Vector3f();
 	private final Vector3f _right = new Vector3f();
 	private final Vector3f _moveDir = new Vector3f();
+	private final Vector3f _eyePos = new Vector3f();
 	private final Quaternion _rotation = new Quaternion();
 	
 	/** Player health. */
@@ -118,6 +120,9 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/** Whether the drowning log has been printed this submersion (avoids log spam). */
 	private boolean _drowningLogged;
+	
+	/** Currently selected block for placement. Managed by {@link BlockInteraction}. */
+	private Block _selectedBlock = Block.DIRT;
 	
 	// Action names this controller listens to.
 	private static final String[] ACTIONS =
@@ -343,7 +348,8 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 		
 		// Update camera position (eye height above feet).
-		_camera.setLocation(_position.add(0, EYE_HEIGHT, 0));
+		_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
+		_camera.setLocation(_eyePos);
 	}
 	
 	// ========== ActionListener — movement key flags ==========
@@ -502,5 +508,15 @@ public class PlayerController implements ActionListener, AnalogListener
 	public boolean isSwimming()
 	{
 		return _isSwimming;
+	}
+	
+	public Block getSelectedBlock()
+	{
+		return _selectedBlock;
+	}
+	
+	public void setSelectedBlock(Block selectedBlock)
+	{
+		_selectedBlock = selectedBlock;
 	}
 }
