@@ -821,6 +821,84 @@ public class World
 		_batchDirtyRegions.clear();
 	}
 	
+	/**
+	 * Sets the block at the given world coordinates silently (no dirty flag, no rebuild).<br>
+	 * The block data is updated immediately for game logic correctness (collision, etc.)<br>
+	 * but the visual mesh is NOT rebuilt — the old geometry remains until the region is<br>
+	 * explicitly marked dirty and rebuilt later.<br>
+	 * Used by the destruction queue to decouple data changes from visual updates.
+	 */
+	public void setBlockSilent(int worldX, int worldY, int worldZ, Block block)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		region.setBlockSilent(localX, worldY, localZ, block);
+		_regionLoader.updateRegionCache(region);
+	}
+	
+	/**
+	 * Marks the region containing the given world position (and boundary neighbors) as dirty<br>
+	 * and adds them to the batch tracking set for rebuild by {@link #rebuildDirtyRegionsImmediate()}.<br>
+	 * Used by the destruction queue to trigger visual updates for specific positions.
+	 */
+	public void markRegionDirtyAt(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final long key = regionKey(regionX, regionZ);
+		final Region region = _regions.get(key);
+		if (region == null)
+		{
+			return;
+		}
+		
+		region.markMeshDirty();
+		_regionLoader.updateRegionCache(region);
+		_batchDirtyRegions.add(key);
+		
+		// Mark boundary neighbors if block is at region edge.
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		
+		if (localX == 0)
+		{
+			markNeighborDirtyBatch(regionX - 1, regionZ);
+		}
+		
+		if (localX == Region.SIZE_XZ - 1)
+		{
+			markNeighborDirtyBatch(regionX + 1, regionZ);
+		}
+		
+		if (localZ == 0)
+		{
+			markNeighborDirtyBatch(regionX, regionZ - 1);
+		}
+		
+		if (localZ == Region.SIZE_XZ - 1)
+		{
+			markNeighborDirtyBatch(regionX, regionZ + 1);
+		}
+	}
+	
 	// ========================================================
 	// Player-Placed Block Tracking.
 	// ========================================================

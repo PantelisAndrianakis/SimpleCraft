@@ -1,7 +1,10 @@
 package simplecraft.world;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
@@ -9,12 +12,11 @@ import java.util.Set;
  * Handles collapse of unsupported player-placed blocks.<br>
  * When any block is broken, nearby player-placed blocks are checked for grounding.<br>
  * A player-placed block is grounded if it can trace a path through solid blocks<br>
- * (player-placed or natural) to at least one world-generated solid block.<br>
- * If an entire connected group of player-placed blocks has no path to natural terrain,<br>
- * the whole group collapses.<br>
+ * to at least one world-generated solid block.<br>
  * <br>
- * World-generated blocks never need support checks, so natural overhangs<br>
- * and cave ceilings remain intact.
+ * Returns an ordered list of block positions for the destruction queue to process<br>
+ * with staggered timing and visual effects. Block data is set to AIR silently<br>
+ * for immediate game logic correctness.
  * @author Pantelis Andrianakis
  * @since March 2nd 2026
  */
@@ -59,30 +61,68 @@ public class BlockSupport
 	// @formatter:on
 	
 	// ========================================================
+	// Result Class.
+	// ========================================================
+	
+	/**
+	 * Contains the ordered list of blocks to destroy from a support collapse.<br>
+	 * Blocks are sorted by distance from the break point (cascade outward).
+	 */
+	public static class CollapseResult
+	{
+		private final List<int[]> _blocks;
+		private final List<Block> _blockTypes;
+		
+		CollapseResult(List<int[]> blocks, List<Block> blockTypes)
+		{
+			_blocks = blocks;
+			_blockTypes = blockTypes;
+		}
+		
+		public boolean isEmpty()
+		{
+			return _blocks.isEmpty();
+		}
+		
+		public int size()
+		{
+			return _blocks.size();
+		}
+		
+		public List<int[]> getBlocks()
+		{
+			return _blocks;
+		}
+		
+		public List<Block> getBlockTypes()
+		{
+			return _blockTypes;
+		}
+	}
+	
+	// ========================================================
 	// Public API.
 	// ========================================================
 	
 	/**
-	 * Checks if any player-placed blocks adjacent to the broken position have lost<br>
-	 * their grounding and should collapse. Handles chain reactions.<br>
-	 * Called after ANY block is broken (player-placed or natural).<br>
-	 * <br>
-	 * A connected group of player-placed blocks is grounded if ANY block in the group<br>
-	 * has a solid world-generated (non-player-placed) neighbor below or horizontally.<br>
-	 * If the group has no path to natural terrain, the entire group collapses.
+	 * Identifies all player-placed blocks that lose their grounding when a block is broken.<br>
+	 * Sets identified blocks to AIR silently for immediate game logic correctness.<br>
+	 * Returns an ordered list for the destruction queue to handle visual updates.
 	 * @param world the game world
 	 * @param bx the world X of the broken block
 	 * @param by the world Y of the broken block
 	 * @param bz the world Z of the broken block
+	 * @return ordered list of blocks to visually destroy, or empty result
 	 */
-	public static void checkSupport(World world, int bx, int by, int bz)
+	public static CollapseResult checkSupport(World world, int bx, int by, int bz)
 	{
-		// Track all blocks already confirmed grounded or already collapsed to avoid rechecking.
 		final Set<Long> confirmedGrounded = new HashSet<>();
 		final Set<Long> confirmedCollapsed = new HashSet<>();
+		final List<int[]> collapsedBlocks = new ArrayList<>();
+		final List<Block> collapsedTypes = new ArrayList<>();
 		int totalCollapsed = 0;
 		
-		// Gather unique player-placed neighbors of the broken block to check.
+		// Gather player-placed neighbors of the broken block.
 		final Queue<Long> candidateQueue = new ArrayDeque<>();
 		final Set<Long> candidateSeen = new HashSet<>();
 		
@@ -106,9 +146,7 @@ public class BlockSupport
 			}
 		}
 		
-		boolean anyRemoved = false;
-		
-		// Process candidates — each may trigger cascade checks.
+		// Process candidates.
 		while (!candidateQueue.isEmpty() && totalCollapsed < MAX_COLLAPSE)
 		{
 			final long startKey = candidateQueue.poll();
@@ -157,16 +195,18 @@ public class BlockSupport
 						continue;
 					}
 					
-					world.setBlockNoRebuild(px, py, pz, Block.AIR);
-					world.clearPlayerPlaced(px, py, pz);
+					// Record for result.
+					collapsedBlocks.add(new int[]
+					{
+						px,
+						py,
+						pz
+					});
+					collapsedTypes.add(block);
 					confirmedCollapsed.add(key);
 					totalCollapsed++;
-					anyRemoved = true;
 					
-					// TODO: Drop item at position (Session 19).
-					System.out.println("Unsupported player block " + block.name() + " collapsed at [" + px + ", " + py + ", " + pz + "]");
-					
-					// Collapsing this block may unground adjacent groups — add their neighbors.
+					// Cascade: check neighbors of collapsed blocks.
 					for (int[] offset : ALL_NEIGHBOR_OFFSETS)
 					{
 						final int nx = px + offset[0];
@@ -186,11 +226,42 @@ public class BlockSupport
 			}
 		}
 		
-		// Batched rebuild if any blocks were removed.
-		if (anyRemoved)
+		if (collapsedBlocks.isEmpty())
 		{
-			world.rebuildDirtyRegionsImmediate();
+			return new CollapseResult(collapsedBlocks, collapsedTypes);
 		}
+		
+		// Sort by distance from break point (cascade outward).
+		final List<Integer> indices = new ArrayList<>();
+		for (int i = 0; i < collapsedBlocks.size(); i++)
+		{
+			indices.add(i);
+		}
+		indices.sort(Comparator.comparingInt(i ->
+		{
+			final int[] pos = collapsedBlocks.get(i);
+			final int dx = pos[0] - bx;
+			final int dy = pos[1] - by;
+			final int dz = pos[2] - bz;
+			return dx * dx + dy * dy + dz * dz;
+		}));
+		
+		final List<int[]> sortedBlocks = new ArrayList<>();
+		final List<Block> sortedTypes = new ArrayList<>();
+		for (int i : indices)
+		{
+			sortedBlocks.add(collapsedBlocks.get(i));
+			sortedTypes.add(collapsedTypes.get(i));
+		}
+		
+		// Set all blocks to AIR silently (game logic immediately correct).
+		for (int[] pos : sortedBlocks)
+		{
+			world.setBlockSilent(pos[0], pos[1], pos[2], Block.AIR);
+			world.clearPlayerPlaced(pos[0], pos[1], pos[2]);
+		}
+		
+		return new CollapseResult(sortedBlocks, sortedTypes);
 	}
 	
 	// ========================================================
@@ -232,8 +303,7 @@ public class BlockSupport
 		final Set<Long> group = new HashSet<>();
 		final Queue<long[]> queue = new ArrayDeque<>();
 		
-		final long startKey = packPos(startX, startY, startZ);
-		group.add(startKey);
+		group.add(packPos(startX, startY, startZ));
 		queue.add(new long[]
 		{
 			startX,
@@ -277,12 +347,7 @@ public class BlockSupport
 				final int nz = pz + offset[2];
 				final long nKey = packPos(nx, ny, nz);
 				
-				if (group.contains(nKey))
-				{
-					continue;
-				}
-				
-				if (world.isPlayerPlaced(nx, ny, nz) && world.getBlock(nx, ny, nz) != Block.AIR)
+				if (!group.contains(nKey) && world.isPlayerPlaced(nx, ny, nz) && world.getBlock(nx, ny, nz) != Block.AIR)
 				{
 					group.add(nKey);
 					queue.add(new long[]

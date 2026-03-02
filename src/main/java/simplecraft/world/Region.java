@@ -155,6 +155,21 @@ public class Region
 	}
 	
 	/**
+	 * Sets the block at the given local coordinates WITHOUT marking the mesh dirty.<br>
+	 * Used by the destruction queue to update block data immediately for game logic<br>
+	 * while deferring the visual mesh rebuild to a later time.
+	 */
+	public void setBlockSilent(int x, int y, int z, Block block)
+	{
+		if (!isInBounds(x, y, z))
+		{
+			return;
+		}
+		
+		_blocks[x][y][z] = (byte) block.ordinal();
+	}
+	
+	/**
 	 * Returns true if the given local coordinates are within region bounds.
 	 */
 	public boolean isInBounds(int x, int y, int z)

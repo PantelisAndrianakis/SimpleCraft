@@ -1,9 +1,11 @@
 package simplecraft.world;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Queue;
-import java.util.Random;
 import java.util.Set;
 
 /**
@@ -11,11 +13,10 @@ import java.util.Set;
  * Uses a two-phase approach to correctly handle adjacent trees with overlapping canopies:<br>
  * Phase 1 finds all connected WOOD via BFS (through WOOD only, never downward).<br>
  * Phase 2 checks surrounding LEAVES for support from surviving WOOD blocks.<br>
- * Phase 3 applies removals in batch with a single mesh rebuild per affected region.<br>
  * <br>
- * Adjacent trees are preserved because BFS only traverses WOOD (not LEAVES),<br>
- * so neighboring tree trunks are never reached. Shared leaves near a surviving<br>
- * trunk pass the support check and remain intact.
+ * Returns an ordered list of block positions for the destruction queue to process<br>
+ * with staggered timing and visual effects. Block data is set to AIR silently<br>
+ * (for immediate game logic correctness) but visual mesh updates are deferred.
  * @author Pantelis Andrianakis
  * @since March 2nd 2026
  */
@@ -37,9 +38,6 @@ public class TreeFeller
 	/** Manhattan distance to search for surviving WOOD that supports a leaf. */
 	private static final int LEAF_SUPPORT_RADIUS = 4;
 	
-	/** Probability that a destroyed leaf drops an item. */
-	private static final float LEAF_DROP_CHANCE = 0.25f;
-	
 	/** BFS neighbor offsets: UP, NORTH, SOUTH, EAST, WEST (no DOWN). */
 	// @formatter:off
 	private static final int[][] BFS_OFFSETS =
@@ -52,38 +50,137 @@ public class TreeFeller
 	};
 	// @formatter:on
 	
-	/** Shared random for leaf drop chance. */
-	private static final Random RANDOM = new Random();
+	// ========================================================
+	// Result Class.
+	// ========================================================
+	
+	/**
+	 * Contains the ordered list of blocks to destroy from a felled tree.<br>
+	 * Wood blocks are sorted bottom-to-top, followed by leaves, then decorations.<br>
+	 * Each entry contains the world position and the original block type.
+	 */
+	public static class FellingResult
+	{
+		private final List<int[]> _blocks;
+		private final List<Block> _blockTypes;
+		
+		FellingResult(List<int[]> blocks, List<Block> blockTypes)
+		{
+			_blocks = blocks;
+			_blockTypes = blockTypes;
+		}
+		
+		public boolean isEmpty()
+		{
+			return _blocks.isEmpty();
+		}
+		
+		public int size()
+		{
+			return _blocks.size();
+		}
+		
+		public List<int[]> getBlocks()
+		{
+			return _blocks;
+		}
+		
+		public List<Block> getBlockTypes()
+		{
+			return _blockTypes;
+		}
+	}
 	
 	// ========================================================
 	// Public API.
 	// ========================================================
 	
 	/**
-	 * Fells a tree starting from the position where a WOOD block was just broken.<br>
-	 * The broken block must already be set to AIR before calling this method.<br>
-	 * Connected WOOD above and horizontally is destroyed, and unsupported LEAVES<br>
-	 * (those not within range of any surviving WOOD) are also removed.<br>
-	 * CROSS_BILLBOARD decorations sitting on top of destroyed blocks are also removed.
+	 * Identifies all blocks that should be destroyed when a tree is felled.<br>
+	 * Sets all identified blocks to AIR silently (for immediate game logic correctness).<br>
+	 * Returns an ordered list for the destruction queue to handle visual updates.<br>
+	 * The broken block must already be set to AIR before calling this method.
 	 * @param world the game world
 	 * @param x the world X of the broken WOOD block
 	 * @param y the world Y of the broken WOOD block
 	 * @param z the world Z of the broken WOOD block
+	 * @return ordered list of blocks to visually destroy, or empty result if no tree found
 	 */
-	public static void fellTree(World world, int x, int y, int z)
+	public static FellingResult fellTree(World world, int x, int y, int z)
 	{
-		// Phase 1: Find connected WOOD via BFS (through WOOD only, never downward).
+		// Phase 1: Find connected WOOD via BFS.
 		final Set<Long> woodToDestroy = findConnectedWood(world, x, y, z);
 		if (woodToDestroy.isEmpty())
 		{
-			return;
+			return new FellingResult(new ArrayList<>(), new ArrayList<>());
 		}
 		
 		// Phase 2: Find unsupported LEAVES.
 		final Set<Long> leavesToDestroy = findUnsupportedLeaves(world, woodToDestroy);
 		
-		// Phase 3: Apply removals.
-		applyRemovals(world, woodToDestroy, leavesToDestroy);
+		// Phase 3: Find billboard decorations on top of destroyed blocks.
+		final Set<Long> allDestroyed = new HashSet<>(woodToDestroy);
+		allDestroyed.addAll(leavesToDestroy);
+		final Set<Long> decorationsToDestroy = findDecorations(world, allDestroyed);
+		
+		// Build ordered result: wood (bottom to top), then leaves, then decorations.
+		final List<int[]> blocks = new ArrayList<>();
+		final List<Block> blockTypes = new ArrayList<>();
+		
+		// Sort wood by Y ascending (bottom first for visual cascade).
+		final List<Long> sortedWood = new ArrayList<>(woodToDestroy);
+		sortedWood.sort(Comparator.comparingInt(TreeFeller::unpackY));
+		
+		for (long key : sortedWood)
+		{
+			final int bx = unpackX(key);
+			final int by = unpackY(key);
+			final int bz = unpackZ(key);
+			blockTypes.add(world.getBlock(bx, by, bz));
+			blocks.add(new int[]
+			{
+				bx,
+				by,
+				bz
+			});
+		}
+		
+		for (long key : leavesToDestroy)
+		{
+			final int bx = unpackX(key);
+			final int by = unpackY(key);
+			final int bz = unpackZ(key);
+			blockTypes.add(world.getBlock(bx, by, bz));
+			blocks.add(new int[]
+			{
+				bx,
+				by,
+				bz
+			});
+		}
+		
+		for (long key : decorationsToDestroy)
+		{
+			final int bx = unpackX(key);
+			final int by = unpackY(key);
+			final int bz = unpackZ(key);
+			blockTypes.add(world.getBlock(bx, by, bz));
+			blocks.add(new int[]
+			{
+				bx,
+				by,
+				bz
+			});
+		}
+		
+		// Set all blocks to AIR silently (game logic is immediately correct).
+		for (int[] pos : blocks)
+		{
+			world.setBlockSilent(pos[0], pos[1], pos[2], Block.AIR);
+			world.clearPlayerPlaced(pos[0], pos[1], pos[2]);
+		}
+		
+		return new FellingResult(blocks, blockTypes);
 	}
 	
 	// ========================================================
@@ -132,8 +229,7 @@ public class TreeFeller
 			final int py = (int) pos[1];
 			final int pz = (int) pos[2];
 			
-			final Block block = world.getBlock(px, py, pz);
-			if (block != Block.WOOD)
+			if (world.getBlock(px, py, pz) != Block.WOOD)
 			{
 				continue;
 			}
@@ -253,13 +349,9 @@ public class TreeFeller
 					final int cy = ly + dy;
 					final int cz = lz + dz;
 					
-					if (world.getBlock(cx, cy, cz) == Block.WOOD)
+					if (world.getBlock(cx, cy, cz) == Block.WOOD && !woodToDestroy.contains(packPos(cx, cy, cz)))
 					{
-						// Check if this WOOD block is NOT being destroyed.
-						if (!woodToDestroy.contains(packPos(cx, cy, cz)))
-						{
-							return true;
-						}
+						return true;
 					}
 				}
 			}
@@ -269,77 +361,31 @@ public class TreeFeller
 	}
 	
 	// ========================================================
-	// Phase 3: Apply Removals.
+	// Phase 3: Find Billboard Decorations.
 	// ========================================================
 	
-	/**
-	 * Destroys all collected WOOD and LEAVES blocks, checks for billboard decorations<br>
-	 * sitting on top of destroyed blocks, and triggers a batched mesh rebuild.
-	 */
-	private static void applyRemovals(World world, Set<Long> woodToDestroy, Set<Long> leavesToDestroy)
+	private static Set<Long> findDecorations(World world, Set<Long> allDestroyed)
 	{
-		// Combine all positions being destroyed for decoration checks.
-		final Set<Long> allDestroyed = new HashSet<>(woodToDestroy);
-		allDestroyed.addAll(leavesToDestroy);
-		
-		// Collect billboard decorations sitting on top of destroyed blocks.
 		final Set<Long> decorationsToDestroy = new HashSet<>();
+		
 		for (long key : allDestroyed)
 		{
 			final int bx = unpackX(key);
 			final int by = unpackY(key);
 			final int bz = unpackZ(key);
 			
-			// Check block above for CROSS_BILLBOARD decoration.
 			final Block above = world.getBlock(bx, by + 1, bz);
 			if (above.getRenderMode() == Block.RenderMode.CROSS_BILLBOARD)
 			{
-				decorationsToDestroy.add(packPos(bx, by + 1, bz));
+				final long aboveKey = packPos(bx, by + 1, bz);
+				if (!allDestroyed.contains(aboveKey))
+				{
+					decorationsToDestroy.add(aboveKey);
+				}
 			}
 		}
 		
-		// Remove wood blocks.
-		for (long key : woodToDestroy)
-		{
-			final int bx = unpackX(key);
-			final int by = unpackY(key);
-			final int bz = unpackZ(key);
-			world.setBlockNoRebuild(bx, by, bz, Block.AIR);
-			// TODO: Drop "wood" item (Session 19).
-		}
-		
-		// Remove unsupported leaves.
-		for (long key : leavesToDestroy)
-		{
-			final int bx = unpackX(key);
-			final int by = unpackY(key);
-			final int bz = unpackZ(key);
-			world.setBlockNoRebuild(bx, by, bz, Block.AIR);
-			
-			// 25% chance to drop "leaves" item.
-			if (RANDOM.nextFloat() < LEAF_DROP_CHANCE)
-			{
-				// TODO: Drop "leaves" item (Session 19).
-			}
-		}
-		
-		// Remove billboard decorations.
-		for (long key : decorationsToDestroy)
-		{
-			final int bx = unpackX(key);
-			final int by = unpackY(key);
-			final int bz = unpackZ(key);
-			
-			// Only destroy if not already destroyed (could overlap with wood/leaf set).
-			if (world.getBlock(bx, by, bz).getRenderMode() == Block.RenderMode.CROSS_BILLBOARD)
-			{
-				world.setBlockNoRebuild(bx, by, bz, Block.AIR);
-				// TODO: Drop decoration item (Session 19).
-			}
-		}
-		
-		// Batched rebuild of all affected regions.
-		world.rebuildDirtyRegionsImmediate();
+		return decorationsToDestroy;
 	}
 	
 	// ========================================================

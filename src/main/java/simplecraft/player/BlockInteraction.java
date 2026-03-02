@@ -23,6 +23,7 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
+import simplecraft.world.BlockDestructionQueue;
 import simplecraft.world.BlockSupport;
 import simplecraft.world.TreeFeller;
 import simplecraft.world.World;
@@ -189,6 +190,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	/** Whether the block highlight is enabled (from display settings). */
 	private boolean _showHighlight = true;
 	
+	/** Manages staggered visual destruction of auto-destroyed blocks. */
+	private final BlockDestructionQueue _destructionQueue;
+	
 	// Camera shake.
 	private float _shakeTimer;
 	private final Vector3f _shakeOffset = new Vector3f();
@@ -266,6 +270,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Set initial selected block.
 		_selectedBlockIndex = 1; // DIRT
 		_playerController.setSelectedBlock(PLACEABLE_BLOCKS[_selectedBlockIndex]);
+		
+		// Create destruction queue for staggered visual effects.
+		_destructionQueue = new BlockDestructionQueue(_world, assetManager);
 	}
 	
 	// ========================================================
@@ -357,6 +364,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		// Update crack overlay.
 		updateCrackOverlay();
+		
+		// Update destruction queue (staggered block removal + poof effects).
+		_destructionQueue.update(tpf);
 	}
 	
 	// ========================================================
@@ -758,11 +768,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			// If WOOD was broken, trigger tree felling (block is already AIR).
 			if (block == Block.WOOD)
 			{
-				TreeFeller.fellTree(_world, _targetX, _targetY, _targetZ);
+				final TreeFeller.FellingResult fellingResult = TreeFeller.fellTree(_world, _targetX, _targetY, _targetZ);
+				_destructionQueue.queueTreeFelling(fellingResult);
 			}
 			
 			// Check block support for nearby player-placed blocks.
-			BlockSupport.checkSupport(_world, _targetX, _targetY, _targetZ);
+			final BlockSupport.CollapseResult collapseResult = BlockSupport.checkSupport(_world, _targetX, _targetY, _targetZ);
+			_destructionQueue.queueCollapseResult(collapseResult);
 			
 			resetBreaking();
 		}
@@ -1463,6 +1475,23 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public Node getOverlayNode()
 	{
 		return _overlayNode;
+	}
+	
+	/**
+	 * Returns the destruction effects node containing poof particles.<br>
+	 * Must be attached to the scene by the owning state.
+	 */
+	public Node getDestructionEffectsNode()
+	{
+		return _destructionQueue.getEffectsNode();
+	}
+	
+	/**
+	 * Cleans up the destruction queue. Called during state teardown.
+	 */
+	public void cleanupDestructionQueue()
+	{
+		_destructionQueue.cleanup();
 	}
 	
 	/**

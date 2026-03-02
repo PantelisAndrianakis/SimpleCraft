@@ -507,6 +507,7 @@ public class PlayingState extends FadeableAppState
 		_blockInteraction = new BlockInteraction(app.getCamera(), app.getInputManager(), _world, _playerController, app.getAssetManager());
 		_blockInteraction.registerInput();
 		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
+		app.getRootNode().attachChild(_blockInteraction.getDestructionEffectsNode());
 		
 		// Create the player HUD.
 		createHUD();
@@ -578,7 +579,9 @@ public class PlayingState extends FadeableAppState
 		if (_blockInteraction != null)
 		{
 			_blockInteraction.unregisterInput();
+			_blockInteraction.cleanupDestructionQueue();
 			app.getRootNode().detachChild(_blockInteraction.getOverlayNode());
+			app.getRootNode().detachChild(_blockInteraction.getDestructionEffectsNode());
 			_blockInteraction = null;
 		}
 		
