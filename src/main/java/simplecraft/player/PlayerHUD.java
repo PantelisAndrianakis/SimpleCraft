@@ -736,7 +736,8 @@ public class PlayerHUD
 			return "None";
 		}
 		
-		final String[] words = block.name().toLowerCase().split("_");
+		// GRASS is mentioned as DIRT, all other blocks keep their names.
+		final String[] words = block == Block.GRASS ? Block.DIRT.name().toLowerCase().split("_") : block.name().toLowerCase().split("_");
 		final StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < words.length; i++)
 		{
@@ -747,6 +748,7 @@ public class PlayerHUD
 			sb.append(Character.toUpperCase(words[i].charAt(0)));
 			sb.append(words[i].substring(1));
 		}
+		
 		return sb.toString();
 	}
 }
