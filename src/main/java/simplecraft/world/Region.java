@@ -1,9 +1,13 @@
 package simplecraft.world;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * A 16-wide, 128-tall, 16-deep container of blocks.<br>
  * Block data is stored as byte ordinals for memory efficiency.<br>
- * Includes mesh dirty flags for intelligent rebuilding.
+ * Includes mesh dirty flags for intelligent rebuilding.<br>
+ * Tracks which blocks were placed by the player (for support physics).
  * @author Pantelis Andrianakis
  * @since February 21st 2026
  */
@@ -29,6 +33,9 @@ public class Region
 	
 	/** Timestamp of last mesh build (for debugging/performance monitoring). */
 	private long _lastMeshBuildTime = 0;
+	
+	/** Set of packed local positions of player-placed blocks. */
+	private final Set<Long> _playerPlacedBlocks = new HashSet<>();
 	
 	// ========================================================
 	// Constructor.
@@ -153,6 +160,62 @@ public class Region
 	public boolean isInBounds(int x, int y, int z)
 	{
 		return x >= 0 && x < SIZE_XZ && y >= 0 && y < SIZE_Y && z >= 0 && z < SIZE_XZ;
+	}
+	
+	// ========================================================
+	// Player-Placed Block Tracking.
+	// ========================================================
+	
+	/**
+	 * Packs local region coordinates into a single long key for the player-placed set.
+	 */
+	private static long packLocalPos(int x, int y, int z)
+	{
+		return ((long) x << 16) | ((long) y << 8) | (z & 0xFF);
+	}
+	
+	/**
+	 * Marks the block at the given local coordinates as player-placed.
+	 */
+	public void markPlayerPlaced(int x, int y, int z)
+	{
+		if (isInBounds(x, y, z))
+		{
+			_playerPlacedBlocks.add(packLocalPos(x, y, z));
+		}
+	}
+	
+	/**
+	 * Clears the player-placed flag for the block at the given local coordinates.
+	 */
+	public void clearPlayerPlaced(int x, int y, int z)
+	{
+		if (isInBounds(x, y, z))
+		{
+			_playerPlacedBlocks.remove(packLocalPos(x, y, z));
+		}
+	}
+	
+	/**
+	 * Returns true if the block at the given local coordinates was placed by the player.
+	 */
+	public boolean isPlayerPlaced(int x, int y, int z)
+	{
+		if (!isInBounds(x, y, z))
+		{
+			return false;
+		}
+		
+		return _playerPlacedBlocks.contains(packLocalPos(x, y, z));
+	}
+	
+	/**
+	 * Returns the set of packed positions of player-placed blocks.<br>
+	 * Used for serialization (save/load in Session 17).
+	 */
+	public Set<Long> getPlayerPlacedSet()
+	{
+		return _playerPlacedBlocks;
 	}
 	
 	// ========================================================

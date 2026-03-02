@@ -118,6 +118,9 @@ public class World
 	/** Set of regions needing remesh due to block changes. */
 	private final Set<Long> _pendingRemesh = new HashSet<>();
 	
+	/** Set of region keys dirtied during a batch operation (tree felling, block support). */
+	private final Set<Long> _batchDirtyRegions = new HashSet<>();
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -288,6 +291,14 @@ public class World
 			
 			if (_regions.containsKey(key))
 			{
+				// Skip stale async results — region was already rebuilt synchronously
+				// (e.g. by setBlockImmediate or rebuildDirtyRegionsImmediate).
+				final Region loadedRegion = _regions.get(key);
+				if (!loadedRegion.isMeshDirty())
+				{
+					continue;
+				}
+				
 				// Remesh result for an already-loaded region — swap geometry.
 				detachRegionGeometry(key);
 				attachRegionGeometryFromData(region, ready.getMeshData());
@@ -698,6 +709,9 @@ public class World
 		attachGeometries(region, meshResult);
 		region.markMeshClean();
 		
+		// Cancel any pending async remesh — this sync rebuild supersedes it.
+		_regionLoader.cancelPending(key);
+		
 		// Remove from async pending set — already rebuilt.
 		synchronized (_pendingRemesh)
 		{
@@ -717,6 +731,167 @@ public class World
 			_regionLoader.updateRegionCache(region);
 			rebuildRegionSync(key, region);
 		}
+	}
+	
+	/**
+	 * Sets the block at the given world coordinates without triggering a mesh rebuild.<br>
+	 * The region is marked dirty and neighbor regions at boundaries are also marked dirty.<br>
+	 * Affected region keys are tracked internally so that<br>
+	 * {@link #rebuildDirtyRegionsImmediate()} only rebuilds the regions touched by this batch.<br>
+	 * Used for batch operations (tree felling, block support cascades) where the caller<br>
+	 * will invoke {@link #rebuildDirtyRegionsImmediate()} once all changes are applied.
+	 */
+	public void setBlockNoRebuild(int worldX, int worldY, int worldZ, Block block)
+	{
+		// Out of vertical bounds.
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		// Convert world to region coordinates.
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final long key = regionKey(regionX, regionZ);
+		
+		final Region region = _regions.get(key);
+		if (region == null)
+		{
+			return;
+		}
+		
+		// Convert world to local coordinates.
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		
+		// Update block data (marks region dirty if block changed).
+		region.setBlock(localX, worldY, localZ, block);
+		_regionLoader.updateRegionCache(region);
+		_batchDirtyRegions.add(key);
+		
+		// Mark neighbor regions dirty if at boundary.
+		if (localX == 0)
+		{
+			markNeighborDirtyBatch(regionX - 1, regionZ);
+		}
+		if (localX == Region.SIZE_XZ - 1)
+		{
+			markNeighborDirtyBatch(regionX + 1, regionZ);
+		}
+		if (localZ == 0)
+		{
+			markNeighborDirtyBatch(regionX, regionZ - 1);
+		}
+		if (localZ == Region.SIZE_XZ - 1)
+		{
+			markNeighborDirtyBatch(regionX, regionZ + 1);
+		}
+	}
+	
+	/**
+	 * Marks a neighbor region as dirty and adds it to the batch tracking set.
+	 */
+	private void markNeighborDirtyBatch(int regionX, int regionZ)
+	{
+		final long key = regionKey(regionX, regionZ);
+		final Region neighbor = _regions.get(key);
+		if (neighbor != null)
+		{
+			neighbor.markMeshDirty();
+			_regionLoader.updateRegionCache(neighbor);
+			_batchDirtyRegions.add(key);
+		}
+	}
+	
+	/**
+	 * Rebuilds only the regions that were dirtied during the current batch operation.<br>
+	 * Call after batch operations (tree felling, block support cascades).<br>
+	 * Clears the batch tracking set after rebuilding.
+	 */
+	public void rebuildDirtyRegionsImmediate()
+	{
+		for (long key : _batchDirtyRegions)
+		{
+			final Region region = _regions.get(key);
+			if (region != null && region.isMeshDirty())
+			{
+				rebuildRegionSync(key, region);
+			}
+		}
+		_batchDirtyRegions.clear();
+	}
+	
+	// ========================================================
+	// Player-Placed Block Tracking.
+	// ========================================================
+	
+	/**
+	 * Returns true if the block at the given world coordinates was placed by the player.
+	 */
+	public boolean isPlayerPlaced(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return false;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return false;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		return region.isPlayerPlaced(localX, worldY, localZ);
+	}
+	
+	/**
+	 * Marks the block at the given world coordinates as player-placed.
+	 */
+	public void markPlayerPlaced(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		region.markPlayerPlaced(localX, worldY, localZ);
+	}
+	
+	/**
+	 * Clears the player-placed flag for the block at the given world coordinates.
+	 */
+	public void clearPlayerPlaced(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		region.clearPlayerPlaced(localX, worldY, localZ);
 	}
 	
 	// ========================================================

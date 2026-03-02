@@ -23,6 +23,8 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
+import simplecraft.world.BlockSupport;
+import simplecraft.world.TreeFeller;
 import simplecraft.world.World;
 
 /**
@@ -746,9 +748,22 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			System.out.println("Broke " + block.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "]");
 			
+			// Clear player-placed flag before removal.
+			_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
+			
 			// If any adjacent block is liquid, replace with WATER instead of AIR.
 			final Block replacement = (_targetY <= World.WATER_LEVEL && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR;
 			_world.setBlockImmediate(_targetX, _targetY, _targetZ, replacement);
+			
+			// If WOOD was broken, trigger tree felling (block is already AIR).
+			if (block == Block.WOOD)
+			{
+				TreeFeller.fellTree(_world, _targetX, _targetY, _targetZ);
+			}
+			
+			// Check block support for nearby player-placed blocks.
+			BlockSupport.checkSupport(_world, _targetX, _targetY, _targetZ);
+			
 			resetBreaking();
 		}
 	}
@@ -930,6 +945,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		// Place the block.
 		_world.setBlockImmediate(placeX, placeY, placeZ, selectedBlock);
+		_world.markPlayerPlaced(placeX, placeY, placeZ);
 		System.out.println("Placed " + selectedBlock.name() + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
 	}
 	
