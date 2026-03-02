@@ -1,20 +1,32 @@
 package simplecraft.state;
 
+import java.awt.Font;
+
 import com.jme3.app.Application;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.post.FilterPostProcessor;
 import com.jme3.post.filters.FogFilter;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.PlayerController;
+import simplecraft.player.PlayerHUD;
 import simplecraft.state.GameStateManager.GameState;
+import simplecraft.ui.FontManager;
+import simplecraft.world.Block;
 import simplecraft.world.Region;
 import simplecraft.world.TextureAtlas;
 import simplecraft.world.World;
@@ -28,6 +40,10 @@ import simplecraft.world.WorldInfo;
  * Listens for the PAUSE action (Escape) to open the pause menu.<br>
  * The pause listener is registered in initialize/cleanup so it remains<br>
  * active even when the state is disabled (paused overlay is showing).<br>
+ * <br>
+ * On first entry a black loading screen is shown while the world generates terrain<br>
+ * around the spawn position. Once terrain is available the player is placed on the<br>
+ * highest solid block, the loading screen is removed, and gameplay begins.<br>
  * <br>
  * The {@code _paused} flag prevents the world from being torn down and rebuilt<br>
  * during the pause overlay transition (disable → re-enable cycle).
@@ -46,6 +62,7 @@ public class PlayingState extends FadeableAppState
 	private FogFilter _fogFilter;
 	private PlayerController _playerController;
 	private BlockInteraction _blockInteraction;
+	private PlayerHUD _playerHUD;
 	
 	/** Sky color used for both viewport background and fog blending. */
 	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
@@ -69,6 +86,37 @@ public class PlayingState extends FadeableAppState
 	
 	/** True while the game is paused. Set before the state transition to prevent teardown. */
 	private boolean _paused;
+	
+	// ========================================================
+	// Loading Screen / Pending Spawn.
+	// ========================================================
+	
+	/** Spawn X coordinate. */
+	private static final int SPAWN_X = 64;
+	
+	/** Spawn Z coordinate. */
+	private static final int SPAWN_Z = 64;
+	
+	/** Fallback spawn Y if terrain never loads (safety net). */
+	private static final int SPAWN_FALLBACK_Y = 80;
+	
+	/** Maximum frames to wait for terrain before using fallback spawn height. */
+	private static final int SPAWN_TIMEOUT_FRAMES = 300;
+	
+	/** True while waiting for terrain to generate at the spawn position. */
+	private boolean _pendingSpawn;
+	
+	/** Frame counter while waiting for terrain. */
+	private int _spawnWaitFrames;
+	
+	/** Loading screen container node attached to guiNode. */
+	private Node _loadingScreenNode;
+	
+	/** Animated dot counter for "Loading..." text. */
+	private float _loadingDotTimer;
+	
+	/** The "Loading" BitmapText (updated with animated dots). */
+	private BitmapText _loadingText;
 	
 	public PlayingState()
 	{
@@ -95,9 +143,9 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
-			// Only open pause if we are currently in PLAYING state (not already paused).
+			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading.
 			final GameStateManager gsm = simpleCraft.getGameStateManager();
-			if (gsm.getCurrentState() == GameState.PLAYING)
+			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn)
 			{
 				// Set paused flag BEFORE the state transition so onExitState knows to preserve the world.
 				_paused = true;
@@ -128,13 +176,19 @@ public class PlayingState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
 		// Returning from pause — world is still alive, just restore controls.
-		if (_world != null)
+		if (_world != null && !_pendingSpawn)
 		{
 			// Reset paused flag so a subsequent onExitState (e.g. Return to Main Menu) does full teardown.
 			_paused = false;
 			app.getInputManager().setCursorVisible(false);
 			_playerController.registerInput();
 			_blockInteraction.registerInput();
+			
+			// Show HUD again when returning from pause.
+			if (_playerHUD == null)
+			{
+				createHUD();
+			}
 			return;
 		}
 		
@@ -158,8 +212,11 @@ public class PlayingState extends FadeableAppState
 		
 		System.out.println("PlayingState entered.");
 		
-		// Set sky background color.
-		app.getViewPort().setBackgroundColor(SKY_COLOR);
+		// Show loading screen immediately (black background covers everything).
+		showLoadingScreen();
+		
+		// Set black background during loading (sky color applied after loading completes).
+		app.getViewPort().setBackgroundColor(ColorRGBA.Black);
 		
 		// Add sun (directional light from upper-right).
 		_sun = new DirectionalLight();
@@ -204,17 +261,15 @@ public class PlayingState extends FadeableAppState
 		app.getFlyByCamera().setEnabled(false);
 		app.getFlyByCamera().setDragToRotate(true);
 		
-		// Create and initialize the player controller with world reference for collision.
-		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world);
-		_playerController.setPosition(64, 80, 64);
-		_playerController.registerInput();
+		// Begin pending spawn — world needs to generate terrain before we can place the player.
+		_pendingSpawn = true;
+		_spawnWaitFrames = 0;
 		
-		// Create and initialize block interaction (raycasting, breaking, placing).
-		_blockInteraction = new BlockInteraction(app.getCamera(), app.getInputManager(), _world, _playerController, app.getAssetManager());
-		_blockInteraction.registerInput();
-		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
+		// Kick off region loading around the spawn position.
+		final int renderDistance = app.getSettingsManager().getRenderDistance();
+		_world.update(new Vector3f(SPAWN_X, SPAWN_FALLBACK_Y, SPAWN_Z), renderDistance);
 		
-		// Disable cursor for first-person control.
+		// Hide cursor during loading.
 		app.getInputManager().setCursorVisible(false);
 	}
 	
@@ -223,6 +278,49 @@ public class PlayingState extends FadeableAppState
 	{
 		super.update(tpf);
 		
+		// While waiting for terrain to generate, check each frame.
+		if (_pendingSpawn && _world != null)
+		{
+			updateLoadingScreen(tpf);
+			
+			final SimpleCraft app = SimpleCraft.getInstance();
+			final int renderDistance = app.getSettingsManager().getRenderDistance();
+			
+			// Keep ticking the world so async region loading progresses.
+			_world.update(new Vector3f(SPAWN_X, SPAWN_FALLBACK_Y, SPAWN_Z), renderDistance);
+			
+			_spawnWaitFrames++;
+			
+			// Scan for terrain at spawn position.
+			int spawnY = -1;
+			for (int y = 255; y >= 0; y--)
+			{
+				final Block block = _world.getBlock(SPAWN_X, y, SPAWN_Z);
+				if (block != Block.AIR)
+				{
+					spawnY = y + 1; // Stand on top of it.
+					System.out.println("Spawn terrain found: " + block.name() + " at Y=" + y + ", spawning player at Y=" + spawnY + " (waited " + _spawnWaitFrames + " frames)");
+					break;
+				}
+			}
+			
+			// Use fallback if timeout reached.
+			if (spawnY < 0 && _spawnWaitFrames >= SPAWN_TIMEOUT_FRAMES)
+			{
+				spawnY = SPAWN_FALLBACK_Y;
+				System.out.println("Spawn timeout after " + _spawnWaitFrames + " frames, using fallback Y=" + spawnY);
+			}
+			
+			// If we found a valid spawn, finalize setup.
+			if (spawnY >= 0)
+			{
+				finalizeSpawn(spawnY);
+			}
+			
+			return;
+		}
+		
+		// Normal gameplay loop.
 		if (_world != null && _playerController != null)
 		{
 			// Update player movement and camera.
@@ -245,6 +343,23 @@ public class PlayingState extends FadeableAppState
 				_lastFogRenderDistance = renderDistance;
 				_fogFilter.setFogDistance(calculateFogDistance(renderDistance));
 			}
+			
+			// Update HUD with current player and interaction state.
+			if (_playerHUD != null)
+			{ // @formatter:off
+				_playerHUD.update(
+					_playerController.getHealth(),
+					_playerController.getMaxHealth(),
+					_playerController.getAir(),
+					_playerController.getMaxAir(),
+					_playerController.isHeadSubmerged(),
+					_playerController.getSelectedBlock(),
+					_blockInteraction != null ? _blockInteraction.getHitsDelivered() : 0,
+					_blockInteraction != null ? _blockInteraction.getHitsRequired() : 0,
+					_blockInteraction != null && _blockInteraction.isBreaking(),
+					app.getSettingsManager().isShowCrosshair()
+				);
+			} // @formatter:on
 		}
 	}
 	
@@ -267,12 +382,172 @@ public class PlayingState extends FadeableAppState
 		// If pausing, keep the world alive — only disable controls above.
 		if (_paused)
 		{
+			// Clean up HUD during pause so it doesn't overlap the pause menu.
+			cleanupHUD();
 			return;
 		}
 		
 		// Full exit (returning to main menu) — tear down everything.
 		destroyWorld();
 	}
+	
+	// ========================================================
+	// Loading Screen.
+	// ========================================================
+	
+	/**
+	 * Creates and shows a black loading screen with centered "Loading..." text.
+	 */
+	private void showLoadingScreen()
+	{
+		final SimpleCraft app = SimpleCraft.getInstance();
+		final int screenWidth = app.getCamera().getWidth();
+		final int screenHeight = app.getCamera().getHeight();
+		
+		_loadingScreenNode = new Node("LoadingScreen");
+		
+		// Full-screen black quad.
+		final Quad bgQuad = new Quad(screenWidth, screenHeight);
+		final Geometry bgGeom = new Geometry("LoadingBg", bgQuad);
+		final Material bgMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		bgMat.setColor("Color", new ColorRGBA(0, 0, 0, 1));
+		bgMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		bgGeom.setMaterial(bgMat);
+		bgGeom.setQueueBucket(Bucket.Gui);
+		bgGeom.setLocalTranslation(0, 0, 0);
+		_loadingScreenNode.attachChild(bgGeom);
+		
+		// "Loading..." text centered on screen using linocut font.
+		final int fontSize = Math.max(20, (int) (screenHeight * 0.04f));
+		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, fontSize);
+		_loadingText = new BitmapText(font);
+		_loadingText.setText("Loading...");
+		_loadingText.setSize(fontSize);
+		_loadingText.setColor(new ColorRGBA(0.85f, 0.85f, 0.85f, 1.0f));
+		
+		final float textWidth = _loadingText.getLineWidth();
+		final float textHeight = _loadingText.getLineHeight();
+		_loadingText.setLocalTranslation((screenWidth - textWidth) / 2f, (screenHeight + textHeight) / 2f, 1);
+		_loadingScreenNode.attachChild(_loadingText);
+		
+		_loadingDotTimer = 0;
+		
+		// Attach above everything else in the GUI.
+		app.getGuiNode().attachChild(_loadingScreenNode);
+	}
+	
+	/**
+	 * Animates the loading screen text dots.
+	 */
+	private void updateLoadingScreen(float tpf)
+	{
+		if (_loadingText == null)
+		{
+			return;
+		}
+		
+		_loadingDotTimer += tpf;
+		
+		// Cycle dots every 0.5 seconds: "Loading", "Loading.", "Loading..", "Loading..."
+		final int dots = ((int) (_loadingDotTimer / 0.5f)) % 4;
+		final StringBuilder sb = new StringBuilder("Loading");
+		for (int i = 0; i < dots; i++)
+		{
+			sb.append('.');
+		}
+		_loadingText.setText(sb.toString());
+		
+		// Re-center (width changes as dots change).
+		final SimpleCraft app = SimpleCraft.getInstance();
+		final int screenWidth = app.getCamera().getWidth();
+		final int screenHeight = app.getCamera().getHeight();
+		final float textWidth = _loadingText.getLineWidth();
+		final float textHeight = _loadingText.getLineHeight();
+		_loadingText.setLocalTranslation((screenWidth - textWidth) / 2f, (screenHeight + textHeight) / 2f, 1);
+	}
+	
+	/**
+	 * Removes the loading screen from the GUI.
+	 */
+	private void hideLoadingScreen()
+	{
+		if (_loadingScreenNode != null)
+		{
+			SimpleCraft.getInstance().getGuiNode().detachChild(_loadingScreenNode);
+			_loadingScreenNode = null;
+			_loadingText = null;
+		}
+	}
+	
+	// ========================================================
+	// Spawn Finalization.
+	// ========================================================
+	
+	/**
+	 * Called once terrain is available at the spawn position.<br>
+	 * Creates the player controller, block interaction, and HUD,<br>
+	 * then removes the loading screen and begins gameplay.
+	 * @param spawnY the Y coordinate to place the player (feet level)
+	 */
+	private void finalizeSpawn(int spawnY)
+	{
+		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		_pendingSpawn = false;
+		
+		// Set sky background color now that loading is complete.
+		app.getViewPort().setBackgroundColor(SKY_COLOR);
+		
+		// Create and initialize the player controller with world reference for collision.
+		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world);
+		_playerController.setPosition(SPAWN_X, spawnY, SPAWN_Z);
+		_playerController.registerInput();
+		
+		// Create and initialize block interaction (raycasting, breaking, placing).
+		_blockInteraction = new BlockInteraction(app.getCamera(), app.getInputManager(), _world, _playerController, app.getAssetManager());
+		_blockInteraction.registerInput();
+		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
+		
+		// Create the player HUD.
+		createHUD();
+		
+		// Remove the loading screen.
+		hideLoadingScreen();
+		
+		// Ensure cursor is hidden for first-person control.
+		app.getInputManager().setCursorVisible(false);
+		
+		System.out.println("World loaded. Player spawned at [" + SPAWN_X + ", " + spawnY + ", " + SPAWN_Z + "]");
+	}
+	
+	// ========================================================
+	// HUD Management.
+	// ========================================================
+	
+	/**
+	 * Creates the player HUD and links it to the block interaction handler.
+	 */
+	private void createHUD()
+	{
+		_playerHUD = new PlayerHUD();
+		_playerHUD.setBlockInteraction(_blockInteraction);
+	}
+	
+	/**
+	 * Removes the player HUD from the screen.
+	 */
+	private void cleanupHUD()
+	{
+		if (_playerHUD != null)
+		{
+			_playerHUD.cleanup();
+			_playerHUD = null;
+		}
+	}
+	
+	// ========================================================
+	// World Teardown.
+	// ========================================================
 	
 	/**
 	 * Destroys the world, lights, and all associated resources.<br>
@@ -284,6 +559,13 @@ public class PlayingState extends FadeableAppState
 		
 		// Reset paused flag.
 		_paused = false;
+		_pendingSpawn = false;
+		
+		// Clean up loading screen if still showing.
+		hideLoadingScreen();
+		
+		// Clean up HUD.
+		cleanupHUD();
 		
 		// Clean up player controller.
 		if (_playerController != null)

@@ -146,9 +146,10 @@ public class OptionsState extends FadeableAppState
 	private Slider _renderDistanceSlider;
 	private Label _renderDistanceValueLabel;
 	private VersionedReference<Double> _renderDistanceRef;
+	private Button _showHighlightToggle;
+	private Button _showCrosshairToggle;
 	private Button _showStatsToggle;
 	private Button _showFpsToggle;
-	private Button _showHighlightToggle;
 	
 	// Screen size tracking for rebuild after live display change.
 	private int _lastScreenWidth;
@@ -524,9 +525,10 @@ public class OptionsState extends FadeableAppState
 		_renderDistanceSlider = null;
 		_renderDistanceValueLabel = null;
 		_renderDistanceRef = null;
+		_showHighlightToggle = null;
+		_showCrosshairToggle = null;
 		_showStatsToggle = null;
 		_showFpsToggle = null;
-		_showHighlightToggle = null;
 		
 		_keybindButtons.clear();
 		_mouseBindButtons.clear();
@@ -633,6 +635,27 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_showHighlightToggle, newValue);
 		};
 		_displayContentSlots.add(MenuNavigationManager.labelSlot(wfLabel, toggleHighlight, toggleHighlight, toggleHighlight));
+		addRowSpacer(_displayContent);
+		
+		// Show Crosshair toggle.
+		_showCrosshairToggle = createToggleButton(settings.isShowCrosshair());
+		_showCrosshairToggle.addClickCommands(source ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final boolean newValue = !settings.isShowCrosshair();
+			settings.setShowCrosshair(newValue);
+			updateToggleButton(_showCrosshairToggle, newValue);
+		});
+		final Label chLabel = createNameLabel(app, "Show Crosshair");
+		_displayContent.addChild(createToggleRow(app, chLabel, _showCrosshairToggle));
+		final Runnable toggleCrosshair = () ->
+		{
+			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			final boolean newValue = !settings.isShowCrosshair();
+			settings.setShowCrosshair(newValue);
+			updateToggleButton(_showCrosshairToggle, newValue);
+		};
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(chLabel, toggleCrosshair, toggleCrosshair, toggleCrosshair));
 		addRowSpacer(_displayContent);
 		
 		// Show Stats toggle.

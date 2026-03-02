@@ -1471,6 +1471,30 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	}
 	
 	/**
+	 * Returns true if the player is actively breaking a block (hits > 0).
+	 */
+	public boolean isBreaking()
+	{
+		return _isBreaking && _hitsDelivered > 0;
+	}
+	
+	/**
+	 * Returns the number of hits delivered to the current target.
+	 */
+	public int getHitsDelivered()
+	{
+		return _hitsDelivered;
+	}
+	
+	/**
+	 * Returns the number of hits required to break the current target.
+	 */
+	public int getHitsRequired()
+	{
+		return _hitsRequired;
+	}
+	
+	/**
 	 * Returns the current break progress (0.0 to 1.0), or 0 if not breaking.
 	 */
 	public float getBreakProgress()

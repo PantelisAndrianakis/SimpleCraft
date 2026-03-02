@@ -121,6 +121,9 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Whether the drowning log has been printed this submersion (avoids log spam). */
 	private boolean _drowningLogged;
 	
+	/** Spawn protection — ignores fall damage until the player touches ground for the first time. */
+	private boolean _spawnProtection = true;
+	
 	/** Currently selected block for placement. Managed by {@link BlockInteraction}. */
 	private Block _selectedBlock = Block.DIRT;
 	
@@ -192,6 +195,8 @@ public class PlayerController implements ActionListener, AnalogListener
 	public void setPosition(float x, float y, float z)
 	{
 		_position.set(x, y, z);
+		_velocity.set(0, 0, 0);
+		_spawnProtection = true;
 	}
 	
 	/**
@@ -301,7 +306,19 @@ public class PlayerController implements ActionListener, AnalogListener
 		
 		// --- Fall damage ---
 		final float fallDistance = result.getFallDistance();
-		if (fallDistance > FALL_DAMAGE_THRESHOLD)
+		if (_spawnProtection)
+		{
+			// Clear spawn protection once the player lands for the first time.
+			if (_onGround)
+			{
+				_spawnProtection = false;
+				if (fallDistance > FALL_DAMAGE_THRESHOLD)
+				{
+					System.out.println("Spawn protection absorbed " + String.format("%.1f", fallDistance) + " blocks of fall distance.");
+				}
+			}
+		}
+		else if (fallDistance > FALL_DAMAGE_THRESHOLD)
 		{
 			if (_inWater)
 			{

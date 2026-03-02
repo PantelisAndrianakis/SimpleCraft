@@ -38,9 +38,10 @@ public class SettingsManager
 	private static final String KEY_SCREEN_WIDTH = "screenWidth";
 	private static final String KEY_SCREEN_HEIGHT = "screenHeight";
 	private static final String KEY_FULLSCREEN = "fullscreen";
+	private static final String KEY_SHOW_HIGHLIGHT = "showHighlight";
+	private static final String KEY_SHOW_CROSSHAIR = "showCrosshair";
 	private static final String KEY_SHOW_STATS = "showStats";
 	private static final String KEY_SHOW_FPS = "showFps";
-	private static final String KEY_SHOW_HIGHLIGHT = "showHighlight";
 	
 	// Prefix for keybinding entries (e.g., "key.move_forward=17").
 	private static final String KEYBINDING_PREFIX = "key.";
@@ -63,9 +64,10 @@ public class SettingsManager
 	private static final int DEFAULT_SCREEN_WIDTH;
 	private static final int DEFAULT_SCREEN_HEIGHT;
 	private static final boolean DEFAULT_FULLSCREEN = true;
+	private static final boolean DEFAULT_SHOW_HIGHLIGHT = true;
+	private static final boolean DEFAULT_SHOW_CROSSHAIR = true;
 	private static final boolean DEFAULT_SHOW_STATS = false;
 	private static final boolean DEFAULT_SHOW_FPS = false;
-	private static final boolean DEFAULT_SHOW_HIGHLIGHT = true;
 	
 	// Native monitor refresh rate (used as frame rate cap fallback).
 	private static final int NATIVE_REFRESH_RATE;
@@ -141,9 +143,10 @@ public class SettingsManager
 	private int _screenWidth = DEFAULT_SCREEN_WIDTH;
 	private int _screenHeight = DEFAULT_SCREEN_HEIGHT;
 	private boolean _fullscreen = DEFAULT_FULLSCREEN;
+	private boolean _showHighlight = DEFAULT_SHOW_HIGHLIGHT;
+	private boolean _showCrosshair = DEFAULT_SHOW_CROSSHAIR;
 	private boolean _showStats = DEFAULT_SHOW_STATS;
 	private boolean _showFps = DEFAULT_SHOW_FPS;
-	private boolean _showHighlight = DEFAULT_SHOW_HIGHLIGHT;
 	
 	// Custom keybinding overrides (action name -> key code). Empty means all defaults.
 	private final Map<String, Integer> _keybindings = new LinkedHashMap<>();
@@ -229,6 +232,16 @@ public class SettingsManager
 							_fullscreen = Boolean.parseBoolean(value);
 							break;
 						}
+						case KEY_SHOW_HIGHLIGHT:
+						{
+							_showHighlight = Boolean.parseBoolean(value);
+							break;
+						}
+						case KEY_SHOW_CROSSHAIR:
+						{
+							_showCrosshair = Boolean.parseBoolean(value);
+							break;
+						}
 						case KEY_SHOW_STATS:
 						{
 							_showStats = Boolean.parseBoolean(value);
@@ -237,11 +250,6 @@ public class SettingsManager
 						case KEY_SHOW_FPS:
 						{
 							_showFps = Boolean.parseBoolean(value);
-							break;
-						}
-						case KEY_SHOW_HIGHLIGHT:
-						{
-							_showHighlight = Boolean.parseBoolean(value);
 							break;
 						}
 						default:
@@ -272,7 +280,7 @@ public class SettingsManager
 				}
 			}
 			
-			System.out.println("SettingsManager: Settings loaded. Master=" + _masterVolume + ", Music=" + _musicVolume + ", SFX=" + _sfxVolume + ", RenderDist=" + _renderDistance + ", Resolution=" + _screenWidth + "x" + _screenHeight + ", Fullscreen=" + _fullscreen + ", Stats=" + _showStats + ", FPS=" + _showFps + ", Highlight=" + _showHighlight);
+			System.out.println("SettingsManager: Settings loaded. Master=" + _masterVolume + ", Music=" + _musicVolume + ", SFX=" + _sfxVolume + ", RenderDist=" + _renderDistance + ", Resolution=" + _screenWidth + "x" + _screenHeight + ", Fullscreen=" + _fullscreen + ", Stats=" + _showStats + ", FPS=" + _showFps + ", Highlight=" + _showHighlight + ", Crosshair=" + _showCrosshair);
 		}
 		catch (Exception e)
 		{
@@ -313,11 +321,13 @@ public class SettingsManager
 				writer.newLine();
 				writer.write(KEY_FULLSCREEN + "=" + _fullscreen);
 				writer.newLine();
+				writer.write(KEY_SHOW_HIGHLIGHT + "=" + _showHighlight);
+				writer.newLine();
+				writer.write(KEY_SHOW_CROSSHAIR + "=" + _showCrosshair);
+				writer.newLine();
 				writer.write(KEY_SHOW_STATS + "=" + _showStats);
 				writer.newLine();
 				writer.write(KEY_SHOW_FPS + "=" + _showFps);
-				writer.newLine();
-				writer.write(KEY_SHOW_HIGHLIGHT + "=" + _showHighlight);
 				writer.newLine();
 				
 				// Write keybinding overrides.
@@ -355,9 +365,10 @@ public class SettingsManager
 		_screenWidth = DEFAULT_SCREEN_WIDTH;
 		_screenHeight = DEFAULT_SCREEN_HEIGHT;
 		_fullscreen = DEFAULT_FULLSCREEN;
+		_showHighlight = DEFAULT_SHOW_HIGHLIGHT;
+		_showCrosshair = DEFAULT_SHOW_CROSSHAIR;
 		_showStats = DEFAULT_SHOW_STATS;
 		_showFps = DEFAULT_SHOW_FPS;
-		_showHighlight = DEFAULT_SHOW_HIGHLIGHT;
 		_keybindings.clear();
 		_mouseBindings.clear();
 	}
@@ -479,6 +490,26 @@ public class SettingsManager
 		_fullscreen = fullscreen;
 	}
 	
+	public boolean isShowHighlight()
+	{
+		return _showHighlight;
+	}
+	
+	public void setShowHighlight(boolean showHighlight)
+	{
+		_showHighlight = showHighlight;
+	}
+	
+	public boolean isShowCrosshair()
+	{
+		return _showCrosshair;
+	}
+	
+	public void setShowCrosshair(boolean showCrosshair)
+	{
+		_showCrosshair = showCrosshair;
+	}
+	
 	public boolean isShowStats()
 	{
 		return _showStats;
@@ -497,16 +528,6 @@ public class SettingsManager
 	public void setShowFps(boolean showFps)
 	{
 		_showFps = showFps;
-	}
-	
-	public boolean isShowHighlight()
-	{
-		return _showHighlight;
-	}
-	
-	public void setShowHighlight(boolean showHighlight)
-	{
-		_showHighlight = showHighlight;
 	}
 	
 	// --- Keybinding Accessors ---
