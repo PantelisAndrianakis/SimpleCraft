@@ -20,7 +20,8 @@ import com.jme3.texture.Texture2D;
 /**
  * Builds a texture atlas by stitching individual 32×32 block PNGs into an 8×8 grid.<br>
  * Missing textures are filled with magenta as a visible indicator.<br>
- * Provides a shared {@link Material} for all region geometries.
+ * Provides a shared {@link Material} for all region geometries.<br>
+ * Uses Unshaded materials with vertex colors for sky-light-based lighting.
  * @author Pantelis Andrianakis
  * @since February 22nd 2026
  */
@@ -122,10 +123,12 @@ public class TextureAtlas
 	
 	/**
 	 * Creates a shared {@link Material} using the built atlas texture.<br>
-	 * Uses Lighting.j3md with Nearest filtering for pixel-crispy rendering.<br>
+	 * Uses Unshaded.j3md with VertexColor enabled for sky-light-based lighting.<br>
+	 * Vertex colors are multiplied with the texture to produce baked lighting.<br>
+	 * No scene lights (DirectionalLight, AmbientLight) are needed.<br>
 	 * Call {@link #buildAtlas(AssetManager)} first.
 	 * @param assetManager the jME3 AssetManager
-	 * @return a Material with the atlas as its DiffuseMap
+	 * @return a Material with the atlas as its ColorMap and VertexColor enabled
 	 */
 	public Material createMaterial(AssetManager assetManager)
 	{
@@ -148,9 +151,12 @@ public class TextureAtlas
 			texture.setMinFilter(Texture.MinFilter.NearestNoMipMaps);
 			texture.setWrap(Texture.WrapMode.EdgeClamp);
 			
-			// Build material with the atlas texture.
-			_sharedMaterial = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-			_sharedMaterial.setTexture("DiffuseMap", texture);
+			// Build Unshaded material with atlas texture and vertex color support.
+			// VertexColor = true tells jME3 to multiply per-vertex colors with the texture.
+			// This allows sky light brightness to be baked into the mesh — no scene lights needed.
+			_sharedMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+			_sharedMaterial.setTexture("ColorMap", texture);
+			_sharedMaterial.setBoolean("VertexColor", true);
 			
 			// Discard pixels with alpha below 50%. This enables:
 			// - Leaves alpha cutout (see-through canopy holes)
@@ -158,7 +164,7 @@ public class TextureAtlas
 			// Opaque blocks are unaffected since all their pixels have alpha=1.
 			_sharedMaterial.setFloat("AlphaDiscardThreshold", 0.5f);
 			
-			System.out.println("TextureAtlas: Material created from " + tempAtlas.getAbsolutePath());
+			System.out.println("TextureAtlas: Material created (Unshaded + VertexColor) from " + tempAtlas.getAbsolutePath());
 		}
 		catch (IOException e)
 		{

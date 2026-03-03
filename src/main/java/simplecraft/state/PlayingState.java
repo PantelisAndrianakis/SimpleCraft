@@ -6,8 +6,6 @@ import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.controls.ActionListener;
-import com.jme3.light.AmbientLight;
-import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -46,14 +44,15 @@ import simplecraft.world.WorldInfo;
  * highest solid block, the loading screen is removed, and gameplay begins.<br>
  * <br>
  * The {@code _paused} flag prevents the world from being torn down and rebuilt<br>
- * during the pause overlay transition (disable → re-enable cycle).
+ * during the pause overlay transition (disable → re-enable cycle).<br>
+ * <br>
+ * Lighting is fully baked into vertex colors (sky light + directional face shading).<br>
+ * No scene lights (DirectionalLight, AmbientLight) are needed — materials use Unshaded.j3md.
  * @author Pantelis Andrianakis
  * @since February 18th 2026
  */
 public class PlayingState extends FadeableAppState
 {
-	private DirectionalLight _sun;
-	private AmbientLight _ambient;
 	private ActionListener _pauseListener;
 	private TextureAtlas _textureAtlas;
 	private World _world;
@@ -218,16 +217,8 @@ public class PlayingState extends FadeableAppState
 		// Set black background during loading (sky color applied after loading completes).
 		app.getViewPort().setBackgroundColor(ColorRGBA.Black);
 		
-		// Add sun (directional light from upper-right).
-		_sun = new DirectionalLight();
-		_sun.setDirection(new Vector3f(-0.5f, -1.0f, -0.5f).normalizeLocal());
-		_sun.setColor(ColorRGBA.White);
-		app.getRootNode().addLight(_sun);
-		
-		// Add ambient light for soft fill lighting.
-		_ambient = new AmbientLight();
-		_ambient.setColor(new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
-		app.getRootNode().addLight(_ambient);
+		// No scene lights needed — lighting is fully baked into vertex colors via Unshaded materials.
+		// Sky light + directional face shading is computed per-vertex in RegionMeshBuilder.
 		
 		// Set up distance fog to hide terrain pop-in at render distance edges.
 		if (FOG_ENABLED)
@@ -551,8 +542,9 @@ public class PlayingState extends FadeableAppState
 	// ========================================================
 	
 	/**
-	 * Destroys the world, lights, and all associated resources.<br>
-	 * Called when truly leaving the game session (not when pausing).
+	 * Destroys the world and all associated resources.<br>
+	 * Called when truly leaving the game session (not when pausing).<br>
+	 * No scene lights to remove — lighting is baked into vertex colors.
 	 */
 	public void destroyWorld()
 	{
@@ -591,19 +583,6 @@ public class PlayingState extends FadeableAppState
 			_world.shutdown();
 			app.getRootNode().detachChild(_world.getWorldNode());
 			_world = null;
-		}
-		
-		// Clean up lights.
-		if (_sun != null)
-		{
-			app.getRootNode().removeLight(_sun);
-			_sun = null;
-		}
-		
-		if (_ambient != null)
-		{
-			app.getRootNode().removeLight(_ambient);
-			_ambient = null;
 		}
 		
 		// Clean up post-processing (fog).

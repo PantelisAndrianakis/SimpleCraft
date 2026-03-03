@@ -14,6 +14,7 @@ import simplecraft.world.Block.RenderMode;
 /**
  * Static utility class that builds jME3 Mesh objects from region block data.<br>
  * Generates three separate meshes per region: opaque, transparent, and billboard.<br>
+ * Includes per-vertex color data for sky-light-based lighting with directional face shading.<br>
  * Pure function: data in, Mesh out. No instance state.
  * @author Pantelis Andrianakis
  * @since February 21st 2026
@@ -32,6 +33,30 @@ public class RegionMeshBuilder
 	
 	/** UV inset to prevent atlas bleeding (half-pixel padding). */
 	private static final float UV_PADDING = 0.001f;
+	
+	// ========================================================
+	// Face Shade Factors (simulates directional sunlight).
+	// ========================================================
+	// Indexed by Face ordinal: TOP, BOTTOM, NORTH, SOUTH, EAST, WEST.
+	// TOP = direct overhead sun (brightest), EAST = darker side, WEST = sun-facing side.
+	
+	// @formatter:off
+	private static final float[] FACE_SHADE =
+	{
+		1.0f, // TOP    — direct overhead sunlight.
+		0.5f, // BOTTOM — in shadow underneath.
+		0.8f, // NORTH  — slight side shadow.
+		0.8f, // SOUTH  — slight side shadow.
+		0.6f, // EAST   — darker side (sun from southwest).
+		0.9f  // WEST   — brighter side (facing sun).
+	};
+	// @formatter:on
+	
+	/** Billboard shade factor — uniform brightness, no directional bias on thin cross quads. */
+	private static final float BILLBOARD_SHADE = 0.6f;
+	
+	/** Minimum vertex brightness. Zero allows total darkness underground. */
+	private static final float MIN_BRIGHTNESS = 0.001f;
 	
 	// ========================================================
 	// Face Vertex Positions (relative to block origin 0,0,0).
@@ -256,38 +281,45 @@ public class RegionMeshBuilder
 	 * Produced on a background thread by {@link #buildRegionMeshData}.<br>
 	 * Converted to jME3 Mesh objects on the main thread by {@link #createMeshes}.<br>
 	 * This split allows the expensive iteration and vertex building to run off-thread<br>
-	 * while only the lightweight DirectBuffer allocation happens on the render thread.
+	 * while only the lightweight DirectBuffer allocation happens on the render thread.<br>
+	 * Includes per-vertex color arrays for sky-light-based lighting.
 	 */
 	public static class RegionMeshData
 	{
 		private final float[] _opaquePositions;
 		private final float[] _opaqueNormals;
 		private final float[] _opaqueTexCoords;
+		private final float[] _opaqueColors;
 		private final int[] _opaqueIndices;
 		
 		private final float[] _transparentPositions;
 		private final float[] _transparentNormals;
 		private final float[] _transparentTexCoords;
+		private final float[] _transparentColors;
 		private final int[] _transparentIndices;
 		
 		private final float[] _billboardPositions;
 		private final float[] _billboardNormals;
 		private final float[] _billboardTexCoords;
+		private final float[] _billboardColors;
 		private final int[] _billboardIndices;
 		
-		public RegionMeshData(float[] opaquePositions, float[] opaqueNormals, float[] opaqueTexCoords, int[] opaqueIndices, float[] transparentPositions, float[] transparentNormals, float[] transparentTexCoords, int[] transparentIndices, float[] billboardPositions, float[] billboardNormals, float[] billboardTexCoords, int[] billboardIndices)
+		public RegionMeshData(float[] opaquePositions, float[] opaqueNormals, float[] opaqueTexCoords, float[] opaqueColors, int[] opaqueIndices, float[] transparentPositions, float[] transparentNormals, float[] transparentTexCoords, float[] transparentColors, int[] transparentIndices, float[] billboardPositions, float[] billboardNormals, float[] billboardTexCoords, float[] billboardColors, int[] billboardIndices)
 		{
 			_opaquePositions = opaquePositions;
 			_opaqueNormals = opaqueNormals;
 			_opaqueTexCoords = opaqueTexCoords;
+			_opaqueColors = opaqueColors;
 			_opaqueIndices = opaqueIndices;
 			_transparentPositions = transparentPositions;
 			_transparentNormals = transparentNormals;
 			_transparentTexCoords = transparentTexCoords;
+			_transparentColors = transparentColors;
 			_transparentIndices = transparentIndices;
 			_billboardPositions = billboardPositions;
 			_billboardNormals = billboardNormals;
 			_billboardTexCoords = billboardTexCoords;
+			_billboardColors = billboardColors;
 			_billboardIndices = billboardIndices;
 		}
 		
@@ -351,13 +383,17 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Builds raw vertex arrays from the region's block data (background-thread safe).<br>
-	 * Optimized version with zero garbage collection during vertex building.
+	 * Optimized version with zero garbage collection during vertex building.<br>
+	 * Includes per-vertex color data computed from the region's sky light map and face shade factors.
 	 * @param region the region to build mesh data from
 	 * @param worldAccess optional world-level block access for cross-region neighbor lookups (may be null)
-	 * @return a RegionMeshData containing raw vertex arrays
+	 * @return a RegionMeshData containing raw vertex arrays including color data
 	 */
 	public static RegionMeshData buildRegionMeshData(Region region, WorldBlockAccess worldAccess)
 	{
+		// Ensure sky light data is up to date before building vertex colors.
+		region.ensureSkyLightComputed();
+		
 		// Pass 1: Count vertices needed for each mesh type.
 		final int[] counts = countVertices(region, worldAccess);
 		final int opaqueVerts = counts[0];
@@ -365,32 +401,39 @@ public class RegionMeshBuilder
 		final int billboardVerts = counts[2];
 		
 		// Pre-allocate exact-size arrays (null if no vertices).
+		// Color arrays have 4 components per vertex (RGBA).
 		final float[] opaquePos = opaqueVerts > 0 ? new float[opaqueVerts * 3] : null;
 		final float[] opaqueNorm = opaqueVerts > 0 ? new float[opaqueVerts * 3] : null;
 		final float[] opaqueUV = opaqueVerts > 0 ? new float[opaqueVerts * 2] : null;
+		final float[] opaqueCol = opaqueVerts > 0 ? new float[opaqueVerts * 4] : null;
 		final int[] opaqueIdx = opaqueVerts > 0 ? new int[opaqueVerts / 4 * 6] : null;
 		
 		final float[] transPos = transparentVerts > 0 ? new float[transparentVerts * 3] : null;
 		final float[] transNorm = transparentVerts > 0 ? new float[transparentVerts * 3] : null;
 		final float[] transUV = transparentVerts > 0 ? new float[transparentVerts * 2] : null;
+		final float[] transCol = transparentVerts > 0 ? new float[transparentVerts * 4] : null;
 		final int[] transIdx = transparentVerts > 0 ? new int[transparentVerts / 4 * 6] : null;
 		
 		final float[] billPos = billboardVerts > 0 ? new float[billboardVerts * 3] : null;
 		final float[] billNorm = billboardVerts > 0 ? new float[billboardVerts * 3] : null;
 		final float[] billUV = billboardVerts > 0 ? new float[billboardVerts * 2] : null;
+		final float[] billCol = billboardVerts > 0 ? new float[billboardVerts * 4] : null;
 		final int[] billIdx = billboardVerts > 0 ? new int[billboardVerts / 4 * 6] : null;
 		
 		// Pass 2: Fill arrays with direct writes.
 		int opaqueVPtr = 0;
 		int opaqueUPtr = 0;
+		int opaqueCPtr = 0;
 		int opaqueIPtr = 0;
 		
 		int transVPtr = 0;
 		int transUPtr = 0;
+		int transCPtr = 0;
 		int transIPtr = 0;
 		
 		int billVPtr = 0;
 		int billUPtr = 0;
+		int billCPtr = 0;
 		int billIPtr = 0;
 		
 		for (int x = 0; x < Region.SIZE_XZ; x++)
@@ -413,9 +456,15 @@ public class RegionMeshBuilder
 							{
 								if (isFaceVisible(region, x, y, z, face, worldAccess))
 								{
-									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueIdx, x, y, z, face, block, opaqueVPtr, opaqueUPtr, opaqueIPtr);
+									// Light the face based on the NEIGHBOR (air) position's sky light.
+									// This way a face exposed to a bright shaft gets light,
+									// but faces buried in rock stay dark.
+									final float skyLight = getNeighborSkyLight(region, x, y, z, face);
+									final float brightness = Math.max(skyLight * FACE_SHADE[face.ordinal()], MIN_BRIGHTNESS);
+									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, block, brightness, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
 									opaqueVPtr += 4 * 3; // 4 verts × 3 coords
 									opaqueUPtr += 4 * 2; // 4 verts × 2 UVs
+									opaqueCPtr += 4 * 4; // 4 verts × 4 RGBA
 									opaqueIPtr += 6; // 6 indices
 								}
 							}
@@ -427,9 +476,12 @@ public class RegionMeshBuilder
 							{
 								if (isTransparentFaceVisible(region, x, y, z, face, block, worldAccess))
 								{
-									writeFace(transPos, transNorm, transUV, transIdx, x, y, z, face, block, transVPtr, transUPtr, transIPtr);
+									final float skyLight = getNeighborSkyLight(region, x, y, z, face);
+									final float brightness = Math.max(skyLight * FACE_SHADE[face.ordinal()], MIN_BRIGHTNESS);
+									writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, block, brightness, transVPtr, transUPtr, transCPtr, transIPtr);
 									transVPtr += 4 * 3;
 									transUPtr += 4 * 2;
+									transCPtr += 4 * 4;
 									transIPtr += 6;
 								}
 							}
@@ -437,9 +489,13 @@ public class RegionMeshBuilder
 						}
 						case CROSS_BILLBOARD:
 						{
-							writeBillboard(billPos, billNorm, billUV, billIdx, x, y, z, block, billVPtr, billUPtr, billIPtr);
+							// Billboards sit in air/transparent space — use their own position's sky light.
+							final float skyLight = region.getSkyLight(x, y, z);
+							final float brightness = Math.max(skyLight * BILLBOARD_SHADE, MIN_BRIGHTNESS);
+							writeBillboard(billPos, billNorm, billUV, billCol, billIdx, x, y, z, block, brightness, billVPtr, billUPtr, billCPtr, billIPtr);
 							billVPtr += 8 * 3; // 8 verts × 3 coords
 							billUPtr += 8 * 2; // 8 verts × 2 UVs
+							billCPtr += 8 * 4; // 8 verts × 4 RGBA
 							billIPtr += 12; // 12 indices
 							break;
 						}
@@ -448,7 +504,45 @@ public class RegionMeshBuilder
 			}
 		}
 		
-		return new RegionMeshData(opaquePos, opaqueNorm, opaqueUV, opaqueIdx, transPos, transNorm, transUV, transIdx, billPos, billNorm, billUV, billIdx);
+		return new RegionMeshData(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, transPos, transNorm, transUV, transCol, transIdx, billPos, billNorm, billUV, billCol, billIdx);
+	}
+	
+	/**
+	 * Returns the sky light at the neighbor position for a given face.<br>
+	 * A face should be lit by how much sky light reaches the air space it faces,<br>
+	 * not by the block's own buried position. This prevents light bleeding through solids.<br>
+	 * <br>
+	 * If the neighbor is above the region (ny >= SIZE_Y), returns 1.0 (open sky).<br>
+	 * If the neighbor is out of horizontal bounds (cross-region), falls back to the block's own sky light.
+	 */
+	private static float getNeighborSkyLight(Region region, int x, int y, int z, Face face)
+	{
+		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
+		final int nx = x + offset[0];
+		final int ny = y + offset[1];
+		final int nz = z + offset[2];
+		
+		// Above the region — open sky.
+		if (ny >= Region.SIZE_Y)
+		{
+			return 1.0f;
+		}
+		
+		// Below the region — fully underground.
+		if (ny < 0)
+		{
+			return 0.05f;
+		}
+		
+		// Within region bounds — use the neighbor's column sky light.
+		if (nx >= 0 && nx < Region.SIZE_XZ && nz >= 0 && nz < Region.SIZE_XZ)
+		{
+			return region.getSkyLight(nx, ny, nz);
+		}
+		
+		// Cross-region boundary — fall back to block's own sky light.
+		// Minor seam at region edges, but avoids needing cross-region sky light access.
+		return region.getSkyLight(x, y, z);
 	}
 	
 	/**
@@ -515,9 +609,10 @@ public class RegionMeshBuilder
 	}
 	
 	/**
-	 * Writes one face directly to pre-allocated arrays.
+	 * Writes one face directly to pre-allocated arrays, including vertex color data.
+	 * @param brightness the pre-computed brightness for all 4 vertices of this face (skyLight × faceShade)
 	 */
-	private static void writeFace(float[] positions, float[] normals, float[] texCoords, int[] indices, int bx, int by, int bz, Face face, Block block, int vPtr, int uvPtr, int iPtr)
+	private static void writeFace(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Face face, Block block, float brightness, int vPtr, int uvPtr, int cPtr, int iPtr)
 	{
 		final int faceOrdinal = face.ordinal();
 		final int baseVertex = vPtr / 3;
@@ -547,6 +642,12 @@ public class RegionMeshBuilder
 			final float unitV = FACE_UVS[v * 2 + 1];
 			texCoords[uvPtr + v * 2] = uvBounds[0] + unitU * (uvBounds[2] - uvBounds[0]);
 			texCoords[uvPtr + v * 2 + 1] = uvBounds[1] + unitV * (uvBounds[3] - uvBounds[1]);
+			
+			// Vertex color (RGBA) — grayscale brightness from sky light × face shade.
+			colors[cPtr + v * 4] = brightness; // R
+			colors[cPtr + v * 4 + 1] = brightness; // G
+			colors[cPtr + v * 4 + 2] = brightness; // B
+			colors[cPtr + v * 4 + 3] = 1.0f; // A
 		}
 		
 		// Write indices.
@@ -559,23 +660,24 @@ public class RegionMeshBuilder
 	}
 	
 	/**
-	 * Writes billboard directly to pre-allocated arrays.
+	 * Writes billboard directly to pre-allocated arrays, including vertex color data.
+	 * @param brightness the pre-computed brightness for all 8 vertices (skyLight × BILLBOARD_SHADE)
 	 */
-	private static void writeBillboard(float[] positions, float[] normals, float[] texCoords, int[] indices, int bx, int by, int bz, Block block, int vPtr, int uvPtr, int iPtr)
+	private static void writeBillboard(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Block block, float brightness, int vPtr, int uvPtr, int cPtr, int iPtr)
 	{
 		final float[] uvBounds = getAtlasUVs(block, Face.TOP);
 		
 		// Write Quad A.
-		writeBillboardQuad(positions, normals, texCoords, indices, bx, by, bz, BILLBOARD_QUAD_A_FLAT[0], uvBounds, vPtr, uvPtr, iPtr);
+		writeBillboardQuad(positions, normals, texCoords, colors, indices, bx, by, bz, BILLBOARD_QUAD_A_FLAT[0], uvBounds, brightness, vPtr, uvPtr, cPtr, iPtr);
 		
 		// Write Quad B.
-		writeBillboardQuad(positions, normals, texCoords, indices, bx, by, bz, BILLBOARD_QUAD_B_FLAT[0], uvBounds, vPtr + 4 * 3, uvPtr + 4 * 2, iPtr + 6);
+		writeBillboardQuad(positions, normals, texCoords, colors, indices, bx, by, bz, BILLBOARD_QUAD_B_FLAT[0], uvBounds, brightness, vPtr + 4 * 3, uvPtr + 4 * 2, cPtr + 4 * 4, iPtr + 6);
 	}
 	
 	/**
-	 * Writes a single billboard quad.
+	 * Writes a single billboard quad, including vertex color data.
 	 */
-	private static void writeBillboardQuad(float[] positions, float[] normals, float[] texCoords, int[] indices, int bx, int by, int bz, float[] quadVerts, float[] uvBounds, int vPtr, int uvPtr, int iPtr)
+	private static void writeBillboardQuad(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, float[] quadVerts, float[] uvBounds, float brightness, int vPtr, int uvPtr, int cPtr, int iPtr)
 	{
 		final int baseVertex = vPtr / 3;
 		
@@ -596,6 +698,12 @@ public class RegionMeshBuilder
 			normals[vPtr + v * 3] = nx;
 			normals[vPtr + v * 3 + 1] = 0;
 			normals[vPtr + v * 3 + 2] = nz;
+			
+			// Vertex color.
+			colors[cPtr + v * 4] = brightness; // R
+			colors[cPtr + v * 4 + 1] = brightness; // G
+			colors[cPtr + v * 4 + 2] = brightness; // B
+			colors[cPtr + v * 4 + 3] = 1.0f; // A
 		}
 		
 		// Write UVs.
@@ -648,27 +756,29 @@ public class RegionMeshBuilder
 	/**
 	 * Creates jME3 Mesh objects from pre-built raw vertex arrays (main-thread only).<br>
 	 * This is the lightweight step: only DirectBuffer allocation and GPU upload.<br>
-	 * Typically completes in under 1ms per region.
+	 * Typically completes in under 1ms per region.<br>
+	 * Now includes Color buffer for vertex-color-based lighting.
 	 * @param data the pre-built mesh data from {@link #buildRegionMeshData}
 	 * @return a RegionMeshResult containing the three meshes (any may be null)
 	 */
 	public static RegionMeshResult createMeshes(RegionMeshData data)
 	{
-		final Mesh opaqueMesh = data.hasOpaque() ? assembleFromArrays(data._opaquePositions, data._opaqueNormals, data._opaqueTexCoords, data._opaqueIndices) : null;
-		final Mesh transparentMesh = data.hasTransparent() ? assembleFromArrays(data._transparentPositions, data._transparentNormals, data._transparentTexCoords, data._transparentIndices) : null;
-		final Mesh billboardMesh = data.hasBillboard() ? assembleFromArrays(data._billboardPositions, data._billboardNormals, data._billboardTexCoords, data._billboardIndices) : null;
+		final Mesh opaqueMesh = data.hasOpaque() ? assembleFromArrays(data._opaquePositions, data._opaqueNormals, data._opaqueTexCoords, data._opaqueColors, data._opaqueIndices) : null;
+		final Mesh transparentMesh = data.hasTransparent() ? assembleFromArrays(data._transparentPositions, data._transparentNormals, data._transparentTexCoords, data._transparentColors, data._transparentIndices) : null;
+		final Mesh billboardMesh = data.hasBillboard() ? assembleFromArrays(data._billboardPositions, data._billboardNormals, data._billboardTexCoords, data._billboardColors, data._billboardIndices) : null;
 		return new RegionMeshResult(opaqueMesh, transparentMesh, billboardMesh);
 	}
 	
 	/**
-	 * Creates a jME3 Mesh from pre-built primitive arrays.
+	 * Creates a jME3 Mesh from pre-built primitive arrays, including vertex colors.
 	 */
-	private static Mesh assembleFromArrays(float[] positions, float[] normals, float[] texCoords, int[] indices)
+	private static Mesh assembleFromArrays(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices)
 	{
 		final Mesh mesh = new Mesh();
 		mesh.setBuffer(Type.Position, 3, BufferUtils.createFloatBuffer(positions));
 		mesh.setBuffer(Type.Normal, 3, BufferUtils.createFloatBuffer(normals));
 		mesh.setBuffer(Type.TexCoord, 2, BufferUtils.createFloatBuffer(texCoords));
+		mesh.setBuffer(Type.Color, 4, BufferUtils.createFloatBuffer(colors));
 		mesh.setBuffer(Type.Index, 3, BufferUtils.createIntBuffer(indices));
 		mesh.updateBound();
 		return mesh;
@@ -804,21 +914,23 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Generates a Mesh for a single block at (0,0,0) with all 6 faces visible.<br>
-	 * Used for testing that the mesh pipeline works before building full regions.
+	 * Used for testing that the mesh pipeline works before building full regions.<br>
+	 * All vertex colors are set to white (full brightness).
 	 */
 	public static Mesh buildSingleCube()
 	{
 		final List<Float> positions = new ArrayList<>();
 		final List<Float> normals = new ArrayList<>();
 		final List<Float> texCoords = new ArrayList<>();
+		final List<Float> colors = new ArrayList<>();
 		final List<Integer> indices = new ArrayList<>();
 		
 		for (Face face : Face.values())
 		{
-			addFaceUnitUV(positions, normals, texCoords, indices, 0, 0, 0, face);
+			addFaceUnitUV(positions, normals, texCoords, colors, indices, 0, 0, 0, face);
 		}
 		
-		return assembleMesh(positions, normals, texCoords, indices);
+		return assembleMesh(positions, normals, texCoords, colors, indices);
 	}
 	
 	// ========================================================
@@ -830,13 +942,14 @@ public class RegionMeshBuilder
 	 * @param positions vertex position list (x, y, z per vertex)
 	 * @param normals vertex normal list (x, y, z per vertex)
 	 * @param texCoords vertex UV list (u, v per vertex)
+	 * @param colors vertex color list (r, g, b, a per vertex)
 	 * @param indices triangle index list
 	 * @param bx block X position (local)
 	 * @param by block Y position (local)
 	 * @param bz block Z position (local)
 	 * @param face which face to add
 	 */
-	private static void addFaceUnitUV(List<Float> positions, List<Float> normals, List<Float> texCoords, List<Integer> indices, int bx, int by, int bz, Face face)
+	private static void addFaceUnitUV(List<Float> positions, List<Float> normals, List<Float> texCoords, List<Float> colors, List<Integer> indices, int bx, int by, int bz, Face face)
 	{
 		final int faceOrdinal = face.ordinal();
 		final int baseIndex = positions.size() / 3;
@@ -860,6 +973,12 @@ public class RegionMeshBuilder
 			// UV coordinates.
 			texCoords.add(FACE_UVS[v * 2]);
 			texCoords.add(FACE_UVS[v * 2 + 1]);
+			
+			// Vertex color — full white for test cube.
+			colors.add(1.0f); // R
+			colors.add(1.0f); // G
+			colors.add(1.0f); // B
+			colors.add(1.0f); // A
 		}
 		
 		// Add 6 indices (two triangles).
@@ -874,9 +993,9 @@ public class RegionMeshBuilder
 	// ========================================================
 	
 	/**
-	 * Converts the buffer lists into a jME3 Mesh.
+	 * Converts the buffer lists into a jME3 Mesh, including vertex colors.
 	 */
-	private static Mesh assembleMesh(List<Float> positions, List<Float> normals, List<Float> texCoords, List<Integer> indices)
+	private static Mesh assembleMesh(List<Float> positions, List<Float> normals, List<Float> texCoords, List<Float> colors, List<Integer> indices)
 	{
 		final Mesh mesh = new Mesh();
 		
@@ -884,11 +1003,13 @@ public class RegionMeshBuilder
 		final float[] posArray = toFloatArray(positions);
 		final float[] normArray = toFloatArray(normals);
 		final float[] uvArray = toFloatArray(texCoords);
+		final float[] colArray = toFloatArray(colors);
 		final int[] idxArray = toIntArray(indices);
 		
 		mesh.setBuffer(Type.Position, 3, BufferUtils.createFloatBuffer(posArray));
 		mesh.setBuffer(Type.Normal, 3, BufferUtils.createFloatBuffer(normArray));
 		mesh.setBuffer(Type.TexCoord, 2, BufferUtils.createFloatBuffer(uvArray));
+		mesh.setBuffer(Type.Color, 4, BufferUtils.createFloatBuffer(colArray));
 		mesh.setBuffer(Type.Index, 3, BufferUtils.createIntBuffer(idxArray));
 		mesh.updateBound();
 		
