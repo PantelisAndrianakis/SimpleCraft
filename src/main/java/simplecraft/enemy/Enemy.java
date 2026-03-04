@@ -6,7 +6,8 @@ import com.jme3.scene.Node;
 /**
  * Base class for all enemies.<br>
  * Holds the visual model (a hierarchy of Nodes and Geometries built from box primitives),<br>
- * combat stats, and positional data. The model is assembled by {@link EnemyFactory}.
+ * combat stats, and positional data. The model is assembled by {@link EnemyFactory}.<br>
+ * Each frame, {@link EnemyAnimator} is called to drive procedural animations.
  * @author Pantelis Andrianakis
  * @since March 4th 2026
  */
@@ -60,6 +61,15 @@ public class Enemy
 	/** Whether this enemy lives in water (true for PIRANHA only). */
 	private boolean _aquatic = false;
 	
+	/** Whether this enemy is currently moving. */
+	private boolean _isMoving = false;
+	
+	/** Accumulated animation time in seconds (drives sine wave cycles). */
+	private float _animTime = 0;
+	
+	/** Walk animation blend factor (0 = idle, 1 = full walk). Smoothly interpolated. */
+	private float _walkBlend = 0;
+	
 	// Named sub-nodes for body parts (set by EnemyFactory, may be null for types that lack them).
 	private Node _head;
 	private Node _body;
@@ -79,12 +89,12 @@ public class Enemy
 	}
 	
 	/**
-	 * Per-frame update. Placeholder for future AI / animation.
+	 * Per-frame update. Drives procedural animation via {@link EnemyAnimator}.
 	 * @param tpf time per frame in seconds
 	 */
 	public void update(float tpf)
 	{
-		// Future: AI, animation, combat logic.
+		EnemyAnimator.update(this, tpf, _isMoving);
 	}
 	
 	/**
@@ -208,6 +218,36 @@ public class Enemy
 	public void setAquatic(boolean aquatic)
 	{
 		_aquatic = aquatic;
+	}
+	
+	public boolean isMoving()
+	{
+		return _isMoving;
+	}
+	
+	public void setMoving(boolean moving)
+	{
+		_isMoving = moving;
+	}
+	
+	public float getAnimTime()
+	{
+		return _animTime;
+	}
+	
+	public void setAnimTime(float animTime)
+	{
+		_animTime = animTime;
+	}
+	
+	public float getWalkBlend()
+	{
+		return _walkBlend;
+	}
+	
+	public void setWalkBlend(float walkBlend)
+	{
+		_walkBlend = walkBlend;
 	}
 	
 	public Node getHead()

@@ -1,6 +1,8 @@
 package simplecraft.state;
 
 import java.awt.Font;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
@@ -68,6 +70,9 @@ public class PlayingState extends FadeableAppState
 	
 	/** Node that holds all spawned enemy models. */
 	private Node _enemyNode;
+	
+	/** All active enemies in the scene (updated each frame for animation). */
+	private List<Enemy> _enemies;
 	
 	/** Sky color used for both viewport background and fog blending. */
 	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
@@ -334,6 +339,20 @@ public class PlayingState extends FadeableAppState
 				_blockInteraction.update(tpf);
 			}
 			
+			// Update all enemy animations.
+			if (_enemies != null)
+			{
+				final Vector3f playerPos = _playerController.getPosition();
+				for (int i = 0; i < _enemies.size(); i++)
+				{
+					final Enemy enemy = _enemies.get(i);
+					// Stop walking when the player is within detection range (test: see idle animation).
+					final float dist = playerPos.distance(enemy.getPosition());
+					enemy.setMoving(dist > (enemy.getDetectionRange() / 3));
+					enemy.update(tpf);
+				}
+			}
+			
 			// Update fog distance when render distance changes.
 			if (_fogFilter != null && renderDistance != _lastFogRenderDistance)
 			{
@@ -538,6 +557,8 @@ public class PlayingState extends FadeableAppState
 		_enemyNode = new Node("Enemies");
 		app.getRootNode().attachChild(_enemyNode);
 		
+		_enemies = new ArrayList<>();
+		
 		// Small vertical offset to ensure models sit cleanly on top of terrain (prevents ground clipping).
 		final float GROUND_OFFSET = 0.05f;
 		
@@ -574,6 +595,10 @@ public class PlayingState extends FadeableAppState
 			
 			enemy.setPosition(new Vector3f(ex, surfaceY + GROUND_OFFSET, baseZ));
 			_enemyNode.attachChild(enemy.getNode());
+			_enemies.add(enemy);
+			
+			// Set moving for walk animation testing.
+			enemy.setMoving(true);
 			
 			System.out.println("Spawned " + landTypes[i].name() + " at [" + ex + ", " + surfaceY + ", " + baseZ + "]");
 		}
@@ -606,6 +631,8 @@ public class PlayingState extends FadeableAppState
 						{
 							piranha.setPosition(new Vector3f(wx, y, wz));
 							_enemyNode.attachChild(piranha.getNode());
+							_enemies.add(piranha);
+							piranha.setMoving(true);
 							piranhaPlaced = true;
 							System.out.println("Spawned PIRANHA in water at [" + wx + ", " + y + ", " + wz + "]");
 							break;
@@ -621,6 +648,8 @@ public class PlayingState extends FadeableAppState
 			final int fallbackX = baseX + (landTypes.length * 4);
 			piranha.setPosition(new Vector3f(fallbackX, spawnY + GROUND_OFFSET, baseZ));
 			_enemyNode.attachChild(piranha.getNode());
+			_enemies.add(piranha);
+			piranha.setMoving(true);
 			System.out.println("No water found nearby — spawned PIRANHA on land at [" + fallbackX + ", " + spawnY + ", " + baseZ + "] (fallback)");
 		}
 	}
@@ -696,6 +725,7 @@ public class PlayingState extends FadeableAppState
 			app.getRootNode().detachChild(_enemyNode);
 			_enemyNode = null;
 		}
+		_enemies = null;
 		
 		// Clean up world geometry.
 		if (_world != null)
