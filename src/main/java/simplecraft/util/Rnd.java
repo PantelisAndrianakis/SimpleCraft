@@ -1,0 +1,158 @@
+package simplecraft.util;
+
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * Thread-safe static utility for non-deterministic random number generation.<br>
+ * Wraps {@link ThreadLocalRandom} for lock-free performance across threads.<br>
+ * <br>
+ * <b>When to use Rnd:</b> Any runtime randomness that does not need to be reproducible,<br>
+ * such as AI behavior (wander direction, idle timers, attack variance), visual effects<br>
+ * (camera shake, particle spread), and gameplay variation (loot rolls, hit chances).<br>
+ * <br>
+ * <b>When NOT to use Rnd:</b> World generation or spawn point placement that must produce<br>
+ * identical results from the same seed across sessions. For those cases use a dedicated<br>
+ * {@link java.util.Random} instance seeded from the world seed.
+ * @author Pantelis Andrianakis
+ * @since September 15th 2018
+ */
+public class Rnd
+{
+	private static final int MINIMUM_POSITIVE_INT = 1;
+	private static final long MINIMUM_POSITIVE_LONG = 1L;
+	private static final float MINIMUM_POSITIVE_FLOAT = Float.intBitsToFloat(0x1);
+	private static final double MINIMUM_POSITIVE_DOUBLE = Double.longBitsToDouble(0x1L);
+	
+	/**
+	 * @return a random boolean value.
+	 */
+	public static boolean nextBoolean()
+	{
+		return ThreadLocalRandom.current().nextBoolean();
+	}
+	
+	/**
+	 * Generates random bytes and places them into a user-supplied byte array. The number of random bytes produced is equal to the length of the byte array.
+	 * @param bytes the byte array to fill with random bytes.
+	 */
+	public static void nextBytes(byte[] bytes)
+	{
+		ThreadLocalRandom.current().nextBytes(bytes);
+	}
+	
+	/**
+	 * @param bound (int)
+	 * @return a random int value between zero (inclusive) and the specified bound (exclusive).
+	 */
+	public static int get(int bound)
+	{
+		return bound <= 0 ? 0 : ThreadLocalRandom.current().nextInt(bound);
+	}
+	
+	/**
+	 * @param origin (int)
+	 * @param bound (int)
+	 * @return a random int value between the specified origin (inclusive) and the specified bound (inclusive).
+	 */
+	public static int get(int origin, int bound)
+	{
+		return origin >= bound ? origin : ThreadLocalRandom.current().nextInt(origin, bound == Integer.MAX_VALUE ? bound : bound + MINIMUM_POSITIVE_INT);
+	}
+	
+	/**
+	 * @return a random int value.
+	 */
+	public static int nextInt()
+	{
+		return ThreadLocalRandom.current().nextInt();
+	}
+	
+	/**
+	 * @param bound (long)
+	 * @return a random long value between zero (inclusive) and the specified bound (exclusive).
+	 */
+	public static long get(long bound)
+	{
+		return bound <= 0 ? 0 : ThreadLocalRandom.current().nextLong(bound);
+	}
+	
+	/**
+	 * @param origin (long)
+	 * @param bound (long)
+	 * @return a random long value between the specified origin (inclusive) and the specified bound (inclusive).
+	 */
+	public static long get(long origin, long bound)
+	{
+		return origin >= bound ? origin : ThreadLocalRandom.current().nextLong(origin, bound == Long.MAX_VALUE ? bound : bound + MINIMUM_POSITIVE_LONG);
+	}
+	
+	/**
+	 * @return a random long value.
+	 */
+	public static long nextLong()
+	{
+		return ThreadLocalRandom.current().nextLong();
+	}
+	
+	/**
+	 * @param bound (float)
+	 * @return a random float value between zero (inclusive) and the specified bound (exclusive).
+	 */
+	public static float get(float bound)
+	{
+		return bound <= 0 ? 0 : ThreadLocalRandom.current().nextFloat(bound);
+	}
+	
+	/**
+	 * @param origin (float)
+	 * @param bound (float)
+	 * @return a random float value between the specified origin (inclusive) and the specified bound (inclusive).
+	 */
+	public static float get(float origin, float bound)
+	{
+		return origin >= bound ? origin : ThreadLocalRandom.current().nextFloat(origin, bound == Float.MAX_VALUE ? bound : bound + MINIMUM_POSITIVE_FLOAT);
+	}
+	
+	/**
+	 * @return a random float value between zero (inclusive) and one (exclusive).
+	 */
+	public static float nextFloat()
+	{
+		return ThreadLocalRandom.current().nextFloat();
+	}
+	
+	/**
+	 * @param bound (double)
+	 * @return a random double value between zero (inclusive) and the specified bound (exclusive).
+	 */
+	public static double get(double bound)
+	{
+		return bound <= 0 ? 0 : ThreadLocalRandom.current().nextDouble(bound);
+	}
+	
+	/**
+	 * @param origin (double)
+	 * @param bound (double)
+	 * @return a random double value between the specified origin (inclusive) and the specified bound (inclusive).
+	 */
+	public static double get(double origin, double bound)
+	{
+		return origin >= bound ? origin : ThreadLocalRandom.current().nextDouble(origin, bound == Double.MAX_VALUE ? bound : bound + MINIMUM_POSITIVE_DOUBLE);
+	}
+	
+	/**
+	 * @return a random double value between zero (inclusive) and one (exclusive).
+	 */
+	public static double nextDouble()
+	{
+		return ThreadLocalRandom.current().nextDouble();
+	}
+	
+	/**
+	 * @return the next random, Gaussian ("normally") distributed double value with mean 0.0 and standard deviation 1.0 from this random number generator's sequence.
+	 */
+	public static double nextGaussian()
+	{
+		return ThreadLocalRandom.current().nextGaussian();
+	}
+}

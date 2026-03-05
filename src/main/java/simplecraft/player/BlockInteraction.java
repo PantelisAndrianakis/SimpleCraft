@@ -10,7 +10,6 @@ import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
@@ -21,6 +20,7 @@ import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.scene.debug.WireBox;
 import com.jme3.util.BufferUtils;
 
+import simplecraft.util.Rnd;
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
 import simplecraft.world.BlockDestructionQueue;
@@ -817,8 +817,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_shakeTimer = SHAKE_DURATION;
 		// @formatter:off
 		_shakeOffset.set(
-			(FastMath.nextRandomFloat() - 0.5f) * 2.0f * SHAKE_MAGNITUDE,
-			(FastMath.nextRandomFloat() - 0.5f) * 2.0f * SHAKE_MAGNITUDE,
+			(Rnd.nextFloat() - 0.5f) * 2.0f * SHAKE_MAGNITUDE,
+			(Rnd.nextFloat() - 0.5f) * 2.0f * SHAKE_MAGNITUDE,
 			0
 		);
 		// @formatter:on

@@ -4,6 +4,7 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 
+import simplecraft.util.Rnd;
 import simplecraft.world.Block;
 import simplecraft.world.World;
 
@@ -646,7 +647,7 @@ public class EnemyAI
 	{
 		enemy.setAIState(AIState.IDLE);
 		enemy.setStateTimer(0);
-		enemy.setIdleDuration(IDLE_MIN_TIME + FastMath.nextRandomFloat() * (IDLE_MAX_TIME - IDLE_MIN_TIME));
+		enemy.setIdleDuration(IDLE_MIN_TIME + Rnd.nextFloat() * (IDLE_MAX_TIME - IDLE_MIN_TIME));
 		enemy.setMoving(false);
 		enemy.setWanderTarget(null);
 	}
@@ -664,8 +665,8 @@ public class EnemyAI
 		// Try up to 10 times to find a valid land target.
 		for (int attempt = 0; attempt < 10; attempt++)
 		{
-			final float angle = FastMath.nextRandomFloat() * FastMath.TWO_PI;
-			final float radius = 2.0f + FastMath.nextRandomFloat() * (WANDER_RADIUS - 2.0f);
+			final float angle = Rnd.nextFloat() * FastMath.TWO_PI;
+			final float radius = 2.0f + Rnd.nextFloat() * (WANDER_RADIUS - 2.0f);
 			final float tx = pos.x + FastMath.cos(angle) * radius;
 			final float tz = pos.z + FastMath.sin(angle) * radius;
 			final int bx = (int) Math.floor(tx);
@@ -720,7 +721,7 @@ public class EnemyAI
 	{
 		enemy.setAIState(AIState.IDLE);
 		enemy.setStateTimer(0);
-		enemy.setIdleDuration(IDLE_MIN_TIME + FastMath.nextRandomFloat() * (IDLE_MAX_TIME - IDLE_MIN_TIME));
+		enemy.setIdleDuration(IDLE_MIN_TIME + Rnd.nextFloat() * (IDLE_MAX_TIME - IDLE_MIN_TIME));
 		enemy.setCircleCenter(new Vector3f(enemy.getPosition()));
 		enemy.setMoving(true);
 	}
@@ -738,11 +739,11 @@ public class EnemyAI
 		// Try to find a valid water position.
 		for (int attempt = 0; attempt < 10; attempt++)
 		{
-			final float angle = FastMath.nextRandomFloat() * FastMath.TWO_PI;
-			final float radius = 2.0f + FastMath.nextRandomFloat() * (PIRANHA_WANDER_RADIUS - 2.0f);
+			final float angle = Rnd.nextFloat() * FastMath.TWO_PI;
+			final float radius = 2.0f + Rnd.nextFloat() * (PIRANHA_WANDER_RADIUS - 2.0f);
 			final float tx = pos.x + FastMath.cos(angle) * radius;
 			final float tz = pos.z + FastMath.sin(angle) * radius;
-			final float ty = pos.y + (FastMath.nextRandomFloat() - 0.5f) * PIRANHA_DEPTH_VARIATION;
+			final float ty = pos.y + (Rnd.nextFloat() - 0.5f) * PIRANHA_DEPTH_VARIATION;
 			
 			final int bx = (int) Math.floor(tx);
 			final int by = (int) Math.floor(ty);
