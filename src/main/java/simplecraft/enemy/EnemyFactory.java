@@ -177,6 +177,7 @@ public class EnemyFactory
 	{
 		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setTexture("ColorMap", generateNoiseTexture(color));
+		mat.setBoolean("VertexColor", true); // Enable vertex colors.
 		return mat;
 	}
 	
@@ -188,6 +189,7 @@ public class EnemyFactory
 	{
 		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setColor("Color", color);
+		mat.setBoolean("VertexColor", true); // Enable vertex colors.
 		return mat;
 	}
 	
@@ -199,6 +201,7 @@ public class EnemyFactory
 		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setTexture("ColorMap", generateNoiseTexture(color));
 		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		mat.setBoolean("VertexColor", true); // Enable vertex colors.
 		return mat;
 	}
 	

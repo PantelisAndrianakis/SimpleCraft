@@ -630,6 +630,43 @@ public class World
 	}
 	
 	/**
+	 * Returns the sky light factor at the given world coordinates.<br>
+	 * Converts world coordinates to region + local coordinates automatically.<br>
+	 * Returns 1.0 (full sky) if the region is not loaded or coordinates are out of Y bounds.
+	 * @param worldX the world X coordinate
+	 * @param worldY the world Y coordinate
+	 * @param worldZ the world Z coordinate
+	 * @return sky light factor in the range [0.0, 1.0]
+	 */
+	public float getSkyLight(int worldX, int worldY, int worldZ)
+	{
+		// Out of vertical bounds — treat as open sky.
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return 1.0f;
+		}
+		
+		// Convert world to region coordinates using floor division.
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return 1.0f;
+		}
+		
+		// Ensure sky light is computed before querying.
+		region.ensureSkyLightComputed();
+		
+		// Convert world to local coordinates using floor modulus.
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		
+		return region.getSkyLight(localX, worldY, localZ);
+	}
+	
+	/**
 	 * Sets the block at the given world coordinates.<br>
 	 * Converts world coordinates to region + local coordinates automatically.<br>
 	 * The actual block change is queued and applied asynchronously to avoid main-thread stalls.

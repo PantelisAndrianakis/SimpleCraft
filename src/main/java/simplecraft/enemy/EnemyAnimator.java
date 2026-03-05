@@ -112,6 +112,9 @@ public class EnemyAnimator
 	 */
 	public static void update(Enemy enemy, float tpf, boolean isMoving)
 	{
+		// Update lighting first.
+		EnemyLighting.updateLighting(enemy);
+		
 		// Advance animation clock.
 		enemy.setAnimTime(enemy.getAnimTime() + tpf);
 		

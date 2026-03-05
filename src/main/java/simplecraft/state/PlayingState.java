@@ -23,6 +23,7 @@ import simplecraft.SimpleCraft;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyFactory;
+import simplecraft.enemy.EnemyLighting;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.PlayerController;
@@ -344,9 +345,12 @@ public class PlayingState extends FadeableAppState
 			{
 				final Vector3f playerPos = _playerController.getPosition();
 				final boolean playerInWater = _playerController.isInWater();
-				for (int i = 0; i < _enemies.size(); i++)
+				for (Enemy enemy : _enemies)
 				{
-					_enemies.get(i).update(playerPos, playerInWater, _world, tpf);
+					final Vector3f pos = enemy.getPosition();
+					final float skyLight = _world.getSkyLight((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
+					enemy.setSkyLight(skyLight);
+					enemy.update(playerPos, playerInWater, _world, tpf);
 				}
 			}
 			
@@ -591,6 +595,8 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			enemy.setPosition(new Vector3f(ex, surfaceY + GROUND_OFFSET, baseZ));
+			EnemyLighting.initializeLighting(enemy);
+			
 			_enemyNode.attachChild(enemy.getNode());
 			_enemies.add(enemy);
 			
@@ -624,6 +630,7 @@ public class PlayingState extends FadeableAppState
 						if (_world.getBlock(wx, y, wz) == Block.WATER)
 						{
 							piranha.setPosition(new Vector3f(wx, y, wz));
+							EnemyLighting.initializeLighting(piranha);
 							_enemyNode.attachChild(piranha.getNode());
 							_enemies.add(piranha);
 							piranhaPlaced = true;
@@ -640,6 +647,7 @@ public class PlayingState extends FadeableAppState
 		{
 			final int fallbackX = baseX + (landTypes.length * 4);
 			piranha.setPosition(new Vector3f(fallbackX, spawnY + GROUND_OFFSET, baseZ));
+			EnemyLighting.initializeLighting(piranha);
 			_enemyNode.attachChild(piranha.getNode());
 			_enemies.add(piranha);
 			System.out.println("No water found nearby — spawned PIRANHA on land at [" + fallbackX + ", " + spawnY + ", " + baseZ + "] (fallback)");

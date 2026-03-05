@@ -31,11 +31,17 @@ public class Enemy
 	/** Root scene node that holds the entire enemy model. */
 	private final Node _rootNode;
 	
-	/** The type of this enemy. */
-	private final EnemyType _type;
-	
 	/** World position of this enemy (feet / base). */
 	private final Vector3f _position = new Vector3f();
+	
+	/** Current sky light level at enemy position (0-1) */
+	private float _skyLight = 1.0f;
+	
+	/** Whether enemy lighting needs to be updated */
+	private boolean _lightingDirty = true;
+	
+	/** The type of this enemy. */
+	private final EnemyType _type;
 	
 	/** Current health. */
 	private float _health;
@@ -159,6 +165,30 @@ public class Enemy
 	public Vector3f getPosition()
 	{
 		return _position;
+	}
+	
+	public float getSkyLight()
+	{
+		return _skyLight;
+	}
+	
+	public void setSkyLight(float skyLight)
+	{
+		if (Math.abs(_skyLight - skyLight) > 0.01f)
+		{
+			_skyLight = skyLight;
+			_lightingDirty = true;
+		}
+	}
+	
+	public boolean isLightingDirty()
+	{
+		return _lightingDirty;
+	}
+	
+	public void setLightingDirty(boolean lightingDirty)
+	{
+		_lightingDirty = lightingDirty;
 	}
 	
 	public EnemyType getType()
