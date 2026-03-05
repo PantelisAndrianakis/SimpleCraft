@@ -761,6 +761,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			// Clear player-placed flag before removal.
 			_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
 			
+			// Mark as player-removed (prevents enemy spawning in cleared areas).
+			_world.markPlayerRemoved(_targetX, _targetY, _targetZ);
+			
 			// If any adjacent block is liquid, replace with WATER instead of AIR.
 			final Block replacement = (_targetY <= World.WATER_LEVEL && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR;
 			_world.setBlockImmediate(_targetX, _targetY, _targetZ, replacement);

@@ -765,8 +765,7 @@ public class EnemyAI
 	
 	/**
 	 * Rotates the enemy's root node to face a direction on the XZ plane.<br>
-	 * jME3 models face -Z at identity rotation, so we negate the direction
-	 * components to produce the correct yaw angle.
+	 * jME3 models face -Z at identity rotation, so we negate the direction components to produce the correct yaw angle.
 	 * @param enemy the enemy to rotate
 	 * @param dx X component of the movement direction
 	 * @param dz Z component of the movement direction

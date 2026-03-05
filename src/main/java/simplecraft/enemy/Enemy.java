@@ -79,6 +79,12 @@ public class Enemy
 	/** Walk animation blend factor (0 = idle, 1 = full walk). Smoothly interpolated. */
 	private float _walkBlend = 0;
 	
+	/** Whether this enemy is currently playing its spawn-in animation. */
+	private boolean _spawning = false;
+	
+	/** Timer tracking progress of the spawn-in animation (seconds). */
+	private float _spawnTimer = 0;
+	
 	// ------------------------------------------------------------------
 	// AI state fields.
 	// ------------------------------------------------------------------
@@ -132,6 +138,12 @@ public class Enemy
 	 */
 	public void update(Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
+		// Skip AI and animation while the spawn-in effect is playing.
+		if (_spawning)
+		{
+			return;
+		}
+		
 		// AI drives state transitions, movement, and facing.
 		EnemyAI.update(this, playerPos, playerInWater, world, tpf);
 		
@@ -314,6 +326,26 @@ public class Enemy
 	public void setWalkBlend(float walkBlend)
 	{
 		_walkBlend = walkBlend;
+	}
+	
+	public boolean isSpawning()
+	{
+		return _spawning;
+	}
+	
+	public void setSpawning(boolean spawning)
+	{
+		_spawning = spawning;
+	}
+	
+	public float getSpawnTimer()
+	{
+		return _spawnTimer;
+	}
+	
+	public void setSpawnTimer(float spawnTimer)
+	{
+		_spawnTimer = spawnTimer;
 	}
 	
 	// ------------------------------------------------------------------

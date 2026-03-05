@@ -1,9 +1,6 @@
 package simplecraft.state;
 
 import java.awt.Font;
-import java.util.ArrayList;
-import java.util.List;
-
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
@@ -20,10 +17,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
-import simplecraft.enemy.Enemy;
-import simplecraft.enemy.Enemy.EnemyType;
-import simplecraft.enemy.EnemyFactory;
-import simplecraft.enemy.EnemyLighting;
+import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.PlayerController;
@@ -69,11 +63,8 @@ public class PlayingState extends FadeableAppState
 	private BlockInteraction _blockInteraction;
 	private PlayerHUD _playerHUD;
 	
-	/** Node that holds all spawned enemy models. */
-	private Node _enemyNode;
-	
-	/** All active enemies in the scene (updated each frame for animation). */
-	private List<Enemy> _enemies;
+	/** Manages automatic enemy spawning, despawning, and updates. */
+	private SpawnSystem _spawnSystem;
 	
 	/** Sky color used for both viewport background and fog blending. */
 	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
@@ -340,18 +331,10 @@ public class PlayingState extends FadeableAppState
 				_blockInteraction.update(tpf);
 			}
 			
-			// Update all enemy AI and animations.
-			if (_enemies != null)
+			// Update enemy spawn system (spawning, despawning, AI, animation).
+			if (_spawnSystem != null)
 			{
-				final Vector3f playerPos = _playerController.getPosition();
-				final boolean playerInWater = _playerController.isInWater();
-				for (Enemy enemy : _enemies)
-				{
-					final Vector3f pos = enemy.getPosition();
-					final float skyLight = _world.getSkyLight((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
-					enemy.setSkyLight(skyLight);
-					enemy.update(playerPos, playerInWater, _world, tpf);
-				}
+				_spawnSystem.update(_playerController.getPosition(), _playerController.isInWater(), _world, tpf);
 			}
 			
 			// Update fog distance when render distance changes.
@@ -529,8 +512,11 @@ public class PlayingState extends FadeableAppState
 		// Create the player HUD.
 		createHUD();
 		
-		// Spawn test enemies near the player.
-		spawnTestEnemies(spawnY);
+		// Initialize the enemy spawn system.
+		final Node enemyNode = new Node("Enemies");
+		app.getRootNode().attachChild(enemyNode);
+		_spawnSystem = new SpawnSystem(enemyNode, app.getAssetManager(), _world.getSeed());
+		_spawnSystem.setPlayerSpawnZone(SPAWN_X, SPAWN_Z);
 		
 		// Remove the loading screen.
 		hideLoadingScreen();
@@ -539,119 +525,6 @@ public class PlayingState extends FadeableAppState
 		app.getInputManager().setCursorVisible(false);
 		
 		System.out.println("World loaded. Player spawned at [" + SPAWN_X + ", " + spawnY + ", " + SPAWN_Z + "]");
-	}
-	
-	// ========================================================
-	// Test Enemy Spawning.
-	// ========================================================
-	
-	/**
-	 * Spawns one of each enemy type in a row near the player for visual testing.<br>
-	 * Land enemies are placed on the terrain surface with a small Y offset to prevent<br>
-	 * clipping into the ground. The piranha is placed in the nearest water.
-	 * @param spawnY the player's spawn Y coordinate (used as baseline for enemy placement)
-	 */
-	private void spawnTestEnemies(int spawnY)
-	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		
-		_enemyNode = new Node("Enemies");
-		app.getRootNode().attachChild(_enemyNode);
-		
-		_enemies = new ArrayList<>();
-		
-		// Small vertical offset to ensure models sit cleanly on top of terrain (prevents ground clipping).
-		final float GROUND_OFFSET = 0.05f;
-		
-		// Land enemy types — placed in a row close to the player where terrain is guaranteed loaded.
-		final EnemyType[] landTypes =
-		{
-			EnemyType.ZOMBIE,
-			EnemyType.SKELETON,
-			EnemyType.WOLF,
-			EnemyType.SPIDER,
-			EnemyType.SLIME,
-			EnemyType.PLAYER
-		};
-		final int baseX = SPAWN_X - 4; // Start slightly left of spawn center.
-		final int baseZ = SPAWN_Z + 5; // 5 blocks behind spawn (positive Z) to stay in loaded area.
-		
-		for (int i = 0; i < landTypes.length; i++)
-		{
-			final Enemy enemy = EnemyFactory.createEnemy(landTypes[i], app.getAssetManager());
-			final int ex = baseX + (i * 4); // 4 blocks apart for better visibility.
-			
-			// Find the highest solid (non-air, non-water) block at this position.
-			int surfaceY = spawnY;
-			for (int y = 255; y >= 0; y--)
-			{
-				final Block block = _world.getBlock(ex, y, baseZ);
-				if (block != null && block != Block.AIR && block != Block.WATER)
-				{
-					// The top surface of this block is at y + 1 in world coordinates.
-					surfaceY = y + 1;
-					break;
-				}
-			}
-			
-			enemy.setPosition(new Vector3f(ex, surfaceY + GROUND_OFFSET, baseZ));
-			EnemyLighting.initializeLighting(enemy);
-			
-			_enemyNode.attachChild(enemy.getNode());
-			_enemies.add(enemy);
-			
-			System.out.println("Spawned " + landTypes[i].name() + " at [" + ex + ", " + surfaceY + ", " + baseZ + "]");
-		}
-		
-		// Piranha — search for a water block near spawn to place it in.
-		final Enemy piranha = EnemyFactory.createEnemy(EnemyType.PIRANHA, app.getAssetManager());
-		boolean piranhaPlaced = false;
-		
-		// Search in a spiral pattern around spawn for water.
-		final int searchRadius = 32;
-		for (int r = 1; r <= searchRadius && !piranhaPlaced; r++)
-		{
-			for (int dx = -r; dx <= r && !piranhaPlaced; dx++)
-			{
-				for (int dz = -r; dz <= r && !piranhaPlaced; dz++)
-				{
-					// Only check the outer ring of each radius.
-					if (Math.abs(dx) != r && Math.abs(dz) != r)
-					{
-						continue;
-					}
-					
-					final int wx = SPAWN_X + dx;
-					final int wz = SPAWN_Z + dz;
-					
-					// Scan downward for water.
-					for (int y = spawnY + 5; y >= spawnY - 10; y--)
-					{
-						if (_world.getBlock(wx, y, wz) == Block.WATER)
-						{
-							piranha.setPosition(new Vector3f(wx, y, wz));
-							EnemyLighting.initializeLighting(piranha);
-							_enemyNode.attachChild(piranha.getNode());
-							_enemies.add(piranha);
-							piranhaPlaced = true;
-							System.out.println("Spawned PIRANHA in water at [" + wx + ", " + y + ", " + wz + "]");
-							break;
-						}
-					}
-				}
-			}
-		}
-		
-		// Fallback: place piranha near the other enemies if no water found.
-		if (!piranhaPlaced)
-		{
-			final int fallbackX = baseX + (landTypes.length * 4);
-			piranha.setPosition(new Vector3f(fallbackX, spawnY + GROUND_OFFSET, baseZ));
-			EnemyLighting.initializeLighting(piranha);
-			_enemyNode.attachChild(piranha.getNode());
-			_enemies.add(piranha);
-			System.out.println("No water found nearby — spawned PIRANHA on land at [" + fallbackX + ", " + spawnY + ", " + baseZ + "] (fallback)");
-		}
 	}
 	
 	// ========================================================
@@ -719,13 +592,12 @@ public class PlayingState extends FadeableAppState
 			_blockInteraction = null;
 		}
 		
-		// Clean up enemy models.
-		if (_enemyNode != null)
+		// Clean up enemy spawn system.
+		if (_spawnSystem != null)
 		{
-			app.getRootNode().detachChild(_enemyNode);
-			_enemyNode = null;
+			app.getRootNode().detachChild(_spawnSystem.getEnemyNode());
+			_spawnSystem = null;
 		}
-		_enemies = null;
 		
 		// Clean up world geometry.
 		if (_world != null)

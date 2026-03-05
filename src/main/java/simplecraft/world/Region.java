@@ -8,6 +8,7 @@ import java.util.Set;
  * Block data is stored as byte ordinals for memory efficiency.<br>
  * Includes mesh dirty flags for intelligent rebuilding.<br>
  * Tracks which blocks were placed by the player (for support physics).<br>
+ * Tracks which blocks were removed by the player (to prevent enemy spawning).<br>
  * Precomputes sky light data for vertex-color-based lighting.
  * @author Pantelis Andrianakis
  * @since February 21st 2026
@@ -43,6 +44,9 @@ public class Region
 	
 	/** Set of packed local positions of player-placed blocks. */
 	private final Set<Long> _playerPlacedBlocks = new HashSet<>();
+	
+	/** Set of packed local positions of player-removed blocks (prevents enemy spawning). */
+	private final Set<Long> _playerRemovedBlocks = new HashSet<>();
 	
 	/**
 	 * Per-column sky light ceiling: the Y of the highest solid/leaf block.<br>
@@ -355,6 +359,55 @@ public class Region
 	public Set<Long> getPlayerPlacedSet()
 	{
 		return _playerPlacedBlocks;
+	}
+	
+	// ========================================================
+	// Player-Removed Block Tracking.
+	// ========================================================
+	
+	/**
+	 * Marks the block at the given local coordinates as player-removed.<br>
+	 * Used to prevent enemy spawning in areas the player has excavated.
+	 */
+	public void markPlayerRemoved(int x, int y, int z)
+	{
+		if (isInBounds(x, y, z))
+		{
+			_playerRemovedBlocks.add(packLocalPos(x, y, z));
+		}
+	}
+	
+	/**
+	 * Clears the player-removed flag for the block at the given local coordinates.
+	 */
+	public void clearPlayerRemoved(int x, int y, int z)
+	{
+		if (isInBounds(x, y, z))
+		{
+			_playerRemovedBlocks.remove(packLocalPos(x, y, z));
+		}
+	}
+	
+	/**
+	 * Returns true if the block at the given local coordinates was removed by the player.
+	 */
+	public boolean isPlayerRemoved(int x, int y, int z)
+	{
+		if (!isInBounds(x, y, z))
+		{
+			return false;
+		}
+		
+		return _playerRemovedBlocks.contains(packLocalPos(x, y, z));
+	}
+	
+	/**
+	 * Returns the set of packed positions of player-removed blocks.<br>
+	 * Used for serialization (save/load in Session 17).
+	 */
+	public Set<Long> getPlayerRemovedSet()
+	{
+		return _playerRemovedBlocks;
 	}
 	
 	// ========================================================

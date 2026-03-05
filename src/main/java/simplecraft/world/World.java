@@ -1009,6 +1009,75 @@ public class World
 		region.clearPlayerPlaced(localX, worldY, localZ);
 	}
 	
+	/**
+	 * Returns whether the block at the given world coordinates was removed by the player.
+	 */
+	public boolean isPlayerRemoved(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return false;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return false;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		return region.isPlayerRemoved(localX, worldY, localZ);
+	}
+	
+	/**
+	 * Marks the block at the given world coordinates as player-removed.
+	 */
+	public void markPlayerRemoved(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		region.markPlayerRemoved(localX, worldY, localZ);
+	}
+	
+	/**
+	 * Clears the player-removed flag for the block at the given world coordinates.
+	 */
+	public void clearPlayerRemoved(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		region.clearPlayerRemoved(localX, worldY, localZ);
+	}
+	
 	// ========================================================
 	// Lifecycle.
 	// ========================================================
