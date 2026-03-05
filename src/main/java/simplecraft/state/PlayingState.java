@@ -339,17 +339,14 @@ public class PlayingState extends FadeableAppState
 				_blockInteraction.update(tpf);
 			}
 			
-			// Update all enemy animations.
+			// Update all enemy AI and animations.
 			if (_enemies != null)
 			{
 				final Vector3f playerPos = _playerController.getPosition();
+				final boolean playerInWater = _playerController.isInWater();
 				for (int i = 0; i < _enemies.size(); i++)
 				{
-					final Enemy enemy = _enemies.get(i);
-					// Stop walking when the player is within detection range (test: see idle animation).
-					final float dist = playerPos.distance(enemy.getPosition());
-					enemy.setMoving(dist > (enemy.getDetectionRange() / 3));
-					enemy.update(tpf);
+					_enemies.get(i).update(playerPos, playerInWater, _world, tpf);
 				}
 			}
 			
@@ -597,9 +594,6 @@ public class PlayingState extends FadeableAppState
 			_enemyNode.attachChild(enemy.getNode());
 			_enemies.add(enemy);
 			
-			// Set moving for walk animation testing.
-			enemy.setMoving(true);
-			
 			System.out.println("Spawned " + landTypes[i].name() + " at [" + ex + ", " + surfaceY + ", " + baseZ + "]");
 		}
 		
@@ -632,7 +626,6 @@ public class PlayingState extends FadeableAppState
 							piranha.setPosition(new Vector3f(wx, y, wz));
 							_enemyNode.attachChild(piranha.getNode());
 							_enemies.add(piranha);
-							piranha.setMoving(true);
 							piranhaPlaced = true;
 							System.out.println("Spawned PIRANHA in water at [" + wx + ", " + y + ", " + wz + "]");
 							break;
@@ -649,7 +642,6 @@ public class PlayingState extends FadeableAppState
 			piranha.setPosition(new Vector3f(fallbackX, spawnY + GROUND_OFFSET, baseZ));
 			_enemyNode.attachChild(piranha.getNode());
 			_enemies.add(piranha);
-			piranha.setMoving(true);
 			System.out.println("No water found nearby — spawned PIRANHA on land at [" + fallbackX + ", " + spawnY + ", " + baseZ + "] (fallback)");
 		}
 	}

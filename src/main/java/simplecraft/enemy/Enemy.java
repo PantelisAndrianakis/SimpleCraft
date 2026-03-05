@@ -3,11 +3,14 @@ package simplecraft.enemy;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
+import simplecraft.enemy.EnemyAI.AIState;
+import simplecraft.world.World;
+
 /**
  * Base class for all enemies.<br>
  * Holds the visual model (a hierarchy of Nodes and Geometries built from box primitives),<br>
- * combat stats, and positional data. The model is assembled by {@link EnemyFactory}.<br>
- * Each frame, {@link EnemyAnimator} is called to drive procedural animations.
+ * combat stats, positional data, and AI state. The model is assembled by {@link EnemyFactory}.<br>
+ * Each frame, {@link EnemyAI} drives behavior and {@link EnemyAnimator} drives procedural animations.
  * @author Pantelis Andrianakis
  * @since March 4th 2026
  */
@@ -70,7 +73,32 @@ public class Enemy
 	/** Walk animation blend factor (0 = idle, 1 = full walk). Smoothly interpolated. */
 	private float _walkBlend = 0;
 	
-	// Named sub-nodes for body parts (set by EnemyFactory, may be null for types that lack them).
+	// ------------------------------------------------------------------
+	// AI state fields.
+	// ------------------------------------------------------------------
+	
+	/** Current AI state. */
+	private AIState _aiState = AIState.IDLE;
+	
+	/** Time spent in the current AI state (seconds). */
+	private float _stateTimer = 0;
+	
+	/** Random idle duration for the current IDLE period (seconds). */
+	private float _idleDuration = 3.0f;
+	
+	/** Current wander target position (null when not wandering). */
+	private Vector3f _wanderTarget;
+	
+	/** Time since last attack (seconds). Used for attack cooldown tracking. */
+	private float _attackTimer = 0;
+	
+	/** Piranha circle center for idle circling behavior. */
+	private Vector3f _circleCenter;
+	
+	// ------------------------------------------------------------------
+	// Body part sub-nodes (set by EnemyFactory, may be null for types that lack them).
+	// ------------------------------------------------------------------
+	
 	private Node _head;
 	private Node _body;
 	private Node _leftArm;
@@ -89,11 +117,19 @@ public class Enemy
 	}
 	
 	/**
-	 * Per-frame update. Drives procedural animation via {@link EnemyAnimator}.
+	 * Per-frame update. Drives AI behavior via {@link EnemyAI} and then<br>
+	 * procedural animation via {@link EnemyAnimator}.
+	 * @param playerPos the player's current world position
+	 * @param playerInWater true if the player's feet are in water
+	 * @param world the game world for block queries
 	 * @param tpf time per frame in seconds
 	 */
-	public void update(float tpf)
+	public void update(Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
+		// AI drives state transitions, movement, and facing.
+		EnemyAI.update(this, playerPos, playerInWater, world, tpf);
+		
+		// Animator drives limb rotations and visual effects.
 		EnemyAnimator.update(this, tpf, _isMoving);
 	}
 	
@@ -249,6 +285,74 @@ public class Enemy
 	{
 		_walkBlend = walkBlend;
 	}
+	
+	// ------------------------------------------------------------------
+	// AI state accessors.
+	// ------------------------------------------------------------------
+	
+	public AIState getAIState()
+	{
+		return _aiState;
+	}
+	
+	public void setAIState(AIState aiState)
+	{
+		_aiState = aiState;
+	}
+	
+	public float getStateTimer()
+	{
+		return _stateTimer;
+	}
+	
+	public void setStateTimer(float stateTimer)
+	{
+		_stateTimer = stateTimer;
+	}
+	
+	public float getIdleDuration()
+	{
+		return _idleDuration;
+	}
+	
+	public void setIdleDuration(float idleDuration)
+	{
+		_idleDuration = idleDuration;
+	}
+	
+	public Vector3f getWanderTarget()
+	{
+		return _wanderTarget;
+	}
+	
+	public void setWanderTarget(Vector3f wanderTarget)
+	{
+		_wanderTarget = wanderTarget;
+	}
+	
+	public float getAttackTimer()
+	{
+		return _attackTimer;
+	}
+	
+	public void setAttackTimer(float attackTimer)
+	{
+		_attackTimer = attackTimer;
+	}
+	
+	public Vector3f getCircleCenter()
+	{
+		return _circleCenter;
+	}
+	
+	public void setCircleCenter(Vector3f circleCenter)
+	{
+		_circleCenter = circleCenter;
+	}
+	
+	// ------------------------------------------------------------------
+	// Body part accessors (set by EnemyFactory).
+	// ------------------------------------------------------------------
 	
 	public Node getHead()
 	{
