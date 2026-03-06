@@ -154,6 +154,19 @@ public class Enemy
 	private boolean _hitFlashActive;
 	
 	// ------------------------------------------------------------------
+	// Pathfinding fields.
+	// ------------------------------------------------------------------
+	
+	/** Current A* path waypoints (world-space positions). Null when no path active. */
+	private List<Vector3f> _path;
+	
+	/** Index of the next waypoint to walk toward in the current path. */
+	private int _pathIndex = 0;
+	
+	/** Timer tracking seconds since the last path recalculation. */
+	private float _pathTimer = 0;
+	
+	// ------------------------------------------------------------------
 	// Body part sub-nodes (set by EnemyFactory, may be null for types that lack them).
 	// ------------------------------------------------------------------
 	
@@ -610,6 +623,51 @@ public class Enemy
 	public void setCircleCenter(Vector3f circleCenter)
 	{
 		_circleCenter = circleCenter;
+	}
+	
+	// ------------------------------------------------------------------
+	// Pathfinding accessors.
+	// ------------------------------------------------------------------
+	
+	public List<Vector3f> getPath()
+	{
+		return _path;
+	}
+	
+	public void setPath(List<Vector3f> path)
+	{
+		_path = path;
+		_pathIndex = 0;
+	}
+	
+	public int getPathIndex()
+	{
+		return _pathIndex;
+	}
+	
+	public void setPathIndex(int pathIndex)
+	{
+		_pathIndex = pathIndex;
+	}
+	
+	public float getPathTimer()
+	{
+		return _pathTimer;
+	}
+	
+	public void setPathTimer(float pathTimer)
+	{
+		_pathTimer = pathTimer;
+	}
+	
+	/**
+	 * Clears the current path and resets the path timer.
+	 */
+	public void clearPath()
+	{
+		_path = null;
+		_pathIndex = 0;
+		_pathTimer = 0;
 	}
 	
 	// ------------------------------------------------------------------

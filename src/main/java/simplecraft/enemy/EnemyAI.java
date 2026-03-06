@@ -1,5 +1,7 @@
 package simplecraft.enemy;
 
+import java.util.List;
+
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
@@ -73,6 +75,23 @@ public class EnemyAI
 	 * Prevents enemies at ground level from hitting a player standing on tall pillars.
 	 */
 	private static final float MAX_VERTICAL_ATTACK_REACH = 2.0f;
+	
+	// ------------------------------------------------------------------
+	// Pathfinding constants.
+	// ------------------------------------------------------------------
+	
+	/** How often to recalculate the A* path during CHASE (seconds). */
+	private static final float PATH_RECALC_INTERVAL = 0.5f;
+	
+	/** Distance to a waypoint at which the enemy advances to the next one (blocks). */
+	private static final float WAYPOINT_ARRIVAL_THRESHOLD = 0.5f;
+	
+	/**
+	 * Minimum horizontal distance to player at which pathfinding is used.<br>
+	 * Below this distance, direct movement is used instead since pathfinding<br>
+	 * overhead is unnecessary at close range.
+	 */
+	private static final float PATH_MIN_DISTANCE = 2.5f;
 	
 	// ------------------------------------------------------------------
 	// Aquatic AI constants (Piranha).
@@ -234,9 +253,69 @@ public class EnemyAI
 					break;
 				}
 				
-				// Move toward player at full speed.
-				final boolean moved = moveLandToward(enemy, playerPos, enemy.getMoveSpeed(), world, tpf);
-				enemy.setMoving(moved);
+				// --- Pathfinding-driven movement ---
+				
+				// At very close range, use direct movement (no pathfinding overhead).
+				if (distToPlayer <= PATH_MIN_DISTANCE)
+				{
+					final boolean moved = moveLandToward(enemy, playerPos, enemy.getMoveSpeed(), world, tpf);
+					enemy.setMoving(moved);
+					break;
+				}
+				
+				// Advance path recalculation timer.
+				enemy.setPathTimer(enemy.getPathTimer() + tpf);
+				
+				// Recalculate path periodically or when no path exists.
+				if (enemy.getPath() == null || enemy.getPathTimer() >= PATH_RECALC_INTERVAL)
+				{
+					final int headroom = getHeadroom(enemy);
+					final int searchRange = (int) Math.ceil(detectionRange);
+					final List<Vector3f> path = Pathfinder.findPath(world, enemy.getPosition(), playerPos, headroom, searchRange);
+					
+					if (!path.isEmpty())
+					{
+						enemy.setPath(path); // Also resets pathIndex to 0.
+					}
+					else
+					{
+						// No path found — clear stale path so we fall back to direct.
+						enemy.clearPath();
+					}
+					enemy.setPathTimer(0);
+				}
+				
+				// Follow the current path if one exists.
+				final List<Vector3f> path = enemy.getPath();
+				if (path != null && enemy.getPathIndex() < path.size())
+				{
+					final Vector3f waypoint = path.get(enemy.getPathIndex());
+					final boolean moved = moveLandToward(enemy, waypoint, enemy.getMoveSpeed(), world, tpf);
+					enemy.setMoving(moved);
+					
+					// Check if we arrived at the current waypoint.
+					if (horizontalDistance(enemy.getPosition(), waypoint) < WAYPOINT_ARRIVAL_THRESHOLD)
+					{
+						enemy.setPathIndex(enemy.getPathIndex() + 1);
+						
+						// If path is exhausted, clear it so next recalc generates fresh one.
+						if (enemy.getPathIndex() >= path.size())
+						{
+							enemy.clearPath();
+						}
+					}
+					else if (!moved)
+					{
+						// Blocked on a waypoint — force immediate recalculation next frame.
+						enemy.setPathTimer(PATH_RECALC_INTERVAL);
+					}
+				}
+				else
+				{
+					// No valid path — fall back to direct movement (best effort).
+					final boolean moved = moveLandToward(enemy, playerPos, enemy.getMoveSpeed(), world, tpf);
+					enemy.setMoving(moved);
+				}
 				break;
 			}
 			case ATTACK:
@@ -658,6 +737,7 @@ public class EnemyAI
 		enemy.setIdleDuration(IDLE_MIN_TIME + Rnd.nextFloat() * (IDLE_MAX_TIME - IDLE_MIN_TIME));
 		enemy.setMoving(false);
 		enemy.setWanderTarget(null);
+		enemy.clearPath();
 	}
 	
 	/**
@@ -709,6 +789,7 @@ public class EnemyAI
 	{
 		enemy.setAIState(AIState.CHASE);
 		enemy.setStateTimer(0);
+		enemy.clearPath(); // Force fresh path calculation.
 	}
 	
 	/**
@@ -720,6 +801,7 @@ public class EnemyAI
 		enemy.setStateTimer(0);
 		enemy.setAttackTimer(0);
 		enemy.setMoving(false);
+		enemy.clearPath();
 	}
 	
 	/**
@@ -766,6 +848,32 @@ public class EnemyAI
 		
 		// Failed — circle in place.
 		enterAquaticIdle(enemy);
+	}
+	
+	// ==================================================================
+	// Pathfinding helpers.
+	// ==================================================================
+	
+	/**
+	 * Returns the headroom (number of air blocks needed above ground) for the given enemy type.<br>
+	 * Humanoid enemies (Zombie, Skeleton, Player) need 2 blocks; small enemies need 1.
+	 * @param enemy the enemy to check
+	 * @return headroom in blocks
+	 */
+	private static int getHeadroom(Enemy enemy)
+	{
+		switch (enemy.getType())
+		{
+			case SPIDER:
+			case SLIME:
+			{
+				return 1;
+			}
+			default:
+			{
+				return 2;
+			}
+		}
 	}
 	
 	// ==================================================================
