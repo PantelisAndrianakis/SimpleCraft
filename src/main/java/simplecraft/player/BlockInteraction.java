@@ -184,6 +184,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private boolean _attackHeld;
 	private boolean _placePressed;
 	
+	/**
+	 * When true, attack processing is suppressed for this frame.<br>
+	 * Set by PlayingState when the combat system detects an enemy in the crosshair,<br>
+	 * preventing block breaking behind enemies during melee combat.
+	 */
+	private boolean _attackSuppressed;
+	
 	// Block selection.
 	private int _selectedBlockIndex;
 	
@@ -709,6 +716,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private void handleAttack()
 	{
 		if (!_hasTarget)
+		{
+			return;
+		}
+		
+		// Suppressed by combat system (enemy in crosshair).
+		if (_attackSuppressed)
 		{
 			return;
 		}
@@ -1568,6 +1581,25 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public Block getSelectedBlock()
 	{
 		return PLACEABLE_BLOCKS[_selectedBlockIndex];
+	}
+	
+	/**
+	 * Returns true if the attack (left-click) is currently held down.
+	 */
+	public boolean isAttackHeld()
+	{
+		return _attackHeld;
+	}
+	
+	/**
+	 * Sets whether attack processing should be suppressed this frame.<br>
+	 * Used by PlayingState to prevent block breaking when the combat system<br>
+	 * detects an enemy in the player's crosshair.
+	 * @param suppressed true to suppress attack, false to allow normal processing
+	 */
+	public void setAttackSuppressed(boolean suppressed)
+	{
+		_attackSuppressed = suppressed;
 	}
 	
 	/**

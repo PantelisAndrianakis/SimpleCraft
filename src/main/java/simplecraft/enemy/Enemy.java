@@ -1,7 +1,15 @@
 package simplecraft.enemy;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.jme3.asset.AssetManager;
+import com.jme3.material.Material;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 
 import simplecraft.enemy.EnemyAI.AIState;
 import simplecraft.world.World;
@@ -10,7 +18,12 @@ import simplecraft.world.World;
  * Base class for all enemies.<br>
  * Holds the visual model (a hierarchy of Nodes and Geometries built from box primitives),<br>
  * combat stats, positional data, and AI state. The model is assembled by {@link EnemyFactory}.<br>
- * Each frame, {@link EnemyAI} drives behavior and {@link EnemyAnimator} drives procedural animations.
+ * Each frame, {@link EnemyAI} drives behavior and {@link EnemyAnimator} drives procedural animations.<br>
+ * <br>
+ * <b>Player combat:</b> {@link #takeDamage(float)} reduces health and triggers a 0.1-second white hit flash<br>
+ * across all geometry materials. When health reaches zero the enemy dies — {@code isAlive()} returns false,<br>
+ * the state timer resets for death-linger tracking in {@link simplecraft.enemy.SpawnSystem}, and the model<br>
+ * scales down to zero over the linger duration via {@link EnemyAnimator}.
  * @author Pantelis Andrianakis
  * @since March 4th 2026
  */
@@ -27,6 +40,17 @@ public class Enemy
 		PIRANHA,
 		PLAYER
 	}
+	
+	// ------------------------------------------------------------------
+	// Hit flash constants.
+	// ------------------------------------------------------------------
+	
+	/** Duration of the white hit flash in seconds. */
+	private static final float HIT_FLASH_DURATION = 0.1f;
+	
+	// ------------------------------------------------------------------
+	// Fields.
+	// ------------------------------------------------------------------
 	
 	/** Root scene node that holds the entire enemy model. */
 	private final Node _rootNode;
@@ -66,6 +90,12 @@ public class Enemy
 	
 	/** Whether this enemy is alive. */
 	private boolean _alive = true;
+	
+	/** Whether this enemy is currently playing its death animation. */
+	private boolean _dying = false;
+	
+	/** Timer tracking progress of the death animation (seconds). */
+	private float _deathTimer = 0;
 	
 	/** Whether this enemy lives in water (true for PIRANHA only). */
 	private boolean _aquatic = false;
@@ -108,6 +138,22 @@ public class Enemy
 	private Vector3f _circleCenter;
 	
 	// ------------------------------------------------------------------
+	// Hit flash / death animation fields.
+	// ------------------------------------------------------------------
+	
+	/** Cached (Geometry, original Material) pairs for hit flash restoration. */
+	private List<Object[]> _materialCache;
+	
+	/** Shared white material used for the hit flash effect. */
+	private Material _whiteMaterial;
+	
+	/** Remaining time for the current hit flash (counts down to 0). */
+	private float _hitFlashTimer;
+	
+	/** Whether the hit flash is currently active (materials swapped to white). */
+	private boolean _hitFlashActive;
+	
+	// ------------------------------------------------------------------
 	// Body part sub-nodes (set by EnemyFactory, may be null for types that lack them).
 	// ------------------------------------------------------------------
 	
@@ -129,6 +175,137 @@ public class Enemy
 	}
 	
 	/**
+	 * Initializes combat-related visuals: caches all geometry materials and creates<br>
+	 * the shared white material used for hit flashes. Must be called after the model<br>
+	 * is fully assembled by {@link EnemyFactory}.
+	 * @param assetManager the asset manager for material creation
+	 */
+	public void initCombat(AssetManager assetManager)
+	{
+		_whiteMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		_whiteMaterial.setColor("Color", ColorRGBA.White);
+		
+		_materialCache = new ArrayList<>();
+		cacheMaterials(_rootNode);
+	}
+	
+	/**
+	 * Recursively traverses the node hierarchy and stores every Geometry's<br>
+	 * current material for later restoration after a hit flash.
+	 */
+	private void cacheMaterials(Node node)
+	{
+		for (Spatial child : node.getChildren())
+		{
+			if (child instanceof Geometry)
+			{
+				final Geometry geom = (Geometry) child;
+				_materialCache.add(new Object[]
+				{
+					geom,
+					geom.getMaterial()
+				});
+			}
+			else if (child instanceof Node)
+			{
+				cacheMaterials((Node) child);
+			}
+		}
+	}
+	
+	// ------------------------------------------------------------------
+	// Player combat.
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Deals damage to this enemy. Triggers a white hit flash on the model.<br>
+	 * If health drops to zero, the enemy dies: {@code isAlive()} returns false<br>
+	 * and the state timer resets so the spawn system can track the death linger period.
+	 * @param amount the amount of damage to deal (positive)
+	 */
+	public void takeDamage(float amount)
+	{
+		if (!_alive || _dying || amount <= 0)
+		{
+			return;
+		}
+		
+		_health -= amount;
+		
+		if (_health <= 0)
+		{
+			_health = 0;
+			_dying = true;
+			
+			// Stop movement so the death pose plays cleanly.
+			_isMoving = false;
+		}
+		
+		// Trigger hit flash (white materials for HIT_FLASH_DURATION).
+		applyWhiteMaterial();
+		_hitFlashTimer = HIT_FLASH_DURATION;
+		_hitFlashActive = true;
+	}
+	
+	/**
+	 * Updates visual effects each frame: hit flash fade-out and death scale-down.<br>
+	 * Called by the spawn system for both alive and dead enemies.
+	 * @param tpf time per frame in seconds
+	 */
+	public void updateVisuals(float tpf)
+	{
+		// Hit flash fade-out.
+		if (_hitFlashActive)
+		{
+			_hitFlashTimer -= tpf;
+			if (_hitFlashTimer <= 0)
+			{
+				_hitFlashActive = false;
+				restoreOriginalMaterials();
+			}
+		}
+	}
+	
+	/**
+	 * Sets all cached geometries to the white flash material.
+	 */
+	private void applyWhiteMaterial()
+	{
+		if (_materialCache == null)
+		{
+			return;
+		}
+		
+		for (Object[] pair : _materialCache)
+		{
+			((Geometry) pair[0]).setMaterial(_whiteMaterial);
+		}
+	}
+	
+	/**
+	 * Restores all cached geometries to their original materials.
+	 */
+	private void restoreOriginalMaterials()
+	{
+		if (_materialCache == null)
+		{
+			return;
+		}
+		
+		for (Object[] pair : _materialCache)
+		{
+			((Geometry) pair[0]).setMaterial((Material) pair[1]);
+		}
+		
+		// Mark lighting dirty so EnemyLighting re-applies the correct light level.
+		_lightingDirty = true;
+	}
+	
+	// ------------------------------------------------------------------
+	// Per-frame update.
+	// ------------------------------------------------------------------
+	
+	/**
 	 * Per-frame update. Drives AI behavior via {@link EnemyAI} and then<br>
 	 * procedural animation via {@link EnemyAnimator}.
 	 * @param playerPos the player's current world position
@@ -143,6 +320,9 @@ public class Enemy
 		{
 			return;
 		}
+		
+		// Update visual effects (hit flash fade-out).
+		updateVisuals(tpf);
 		
 		// AI drives state transitions, movement, and facing.
 		EnemyAI.update(this, playerPos, playerInWater, world, tpf);
@@ -286,6 +466,26 @@ public class Enemy
 	public void setAlive(boolean alive)
 	{
 		_alive = alive;
+	}
+	
+	public boolean isDying()
+	{
+		return _dying;
+	}
+	
+	public void setDying(boolean dying)
+	{
+		_dying = dying;
+	}
+	
+	public float getDeathTimer()
+	{
+		return _deathTimer;
+	}
+	
+	public void setDeathTimer(float deathTimer)
+	{
+		_deathTimer = deathTimer;
 	}
 	
 	public boolean isAquatic()

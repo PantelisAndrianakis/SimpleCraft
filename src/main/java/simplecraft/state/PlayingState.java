@@ -1,6 +1,7 @@
 package simplecraft.state;
 
 import java.awt.Font;
+import java.util.List;
 
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
@@ -21,6 +22,7 @@ import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
 import simplecraft.combat.CombatSystem;
+import simplecraft.enemy.Enemy;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
@@ -51,7 +53,11 @@ import simplecraft.world.WorldInfo;
  * during the pause overlay transition (disable → re-enable cycle).<br>
  * <br>
  * Lighting is fully baked into vertex colors (sky light + directional face shading).<br>
- * No scene lights (DirectionalLight, AmbientLight) are needed — materials use Unshaded.j3md.
+ * No scene lights (DirectionalLight, AmbientLight) are needed — materials use Unshaded.j3md.<br>
+ * <br>
+ * <b>Combat priority:</b> On left click, the combat system raycasts for enemies first.<br>
+ * If an enemy is in the crosshair, block interaction attack is suppressed. This prevents<br>
+ * accidentally mining blocks behind enemies while fighting.
  * @author Pantelis Andrianakis
  * @since February 18th 2026
  */
@@ -70,7 +76,7 @@ public class PlayingState extends FadeableAppState
 	/** Manages automatic enemy spawning, despawning, and updates. */
 	private SpawnSystem _spawnSystem;
 	
-	/** Manages enemy → player damage, screen flashes, and death healing drops. */
+	/** Manages enemy → player damage, player → enemy attacks, screen flashes, and death healing drops. */
 	private CombatSystem _combatSystem;
 	
 	/** Whether the player is currently dead (death screen showing). */
@@ -354,9 +360,23 @@ public class PlayingState extends FadeableAppState
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			_world.update(_playerController.getPosition(), renderDistance);
 			
+			// --- Player → Enemy attack priority ---
+			// Check enemies FIRST on left-click. If the crosshair is on an enemy,
+			// suppress block interaction's attack so we don't mine blocks behind enemies.
+			boolean suppressBlockAttack = false;
+			if (_combatSystem != null && _spawnSystem != null && !_playerDead)
+			{
+				if (_blockInteraction != null && _blockInteraction.isAttackHeld())
+				{
+					final List<Enemy> enemies = _spawnSystem.getEnemies();
+					suppressBlockAttack = _combatSystem.tryPlayerAttack(app.getCamera(), enemies);
+				}
+			}
+			
 			// Update block interaction (raycasting, breaking, placing).
 			if (_blockInteraction != null && !_playerDead)
 			{
+				_blockInteraction.setAttackSuppressed(suppressBlockAttack);
 				_blockInteraction.setShowHighlight(app.getSettingsManager().isShowHighlight());
 				_blockInteraction.update(tpf);
 			}
@@ -659,7 +679,7 @@ public class PlayingState extends FadeableAppState
 		_spawnSystem = new SpawnSystem(enemyNode, app.getAssetManager(), _world.getSeed());
 		_spawnSystem.setPlayerSpawnZone(SPAWN_X, SPAWN_Z);
 		
-		// Initialize the combat system (screen flashes, enemy → player damage).
+		// Initialize the combat system (screen flashes, enemy → player damage, player → enemy attacks).
 		_combatSystem = new CombatSystem();
 		
 		// Wire combat references so SpawnSystem can trigger death healing drops.

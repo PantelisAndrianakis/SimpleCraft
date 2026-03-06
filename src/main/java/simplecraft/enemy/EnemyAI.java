@@ -118,7 +118,7 @@ public class EnemyAI
 	 */
 	public static void update(Enemy enemy, Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
-		if (!enemy.isAlive())
+		if (!enemy.isAlive() || enemy.isDying())
 		{
 			enemy.setMoving(false);
 			return;

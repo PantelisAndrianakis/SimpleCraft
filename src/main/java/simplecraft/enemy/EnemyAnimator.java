@@ -90,6 +90,25 @@ public class EnemyAnimator
 	/** How fast the walk blend factor fades in/out (per second). */
 	private static final float WALK_BLEND_RATE = 4.0f;
 	
+	// ------------------------------------------------------------------
+	// Death animation constants.
+	// ------------------------------------------------------------------
+	
+	/** Duration of the topple phase — enemy falls sideways with spin (seconds). */
+	private static final float DEATH_TOPPLE_DURATION = 0.5f;
+	
+	/** Duration of the shrink phase — enemy scales down to nothing (seconds). */
+	private static final float DEATH_SHRINK_DURATION = 0.45f;
+	
+	/** Total death animation duration (topple + shrink). */
+	private static final float DEATH_TOTAL_DURATION = DEATH_TOPPLE_DURATION + DEATH_SHRINK_DURATION;
+	
+	/** How many full Y-axis spins during the topple (revolutions). */
+	private static final float DEATH_SPIN_REVOLUTIONS = 0.75f;
+	
+	/** Maximum Z-axis tilt when fully toppled (radians). ~100° so it overshoots sideways slightly. */
+	private static final float DEATH_TOPPLE_ANGLE = FastMath.DEG_TO_RAD * 100f;
+	
 	/** Shared quaternion to avoid allocations in the update loop. */
 	private static final Quaternion TEMP_QUAT = new Quaternion();
 	
@@ -114,6 +133,13 @@ public class EnemyAnimator
 	{
 		// Update lighting first.
 		EnemyLighting.updateLighting(enemy);
+		
+		// Death animation overrides everything else.
+		if (enemy.isDying())
+		{
+			animateDeath(enemy, tpf);
+			return;
+		}
 		
 		// Advance animation clock.
 		enemy.setAnimTime(enemy.getAnimTime() + tpf);
@@ -328,6 +354,74 @@ public class EnemyAnimator
 		final Node root = enemy.getNode();
 		final Vector3f pos = enemy.getPosition();
 		root.setLocalTranslation(pos.x, pos.y + bobY, pos.z);
+	}
+	
+	// ------------------------------------------------------------------
+	// Death animation (topple sideways with spin → shrink).
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Two-phase death animation:<br>
+	 * <b>Phase 1 — Topple + Spin:</b> The enemy falls sideways (Z-axis rotation)<br>
+	 * while spinning on the Y axis, using an ease-in curve for a natural gravity feel.<br>
+	 * <b>Phase 2 — Shrink:</b> The enemy smoothly scales down to nothing and disappears.<br>
+	 * When the animation completes, the enemy is marked as no longer alive<br>
+	 * so the spawn system can remove it from the scene.
+	 * @param enemy the dying enemy
+	 * @param tpf time per frame in seconds
+	 */
+	private static void animateDeath(Enemy enemy, float tpf)
+	{
+		final float timer = enemy.getDeathTimer() + tpf;
+		enemy.setDeathTimer(timer);
+		
+		final Node root = enemy.getNode();
+		final Vector3f pos = enemy.getPosition();
+		
+		if (timer <= DEATH_TOPPLE_DURATION)
+		{
+			// Phase 1: Topple sideways with spin.
+			// Ease-in (quadratic) for a gravity-like acceleration.
+			final float t = timer / DEATH_TOPPLE_DURATION;
+			final float eased = t * t;
+			
+			// Z-axis: fall sideways.
+			final float toppleAngle = eased * DEATH_TOPPLE_ANGLE;
+			// Y-axis: spin while falling.
+			final float spinAngle = eased * DEATH_SPIN_REVOLUTIONS * FastMath.TWO_PI;
+			
+			TEMP_QUAT.fromAngleAxis(toppleAngle, Vector3f.UNIT_Z);
+			TEMP_QUAT2.fromAngleAxis(spinAngle, Vector3f.UNIT_Y);
+			TEMP_QUAT.multLocal(TEMP_QUAT2);
+			root.setLocalRotation(TEMP_QUAT);
+			root.setLocalTranslation(pos);
+			root.setLocalScale(1.0f);
+		}
+		else if (timer <= DEATH_TOTAL_DURATION)
+		{
+			// Phase 2: Shrink to nothing.
+			final float t = (timer - DEATH_TOPPLE_DURATION) / DEATH_SHRINK_DURATION;
+			// Ease-out (inverse quadratic) for a smooth vanish.
+			final float eased = 1.0f - t;
+			final float scale = eased * eased;
+			
+			// Keep the toppled rotation.
+			TEMP_QUAT.fromAngleAxis(DEATH_TOPPLE_ANGLE, Vector3f.UNIT_Z);
+			TEMP_QUAT2.fromAngleAxis(DEATH_SPIN_REVOLUTIONS * FastMath.TWO_PI, Vector3f.UNIT_Y);
+			TEMP_QUAT.multLocal(TEMP_QUAT2);
+			root.setLocalRotation(TEMP_QUAT);
+			root.setLocalTranslation(pos);
+			root.setLocalScale(Math.max(scale, 0.01f)); // Clamp to avoid zero-scale artifacts.
+		}
+		else
+		{
+			// Animation complete — mark for removal.
+			// Set stateTimer high so SpawnSystem's death-linger check passes immediately
+			// (the visual death has already played; no need to linger further).
+			root.setLocalScale(0.01f);
+			enemy.setAlive(false);
+			enemy.setStateTimer(999f);
+		}
 	}
 	
 	// ------------------------------------------------------------------

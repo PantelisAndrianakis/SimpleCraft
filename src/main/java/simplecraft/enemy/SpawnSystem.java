@@ -532,6 +532,10 @@ public class SpawnSystem
 						}
 						
 						enemy.setStateTimer(enemy.getStateTimer() + tpf);
+						
+						// Update hit flash fade-out and death scale-down animation.
+						enemy.updateVisuals(tpf);
+						
 						if (enemy.getStateTimer() >= DEATH_LINGER_TIME)
 						{
 							_enemyNode.detachChild(enemy.getNode());
@@ -557,11 +561,14 @@ public class SpawnSystem
 						continue;
 					}
 					
-					// Normal update: sky light + AI + animation.
+					// Normal update: sky light + AI + animation + combat visuals.
 					final Vector3f pos = enemy.getPosition();
 					final float skyLight = world.getSkyLight((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
 					enemy.setSkyLight(skyLight);
 					enemy.update(playerPos, playerInWater, world, tpf);
+					
+					// Update hit flash for alive enemies (fades white material back to original).
+					enemy.updateVisuals(tpf);
 				}
 				else
 				{
@@ -611,6 +618,9 @@ public class SpawnSystem
 		final Enemy enemy = EnemyFactory.createEnemy(point.resolvedType, _assetManager);
 		enemy.setPosition(new Vector3f(point.worldX + 0.5f, spawnY, point.worldZ + 0.5f));
 		EnemyLighting.initializeLighting(enemy);
+		
+		// Initialize combat visuals (material cache for hit flash).
+		enemy.initCombat(_assetManager);
 		
 		// Start spawn-in animation.
 		enemy.setSpawning(true);

@@ -5,6 +5,8 @@ import java.util.List;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -12,12 +14,18 @@ import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
 import simplecraft.enemy.Enemy;
+import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyAI.AIState;
 import simplecraft.player.PlayerController;
 import simplecraft.util.Rnd;
 
 /**
- * Manages all combat interactions between enemies and the player.<br>
+ * Manages all combat interactions between the player and enemies.<br>
+ * <br>
+ * <b>Player → Enemy damage:</b> {@link #tryPlayerAttack(Camera, List)} raycasts from the camera<br>
+ * with a 3-block reach and a generous 0.5-block hit cylinder around each enemy's center mass.<br>
+ * The closest hit enemy takes 3.0 damage. A 0.4-second cooldown prevents attack spam.<br>
+ * Hit and death feedback is handled by {@link Enemy#takeDamage(float)} (white flash, scale-down).<br>
  * <br>
  * <b>Enemy → Player damage:</b> Scans all enemies in ATTACK state each frame. When an enemy's attack cooldown fires and the player is within attack range, damage is dealt via {@link PlayerController#takeDamage(float, String)}.<br>
  * <br>
@@ -53,6 +61,31 @@ public class CombatSystem
 	private static final float ENEMY_DROP_HEAL = 2.0f;
 	
 	// ------------------------------------------------------------------
+	// Player attack constants.
+	// ------------------------------------------------------------------
+	
+	/** Damage dealt per player attack. */
+	private static final float PLAYER_ATTACK_DAMAGE = 3.0f;
+	
+	/** Maximum raycast reach in blocks. */
+	private static final float PLAYER_ATTACK_RANGE = 3.0f;
+	
+	/** Cooldown between player attacks in seconds. */
+	private static final float PLAYER_ATTACK_COOLDOWN = 0.4f;
+	
+	/**
+	 * Generous hit cylinder radius around enemy center mass (blocks).<br>
+	 * The ray must pass within this distance of the enemy's center to register a hit.
+	 */
+	private static final float PLAYER_HIT_RADIUS = 0.5f;
+	
+	/**
+	 * Vertical offset from enemy feet to center mass for hit detection (blocks).<br>
+	 * Approximates the torso center for all enemy types.
+	 */
+	private static final float ENEMY_CENTER_OFFSET = 0.9f;
+	
+	// ------------------------------------------------------------------
 	// Fields.
 	// ------------------------------------------------------------------
 	
@@ -76,6 +109,15 @@ public class CombatSystem
 	
 	/** The GUI node this system's overlays are attached to. */
 	private final Node _guiNode;
+	
+	/** Player attack cooldown timer (counts down to 0). */
+	private float _playerAttackTimer;
+	
+	// Reusable vectors for raycast math (avoid per-frame allocation).
+	private final Vector3f _rayOrigin = new Vector3f();
+	private final Vector3f _rayDir = new Vector3f();
+	private final Vector3f _toEnemy = new Vector3f();
+	private final Vector3f _closestPoint = new Vector3f();
 	
 	/**
 	 * Creates the combat system and attaches its screen flash overlay to the GUI.
@@ -110,6 +152,12 @@ public class CombatSystem
 	 */
 	public void update(PlayerController player, List<Enemy> enemies, float tpf)
 	{
+		// Tick player attack cooldown.
+		if (_playerAttackTimer > 0)
+		{
+			_playerAttackTimer -= tpf;
+		}
+		
 		if (player.isDead())
 		{
 			// No combat processing while dead.
@@ -153,6 +201,108 @@ public class CombatSystem
 		
 		// Update flash.
 		updateFlash(tpf);
+	}
+	
+	// ------------------------------------------------------------------
+	// Player → Enemy attack.
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Attempts a player attack via camera raycast. Finds the closest enemy whose<br>
+	 * center mass is within {@link #PLAYER_HIT_RADIUS} of the camera ray, up to<br>
+	 * {@link #PLAYER_ATTACK_RANGE} blocks away. If a hit is found, deals damage<br>
+	 * and starts the attack cooldown.<br>
+	 * <br>
+	 * Called by {@link simplecraft.state.PlayingState} on left-click, before block<br>
+	 * interaction processes. Returns true if an enemy was hit (suppresses block breaking).
+	 * @param camera the player's camera (ray origin and direction)
+	 * @param enemies the list of currently active enemies
+	 * @return true if an enemy was hit, false if the attack missed or is on cooldown
+	 */
+	public boolean tryPlayerAttack(Camera camera, List<Enemy> enemies)
+	{
+		_rayOrigin.set(camera.getLocation());
+		_rayDir.set(camera.getDirection()).normalizeLocal();
+		
+		Enemy closestEnemy = null;
+		float closestDist = PLAYER_ATTACK_RANGE;
+		
+		for (int i = 0; i < enemies.size(); i++)
+		{
+			final Enemy enemy = enemies.get(i);
+			
+			if (!enemy.isAlive() || enemy.isSpawning())
+			{
+				continue;
+			}
+			
+			// Calculate enemy center mass position (feet + vertical offset).
+			final Vector3f enemyPos = enemy.getPosition();
+			final float centerX = enemyPos.x;
+			final float centerY = enemyPos.y + ENEMY_CENTER_OFFSET;
+			final float centerZ = enemyPos.z;
+			
+			// Vector from ray origin to enemy center.
+			_toEnemy.set(centerX - _rayOrigin.x, centerY - _rayOrigin.y, centerZ - _rayOrigin.z);
+			
+			// Project onto ray direction to find closest point on ray.
+			final float dot = _toEnemy.dot(_rayDir);
+			
+			// Behind the camera or beyond attack range — skip.
+			if (dot < 0 || dot > PLAYER_ATTACK_RANGE)
+			{
+				continue;
+			}
+			
+			// Closest point on the ray to the enemy center.
+			_closestPoint.set(_rayDir).multLocal(dot).addLocal(_rayOrigin);
+			
+			// Perpendicular distance from enemy center to ray.
+			final float dx = _closestPoint.x - centerX;
+			final float dy = _closestPoint.y - centerY;
+			final float dz = _closestPoint.z - centerZ;
+			final float perpDistSq = dx * dx + dy * dy + dz * dz;
+			
+			// Check if within the generous hit radius and closer than current best.
+			if (perpDistSq <= PLAYER_HIT_RADIUS * PLAYER_HIT_RADIUS && dot < closestDist)
+			{
+				closestEnemy = enemy;
+				closestDist = dot;
+			}
+		}
+		
+		if (closestEnemy != null)
+		{
+			// Enemy is in the crosshair — always suppress block breaking.
+			// Only deal damage when the cooldown has expired.
+			if (_playerAttackTimer <= 0)
+			{
+				closestEnemy.takeDamage(PLAYER_ATTACK_DAMAGE);
+				_playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
+				
+				final String name = formatEnemyName(closestEnemy.getType());
+				if (closestEnemy.isAlive())
+				{
+					System.out.println("Hit " + name + " for " + String.format("%.1f", PLAYER_ATTACK_DAMAGE) + " damage! HP: " + String.format("%.1f", closestEnemy.getHealth()) + "/" + String.format("%.0f", closestEnemy.getMaxHealth()));
+				}
+				else
+				{
+					System.out.println("Killed " + name + "! Final hit dealt " + String.format("%.1f", PLAYER_ATTACK_DAMAGE) + " damage.");
+				}
+			}
+			
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Returns true if the player's attack is currently on cooldown.
+	 */
+	public boolean isPlayerAttackOnCooldown()
+	{
+		return _playerAttackTimer > 0;
 	}
 	
 	/**
@@ -237,7 +387,7 @@ public class CombatSystem
 	/**
 	 * Formats an enemy type enum into a display name (e.g. ZOMBIE → "Zombie").
 	 */
-	private static String formatEnemyName(Enemy.EnemyType type)
+	private static String formatEnemyName(EnemyType type)
 	{
 		final String name = type.name();
 		return name.charAt(0) + name.substring(1).toLowerCase();
