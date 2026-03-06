@@ -68,6 +68,12 @@ public class EnemyAI
 	/** Maximum downward search range for ground detection (blocks below current feet). */
 	private static final int GROUND_SEARCH_DOWN = 16;
 	
+	/**
+	 * Maximum vertical distance (blocks) at which a land enemy can attack the player.<br>
+	 * Prevents enemies at ground level from hitting a player standing on tall pillars.
+	 */
+	private static final float MAX_VERTICAL_ATTACK_REACH = 2.0f;
+	
 	// ------------------------------------------------------------------
 	// Aquatic AI constants (Piranha).
 	// ------------------------------------------------------------------
@@ -141,6 +147,7 @@ public class EnemyAI
 		enemy.setStateTimer(enemy.getStateTimer() + tpf);
 		
 		final float distToPlayer = horizontalDistance(enemy.getPosition(), playerPos);
+		final float verticalDist = Math.abs(enemy.getPosition().y - playerPos.y);
 		final float detectionRange = enemy.getDetectionRange();
 		final float attackRange = enemy.getAttackRange();
 		
@@ -220,7 +227,8 @@ public class EnemyAI
 				}
 				
 				// Transition: within attack range → ATTACK.
-				if (distToPlayer <= attackRange)
+				// Only if the player is also within vertical reach (not standing on a pillar).
+				if (distToPlayer <= attackRange && verticalDist <= MAX_VERTICAL_ATTACK_REACH)
 				{
 					enterAttack(enemy);
 					break;
@@ -238,8 +246,8 @@ public class EnemyAI
 				// Face the player while attacking.
 				faceTarget(enemy, playerPos);
 				
-				// If player moves out of attack range, resume chase.
-				if (distToPlayer > attackRange * 1.2f)
+				// If player moves out of attack range or vertical reach, resume chase.
+				if (distToPlayer > attackRange * 1.2f || verticalDist > MAX_VERTICAL_ATTACK_REACH)
 				{
 					enterChase(enemy);
 					break;

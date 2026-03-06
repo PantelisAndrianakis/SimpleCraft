@@ -1,10 +1,13 @@
 package simplecraft.state;
 
 import java.awt.Font;
+
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
+import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -17,6 +20,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
+import simplecraft.combat.CombatSystem;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
@@ -65,6 +69,18 @@ public class PlayingState extends FadeableAppState
 	
 	/** Manages automatic enemy spawning, despawning, and updates. */
 	private SpawnSystem _spawnSystem;
+	
+	/** Manages enemy → player damage, screen flashes, and death healing drops. */
+	private CombatSystem _combatSystem;
+	
+	/** Whether the player is currently dead (death screen showing). */
+	private boolean _playerDead;
+	
+	/** Listener for respawn click while dead. */
+	private ActionListener _respawnListener;
+	
+	/** Action name for the respawn click. */
+	private static final String ACTION_RESPAWN = "RESPAWN_CLICK";
 	
 	/** Sky color used for both viewport background and fog blending. */
 	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
@@ -145,9 +161,9 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
-			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading.
+			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			final GameStateManager gsm = simpleCraft.getGameStateManager();
-			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn)
+			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead)
 			{
 				// Set paused flag BEFORE the state transition so onExitState knows to preserve the world.
 				_paused = true;
@@ -320,12 +336,26 @@ public class PlayingState extends FadeableAppState
 			// Update player movement and camera.
 			_playerController.update(tpf);
 			
+			// Check for fall damage / drowning screen flashes.
+			// These are detected via flags set during playerController.update().
+			if (_combatSystem != null)
+			{
+				if (_playerController.wasDamageTakenThisFrame())
+				{
+					_combatSystem.triggerDamageFlash();
+				}
+				if (_playerController.wasHealedThisFrame())
+				{
+					_combatSystem.triggerHealFlash();
+				}
+			}
+			
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			_world.update(_playerController.getPosition(), renderDistance);
 			
 			// Update block interaction (raycasting, breaking, placing).
-			if (_blockInteraction != null)
+			if (_blockInteraction != null && !_playerDead)
 			{
 				_blockInteraction.setShowHighlight(app.getSettingsManager().isShowHighlight());
 				_blockInteraction.update(tpf);
@@ -335,6 +365,54 @@ public class PlayingState extends FadeableAppState
 			if (_spawnSystem != null)
 			{
 				_spawnSystem.update(_playerController.getPosition(), _playerController.isInWater(), _world, tpf);
+			}
+			
+			// Update combat system (enemy attacks, screen flash fade).
+			if (_combatSystem != null && _spawnSystem != null)
+			{
+				_combatSystem.update(_playerController, _spawnSystem.getEnemies(), tpf);
+			}
+			
+			// --- Death detection and respawn ---
+			if (_playerController.isDead() && !_playerDead)
+			{
+				// Player just died — show death screen.
+				_playerDead = true;
+				
+				// Unregister gameplay input.
+				_playerController.unregisterInput();
+				if (_blockInteraction != null)
+				{
+					_blockInteraction.unregisterInput();
+				}
+				
+				// Show death screen overlay.
+				if (_playerHUD != null)
+				{
+					_playerHUD.showDeathScreen(_playerController.getDeathCause());
+				}
+				
+				// Show cursor and register respawn click listener.
+				app.getInputManager().setCursorVisible(true);
+				
+				if (_respawnListener == null)
+				{
+					_respawnListener = (String name, boolean isPressed, float t) ->
+					{
+						if (isPressed && ACTION_RESPAWN.equals(name) && _playerDead)
+						{
+							performRespawn();
+						}
+					};
+				}
+				
+				if (!app.getInputManager().hasMapping(ACTION_RESPAWN))
+				{
+					app.getInputManager().addMapping(ACTION_RESPAWN, new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
+				}
+				app.getInputManager().addListener(_respawnListener, ACTION_RESPAWN);
+				
+				System.out.println("Player died! Cause: " + _playerController.getDeathCause());
 			}
 			
 			// Update fog distance when render distance changes.
@@ -363,10 +441,73 @@ public class PlayingState extends FadeableAppState
 		}
 	}
 	
+	/**
+	 * Respawns the player at the world spawn point with full health and air.<br>
+	 * Hides the death screen, re-registers input, and hides the cursor.
+	 */
+	private void performRespawn()
+	{
+		if (!_playerDead)
+		{
+			return;
+		}
+		
+		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		// Find a valid Y at spawn position.
+		int spawnY = SPAWN_FALLBACK_Y;
+		for (int y = 255; y >= 0; y--)
+		{
+			final Block block = _world.getBlock(SPAWN_X, y, SPAWN_Z);
+			if (block != Block.AIR && !block.isLiquid())
+			{
+				spawnY = y + 1;
+				break;
+			}
+		}
+		
+		// Respawn the player.
+		_playerController.respawn(new Vector3f(SPAWN_X, spawnY, SPAWN_Z));
+		_playerDead = false;
+		
+		// Hide death screen.
+		if (_playerHUD != null)
+		{
+			_playerHUD.hideDeathScreen();
+		}
+		
+		// Clean up respawn listener and re-register gameplay input.
+		cleanupRespawnListener();
+		_playerController.registerInput();
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.registerInput();
+		}
+		
+		// Hide cursor for first-person control.
+		app.getInputManager().setCursorVisible(false);
+		
+		System.out.println("Player respawned at [" + SPAWN_X + ", " + spawnY + ", " + SPAWN_Z + "] with full health.");
+	}
+	
+	/**
+	 * Removes the respawn click listener if active.
+	 */
+	private void cleanupRespawnListener()
+	{
+		if (_respawnListener != null)
+		{
+			SimpleCraft.getInstance().getInputManager().removeListener(_respawnListener);
+		}
+	}
+	
 	@Override
 	protected void onExitState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		// Clean up respawn listener if active.
+		cleanupRespawnListener();
 		
 		// Always disable controls (both for pause and full exit).
 		app.getInputManager().setCursorVisible(true);
@@ -518,6 +659,12 @@ public class PlayingState extends FadeableAppState
 		_spawnSystem = new SpawnSystem(enemyNode, app.getAssetManager(), _world.getSeed());
 		_spawnSystem.setPlayerSpawnZone(SPAWN_X, SPAWN_Z);
 		
+		// Initialize the combat system (screen flashes, enemy → player damage).
+		_combatSystem = new CombatSystem();
+		
+		// Wire combat references so SpawnSystem can trigger death healing drops.
+		_spawnSystem.setCombatReferences(_combatSystem, _playerController);
+		
 		// Remove the loading screen.
 		hideLoadingScreen();
 		
@@ -568,12 +715,23 @@ public class PlayingState extends FadeableAppState
 		// Reset paused flag.
 		_paused = false;
 		_pendingSpawn = false;
+		_playerDead = false;
 		
 		// Clean up loading screen if still showing.
 		hideLoadingScreen();
 		
 		// Clean up HUD.
 		cleanupHUD();
+		
+		// Clean up respawn listener.
+		cleanupRespawnListener();
+		
+		// Clean up combat system.
+		if (_combatSystem != null)
+		{
+			_combatSystem.cleanup();
+			_combatSystem = null;
+		}
 		
 		// Clean up player controller.
 		if (_playerController != null)

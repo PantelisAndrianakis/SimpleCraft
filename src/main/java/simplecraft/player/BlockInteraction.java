@@ -768,6 +768,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			final Block replacement = (_targetY <= World.WATER_LEVEL && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR;
 			_world.setBlockImmediate(_targetX, _targetY, _targetZ, replacement);
 			
+			// Berry bush — instant food healing. Bush is already destroyed.
+			if (block == Block.BERRY_BUSH)
+			{
+				_playerController.heal(4.0f);
+				System.out.println("Ate berries! +4 HP (Health: " + String.format("%.1f", _playerController.getHealth()) + "/" + String.format("%.0f", _playerController.getMaxHealth()) + ")");
+			}
+			
 			// If WOOD was broken, trigger tree felling (block is already AIR).
 			if (block == Block.WOOD)
 			{

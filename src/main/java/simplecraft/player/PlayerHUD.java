@@ -19,18 +19,20 @@ import simplecraft.world.Block;
 
 /**
  * In-game heads-up display showing health, air, selected block, crosshair,<br>
- * and block-breaking progress.<br>
+ * block-breaking progress, and the death/respawn screen.<br>
  * <br>
  * All elements are attached to the application's GUI node (screen-space overlay).<br>
- * Call {@link #update(float, float, float, float, boolean, Block, int, int, boolean)} each frame<br>
+ * Call {@link #update(float, float, float, float, boolean, Block, int, int, boolean, boolean)} each frame<br>
  * with current player state, and {@link #cleanup()} when leaving the playing state.<br>
  * <br>
  * <b>Crosshair:</b> Small "+" at screen center, white with slight transparency.<br>
- * <b>Health bar:</b> Bottom-left, red fill proportional to health. Dark background.<br>
- * <b>Air meter:</b> Blue bar above health, visible only when submerged. Fades in/out<br>
+ * <b>Health bar:</b> Top-left, red fill proportional to health. Dark background.<br>
+ * <b>Air meter:</b> Blue bar below health, visible only when submerged. Fades in/out<br>
  * over 0.5 seconds. Flashes red when air drops below 3 seconds.<br>
  * <b>Selected block:</b> Bottom-center, colored square with block name text.<br>
- * <b>Break progress:</b> Small bar below crosshair showing "BlockName 3/8" while breaking.
+ * <b>Break progress:</b> Small bar below crosshair showing "BlockName 3/8" while breaking.<br>
+ * <b>Death screen:</b> Translucent dark overlay with "You Died" text, death cause,<br>
+ * and "Click to Respawn" prompt. Shown when health reaches 0.
  * @author Pantelis Andrianakis
  * @since March 2nd 2026
  */
@@ -100,6 +102,12 @@ public class PlayerHUD
 	private static final ColorRGBA COLOR_TEXT = new ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 	private static final ColorRGBA COLOR_TEXT_SHADOW = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.8f);
 	
+	// Death screen colors.
+	private static final ColorRGBA COLOR_DEATH_OVERLAY = new ColorRGBA(0.1f, 0.0f, 0.0f, 0.7f);
+	private static final ColorRGBA COLOR_DEATH_TITLE = new ColorRGBA(0.9f, 0.15f, 0.15f, 1.0f);
+	private static final ColorRGBA COLOR_DEATH_CAUSE = new ColorRGBA(0.85f, 0.85f, 0.85f, 1.0f);
+	private static final ColorRGBA COLOR_DEATH_PROMPT = new ColorRGBA(0.7f, 0.7f, 0.7f, 1.0f);
+	
 	// ========================================================
 	// Fields.
 	// ========================================================
@@ -127,7 +135,6 @@ public class PlayerHUD
 	private BitmapText _airTextShadow;
 	private Material _airBgMat;
 	private Material _airFillMat;
-	// private Material _airTextMat; // Not used directly — BitmapText uses setColor.
 	
 	// Air fade state.
 	private float _airAlpha;
@@ -149,6 +156,19 @@ public class PlayerHUD
 	private BitmapText _breakTextShadow;
 	private Material _breakFillMat;
 	private Node _breakNode;
+	
+	// Death screen.
+	private Node _deathScreenNode;
+	private BitmapText _deathTitle;
+	private BitmapText _deathTitleShadow;
+	private BitmapText _deathCauseText;
+	private BitmapText _deathCauseShadow;
+	private BitmapText _deathPrompt;
+	private BitmapText _deathPromptShadow;
+	private boolean _deathScreenVisible;
+	
+	/** Pulse timer for the "Click to Respawn" text animation. */
+	private float _deathPromptPulse;
 	
 	/** Reusable color to avoid allocation each frame. */
 	private final ColorRGBA _tempColor = new ColorRGBA();
@@ -180,6 +200,7 @@ public class PlayerHUD
 		buildAirMeter();
 		buildSelectedBlock();
 		buildBreakProgress();
+		buildDeathScreen();
 		
 		_guiNode.attachChild(_hudNode);
 	}
@@ -327,6 +348,88 @@ public class PlayerHUD
 		_hudNode.attachChild(_breakNode);
 	}
 	
+	/**
+	 * Builds the death screen overlay (hidden initially).
+	 */
+	private void buildDeathScreen()
+	{
+		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		_deathScreenNode = new Node("DeathScreen");
+		
+		// Full-screen dark red overlay.
+		final Quad overlayQuad = new Quad(_screenWidth, _screenHeight);
+		final Geometry overlay = new Geometry("DeathOverlay", overlayQuad);
+		final Material overlayMat = createColorMaterial(COLOR_DEATH_OVERLAY, app);
+		overlay.setMaterial(overlayMat);
+		overlay.setQueueBucket(Bucket.Gui);
+		overlay.setLocalTranslation(0, 0, 20);
+		_deathScreenNode.attachChild(overlay);
+		
+		// "You Died" title — large font.
+		final int titleSize = Math.max(24, (int) (_screenHeight * 0.06f));
+		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, titleSize);
+		
+		_deathTitleShadow = new BitmapText(titleFont);
+		_deathTitleShadow.setText("You Died");
+		_deathTitleShadow.setSize(titleSize);
+		_deathTitleShadow.setColor(new ColorRGBA(0, 0, 0, 0.9f));
+		_deathScreenNode.attachChild(_deathTitleShadow);
+		
+		_deathTitle = new BitmapText(titleFont);
+		_deathTitle.setText("You Died");
+		_deathTitle.setSize(titleSize);
+		_deathTitle.setColor(COLOR_DEATH_TITLE);
+		_deathScreenNode.attachChild(_deathTitle);
+		
+		// Center title.
+		float titleWidth = _deathTitle.getLineWidth();
+		float titleHeight = _deathTitle.getLineHeight();
+		float titleX = (_screenWidth - titleWidth) / 2f;
+		float titleY = _screenHeight * 0.6f + titleHeight / 2f;
+		_deathTitle.setLocalTranslation(titleX, titleY, 21);
+		_deathTitleShadow.setLocalTranslation(titleX + 2, titleY - 2, 20.5f);
+		
+		// Death cause text — smaller font below title.
+		final int causeSize = Math.max(14, (int) (_screenHeight * 0.025f));
+		final BitmapFont causeFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, causeSize);
+		
+		_deathCauseShadow = new BitmapText(causeFont);
+		_deathCauseShadow.setText("");
+		_deathCauseShadow.setSize(causeSize);
+		_deathCauseShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
+		_deathScreenNode.attachChild(_deathCauseShadow);
+		
+		_deathCauseText = new BitmapText(causeFont);
+		_deathCauseText.setText("");
+		_deathCauseText.setSize(causeSize);
+		_deathCauseText.setColor(COLOR_DEATH_CAUSE);
+		_deathScreenNode.attachChild(_deathCauseText);
+		
+		// "Click to Respawn" prompt — below cause text.
+		_deathPromptShadow = new BitmapText(causeFont);
+		_deathPromptShadow.setText("Click to Respawn");
+		_deathPromptShadow.setSize(causeSize);
+		_deathPromptShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
+		_deathScreenNode.attachChild(_deathPromptShadow);
+		
+		_deathPrompt = new BitmapText(causeFont);
+		_deathPrompt.setText("Click to Respawn");
+		_deathPrompt.setSize(causeSize);
+		_deathPrompt.setColor(COLOR_DEATH_PROMPT);
+		_deathScreenNode.attachChild(_deathPrompt);
+		
+		float promptWidth = _deathPrompt.getLineWidth();
+		float promptY = titleY - titleHeight - _screenHeight * 0.12f;
+		float promptX = (_screenWidth - promptWidth) / 2f;
+		_deathPrompt.setLocalTranslation(promptX, promptY, 21);
+		_deathPromptShadow.setLocalTranslation(promptX + 1, promptY - 1, 20.5f);
+		
+		// Hidden initially.
+		_deathScreenNode.setCullHint(Node.CullHint.Always);
+		_hudNode.attachChild(_deathScreenNode);
+	}
+	
 	// ========================================================
 	// Update.
 	// ========================================================
@@ -342,6 +445,7 @@ public class PlayerHUD
 	 * @param hitsDelivered number of hits dealt to the current target
 	 * @param hitsRequired total hits needed to break the current target
 	 * @param isBreaking true if the player is actively breaking a block
+	 * @param showCrosshair true if the crosshair should be visible
 	 */
 	public void update(float health, float maxHealth, float air, float maxAir, boolean headSubmerged, Block selectedBlock, int hitsDelivered, int hitsRequired, boolean isBreaking, boolean showCrosshair)
 	{
@@ -352,8 +456,18 @@ public class PlayerHUD
 		updateSelectedBlock(selectedBlock);
 		updateBreakProgress(hitsDelivered, hitsRequired, isBreaking);
 		
-		// Toggle crosshair visibility based on settings.
-		_crosshairText.setCullHint(showCrosshair ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+		// Toggle crosshair visibility based on settings (hidden when dead).
+		final boolean showCross = showCrosshair && !_deathScreenVisible;
+		_crosshairText.setCullHint(showCross ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+		
+		// Animate death screen prompt pulse.
+		if (_deathScreenVisible)
+		{
+			_deathPromptPulse += tpf;
+			final float pulse = (float) (Math.sin(_deathPromptPulse * 2.0) * 0.3 + 0.7);
+			_tempColor.set(COLOR_DEATH_PROMPT.r, COLOR_DEATH_PROMPT.g, COLOR_DEATH_PROMPT.b, pulse);
+			_deathPrompt.setColor(_tempColor.clone());
+		}
 	}
 	
 	// ---- Health bar ----
@@ -564,6 +678,63 @@ public class PlayerHUD
 			return _blockInteraction.getTargetBlock();
 		}
 		return Block.AIR;
+	}
+	
+	// ========================================================
+	// Death Screen.
+	// ========================================================
+	
+	/**
+	 * Shows the death screen overlay with the given cause of death.
+	 * @param deathCause description of how the player died (e.g. "Killed by Zombie")
+	 */
+	public void showDeathScreen(String deathCause)
+	{
+		if (_deathScreenVisible)
+		{
+			return;
+		}
+		
+		_deathScreenVisible = true;
+		_deathPromptPulse = 0;
+		
+		// Set cause text and center it.
+		final String cause = deathCause != null && !deathCause.isEmpty() ? deathCause : "You died";
+		_deathCauseText.setText(cause);
+		_deathCauseShadow.setText(cause);
+		
+		float causeWidth = _deathCauseText.getLineWidth();
+		float causeX = (_screenWidth - causeWidth) / 2f;
+		
+		// Position below the title.
+		float titleY = _screenHeight * 0.6f;
+		float causeY = titleY - _deathTitle.getLineHeight() - _screenHeight * 0.04f;
+		_deathCauseText.setLocalTranslation(causeX, causeY, 21);
+		_deathCauseShadow.setLocalTranslation(causeX + 1, causeY - 1, 20.5f);
+		
+		_deathScreenNode.setCullHint(Node.CullHint.Never);
+	}
+	
+	/**
+	 * Hides the death screen overlay.
+	 */
+	public void hideDeathScreen()
+	{
+		if (!_deathScreenVisible)
+		{
+			return;
+		}
+		
+		_deathScreenVisible = false;
+		_deathScreenNode.setCullHint(Node.CullHint.Always);
+	}
+	
+	/**
+	 * Returns true if the death screen is currently visible.
+	 */
+	public boolean isDeathScreenVisible()
+	{
+		return _deathScreenVisible;
 	}
 	
 	// ========================================================

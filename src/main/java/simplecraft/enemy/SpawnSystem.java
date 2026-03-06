@@ -13,7 +13,9 @@ import com.jme3.asset.AssetManager;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
+import simplecraft.combat.CombatSystem;
 import simplecraft.enemy.Enemy.EnemyType;
+import simplecraft.player.PlayerController;
 import simplecraft.world.Block;
 import simplecraft.world.Region;
 import simplecraft.world.World;
@@ -202,6 +204,9 @@ public class SpawnSystem
 		/** Respawn cooldown timer (counts down to 0 after death). */
 		float respawnTimer;
 		
+		/** Whether the death drop has been processed for the current enemy. */
+		boolean deathProcessed;
+		
 		/**
 		 * Activation delay timer (counts down to 0 after resolution).<br>
 		 * Prevents enemies from popping in when a region loads while the player is nearby.
@@ -243,6 +248,12 @@ public class SpawnSystem
 	private float _safeZoneZ;
 	private boolean _safeZoneSet = false;
 	
+	/** Reference to the combat system for enemy death healing drops. */
+	private CombatSystem _combatSystem;
+	
+	/** Reference to the player controller for enemy death healing drops. */
+	private PlayerController _playerController;
+	
 	/**
 	 * Creates a new region-based spawn system.
 	 * @param enemyNode the scene node to attach enemy models to
@@ -267,6 +278,17 @@ public class SpawnSystem
 		_safeZoneX = x;
 		_safeZoneZ = z;
 		_safeZoneSet = true;
+	}
+	
+	/**
+	 * Sets the combat system reference for enemy death healing drops.
+	 * @param combatSystem the combat system
+	 * @param playerController the player controller
+	 */
+	public void setCombatReferences(CombatSystem combatSystem, PlayerController playerController)
+	{
+		_combatSystem = combatSystem;
+		_playerController = playerController;
 	}
 	
 	// ------------------------------------------------------------------
@@ -499,12 +521,23 @@ public class SpawnSystem
 					// Handle death.
 					if (!enemy.isAlive())
 					{
+						// Process death drop (once per enemy death).
+						if (!point.deathProcessed)
+						{
+							point.deathProcessed = true;
+							if (_combatSystem != null && _playerController != null)
+							{
+								_combatSystem.onEnemyDeath(_playerController, enemy);
+							}
+						}
+						
 						enemy.setStateTimer(enemy.getStateTimer() + tpf);
 						if (enemy.getStateTimer() >= DEATH_LINGER_TIME)
 						{
 							_enemyNode.detachChild(enemy.getNode());
 							point.activeEnemy = null;
 							point.respawnTimer = RESPAWN_COOLDOWN;
+							point.deathProcessed = false;
 							_activeCount--;
 						}
 						continue;
@@ -586,6 +619,7 @@ public class SpawnSystem
 		
 		_enemyNode.attachChild(enemy.getNode());
 		point.activeEnemy = enemy;
+		point.deathProcessed = false;
 		_activeCount++;
 	}
 	

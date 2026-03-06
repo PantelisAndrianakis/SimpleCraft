@@ -31,6 +31,10 @@ import simplecraft.world.World;
  * head is submerged; when air reaches zero, drowning damage is applied<br>
  * continuously until the player surfaces.<br>
  * <br>
+ * All damage sources funnel through {@link #takeDamage(float, String)} and all<br>
+ * healing through {@link #heal(float)} for consistent health management and<br>
+ * death cause tracking.<br>
+ * <br>
  * Registers as both {@link ActionListener} (movement key flags) and<br>
  * {@link AnalogListener} (mouse axes) on the jME3 {@link InputManager}.<br>
  * Call {@link #update(float)} each frame from the owning state.
@@ -127,6 +131,15 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Currently selected block for placement. Managed by {@link BlockInteraction}. */
 	private Block _selectedBlock = Block.DIRT;
 	
+	/** Description of the damage source that last killed the player. */
+	private String _deathCause = "";
+	
+	/** Flag set when damage is taken this frame (for external flash triggers). */
+	private boolean _damageTakenThisFrame;
+	
+	/** Flag set when healing occurs this frame (for external flash triggers). */
+	private boolean _healedThisFrame;
+	
 	// Action names this controller listens to.
 	private static final String[] ACTIONS =
 	{
@@ -215,6 +228,19 @@ public class PlayerController implements ActionListener, AnalogListener
 	 */
 	public void update(float tpf)
 	{
+		// Clear per-frame flags.
+		_damageTakenThisFrame = false;
+		_healedThisFrame = false;
+		
+		// Don't process movement when dead.
+		if (isDead())
+		{
+			// Still update camera position so it doesn't glitch.
+			_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
+			_camera.setLocation(_eyePos);
+			return;
+		}
+		
 		// Apply camera rotation from accumulated yaw and pitch first,
 		// then derive movement vectors from the actual camera orientation.
 		// This guarantees movement always matches the visual look direction.
@@ -328,8 +354,7 @@ public class PlayerController implements ActionListener, AnalogListener
 			else
 			{
 				final float damage = (fallDistance - FALL_DAMAGE_THRESHOLD) * FALL_DAMAGE_MULTIPLIER;
-				_health -= damage;
-				_health = Math.max(0, _health);
+				takeDamage(damage, "Fell to death");
 				System.out.println("Fall damage! Distance: " + String.format("%.1f", fallDistance) + " blocks, Damage: " + String.format("%.1f", damage) + ", Health: " + String.format("%.1f", _health) + "/" + String.format("%.0f", _maxHealth));
 			}
 		}
@@ -343,8 +368,7 @@ public class PlayerController implements ActionListener, AnalogListener
 				_air = 0;
 				
 				// Drowning damage — continuous while suffocating.
-				_health -= DROWNING_DAMAGE_PER_SECOND * tpf;
-				_health = Math.max(0, _health);
+				takeDamage(DROWNING_DAMAGE_PER_SECOND * tpf, "Drowned");
 				
 				if (!_drowningLogged)
 				{
@@ -367,6 +391,102 @@ public class PlayerController implements ActionListener, AnalogListener
 		// Update camera position (eye height above feet).
 		_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
 		_camera.setLocation(_eyePos);
+	}
+	
+	// ========== Damage and Healing ==========
+	
+	/**
+	 * Applies damage to the player, reducing health and tracking the damage source.<br>
+	 * All damage sources (fall damage, drowning, enemy attacks) should use this method.
+	 * @param amount the amount of damage to deal
+	 * @param source description of the damage source (e.g. "Killed by Zombie", "Fell to death", "Drowned")
+	 */
+	public void takeDamage(float amount, String source)
+	{
+		if (isDead() || amount <= 0)
+		{
+			return;
+		}
+		
+		_health -= amount;
+		_health = Math.max(0, _health);
+		_deathCause = source;
+		_damageTakenThisFrame = true;
+	}
+	
+	/**
+	 * Heals the player, increasing health up to the maximum.
+	 * @param amount the amount of health to restore
+	 */
+	public void heal(float amount)
+	{
+		if (isDead() || amount <= 0)
+		{
+			return;
+		}
+		
+		_health += amount;
+		_health = Math.min(_health, _maxHealth);
+		_healedThisFrame = true;
+	}
+	
+	/**
+	 * Returns true if the player is dead (health ≤ 0).
+	 */
+	public boolean isDead()
+	{
+		return _health <= 0;
+	}
+	
+	/**
+	 * Respawns the player at the given position with full health and air.
+	 * @param spawnPoint the world position to teleport to (feet level)
+	 */
+	public void respawn(Vector3f spawnPoint)
+	{
+		_health = _maxHealth;
+		_air = _maxAir;
+		_position.set(spawnPoint);
+		_velocity.set(0, 0, 0);
+		_deathCause = "";
+		_spawnProtection = true;
+		_onGround = false;
+		_drowningLogged = false;
+		_damageTakenThisFrame = false;
+		_healedThisFrame = false;
+		
+		// Clear movement flags to prevent residual movement after respawn.
+		_moveForward = false;
+		_moveBack = false;
+		_moveLeft = false;
+		_moveRight = false;
+		_moveUp = false;
+		_moveDown = false;
+	}
+	
+	/**
+	 * Returns the cause of the player's most recent death.
+	 * @return the death cause description, or empty string if alive
+	 */
+	public String getDeathCause()
+	{
+		return _deathCause;
+	}
+	
+	/**
+	 * Returns true if damage was taken this frame (for external flash triggers).
+	 */
+	public boolean wasDamageTakenThisFrame()
+	{
+		return _damageTakenThisFrame;
+	}
+	
+	/**
+	 * Returns true if healing occurred this frame (for external flash triggers).
+	 */
+	public boolean wasHealedThisFrame()
+	{
+		return _healedThisFrame;
 	}
 	
 	// ========== ActionListener — movement key flags ==========
