@@ -151,6 +151,20 @@ public class SimpleCraft extends SimpleApplication
 		MessageManager.update(tpf);
 	}
 	
+	@Override
+	public void loseFocus()
+	{
+		// Override to prevent not rendering when app is out of focus.
+		// Don't call super.loseFocus().
+	}
+	
+	@Override
+	public void gainFocus()
+	{
+		// Override to prevent not rendering when app is out of focus.
+		// Don't call super.gainFocus().
+	}
+	
 	public SettingsManager getSettingsManager()
 	{
 		return _settingsManager;
