@@ -21,8 +21,10 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
+import simplecraft.audio.AudioManager;
 import simplecraft.combat.CombatSystem;
 import simplecraft.enemy.Enemy;
+import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
@@ -31,7 +33,9 @@ import simplecraft.player.PlayerHUD;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
+import simplecraft.world.DayNightCycle;
 import simplecraft.world.Region;
+import simplecraft.world.RegionMeshBuilder;
 import simplecraft.world.TextureAtlas;
 import simplecraft.world.World;
 import simplecraft.world.WorldInfo;
@@ -54,6 +58,9 @@ import simplecraft.world.WorldInfo;
  * <br>
  * Lighting is fully baked into vertex colors (sky light + directional face shading).<br>
  * No scene lights (DirectionalLight, AmbientLight) are needed — materials use Unshaded.j3md.<br>
+ * The {@link DayNightCycle} modulates sky brightness and tint, which are applied to<br>
+ * vertex colors during region mesh rebuilds. Viewport background color and fog color<br>
+ * are updated every frame to match the current sky state.<br>
  * <br>
  * <b>Combat priority:</b> On left click, the combat system raycasts for enemies first.<br>
  * If an enemy is in the crosshair, block interaction attack is suppressed. This prevents<br>
@@ -79,6 +86,9 @@ public class PlayingState extends FadeableAppState
 	/** Manages enemy → player damage, player → enemy attacks, screen flashes, and death healing drops. */
 	private CombatSystem _combatSystem;
 	
+	/** Manages the day/night cycle — sky brightness, tint, viewport color, and music transitions. */
+	private DayNightCycle _dayNightCycle;
+	
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
 	
@@ -87,9 +97,6 @@ public class PlayingState extends FadeableAppState
 	
 	/** Action name for the respawn click. */
 	private static final String ACTION_RESPAWN = "RESPAWN_CLICK";
-	
-	/** Sky color used for both viewport background and fog blending. */
-	private static final ColorRGBA SKY_COLOR = new ColorRGBA(0.53f, 0.81f, 0.92f, 1.0f);
 	
 	/** Whether distance fog is enabled. */
 	private static final boolean FOG_ENABLED = true;
@@ -110,6 +117,9 @@ public class PlayingState extends FadeableAppState
 	
 	/** True while the game is paused. Set before the state transition to prevent teardown. */
 	private boolean _paused;
+	
+	/** Starting time of day for new worlds (0.3 = early morning). */
+	private static final float STARTING_TIME_OF_DAY = 0.3f;
 	
 	// ========================================================
 	// Loading Screen / Pending Spawn.
@@ -245,11 +255,19 @@ public class PlayingState extends FadeableAppState
 		// No scene lights needed — lighting is fully baked into vertex colors via Unshaded materials.
 		// Sky light + directional face shading is computed per-vertex in RegionMeshBuilder.
 		
+		// Initialize the day/night cycle (starts at early morning).
+		_dayNightCycle = new DayNightCycle(STARTING_TIME_OF_DAY);
+		_dayNightCycle.setAudioManager(app.getAudioManager());
+		
+		// Set initial terrain lighting so regions built during loading use the correct values.
+		final ColorRGBA initialTint = _dayNightCycle.getTerrainTint();
+		RegionMeshBuilder.setDayNightParams(_dayNightCycle.getTerrainBrightness(), initialTint.r, initialTint.g, initialTint.b);
+		
 		// Set up distance fog to hide terrain pop-in at render distance edges.
 		if (FOG_ENABLED)
 		{
 			_fogFilter = new FogFilter();
-			_fogFilter.setFogColor(SKY_COLOR);
+			_fogFilter.setFogColor(_dayNightCycle.getSkyColor());
 			_fogFilter.setFogDensity(FOG_DENSITY);
 			_fogFilter.setFogDistance(calculateFogDistance(app.getSettingsManager().getRenderDistance()));
 			
@@ -267,8 +285,9 @@ public class PlayingState extends FadeableAppState
 		// Get seed from active world.
 		final long seed = _activeWorld != null ? _activeWorld.getSeedValue() : 0;
 		
-		// Create world. Initial regions are loaded dynamically by the first update() call.
+		// Create world with day/night cycle reference for vertex color modulation.
 		_world = new World(seed, atlasMaterial);
+		_world.setDayNightCycle(_dayNightCycle);
 		
 		// Attach world node to the scene.
 		app.getRootNode().attachChild(_world.getWorldNode());
@@ -339,6 +358,44 @@ public class PlayingState extends FadeableAppState
 		// Normal gameplay loop.
 		if (_world != null && _playerController != null)
 		{
+			// Update day/night cycle.
+			if (_dayNightCycle != null)
+			{
+				// Feed player submersion state for underwater music override.
+				if (_playerController != null)
+				{
+					_dayNightCycle.setSubmerged(_playerController.isInWater());
+				}
+				
+				_dayNightCycle.update(tpf);
+				
+				final SimpleCraft app = SimpleCraft.getInstance();
+				
+				// Push fixed terrain brightness and tint to the mesh builder.
+				// These are discrete day/night values (not continuous) so all regions
+				// rebuild to the same brightness, preventing visual seams.
+				final ColorRGBA terrainTint = _dayNightCycle.getTerrainTint();
+				RegionMeshBuilder.setDayNightParams(_dayNightCycle.getTerrainBrightness(), terrainTint.r, terrainTint.g, terrainTint.b);
+				
+				// Apply viewport background sky color from cycle.
+				app.getViewPort().setBackgroundColor(_dayNightCycle.getSkyColor());
+				
+				// Update fog color to match sky for seamless blending.
+				if (_fogFilter != null)
+				{
+					_fogFilter.setFogColor(_dayNightCycle.getSkyColor());
+				}
+				
+				// Rebuild all visible region meshes when terrain brightness changes enough during transition.
+				if (_dayNightCycle.isTerrainRebuildNeeded())
+				{
+					_world.rebuildVisibleMeshes();
+				}
+				
+				// Update enemy lighting tint for the current time of day (smooth, per-frame).
+				EnemyLighting.setDayNightTint(_dayNightCycle.getSkyTint());
+			}
+			
 			// Update player movement and camera.
 			_playerController.update(tpf);
 			
@@ -656,8 +713,11 @@ public class PlayingState extends FadeableAppState
 		
 		_pendingSpawn = false;
 		
-		// Set sky background color now that loading is complete.
-		app.getViewPort().setBackgroundColor(SKY_COLOR);
+		// Set sky background color from the day/night cycle now that loading is complete.
+		if (_dayNightCycle != null)
+		{
+			app.getViewPort().setBackgroundColor(_dayNightCycle.getSkyColor());
+		}
 		
 		// Create and initialize the player controller with world reference for collision.
 		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world);
@@ -678,12 +738,20 @@ public class PlayingState extends FadeableAppState
 		app.getRootNode().attachChild(enemyNode);
 		_spawnSystem = new SpawnSystem(enemyNode, app.getAssetManager(), _world.getSeed());
 		_spawnSystem.setPlayerSpawnZone(SPAWN_X, SPAWN_Z);
+		_spawnSystem.setDayNightCycle(_dayNightCycle);
 		
 		// Initialize the combat system (screen flashes, enemy → player damage, player → enemy attacks).
 		_combatSystem = new CombatSystem();
 		
 		// Wire combat references so SpawnSystem can trigger death healing drops.
 		_spawnSystem.setCombatReferences(_combatSystem, _playerController);
+		
+		// Start day music with a fade-in.
+		final AudioManager audioManager = app.getAudioManager();
+		if (audioManager != null)
+		{
+			audioManager.fadeInMusic(AudioManager.PERSPECTIVES_MUSIC_PATH, 3.0f);
+		}
 		
 		// Remove the loading screen.
 		hideLoadingScreen();
@@ -793,6 +861,9 @@ public class PlayingState extends FadeableAppState
 			_fogFilter = null;
 			_lastFogRenderDistance = -1;
 		}
+		
+		// Clean up day/night cycle.
+		_dayNightCycle = null;
 		
 		_textureAtlas = null;
 		_activeWorld = null;

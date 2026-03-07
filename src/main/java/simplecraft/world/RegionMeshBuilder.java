@@ -59,6 +59,22 @@ public class RegionMeshBuilder
 	private static final float MIN_BRIGHTNESS = 0.001f;
 	
 	// ========================================================
+	// Day/Night Cycle Multipliers (global, updated by PlayingState).
+	// ========================================================
+	
+	/** Sky brightness multiplier from the day/night cycle (0.1 at midnight, 1.0 at noon). */
+	private static volatile float _cycleBrightness = 1.0f;
+	
+	/** Red component of the day/night sky tint. */
+	private static volatile float _cycleTintR = 1.0f;
+	
+	/** Green component of the day/night sky tint. */
+	private static volatile float _cycleTintG = 1.0f;
+	
+	/** Blue component of the day/night sky tint. */
+	private static volatile float _cycleTintB = 1.0f;
+	
+	// ========================================================
 	// Face Vertex Positions (relative to block origin 0,0,0).
 	// ========================================================
 	// Each face has 4 vertices forming a quad. jME3 is Y-up.
@@ -363,6 +379,27 @@ public class RegionMeshBuilder
 	}
 	
 	// ========================================================
+	// Day/Night Cycle API.
+	// ========================================================
+	
+	/**
+	 * Sets the day/night cycle parameters used when building vertex colors.<br>
+	 * Must be called before triggering mesh rebuilds so background threads pick up<br>
+	 * the current values. Fields are volatile for safe cross-thread reads.
+	 * @param brightness the sky brightness multiplier (0.1 at midnight, 1.0 at noon)
+	 * @param tintR red component of the sky tint (0.0 – 1.0)
+	 * @param tintG green component of the sky tint (0.0 – 1.0)
+	 * @param tintB blue component of the sky tint (0.0 – 1.0)
+	 */
+	public static void setDayNightParams(float brightness, float tintR, float tintG, float tintB)
+	{
+		_cycleBrightness = brightness;
+		_cycleTintR = tintR;
+		_cycleTintG = tintG;
+		_cycleTintB = tintB;
+	}
+	
+	// ========================================================
 	// Full Region Mesh Building (legacy — kept for compatibility).
 	// ========================================================
 	
@@ -384,7 +421,8 @@ public class RegionMeshBuilder
 	/**
 	 * Builds raw vertex arrays from the region's block data (background-thread safe).<br>
 	 * Optimized version with zero garbage collection during vertex building.<br>
-	 * Includes per-vertex color data computed from the region's sky light map and face shade factors.
+	 * Includes per-vertex color data computed from the region's sky light map, face shade factors,<br>
+	 * and the current day/night cycle brightness and tint (set via {@link #setDayNightParams}).
 	 * @param region the region to build mesh data from
 	 * @param worldAccess optional world-level block access for cross-region neighbor lookups (may be null)
 	 * @return a RegionMeshData containing raw vertex arrays including color data
@@ -456,10 +494,9 @@ public class RegionMeshBuilder
 							{
 								if (isFaceVisible(region, x, y, z, face, worldAccess))
 								{
-									// Light the face based on the NEIGHBOR (air) position's sky light.
-									// This way a face exposed to a bright shaft gets light,
-									// but faces buried in rock stay dark.
-									final float skyLight = getNeighborSkyLight(region, x, y, z, face);
+									// Light the face based on the NEIGHBOR (air) position's sky light,
+									// modulated by the day/night cycle brightness.
+									final float skyLight = getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float brightness = Math.max(skyLight * FACE_SHADE[face.ordinal()], MIN_BRIGHTNESS);
 									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, block, brightness, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
 									opaqueVPtr += 4 * 3; // 4 verts × 3 coords
@@ -476,7 +513,7 @@ public class RegionMeshBuilder
 							{
 								if (isTransparentFaceVisible(region, x, y, z, face, block, worldAccess))
 								{
-									final float skyLight = getNeighborSkyLight(region, x, y, z, face);
+									final float skyLight = getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float brightness = Math.max(skyLight * FACE_SHADE[face.ordinal()], MIN_BRIGHTNESS);
 									writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, block, brightness, transVPtr, transUPtr, transCPtr, transIPtr);
 									transVPtr += 4 * 3;
@@ -489,8 +526,9 @@ public class RegionMeshBuilder
 						}
 						case CROSS_BILLBOARD:
 						{
-							// Billboards sit in air/transparent space — use their own position's sky light.
-							final float skyLight = region.getSkyLight(x, y, z);
+							// Billboards sit in air/transparent space — use their own position's sky light,
+							// modulated by the day/night cycle brightness.
+							final float skyLight = region.getSkyLight(x, y, z) * _cycleBrightness;
 							final float brightness = Math.max(skyLight * BILLBOARD_SHADE, MIN_BRIGHTNESS);
 							writeBillboard(billPos, billNorm, billUV, billCol, billIdx, x, y, z, block, brightness, billVPtr, billUPtr, billCPtr, billIPtr);
 							billVPtr += 8 * 3; // 8 verts × 3 coords
@@ -643,10 +681,10 @@ public class RegionMeshBuilder
 			texCoords[uvPtr + v * 2] = uvBounds[0] + unitU * (uvBounds[2] - uvBounds[0]);
 			texCoords[uvPtr + v * 2 + 1] = uvBounds[1] + unitV * (uvBounds[3] - uvBounds[1]);
 			
-			// Vertex color (RGBA) — grayscale brightness from sky light × face shade.
-			colors[cPtr + v * 4] = brightness; // R
-			colors[cPtr + v * 4 + 1] = brightness; // G
-			colors[cPtr + v * 4 + 2] = brightness; // B
+			// Vertex color (RGBA) — brightness from sky light × face shade × day/night tint.
+			colors[cPtr + v * 4] = brightness * _cycleTintR; // R
+			colors[cPtr + v * 4 + 1] = brightness * _cycleTintG; // G
+			colors[cPtr + v * 4 + 2] = brightness * _cycleTintB; // B
 			colors[cPtr + v * 4 + 3] = 1.0f; // A
 		}
 		
@@ -699,10 +737,10 @@ public class RegionMeshBuilder
 			normals[vPtr + v * 3 + 1] = 0;
 			normals[vPtr + v * 3 + 2] = nz;
 			
-			// Vertex color.
-			colors[cPtr + v * 4] = brightness; // R
-			colors[cPtr + v * 4 + 1] = brightness; // G
-			colors[cPtr + v * 4 + 2] = brightness; // B
+			// Vertex color — brightness × day/night tint.
+			colors[cPtr + v * 4] = brightness * _cycleTintR; // R
+			colors[cPtr + v * 4 + 1] = brightness * _cycleTintG; // G
+			colors[cPtr + v * 4 + 2] = brightness * _cycleTintB; // B
 			colors[cPtr + v * 4 + 3] = 1.0f; // A
 		}
 		

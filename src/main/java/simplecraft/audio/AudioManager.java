@@ -19,7 +19,9 @@ public class AudioManager
 	public static final String UI_CLICK_SFX_PATH = "sounds/ui/click.ogg";
 	
 	// Public music paths.
-	public static final String PERSPECTIVES_MUSIC_PATH = "music/perspectives.ogg";
+	public static final String PERSPECTIVES_MUSIC_PATH = "music/perspectives.ogg"; // Day.
+	public static final String IMPRESSIONIST_MUSIC_PATH = "music/impressionist.ogg"; // Night.
+	public static final String MEMALORIC_MUSIC_PATH = "music/memaloric.ogg"; // Water.
 	
 	// Asset manager used.
 	private final AssetManager _assetManager;
@@ -101,6 +103,12 @@ public class AudioManager
 	 */
 	public void fadeInMusic(String assetPath, float fadeDuration)
 	{
+		// Skip if this track is already playing.
+		if (assetPath.equals(_currentMusicPath) && _currentMusic != null)
+		{
+			return;
+		}
+		
 		try
 		{
 			// Stop current music if playing.
@@ -140,6 +148,12 @@ public class AudioManager
 	 */
 	public void crossfadeTo(String assetPath, float duration)
 	{
+		// Skip if this track is already playing.
+		if (assetPath.equals(_currentMusicPath) && _currentMusic != null)
+		{
+			return;
+		}
+		
 		try
 		{
 			// Load new music.

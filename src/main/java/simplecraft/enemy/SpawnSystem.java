@@ -17,6 +17,7 @@ import simplecraft.combat.CombatSystem;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.player.PlayerController;
 import simplecraft.world.Block;
+import simplecraft.world.DayNightCycle;
 import simplecraft.world.Region;
 import simplecraft.world.World;
 
@@ -31,8 +32,11 @@ import simplecraft.world.World;
  * When the player walks within activation range of an unoccupied spawn point,<br>
  * an enemy materializes with a scale-up animation. When the player moves beyond<br>
  * {@link #DESPAWN_RANGE}, the enemy is silently removed and the point becomes available.<br>
- * After an enemy is killed, the spawn point enters a {@link #RESPAWN_COOLDOWN} before<br>
- * it can produce a new enemy.<br>
+ * After an enemy is killed, the spawn point enters a {@link #RESPAWN_COOLDOWN_DAY}<br>
+ * (or shorter {@link #RESPAWN_COOLDOWN_NIGHT} at night) before it can produce a new enemy.<br>
+ * <br>
+ * At night, spawn rates increase: the activation range widens, the maximum active enemy<br>
+ * cap is raised, and the spawn table shifts to favor skeletons and spiders.<br>
  * <br>
  * Spawn point data is cached per-region and discarded when the region unloads.
  * @author Pantelis Andrianakis
@@ -65,8 +69,11 @@ public class SpawnSystem
 	 */
 	private static final float ACTIVATION_RANGE_MIN = 32.0f;
 	
-	/** Maximum distance at which an unoccupied spawn point activates (blocks). */
-	private static final float ACTIVATION_RANGE_MAX = 64.0f;
+	/** Maximum distance at which an unoccupied spawn point activates during the day (blocks). */
+	private static final float ACTIVATION_RANGE_MAX_DAY = 64.0f;
+	
+	/** Maximum distance at which an unoccupied spawn point activates at night (blocks). */
+	private static final float ACTIVATION_RANGE_MAX_NIGHT = 80.0f;
 	
 	/** Distance at which an active enemy is despawned and its point freed (blocks). */
 	private static final float DESPAWN_RANGE = 64.0f;
@@ -77,8 +84,11 @@ public class SpawnSystem
 	/** Squared minimum activation range. */
 	private static final float ACTIVATION_RANGE_MIN_SQ = ACTIVATION_RANGE_MIN * ACTIVATION_RANGE_MIN;
 	
-	/** Squared maximum activation range. */
-	private static final float ACTIVATION_RANGE_MAX_SQ = ACTIVATION_RANGE_MAX * ACTIVATION_RANGE_MAX;
+	/** Squared maximum activation range (day). */
+	private static final float ACTIVATION_RANGE_MAX_DAY_SQ = ACTIVATION_RANGE_MAX_DAY * ACTIVATION_RANGE_MAX_DAY;
+	
+	/** Squared maximum activation range (night). */
+	private static final float ACTIVATION_RANGE_MAX_NIGHT_SQ = ACTIVATION_RANGE_MAX_NIGHT * ACTIVATION_RANGE_MAX_NIGHT;
 	
 	/** Squared despawn range. */
 	private static final float DESPAWN_RANGE_SQ = DESPAWN_RANGE * DESPAWN_RANGE;
@@ -90,8 +100,11 @@ public class SpawnSystem
 	// Timing constants.
 	// ------------------------------------------------------------------
 	
-	/** Cooldown before a spawn point can produce a new enemy after its enemy dies (seconds). */
-	private static final float RESPAWN_COOLDOWN = 120.0f;
+	/** Cooldown before a spawn point can produce a new enemy after death during the day (seconds). */
+	private static final float RESPAWN_COOLDOWN_DAY = 120.0f;
+	
+	/** Shorter cooldown at night for faster respawning (seconds). */
+	private static final float RESPAWN_COOLDOWN_NIGHT = 45.0f;
 	
 	/** Time dead enemies linger before removal (seconds). */
 	private static final float DEATH_LINGER_TIME = 2.0f;
@@ -103,8 +116,11 @@ public class SpawnSystem
 	 */
 	private static final float ACTIVATION_DELAY = 3.0f;
 	
-	/** Maximum number of enemies active at once (performance cap). */
-	private static final int MAX_ACTIVE_ENEMIES = 100;
+	/** Maximum number of enemies active at once during the day (performance cap). */
+	private static final int MAX_ACTIVE_ENEMIES_DAY = 100;
+	
+	/** Maximum number of enemies active at once at night (raised cap). */
+	private static final int MAX_ACTIVE_ENEMIES_NIGHT = 140;
 	
 	// ------------------------------------------------------------------
 	// Spawn animation constants.
@@ -133,15 +149,15 @@ public class SpawnSystem
 	private static final int PLAYER_ACTIVITY_CHECK_HEIGHT = 3;
 	
 	// ------------------------------------------------------------------
-	// Spawn table.
+	// Spawn tables.
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Weighted spawn table for land enemy types.<br>
+	 * Weighted spawn table for land enemy types during the day.<br>
 	 * Piranhas are assigned automatically when a spawn point lands on water.
 	 */
 	// @formatter:off
-	private static final EnemyType[] LAND_SPAWN_TABLE =
+	private static final EnemyType[] LAND_SPAWN_TABLE_DAY =
 	{
 		EnemyType.WOLF,
 		EnemyType.SPIDER,
@@ -150,7 +166,26 @@ public class SpawnSystem
 		EnemyType.SLIME,
 		EnemyType.SLIME,
 		EnemyType.ZOMBIE,
+		EnemyType.SKELETON,
+	};
+	// @formatter:on
+	
+	/**
+	 * Weighted spawn table for land enemy types at night.<br>
+	 * Heavier weighting toward skeletons and spiders for a more threatening nighttime.
+	 */
+	// @formatter:off
+	private static final EnemyType[] LAND_SPAWN_TABLE_NIGHT =
+	{
+		EnemyType.WOLF,
+		EnemyType.SPIDER,
+		EnemyType.SPIDER,
+		EnemyType.SPIDER,
+		EnemyType.SLIME,
 		EnemyType.ZOMBIE,
+		EnemyType.ZOMBIE,
+		EnemyType.ZOMBIE,
+		EnemyType.SKELETON,
 		EnemyType.SKELETON,
 		EnemyType.SKELETON,
 	};
@@ -254,6 +289,9 @@ public class SpawnSystem
 	/** Reference to the player controller for enemy death healing drops. */
 	private PlayerController _playerController;
 	
+	/** Reference to the day/night cycle for night-aware spawn rates. */
+	private DayNightCycle _dayNightCycle;
+	
 	/**
 	 * Creates a new region-based spawn system.
 	 * @param enemyNode the scene node to attach enemy models to
@@ -289,6 +327,52 @@ public class SpawnSystem
 	{
 		_combatSystem = combatSystem;
 		_playerController = playerController;
+	}
+	
+	/**
+	 * Sets the day/night cycle reference for night-aware spawn behavior.
+	 * @param dayNightCycle the day/night cycle instance
+	 */
+	public void setDayNightCycle(DayNightCycle dayNightCycle)
+	{
+		_dayNightCycle = dayNightCycle;
+	}
+	
+	// ------------------------------------------------------------------
+	// Night-aware helper methods.
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Returns whether it is currently night according to the day/night cycle.<br>
+	 * Defaults to false if no cycle is set.
+	 */
+	private boolean isNight()
+	{
+		return _dayNightCycle != null && _dayNightCycle.isNight();
+	}
+	
+	/**
+	 * Returns the current maximum active enemy cap based on time of day.
+	 */
+	private int getMaxActiveEnemies()
+	{
+		return isNight() ? MAX_ACTIVE_ENEMIES_NIGHT : MAX_ACTIVE_ENEMIES_DAY;
+	}
+	
+	/**
+	 * Returns the squared maximum activation range based on time of day.
+	 */
+	private float getActivationRangeMaxSq()
+	{
+		return isNight() ? ACTIVATION_RANGE_MAX_NIGHT_SQ : ACTIVATION_RANGE_MAX_DAY_SQ;
+	}
+	
+	/**
+	 * Returns the respawn cooldown based on time of day.
+	 */
+	private float getRespawnCooldown()
+	{
+		return isNight() ? RESPAWN_COOLDOWN_NIGHT : RESPAWN_COOLDOWN_DAY;
 	}
 	
 	// ------------------------------------------------------------------
@@ -400,12 +484,15 @@ public class SpawnSystem
 		final int originX = regionX * Region.SIZE_XZ;
 		final int originZ = regionZ * Region.SIZE_XZ;
 		
+		// Select from the night table if it is currently night for more threatening spawns.
+		final EnemyType[] spawnTable = isNight() ? LAND_SPAWN_TABLE_NIGHT : LAND_SPAWN_TABLE_DAY;
+		
 		final List<SpawnPoint> points = new ArrayList<>(count);
 		for (int i = 0; i < count; i++)
 		{
 			final int wx = originX + rng.nextInt(Region.SIZE_XZ);
 			final int wz = originZ + rng.nextInt(Region.SIZE_XZ);
-			final EnemyType landType = LAND_SPAWN_TABLE[rng.nextInt(LAND_SPAWN_TABLE.length)];
+			final EnemyType landType = spawnTable[rng.nextInt(spawnTable.length)];
 			
 			points.add(new SpawnPoint(wx, wz, landType));
 		}
@@ -496,6 +583,9 @@ public class SpawnSystem
 	 */
 	private void processSpawnPoints(Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
+		final int maxEnemies = getMaxActiveEnemies();
+		final float activationRangeMaxSq = getActivationRangeMaxSq();
+		
 		for (List<SpawnPoint> points : _regionSpawnPoints.values())
 		{
 			for (SpawnPoint point : points)
@@ -540,7 +630,7 @@ public class SpawnSystem
 						{
 							_enemyNode.detachChild(enemy.getNode());
 							point.activeEnemy = null;
-							point.respawnTimer = RESPAWN_COOLDOWN;
+							point.respawnTimer = getRespawnCooldown();
 							point.deathProcessed = false;
 							_activeCount--;
 						}
@@ -561,9 +651,13 @@ public class SpawnSystem
 						continue;
 					}
 					
-					// Normal update: sky light + AI + animation + combat visuals.
+					// Normal update: sky light modulated by day/night brightness + AI + animation + combat visuals.
 					final Vector3f pos = enemy.getPosition();
-					final float skyLight = world.getSkyLight((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
+					float skyLight = world.getSkyLight((int) Math.floor(pos.x), (int) Math.floor(pos.y), (int) Math.floor(pos.z));
+					if (_dayNightCycle != null)
+					{
+						skyLight *= _dayNightCycle.getSkyBrightness();
+					}
 					enemy.setSkyLight(skyLight);
 					enemy.update(playerPos, playerInWater, world, tpf);
 					
@@ -589,7 +683,7 @@ public class SpawnSystem
 					}
 					
 					// Activate if player is within the activation band (not too close, not too far).
-					if (distSq >= ACTIVATION_RANGE_MIN_SQ && distSq <= ACTIVATION_RANGE_MAX_SQ && _activeCount < MAX_ACTIVE_ENEMIES)
+					if (distSq >= ACTIVATION_RANGE_MIN_SQ && distSq <= activationRangeMaxSq && _activeCount < maxEnemies)
 					{
 						// Re-check for player buildings (may have built since resolution).
 						if (hasPlayerActivity(world, point.worldX, point.worldY, point.worldZ))
@@ -597,7 +691,7 @@ public class SpawnSystem
 							continue;
 						}
 						
-						activateSpawnPoint(point);
+						activateSpawnPoint(point, world);
 					}
 				}
 			}
@@ -610,13 +704,24 @@ public class SpawnSystem
 	
 	/**
 	 * Spawns an enemy at the given spawn point with the scale-up animation.
+	 * @param point the spawn point to activate
+	 * @param world the world for sky light lookups
 	 */
-	private void activateSpawnPoint(SpawnPoint point)
+	private void activateSpawnPoint(SpawnPoint point, World world)
 	{
 		final float spawnY = point.aquatic ? point.worldY : (point.worldY + GROUND_OFFSET);
 		
 		final Enemy enemy = EnemyFactory.createEnemy(point.resolvedType, _assetManager);
 		enemy.setPosition(new Vector3f(point.worldX + 0.5f, spawnY, point.worldZ + 0.5f));
+		
+		// Set initial sky light so the enemy spawns at the correct brightness (not full white at night).
+		float skyLight = world.getSkyLight(point.worldX, (int) Math.floor(spawnY), point.worldZ);
+		if (_dayNightCycle != null)
+		{
+			skyLight *= _dayNightCycle.getSkyBrightness();
+		}
+		enemy.setSkyLight(skyLight);
+		
 		EnemyLighting.initializeLighting(enemy);
 		
 		// Initialize combat visuals (material cache for hit flash).

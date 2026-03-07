@@ -51,7 +51,7 @@ public class SettingsManager
 	
 	// Default audio values.
 	private static final float DEFAULT_MASTER_VOLUME = 0.7f;
-	private static final float DEFAULT_MUSIC_VOLUME = 0.7f;
+	private static final float DEFAULT_MUSIC_VOLUME = 0.3f;
 	private static final float DEFAULT_SFX_VOLUME = 0.7f;
 	private static final int DEFAULT_RENDER_DISTANCE = 15;
 	

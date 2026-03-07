@@ -99,6 +99,9 @@ public class World
 	/** Background terrain generator and mesh builder. */
 	private final RegionLoader _regionLoader;
 	
+	/** Day/night cycle reference for vertex color modulation during mesh rebuilds. */
+	private DayNightCycle _dayNightCycle;
+	
 	/** Cached set of desired region keys for the current camera position and render distance. */
 	private Set<Long> _desiredRegions = new HashSet<>();
 	
@@ -1076,6 +1079,47 @@ public class World
 		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
 		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
 		region.clearPlayerRemoved(localX, worldY, localZ);
+	}
+	
+	// ========================================================
+	// Day/Night Cycle.
+	// ========================================================
+	
+	/**
+	 * Sets the day/night cycle reference used for vertex color modulation.<br>
+	 * RegionMeshBuilder queries this to apply sky brightness and tint during mesh builds.
+	 * @param dayNightCycle the day/night cycle instance
+	 */
+	public void setDayNightCycle(DayNightCycle dayNightCycle)
+	{
+		_dayNightCycle = dayNightCycle;
+	}
+	
+	/**
+	 * Returns the day/night cycle, or null if not set.
+	 */
+	public DayNightCycle getDayNightCycle()
+	{
+		return _dayNightCycle;
+	}
+	
+	/**
+	 * Marks all currently loaded regions as mesh-dirty and queues them for async remesh.<br>
+	 * Called by PlayingState when the day/night cycle's sky brightness changes enough<br>
+	 * to warrant updating vertex colors across all visible regions.<br>
+	 * Uses the asynchronous remesh path (not synchronous) to spread the work across<br>
+	 * multiple frames and avoid stalling on a large number of loaded regions.
+	 */
+	public void rebuildVisibleMeshes()
+	{
+		for (Map.Entry<Long, Region> entry : _regions.entrySet())
+		{
+			final long key = entry.getKey();
+			final Region region = entry.getValue();
+			region.markMeshDirty();
+			_regionLoader.updateRegionCache(region);
+			markForRemesh(key);
+		}
 	}
 	
 	// ========================================================
