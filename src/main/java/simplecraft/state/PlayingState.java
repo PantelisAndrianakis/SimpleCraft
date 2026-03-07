@@ -22,6 +22,7 @@ import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
+import simplecraft.audio.MusicManager;
 import simplecraft.combat.CombatSystem;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.EnemyLighting;
@@ -86,8 +87,11 @@ public class PlayingState extends FadeableAppState
 	/** Manages enemy → player damage, player → enemy attacks, screen flashes, and death healing drops. */
 	private CombatSystem _combatSystem;
 	
-	/** Manages the day/night cycle — sky brightness, tint, viewport color, and music transitions. */
+	/** Manages the day/night cycle — sky brightness, tint, and viewport color. */
 	private DayNightCycle _dayNightCycle;
+	
+	/** Orchestrates music transitions based on day/night phase and player submersion. */
+	private MusicManager _musicManager;
 	
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
@@ -257,7 +261,6 @@ public class PlayingState extends FadeableAppState
 		
 		// Initialize the day/night cycle (starts at early morning).
 		_dayNightCycle = new DayNightCycle(STARTING_TIME_OF_DAY);
-		_dayNightCycle.setAudioManager(app.getAudioManager());
 		
 		// Set initial terrain lighting so regions built during loading use the correct values.
 		final ColorRGBA initialTint = _dayNightCycle.getTerrainTint();
@@ -361,12 +364,6 @@ public class PlayingState extends FadeableAppState
 			// Update day/night cycle.
 			if (_dayNightCycle != null)
 			{
-				// Feed player submersion state for underwater music override.
-				if (_playerController != null)
-				{
-					_dayNightCycle.setSubmerged(_playerController.isInWater());
-				}
-				
 				_dayNightCycle.update(tpf);
 				
 				final SimpleCraft app = SimpleCraft.getInstance();
@@ -394,6 +391,12 @@ public class PlayingState extends FadeableAppState
 				
 				// Update enemy lighting tint for the current time of day (smooth, per-frame).
 				EnemyLighting.setDayNightTint(_dayNightCycle.getSkyTint());
+			}
+			
+			// Update music transitions (day/night, water override).
+			if (_musicManager != null)
+			{
+				_musicManager.update(tpf, _playerController.isInWater());
 			}
 			
 			// Update player movement and camera.
@@ -750,7 +753,10 @@ public class PlayingState extends FadeableAppState
 		final AudioManager audioManager = app.getAudioManager();
 		if (audioManager != null)
 		{
-			audioManager.fadeInMusic(AudioManager.PERSPECTIVES_MUSIC_PATH, 3.0f);
+			audioManager.fadeInMusic(MusicManager.DAY_MUSIC_PATH, 3.0f);
+			
+			// Initialize the music manager (orchestrates day/night and water music transitions).
+			_musicManager = new MusicManager(audioManager, _dayNightCycle);
 		}
 		
 		// Remove the loading screen.
@@ -864,6 +870,9 @@ public class PlayingState extends FadeableAppState
 		
 		// Clean up day/night cycle.
 		_dayNightCycle = null;
+		
+		// Clean up music manager.
+		_musicManager = null;
 		
 		_textureAtlas = null;
 		_activeWorld = null;

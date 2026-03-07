@@ -14,6 +14,7 @@ import com.simsilica.lemur.Panel;
 
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
+import simplecraft.audio.MusicManager;
 import simplecraft.input.MenuNavigationManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
@@ -188,7 +189,7 @@ public class MainMenuState extends FadeableAppState
 		_navigation.register();
 		
 		// Start menu music.
-		app.getAudioManager().playMusic(AudioManager.PERSPECTIVES_MUSIC_PATH);
+		app.getAudioManager().playMusic(MusicManager.DAY_MUSIC_PATH);
 	}
 	
 	@Override

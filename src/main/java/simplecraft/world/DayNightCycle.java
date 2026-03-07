@@ -3,8 +3,6 @@ package simplecraft.world;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 
-import simplecraft.audio.AudioManager;
-
 /**
  * Manages the day/night cycle including time progression, sky brightness,<br>
  * sky color tinting, and viewport background color.<br>
@@ -21,8 +19,6 @@ import simplecraft.audio.AudioManager;
  * <br>
  * The viewport background color smoothly transitions through day blue,<br>
  * sunset orange-pink, night dark blue-black, and sunrise warm tones.<br>
- * <br>
- * Music crossfading is triggered once per transition at night/dawn boundaries.<br>
  * <br>
  * A full cycle takes {@link #DAY_LENGTH_SECONDS} real-time seconds (default 1200 = 20 minutes).
  * @author Pantelis Andrianakis
@@ -68,7 +64,7 @@ public class DayNightCycle
 	private static final ColorRGBA TINT_NIGHT = new ColorRGBA(0.3f, 0.3f, 0.5f, 1.0f);
 	
 	// ------------------------------------------------------------------
-	// Viewport sky color keyframes (time → color).
+	// Viewport sky color keyframes (time -> color).
 	// ------------------------------------------------------------------
 	
 	/** Midnight: deep dark blue-black. */
@@ -124,28 +120,6 @@ public class DayNightCycle
 		SKY_SUNSET,
 		SKY_DUSK,
 	};
-	
-	// ------------------------------------------------------------------
-	// Music paths.
-	// ------------------------------------------------------------------
-	
-	/** Music track played during daytime. */
-	private static final String DAY_MUSIC_PATH = AudioManager.PERSPECTIVES_MUSIC_PATH;
-	
-	/** Music track played during nighttime. */
-	private static final String NIGHT_MUSIC_PATH = AudioManager.IMPRESSIONIST_MUSIC_PATH;
-	
-	/** Music track played while the player's head is submerged. Overrides day/night music. */
-	private static final String WATER_MUSIC_PATH = AudioManager.MEMALORIC_MUSIC_PATH;
-	
-	/** Crossfade duration for music transitions (seconds). */
-	private static final float MUSIC_CROSSFADE_DURATION = 3.0f;
-	
-	/** Faster crossfade for water transitions (entering/exiting water feels more immediate). */
-	private static final float WATER_CROSSFADE_DURATION = 1.5f;
-	
-	/** Time the player must be continuously out of water before music switches back (seconds). */
-	private static final float WATER_EXIT_DELAY = 3.0f;
 	
 	// ------------------------------------------------------------------
 	// Terrain brightness (gradual day/night transition).
@@ -218,23 +192,8 @@ public class DayNightCycle
 	/** Whether a day/night phase change occurred this frame. */
 	private boolean _phaseChanged;
 	
-	/** Whether it was night on the previous frame (for transition detection). */
+	/** Whether it was night on the previous frame (for terrain transition detection). */
 	private boolean _wasNight;
-	
-	/** Whether a music transition has been triggered for the current phase. */
-	private boolean _musicTransitioned;
-	
-	/** Whether the player's head is currently submerged (water music override). */
-	private boolean _submerged;
-	
-	/** Whether the player was submerged on the previous frame (for transition detection). */
-	private boolean _wasSubmerged;
-	
-	/** Seconds since the player was last in water (reset to 0 each frame in water). */
-	private float _timeSinceWater = Float.MAX_VALUE;
-	
-	/** Reference to the audio manager for music crossfading. */
-	private AudioManager _audioManager;
 	
 	// ------------------------------------------------------------------
 	// Constructor.
@@ -248,7 +207,6 @@ public class DayNightCycle
 	{
 		_timeOfDay = Math.max(0f, Math.min(1f, startTime));
 		_wasNight = isNight();
-		_musicTransitioned = true; // Prevent triggering on first frame.
 		
 		// Compute initial values.
 		updateSkyBrightness();
@@ -304,13 +262,10 @@ public class DayNightCycle
 			_phaseChanged = true;
 			System.out.println("DayNightCycle: Phase transition started to " + (isNight() ? "NIGHT" : "DAY") + ". Target brightness: " + _terrainBrightnessTarget);
 		}
+		_wasNight = isNight();
 		
 		// Advance terrain transition (lerp brightness and tint toward target).
 		updateTerrainTransition(tpf);
-		
-		// Music priority: submerged > night > day.
-		// Water transitions are checked first and override everything.
-		updateMusicState(tpf);
 	}
 	
 	// ------------------------------------------------------------------
@@ -324,8 +279,8 @@ public class DayNightCycle
 	private void updateSkyBrightness()
 	{
 		// Sinusoidal curve: peaks at noon (0.5), troughs at midnight (0.0).
-		// sin((0.5 - 0.25) * TWO_PI) = sin(PI/2) = 1.0 → 0.55 + 0.45 = 1.0
-		// sin((0.0 - 0.25) * TWO_PI) = sin(-PI/2) = -1.0 → 0.55 - 0.45 = 0.1
+		// sin((0.5 - 0.25) * TWO_PI) = sin(PI/2) = 1.0 -> 0.55 + 0.45 = 1.0
+		// sin((0.0 - 0.25) * TWO_PI) = sin(-PI/2) = -1.0 -> 0.55 - 0.45 = 0.1
 		final float raw = 0.55f + 0.45f * FastMath.sin((_timeOfDay - 0.25f) * TWO_PI);
 		_skyBrightness = Math.max(MIN_BRIGHTNESS, Math.min(1.0f, raw));
 	}
@@ -341,8 +296,8 @@ public class DayNightCycle
 	private void updateSkyTint()
 	{
 		// Use brightness as a natural interpolation factor:
-		// brightness 1.0 (noon) → full day tint, brightness 0.1 (midnight) → full night tint.
-		// Remap brightness [0.1, 1.0] → [0.0, 1.0] for smoother tint transitions.
+		// brightness 1.0 (noon) -> full day tint, brightness 0.1 (midnight) -> full night tint.
+		// Remap brightness [0.1, 1.0] -> [0.0, 1.0] for smoother tint transitions.
 		final float t = Math.max(0f, Math.min(1f, (_skyBrightness - MIN_BRIGHTNESS) / (1.0f - MIN_BRIGHTNESS)));
 		
 		_skyTint.r = TINT_NIGHT.r + (TINT_DAY.r - TINT_NIGHT.r) * t;
@@ -383,7 +338,7 @@ public class DayNightCycle
 		final float t1;
 		if (idx1 == 0 && idx0 == count - 1)
 		{
-			// Wrapping: last keyframe → first keyframe (across midnight).
+			// Wrapping: last keyframe -> first keyframe (across midnight).
 			t1 = 1.0f + SKY_TIMES[0]; // Treat first keyframe as being at 1.0+.
 		}
 		else
@@ -483,120 +438,6 @@ public class DayNightCycle
 			_terrainRebuildNeeded = true;
 			_lastTerrainRebuildBrightness = _terrainBrightness;
 		}
-	}
-	
-	// ------------------------------------------------------------------
-	// Music state management.
-	// ------------------------------------------------------------------
-	
-	/**
-	 * Handles music transitions based on priority: submerged > night > day.<br>
-	 * Water music overrides day/night. Surfacing returns to the correct track.<br>
-	 * Uses a time-since-water tracker so the player must be on dry land for<br>
-	 * {@link #WATER_EXIT_DELAY} seconds before music switches back, preventing rapid toggling.<br>
-	 * Day/night transitions are suppressed while submerged.
-	 * @param tpf time per frame in seconds
-	 */
-	private void updateMusicState(float tpf)
-	{
-		if (_audioManager == null)
-		{
-			return;
-		}
-		
-		// Track time since last in water.
-		if (_submerged)
-		{
-			_timeSinceWater = 0f;
-		}
-		else
-		{
-			_timeSinceWater += tpf;
-		}
-		
-		// --- Water transitions (highest priority) ---
-		final boolean shouldPlayWaterMusic = _timeSinceWater < WATER_EXIT_DELAY;
-		
-		if (shouldPlayWaterMusic && !_wasSubmerged)
-		{
-			// Entering water — crossfade to underwater music.
-			_audioManager.crossfadeTo(WATER_MUSIC_PATH, WATER_CROSSFADE_DURATION);
-			_wasSubmerged = true;
-			_wasNight = isNight();
-			_musicTransitioned = true;
-			System.out.println("DayNightCycle: Transitioning to underwater music.");
-			return;
-		}
-		
-		if (!shouldPlayWaterMusic && _wasSubmerged)
-		{
-			// Out of water for longer than exit delay — crossfade back.
-			final String surfaceTrack = isNight() ? NIGHT_MUSIC_PATH : DAY_MUSIC_PATH;
-			_audioManager.crossfadeTo(surfaceTrack, WATER_CROSSFADE_DURATION);
-			_wasSubmerged = false;
-			_wasNight = isNight();
-			_musicTransitioned = true;
-			System.out.println("DayNightCycle: Surfacing, transitioning to " + (isNight() ? "night" : "day") + " music.");
-			return;
-		}
-		
-		// --- Day/night transitions (only when not in water) ---
-		if (_wasSubmerged)
-		{
-			// While water music active, just track night state silently.
-			_wasNight = isNight();
-			return;
-		}
-		
-		final boolean nightNow = isNight();
-		if (nightNow != _wasNight)
-		{
-			if (!_musicTransitioned)
-			{
-				if (nightNow)
-				{
-					_audioManager.crossfadeTo(NIGHT_MUSIC_PATH, MUSIC_CROSSFADE_DURATION);
-					System.out.println("DayNightCycle: Transitioning to night music.");
-				}
-				else
-				{
-					_audioManager.crossfadeTo(DAY_MUSIC_PATH, MUSIC_CROSSFADE_DURATION);
-					System.out.println("DayNightCycle: Transitioning to day music.");
-				}
-				_musicTransitioned = true;
-			}
-			_wasNight = nightNow;
-		}
-		else
-		{
-			// Reset transition flag once we are firmly in the current phase.
-			_musicTransitioned = false;
-		}
-	}
-	
-	/**
-	 * Sets whether the player's head is currently submerged.<br>
-	 * When submerged, underwater music overrides day/night tracks.<br>
-	 * When surfacing, the correct day/night track is restored.<br>
-	 * Must be called every frame before {@link #update(float)}.
-	 * @param submerged true if the player's head is underwater
-	 */
-	public void setSubmerged(boolean submerged)
-	{
-		_submerged = submerged;
-	}
-	
-	// ------------------------------------------------------------------
-	// Audio manager reference.
-	// ------------------------------------------------------------------
-	
-	/**
-	 * Sets the audio manager used for music crossfading during day/night transitions.
-	 * @param audioManager the audio manager instance
-	 */
-	public void setAudioManager(AudioManager audioManager)
-	{
-		_audioManager = audioManager;
 	}
 	
 	// ------------------------------------------------------------------
