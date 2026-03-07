@@ -1175,4 +1175,77 @@ public class World
 	{
 		return _regions.size();
 	}
+	
+	// ========================================================
+	// Underground Detection.
+	// ========================================================
+	
+	/** Horizontal search radius (in blocks) for nearest natural dirt/grass. */
+	private static final int UNDERGROUND_SEARCH_RADIUS_XZ = 3;
+	
+	/** Downward search distance from the player (catches dirt under feet on surface). */
+	private static final int UNDERGROUND_SEARCH_DOWN = 5;
+	
+	/** Upward search distance from the player (reaches surface layer from caves). */
+	private static final int UNDERGROUND_SEARCH_UP = 40;
+	
+	/** Player must be at least this many blocks below the nearest natural dirt to be underground. */
+	private static final int UNDERGROUND_DEPTH_THRESHOLD = 4;
+	
+	/**
+	 * Returns whether the player is underground — at least {@value #UNDERGROUND_DEPTH_THRESHOLD}<br>
+	 * blocks below the nearest non-player-placed DIRT or GRASS block.<br>
+	 * <br>
+	 * Searches a 3D area around the player (±{@value #UNDERGROUND_SEARCH_RADIUS_XZ} XZ,<br>
+	 * -{@value #UNDERGROUND_SEARCH_DOWN} to +{@value #UNDERGROUND_SEARCH_UP} Y) for the<br>
+	 * closest natural dirt/grass block by squared Euclidean distance. Using the closest<br>
+	 * block rather than scanning only the column above the player handles horizontal<br>
+	 * tunnels and cave entrances where natural dirt may be to the side rather than directly<br>
+	 * overhead. If the closest dirt is found and the player's Y is at least 2 below that<br>
+	 * block's Y, the player is considered underground.
+	 * @param worldX player's world X position (integer block coordinate)
+	 * @param worldY player's world Y position (feet level)
+	 * @param worldZ player's world Z position (integer block coordinate)
+	 * @return true if the player is at least 2 blocks below the nearest natural dirt
+	 */
+	public boolean isUnderground(int worldX, int worldY, int worldZ)
+	{
+		final int yMin = Math.max(0, worldY - UNDERGROUND_SEARCH_DOWN);
+		final int yMax = Math.min(Region.SIZE_Y - 1, worldY + UNDERGROUND_SEARCH_UP);
+		
+		int closestDirtY = -1;
+		int closestDistSq = Integer.MAX_VALUE;
+		
+		for (int dx = -UNDERGROUND_SEARCH_RADIUS_XZ; dx <= UNDERGROUND_SEARCH_RADIUS_XZ; dx++)
+		{
+			for (int dz = -UNDERGROUND_SEARCH_RADIUS_XZ; dz <= UNDERGROUND_SEARCH_RADIUS_XZ; dz++)
+			{
+				final int cx = worldX + dx;
+				final int cz = worldZ + dz;
+				final int hDistSq = dx * dx + dz * dz;
+				
+				for (int y = yMin; y <= yMax; y++)
+				{
+					final Block block = getBlock(cx, y, cz);
+					if ((block == Block.DIRT || block == Block.GRASS) && !isPlayerPlaced(cx, y, cz))
+					{
+						final int dy = y - worldY;
+						final int distSq = hDistSq + dy * dy;
+						if (distSq < closestDistSq)
+						{
+							closestDistSq = distSq;
+							closestDirtY = y;
+						}
+					}
+				}
+			}
+		}
+		
+		if (closestDirtY < 0)
+		{
+			return false; // No natural dirt found nearby — surface or void.
+		}
+		
+		return worldY <= (closestDirtY - UNDERGROUND_DEPTH_THRESHOLD);
+	}
 }

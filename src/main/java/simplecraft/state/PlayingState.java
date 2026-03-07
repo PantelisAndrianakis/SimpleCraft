@@ -90,7 +90,7 @@ public class PlayingState extends FadeableAppState
 	/** Manages the day/night cycle — sky brightness, tint, and viewport color. */
 	private DayNightCycle _dayNightCycle;
 	
-	/** Orchestrates music transitions based on day/night phase and player submersion. */
+	/** Orchestrates music transitions based on day/night phase, underground, and player submersion. */
 	private MusicManager _musicManager;
 	
 	/** Whether the player is currently dead (death screen showing). */
@@ -393,10 +393,12 @@ public class PlayingState extends FadeableAppState
 				EnemyLighting.setDayNightTint(_dayNightCycle.getSkyTint());
 			}
 			
-			// Update music transitions (day/night, water override).
+			// Update music transitions (water, underground, day/night).
 			if (_musicManager != null)
 			{
-				_musicManager.update(tpf, _playerController.isInWater());
+				final Vector3f pos = _playerController.getPosition();
+				final boolean underground = _world.isUnderground((int) pos.x, (int) pos.y, (int) pos.z);
+				_musicManager.update(tpf, _playerController.isInWater(), underground);
 			}
 			
 			// Update player movement and camera.
