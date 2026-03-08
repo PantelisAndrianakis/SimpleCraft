@@ -21,12 +21,38 @@ import simplecraft.world.World;
  * The {@code attachedFace} field records which face of the neighboring solid block<br>
  * this tile entity is attached to. This is relevant for directional blocks such as<br>
  * torches, doors, windows, and trapdoors. Blocks without directional placement<br>
- * (e.g. campfire, chest) default to {@link Face#BOTTOM}.
+ * (e.g. campfire, chest) default to {@link Face#BOTTOM}.<br>
+ * <br>
+ * The {@code facing} field records which cardinal direction the block's front face<br>
+ * points toward. Used by CHEST and FURNACE so the front texture (latch, opening)<br>
+ * renders on the correct world face based on where the player stood when placing.<br>
+ * Defaults to {@link Facing#NORTH} for backward compatibility with older saves.
  * @author Pantelis Andrianakis
  * @since March 8th 2026
  */
 public abstract class TileEntity
 {
+	// ========================================================
+	// Facing Enum.
+	// ========================================================
+	
+	/**
+	 * Cardinal direction a block's front face points toward.<br>
+	 * NORTH = front texture on the Z+ face (default).<br>
+	 * Used by CHEST, FURNACE, and CRAFTING_TABLE for directional placement.
+	 */
+	public enum Facing
+	{
+		NORTH,
+		SOUTH,
+		EAST,
+		WEST
+	}
+	
+	// ========================================================
+	// Fields.
+	// ========================================================
+	
 	/** World block coordinates of this tile entity. */
 	protected final Vector3i _position;
 	
@@ -44,8 +70,20 @@ public abstract class TileEntity
 	 */
 	protected final Face _attachedFace;
 	
+	/**
+	 * Which cardinal direction the block's front face points toward.<br>
+	 * Defaults to NORTH for backward compatibility with saves that lack this field.<br>
+	 * Only visually meaningful for blocks with a front texture (CHEST, FURNACE).<br>
+	 * Stored in the base class for uniform serialization.
+	 */
+	protected Facing _facing = Facing.NORTH;
+	
 	/** Optional scene node for particles/visuals. Null if no visuals needed. */
 	protected Node _visualNode;
+	
+	// ========================================================
+	// Constructors.
+	// ========================================================
 	
 	/**
 	 * Create a new tile entity at the given world position with a specific attachment face.
@@ -122,7 +160,7 @@ public abstract class TileEntity
 	
 	/**
 	 * Serializes this tile entity to a key=value string for saving.<br>
-	 * Base implementation writes type, position, and attached face.<br>
+	 * Base implementation writes type, position, attached face, and facing direction.<br>
 	 * Subclasses append extra fields.
 	 * @return serialized string representation
 	 */
@@ -133,7 +171,8 @@ public abstract class TileEntity
 		sb.append("x=").append(_position.x).append('\n');
 		sb.append("y=").append(_position.y).append('\n');
 		sb.append("z=").append(_position.z).append('\n');
-		sb.append("attachedFace=").append(_attachedFace.name());
+		sb.append("attachedFace=").append(_attachedFace.name()).append('\n');
+		sb.append("facing=").append(_facing.name());
 		return sb.toString();
 	}
 	
@@ -157,6 +196,7 @@ public abstract class TileEntity
 		int z = 0;
 		boolean activated = false;
 		String attachedFace = "BOTTOM";
+		String facing = "NORTH";
 		
 		for (String line : data.split("\n"))
 		{
@@ -201,6 +241,11 @@ public abstract class TileEntity
 					attachedFace = value;
 					break;
 				}
+				case "facing":
+				{
+					facing = value;
+					break;
+				}
 			}
 		}
 		
@@ -211,6 +256,7 @@ public abstract class TileEntity
 		
 		final Vector3i pos = new Vector3i(x, y, z);
 		final Face face = Face.valueOf(attachedFace);
+		final Facing facingDir = Facing.valueOf(facing);
 		
 		switch (type)
 		{
@@ -218,17 +264,22 @@ public abstract class TileEntity
 			{
 				final CampfireTileEntity campfire = new CampfireTileEntity(pos);
 				campfire.setActivated(activated);
+				campfire.setFacing(facingDir);
 				return campfire;
 			}
 			case "TORCH":
 			{
-				return new TorchTileEntity(pos, face);
+				final TorchTileEntity torch = new TorchTileEntity(pos, face);
+				torch.setFacing(facingDir);
+				return torch;
 			}
 			case "CHEST":
 			case "CRAFTING_TABLE":
 			case "FURNACE":
 			{
-				return new PlaceholderTileEntity(pos, Block.valueOf(type));
+				final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, Block.valueOf(type));
+				placeholder.setFacing(facingDir);
+				return placeholder;
 			}
 			default:
 			{
@@ -266,6 +317,24 @@ public abstract class TileEntity
 	public Face getAttachedFace()
 	{
 		return _attachedFace;
+	}
+	
+	/**
+	 * Returns which cardinal direction the block's front face points toward.<br>
+	 * NORTH means the front texture renders on the NORTH (Z+) face.
+	 */
+	public Facing getFacing()
+	{
+		return _facing;
+	}
+	
+	/**
+	 * Sets which cardinal direction the block's front face points toward.
+	 * @param facing the facing direction
+	 */
+	public void setFacing(Facing facing)
+	{
+		_facing = facing;
 	}
 	
 	/**

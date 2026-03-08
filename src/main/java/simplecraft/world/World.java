@@ -751,7 +751,7 @@ public class World
 	 */
 	private void rebuildRegionSync(long key, Region region)
 	{
-		final RegionMeshResult meshResult = RegionMeshBuilder.buildRegionMesh(region, this::getBlock);
+		final RegionMeshResult meshResult = RegionMeshBuilder.buildRegionMesh(region, this::getBlock, _tileEntityManager);
 		detachRegionGeometry(key);
 		attachGeometries(region, meshResult);
 		region.markMeshClean();

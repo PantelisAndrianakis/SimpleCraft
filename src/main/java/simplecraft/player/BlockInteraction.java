@@ -32,6 +32,7 @@ import simplecraft.world.World;
 import simplecraft.world.entity.CampfireTileEntity;
 import simplecraft.world.entity.PlaceholderTileEntity;
 import simplecraft.world.entity.TileEntity;
+import simplecraft.world.entity.TileEntity.Facing;
 import simplecraft.world.entity.TileEntityManager;
 import simplecraft.world.entity.TorchTileEntity;
 
@@ -1048,16 +1049,23 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return;
 		}
 		
-		// Place the block.
-		_world.setBlockImmediate(placeX, placeY, placeZ, selectedBlock);
-		_world.markPlayerPlaced(placeX, placeY, placeZ);
-		
-		// Create tile entity if this is a tile entity block.
+		// Place the block and create tile entity.
+		// For tile entity blocks, we use a two-step approach:
+		// 1. Set block data without rebuilding the mesh.
+		// 2. Create and register the tile entity (with facing, light, etc.).
+		// 3. Rebuild the mesh so the tile entity's facing is available during vertex building.
+		// Without this order, the mesh builder would query the TileEntityManager before the
+		// entity is registered and default to NORTH facing.
 		if (selectedBlock.isTileEntity())
 		{
 			final TileEntityManager manager = _world.getTileEntityManager();
 			if (manager != null)
 			{
+				// Step 1: Set block data without mesh rebuild.
+				_world.setBlockNoRebuild(placeX, placeY, placeZ, selectedBlock);
+				_world.markPlayerPlaced(placeX, placeY, placeZ);
+				
+				// Step 2: Create and register the tile entity.
 				final Vector3i pos = new Vector3i(placeX, placeY, placeZ);
 				TileEntity entity = null;
 				
@@ -1079,7 +1087,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					case CRAFTING_TABLE:
 					case FURNACE:
 					{
-						entity = new PlaceholderTileEntity(pos, selectedBlock);
+						final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, selectedBlock);
+						placeholder.setFacing(getPlayerFacing());
+						entity = placeholder;
 						break;
 					}
 					default:
@@ -1093,10 +1103,54 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					entity.onPlaced(_world);
 					manager.register(entity);
 				}
+				
+				// Step 3: Rebuild the mesh now that the tile entity is registered.
+				_world.rebuildDirtyRegionsImmediate();
 			}
+			else
+			{
+				// Fallback if no manager (shouldn't happen in practice).
+				_world.setBlockImmediate(placeX, placeY, placeZ, selectedBlock);
+				_world.markPlayerPlaced(placeX, placeY, placeZ);
+			}
+		}
+		else
+		{
+			// Non-tile-entity blocks: immediate placement with single-step rebuild.
+			_world.setBlockImmediate(placeX, placeY, placeZ, selectedBlock);
+			_world.markPlayerPlaced(placeX, placeY, placeZ);
 		}
 		
 		System.out.println("Placed " + selectedBlock.name() + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
+	}
+	
+	/**
+	 * Calculates which cardinal direction the block's front face should point.<br>
+	 * The front face points TOWARD the player so the player sees the front texture<br>
+	 * (e.g. chest latch, furnace opening) when looking at the block they just placed.<br>
+	 * <br>
+	 * If the player looks east (+X), they see the WEST face of blocks in front of them,<br>
+	 * so the block's front should face WEST (toward the player).
+	 * @return the facing direction for the placed block's front face
+	 */
+	private Facing getPlayerFacing()
+	{
+		final Vector3f dir = _camera.getDirection();
+		final float absX = Math.abs(dir.x);
+		final float absZ = Math.abs(dir.z);
+		
+		if (absX > absZ)
+		{
+			// Player looks more along X axis.
+			// Looking east (+X) → player sees WEST face → front faces WEST.
+			return dir.x > 0 ? Facing.WEST : Facing.EAST;
+		}
+		else
+		{
+			// Player looks more along Z axis.
+			// Looking north (+Z) → player sees SOUTH face → front faces SOUTH.
+			return dir.z > 0 ? Facing.SOUTH : Facing.NORTH;
+		}
 	}
 	
 	/**

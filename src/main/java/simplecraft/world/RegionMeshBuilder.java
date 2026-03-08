@@ -10,11 +10,15 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.world.Block.Face;
 import simplecraft.world.Block.RenderMode;
+import simplecraft.world.entity.TileEntity.Facing;
+import simplecraft.world.entity.TileEntityManager;
 
 /**
  * Static utility class that builds jME3 Mesh objects from region block data.<br>
  * Generates three separate meshes per region: opaque, transparent, and billboard.<br>
  * Includes per-vertex color data for sky-light-based lighting with directional face shading.<br>
+ * Supports directional block placement: oriented tile entities (CHEST, FURNACE) have<br>
+ * their front texture rotated to match the stored facing direction.<br>
  * Pure function: data in, Mesh out. No instance state.
  * @author Pantelis Andrianakis
  * @since February 21st 2026
@@ -413,17 +417,30 @@ public class RegionMeshBuilder
 	}
 	
 	// ========================================================
-	// Full Region Mesh Building (legacy — kept for compatibility).
+	// Full Region Mesh Building.
 	// ========================================================
 	
 	/**
 	 * Builds three separate meshes from the region's block data.<br>
-	 * Legacy method - prefer using buildRegionMeshData + createMeshes for better performance.
+	 * Backward-compatible overload — no tile entity orientation support.
 	 */
 	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess)
 	{
-		// Use the optimized data builder then convert to meshes.
-		final RegionMeshData data = buildRegionMeshData(region, worldAccess);
+		return buildRegionMesh(region, worldAccess, null);
+	}
+	
+	/**
+	 * Builds three separate meshes from the region's block data.<br>
+	 * When a TileEntityManager is provided, oriented blocks (CHEST, FURNACE) have<br>
+	 * their front textures rotated to match the stored facing direction.
+	 * @param region the region to build
+	 * @param worldAccess optional cross-region block lookup (may be null)
+	 * @param tileEntityManager optional tile entity manager for orientation lookup (may be null)
+	 * @return the three meshes (opaque, transparent, billboard)
+	 */
+	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess, TileEntityManager tileEntityManager)
+	{
+		final RegionMeshData data = buildRegionMeshData(region, worldAccess, tileEntityManager);
 		return createMeshes(data);
 	}
 	
@@ -433,17 +450,35 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Builds raw vertex arrays from the region's block data (background-thread safe).<br>
-	 * Optimized version with zero garbage collection during vertex building.<br>
-	 * Includes per-vertex color data computed from the region's sky light map, face shade factors,<br>
-	 * and the current day/night cycle brightness and tint (set via {@link #setDayNightParams}).
-	 * @param region the region to build mesh data from
-	 * @param worldAccess optional world-level block access for cross-region neighbor lookups (may be null)
-	 * @return a RegionMeshData containing raw vertex arrays including color data
+	 * Backward-compatible overload — no tile entity orientation support.
 	 */
 	public static RegionMeshData buildRegionMeshData(Region region, WorldBlockAccess worldAccess)
 	{
+		return buildRegionMeshData(region, worldAccess, null);
+	}
+	
+	/**
+	 * Builds raw vertex arrays from the region's block data (background-thread safe).<br>
+	 * Optimized version with zero garbage collection during vertex building.<br>
+	 * Includes per-vertex color data computed from the region's sky light map, face shade factors,<br>
+	 * and the current day/night cycle brightness and tint (set via {@link #setDayNightParams}).<br>
+	 * <br>
+	 * When a TileEntityManager is provided, CUBE_SOLID tile entity blocks have their face-to-texture<br>
+	 * mapping rotated according to the stored facing direction. This makes the front texture<br>
+	 * (e.g. chest latch, furnace opening) render on the correct world face.
+	 * @param region the region to build mesh data from
+	 * @param worldAccess optional world-level block access for cross-region neighbor lookups (may be null)
+	 * @param tileEntityManager optional tile entity manager for orientation lookup (may be null)
+	 * @return a RegionMeshData containing raw vertex arrays including color data
+	 */
+	public static RegionMeshData buildRegionMeshData(Region region, WorldBlockAccess worldAccess, TileEntityManager tileEntityManager)
+	{
 		// Ensure sky light data is up to date before building vertex colors.
 		region.ensureSkyLightComputed();
+		
+		// Precompute region world origin for tile entity lookups.
+		final int regionWorldX = region.getWorldX();
+		final int regionWorldZ = region.getWorldZ();
 		
 		// Pass 1: Count vertices needed for each mesh type.
 		final int[] counts = countVertices(region, worldAccess);
@@ -503,6 +538,14 @@ public class RegionMeshBuilder
 					{
 						case CUBE_SOLID:
 						{
+							// Determine facing for oriented tile entity blocks.
+							// Default NORTH means no rotation (original behavior).
+							Facing blockFacing = Facing.NORTH;
+							if (block.isTileEntity() && tileEntityManager != null)
+							{
+								blockFacing = tileEntityManager.getFacing(regionWorldX + x, y, regionWorldZ + z);
+							}
+							
 							for (Face face : Face.values())
 							{
 								if (isFaceVisible(region, x, y, z, face, worldAccess))
@@ -521,7 +564,10 @@ public class RegionMeshBuilder
 									final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
 									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
 									
-									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, block, r, g, b, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
+									// Rotate face for texture lookup on oriented blocks.
+									final Face textureFace = rotateFace(face, blockFacing);
+									
+									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, textureFace, block, r, g, b, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
 									opaqueVPtr += 4 * 3; // 4 verts × 3 coords
 									opaqueUPtr += 4 * 2; // 4 verts × 2 UVs
 									opaqueCPtr += 4 * 4; // 4 verts × 4 RGBA
@@ -548,7 +594,7 @@ public class RegionMeshBuilder
 									final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
 									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
 									
-									writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, block, r, g, b, transVPtr, transUPtr, transCPtr, transIPtr);
+									writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, face, block, r, g, b, transVPtr, transUPtr, transCPtr, transIPtr);
 									transVPtr += 4 * 3;
 									transUPtr += 4 * 2;
 									transCPtr += 4 * 4;
@@ -591,6 +637,128 @@ public class RegionMeshBuilder
 		
 		return new RegionMeshData(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, transPos, transNorm, transUV, transCol, transIdx, billPos, billNorm, billUV, billCol, billIdx);
 	}
+	
+	// ========================================================
+	// Face Rotation for Directional Blocks.
+	// ========================================================
+	
+	/**
+	 * Maps a physical world face to a logical face for texture lookup based on block orientation.<br>
+	 * <br>
+	 * {@link Block#getAtlasIndex(Face)} assumes NORTH = front. When the block faces a different<br>
+	 * direction, the physical face that should display the front texture is not NORTH.<br>
+	 * This method translates: "I'm rendering the physical SOUTH face of a block facing SOUTH"<br>
+	 * → "ask getAtlasIndex(NORTH) to get the front texture."<br>
+	 * <br>
+	 * TOP and BOTTOM faces are not affected by horizontal rotation.
+	 * @param physicalFace the actual world face being rendered
+	 * @param blockFacing which direction the block's front points
+	 * @return the logical face to pass to {@link Block#getAtlasIndex(Face)}
+	 */
+	private static Face rotateFace(Face physicalFace, Facing blockFacing)
+	{
+		// NORTH facing = no rotation (default orientation).
+		if (blockFacing == Facing.NORTH)
+		{
+			return physicalFace;
+		}
+		
+		// TOP and BOTTOM don't rotate with horizontal facing.
+		if (physicalFace == Face.TOP || physicalFace == Face.BOTTOM)
+		{
+			return physicalFace;
+		}
+		
+		switch (blockFacing)
+		{
+			case SOUTH: // 180° rotation.
+			{
+				switch (physicalFace)
+				{
+					case NORTH:
+					{
+						return Face.SOUTH;
+					}
+					case SOUTH:
+					{
+						return Face.NORTH;
+					}
+					case EAST:
+					{
+						return Face.WEST;
+					}
+					case WEST:
+					{
+						return Face.EAST;
+					}
+					default:
+					{
+						return physicalFace;
+					}
+				}
+			}
+			case EAST: // 90° clockwise.
+			{
+				switch (physicalFace)
+				{
+					case NORTH:
+					{
+						return Face.WEST;
+					}
+					case SOUTH:
+					{
+						return Face.EAST;
+					}
+					case EAST:
+					{
+						return Face.NORTH;
+					}
+					case WEST:
+					{
+						return Face.SOUTH;
+					}
+					default:
+					{
+						return physicalFace;
+					}
+				}
+			}
+			case WEST: // 90° counter-clockwise.
+			{
+				switch (physicalFace)
+				{
+					case NORTH:
+					{
+						return Face.EAST;
+					}
+					case SOUTH:
+					{
+						return Face.WEST;
+					}
+					case EAST:
+					{
+						return Face.SOUTH;
+					}
+					case WEST:
+					{
+						return Face.NORTH;
+					}
+					default:
+					{
+						return physicalFace;
+					}
+				}
+			}
+			default:
+			{
+				return physicalFace;
+			}
+		}
+	}
+	
+	// ========================================================
+	// Sky Light and Block Light Helpers.
+	// ========================================================
 	
 	/**
 	 * Returns the sky light at the neighbor position for a given face.<br>
@@ -739,18 +907,22 @@ public class RegionMeshBuilder
 	}
 	
 	/**
-	 * Writes one face directly to pre-allocated arrays, including vertex color data.
+	 * Writes one face directly to pre-allocated arrays, including vertex color data.<br>
+	 * The physical face controls vertex positions and normals; the texture face controls<br>
+	 * atlas UV lookup (they differ for oriented tile entity blocks).
+	 * @param physicalFace the world face being rendered (controls geometry)
+	 * @param textureFace the logical face for texture lookup (controls atlas UV)
 	 * @param r pre-computed red component for all 4 vertices (light × tint)
 	 * @param g pre-computed green component for all 4 vertices
 	 * @param b pre-computed blue component for all 4 vertices
 	 */
-	private static void writeFace(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Face face, Block block, float r, float g, float b, int vPtr, int uvPtr, int cPtr, int iPtr)
+	private static void writeFace(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Face physicalFace, Face textureFace, Block block, float r, float g, float b, int vPtr, int uvPtr, int cPtr, int iPtr)
 	{
-		final int faceOrdinal = face.ordinal();
+		final int faceOrdinal = physicalFace.ordinal();
 		final int baseVertex = vPtr / 3;
 		
-		// Get atlas UV bounds.
-		final float[] uvBounds = getAtlasUVs(block, face);
+		// Get atlas UV bounds using the texture face (may differ from physical face for oriented blocks).
+		final float[] uvBounds = getAtlasUVs(block, textureFace);
 		
 		// Use flattened arrays instead of Vector3f arrays.
 		final float[] facePos = FACE_POSITIONS_FLAT[faceOrdinal];

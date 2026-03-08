@@ -8,6 +8,7 @@ import com.jme3.scene.Node;
 
 import simplecraft.util.Vector3i;
 import simplecraft.world.World;
+import simplecraft.world.entity.TileEntity.Facing;
 
 /**
  * Central registry for all active tile entities in the world.<br>
@@ -117,6 +118,26 @@ public class TileEntityManager
 	public TileEntity get(int x, int y, int z)
 	{
 		return _entities.get(packPosition(x, y, z));
+	}
+	
+	/**
+	 * Returns the facing direction of the tile entity at the given world coordinates.<br>
+	 * Convenience method for the mesh builder to quickly look up orientation.<br>
+	 * Returns {@link Facing#NORTH} (default) if no tile entity exists at the position.
+	 * @param x world X coordinate
+	 * @param y world Y coordinate
+	 * @param z world Z coordinate
+	 * @return the facing direction, or NORTH if no entity found
+	 */
+	public Facing getFacing(int x, int y, int z)
+	{
+		final TileEntity entity = _entities.get(packPosition(x, y, z));
+		if (entity != null)
+		{
+			return entity.getFacing();
+		}
+		
+		return Facing.NORTH;
 	}
 	
 	/**
