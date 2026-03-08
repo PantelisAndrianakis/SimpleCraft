@@ -292,6 +292,7 @@ public class PlayingState extends FadeableAppState
 		
 		// Create world with day/night cycle reference for vertex color modulation.
 		_world = new World(seed, atlasMaterial);
+		RegionMeshBuilder.setGlobalTileEntityManager(_world.getTileEntityManager());
 		_world.setDayNightCycle(_dayNightCycle);
 		EnemyLighting.setWorld(_world);
 		
@@ -901,6 +902,7 @@ public class PlayingState extends FadeableAppState
 				app.getRootNode().detachChild(tileEntityManager.getNode());
 			}
 			
+			RegionMeshBuilder.setGlobalTileEntityManager(null);
 			_world.shutdown();
 			app.getRootNode().detachChild(_world.getWorldNode());
 			_world = null;

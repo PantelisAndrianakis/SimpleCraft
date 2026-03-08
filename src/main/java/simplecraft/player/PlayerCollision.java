@@ -380,7 +380,8 @@ public class PlayerCollision
 	// ========================================================
 	
 	/**
-	 * Returns true if the player AABB at the given position overlaps any solid block.
+	 * Returns true if the player AABB at the given position overlaps any block that<br>
+	 * prevents movement (solid blocks and closed doors/windows).
 	 */
 	private boolean hasSolidCollision(float posX, float posY, float posZ, World world)
 	{
@@ -397,7 +398,7 @@ public class PlayerCollision
 			{
 				for (int bz = minBZ; bz <= maxBZ; bz++)
 				{
-					if (world.getBlock(bx, by, bz).isSolid())
+					if (world.isBlockingMovement(bx, by, bz))
 					{
 						return true;
 					}
@@ -413,8 +414,8 @@ public class PlayerCollision
 	// ========================================================
 	
 	/**
-	 * Pushes the player out of solid blocks along the X axis.<br>
-	 * Scans for the first solid block in the direction of movement and snaps the<br>
+	 * Pushes the player out of blocking blocks along the X axis.<br>
+	 * Scans for the first blocking block in the direction of movement and snaps the<br>
 	 * player edge to that block's face.
 	 */
 	private void pushBackX(Vector3f position, float deltaX, World world)
@@ -435,7 +436,7 @@ public class PlayerCollision
 				{
 					for (int bz = minBZ; bz <= maxBZ; bz++)
 					{
-						if (world.getBlock(bx, by, bz).isSolid())
+						if (world.isBlockingMovement(bx, by, bz))
 						{
 							position.x = bx - HALF_WIDTH;
 							return;
@@ -453,7 +454,7 @@ public class PlayerCollision
 				{
 					for (int bz = minBZ; bz <= maxBZ; bz++)
 					{
-						if (world.getBlock(bx, by, bz).isSolid())
+						if (world.isBlockingMovement(bx, by, bz))
 						{
 							position.x = bx + 1 + HALF_WIDTH;
 							return;
@@ -465,8 +466,8 @@ public class PlayerCollision
 	}
 	
 	/**
-	 * Pushes the player out of solid blocks along the Z axis.<br>
-	 * Scans for the first solid block in the direction of movement and snaps the<br>
+	 * Pushes the player out of blocking blocks along the Z axis.<br>
+	 * Scans for the first blocking block in the direction of movement and snaps the<br>
 	 * player edge to that block's face.
 	 */
 	private void pushBackZ(Vector3f position, float deltaZ, World world)
@@ -487,7 +488,7 @@ public class PlayerCollision
 				{
 					for (int bx = minBX; bx <= maxBX; bx++)
 					{
-						if (world.getBlock(bx, by, bz).isSolid())
+						if (world.isBlockingMovement(bx, by, bz))
 						{
 							position.z = bz - HALF_WIDTH;
 							return;
@@ -505,7 +506,7 @@ public class PlayerCollision
 				{
 					for (int bx = minBX; bx <= maxBX; bx++)
 					{
-						if (world.getBlock(bx, by, bz).isSolid())
+						if (world.isBlockingMovement(bx, by, bz))
 						{
 							position.z = bz + 1 + HALF_WIDTH;
 							return;

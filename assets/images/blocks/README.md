@@ -96,3 +96,15 @@ A dense patch of shorter, rubbery seaweed that hugs the ocean floor. Thick, roun
 
 ### 31. `transparent.png` — The Void Between
 Nothing to see here. Every single pixel is completely empty—pure transparency. It's the texture that exists only to be invisible, used on the top and bottom of seaweed so those beautiful kelp fronds are only seen from the sides where they matter. It's the digital equivalent of air.
+
+### 32. `glass.png` — Clear as a Summer Sky
+A pane of perfectly clear glass, held in place by a thin, light-blue frame. The frame is just a few pixels wide, with neat little corners where the edges meet, and the center is completely transparent—like looking through a clean window on a bright day. You can almost feel the cool smoothness of the glass and imagine the world on the other side.
+
+### 33. `window.png — A View to the Outside
+A sturdy wooden frame, holding four panes of glass in a classic two-by-two grid. The wood is a warm, weathered brown with just a hint of grain, forming the outer border and the cross-shaped dividers between the panes. Through the transparent glass, you can see whatever lies beyond—a garden, a sunset, or the next great adventure.
+
+### 34. `door_bottom.png — The Sturdy Base
+The lower half of a solid wooden door, built from horizontal planks that run its full width. A darker border frames the left, right, and bottom edges, but the top is clean—ready to meet its other half. Near the right side, a small, dark rectangle marks the handle, worn smooth from countless hands opening it to welcome friends inside.
+
+### 35. `door_top.png — Light and Privacy
+The upper half of the door, matching its counterpart below with the same warm, horizontal plank pattern. A dark border frames the left, right, and top edges, completing the door's outline. Near the top center, a small square window has been cut out—just a few transparent pixels that let a sliver of light through, offering a glimpse of who might be knocking on the other side.

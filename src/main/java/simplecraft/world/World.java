@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -22,7 +23,10 @@ import com.jme3.scene.Node;
 
 import simplecraft.world.RegionLoader.ReadyRegion;
 import simplecraft.world.RegionMeshBuilder.RegionMeshResult;
+import simplecraft.world.entity.DoorTileEntity;
+import simplecraft.world.entity.TileEntity;
 import simplecraft.world.entity.TileEntityManager;
+import simplecraft.world.entity.WindowTileEntity;
 
 /**
  * Manages a collection of regions that form the game world.<br>
@@ -640,6 +644,53 @@ public class World
 	}
 	
 	/**
+	 * Returns true if the block at the given world coordinates prevents player movement.<br>
+	 * Blocks movement for solid blocks (standard collision) and for closed FLAT_PANEL<br>
+	 * blocks (windows and doors). Open windows and doors allow passage.<br>
+	 * Returns false for AIR, liquids, decorations, and open panels.
+	 * @param worldX world X coordinate
+	 * @param worldY world Y coordinate
+	 * @param worldZ world Z coordinate
+	 * @return true if the block prevents player movement through it
+	 */
+	public boolean isBlockingMovement(int worldX, int worldY, int worldZ)
+	{
+		final Block block = getBlock(worldX, worldY, worldZ);
+		
+		// Standard solid blocks always block movement.
+		if (block.isSolid())
+		{
+			return true;
+		}
+		
+		// FLAT_PANEL blocks (windows, doors) block movement when closed.
+		if (block.isFlatPanel())
+		{
+			final TileEntity te = _tileEntityManager.get(worldX, worldY, worldZ);
+			if (te == null)
+			{
+				// No tile entity registered — treat as blocking (safety).
+				return true;
+			}
+			
+			if (te instanceof WindowTileEntity)
+			{
+				return !((WindowTileEntity) te).isOpen();
+			}
+			
+			if (te instanceof DoorTileEntity)
+			{
+				return !((DoorTileEntity) te).isOpen();
+			}
+			
+			// Unknown FLAT_PANEL tile entity — block by default.
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
 	 * Returns the sky light factor at the given world coordinates.<br>
 	 * Converts world coordinates to region + local coordinates automatically.<br>
 	 * Returns 1.0 (full sky) if the region is not loaded or coordinates are out of Y bounds.
@@ -1115,14 +1166,21 @@ public class World
 	 * Called by PlayingState when the day/night cycle's sky brightness changes enough<br>
 	 * to warrant updating vertex colors across all visible regions.<br>
 	 * Uses the asynchronous remesh path (not synchronous) to spread the work across<br>
-	 * multiple frames and avoid stalling on a large number of loaded regions.
+	 * multiple frames and avoid stalling on a large number of loaded regions.<br>
+	 * FLAT_PANEL blocks (doors, windows) remain visible because the async builder<br>
+	 * falls back to the global TileEntityManager set via<br>
+	 * {@link RegionMeshBuilder#setGlobalTileEntityManager}.
 	 */
 	public void rebuildVisibleMeshes()
 	{
-		for (Map.Entry<Long, Region> entry : _regions.entrySet())
+		for (Entry<Long, Region> entry : _regions.entrySet())
 		{
 			final long key = entry.getKey();
 			final Region region = entry.getValue();
+			// Cancel any in-flight async job first. Without this, a stale async result
+			// (started before a window/door was placed) can arrive later and overwrite
+			// the sync-built mesh that included the panel, making it briefly invisible.
+			_regionLoader.cancelPending(key);
 			region.markMeshDirty();
 			_regionLoader.updateRegionCache(region);
 			markForRemesh(key);

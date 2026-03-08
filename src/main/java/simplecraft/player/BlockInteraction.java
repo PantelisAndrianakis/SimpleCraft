@@ -30,11 +30,13 @@ import simplecraft.world.BlockSupport;
 import simplecraft.world.TreeFeller;
 import simplecraft.world.World;
 import simplecraft.world.entity.CampfireTileEntity;
+import simplecraft.world.entity.DoorTileEntity;
 import simplecraft.world.entity.PlaceholderTileEntity;
 import simplecraft.world.entity.TileEntity;
 import simplecraft.world.entity.TileEntity.Facing;
 import simplecraft.world.entity.TileEntityManager;
 import simplecraft.world.entity.TorchTileEntity;
+import simplecraft.world.entity.WindowTileEntity;
 
 /**
  * Handles block interaction: raycasting, multi-hit breaking, placement, and selection.<br>
@@ -118,7 +120,10 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		Block.BLUE_ORCHID,
 		Block.WHITE_DAISY,
 		Block.TALL_SEAWEED,
-		Block.SHORT_SEAWEED
+		Block.SHORT_SEAWEED,
+		Block.GLASS,
+		Block.WINDOW,
+		Block.DOOR_BOTTOM
 	};
 	
 	/** Flower and decoration blocks that can only be placed on GRASS or DIRT. */
@@ -214,6 +219,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	// Camera shake.
 	private float _shakeTimer;
 	private final Vector3f _shakeOffset = new Vector3f();
+	
+	/**
+	 * True when the raycast detected a framed air block for direct window placement.<br>
+	 * Set during performRaycast when WINDOW is selected and the ray passes through<br>
+	 * an air block surrounded by solid blocks on most frame edges.
+	 */
+	private boolean _windowDirectPlace;
 	
 	// Reusable face offset (avoids allocation in raycast loop).
 	private int _faceOffsetX;
@@ -403,6 +415,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		_hasTarget = false;
 		_hasPlacePos = false;
+		_windowDirectPlace = false;
 		
 		int prevBlockX = Integer.MIN_VALUE;
 		int prevBlockY = Integer.MIN_VALUE;
@@ -450,6 +463,24 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				}
 				
 				break;
+			}
+			
+			// Window direct placement: detect air blocks with a valid 4-edge solid frame.
+			// When the player aims through a hole in a wall with empty space behind,
+			// the ray would normally pass through without stopping. This catches it.
+			if (block == Block.AIR && _playerController.getSelectedBlock() == Block.WINDOW)
+			{
+				if (hasWindowFrame(bx, by, bz))
+				{
+					_targetX = bx;
+					_targetY = by;
+					_targetZ = bz;
+					_hasTarget = true;
+					_targetSelf = true;
+					_windowDirectPlace = true;
+					_hasPlacePos = false;
+					break;
+				}
 			}
 			
 			prevBlockX = bx;
@@ -796,9 +827,34 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				final TileEntityManager manager = _world.getTileEntityManager();
 				if (manager != null)
 				{
-					final TileEntity entity = manager.remove(_targetX, _targetY, _targetZ);
+					final TileEntity entity = manager.get(_targetX, _targetY, _targetZ);
 					if (entity != null)
 					{
+						// Door: breaking either half destroys both halves.
+						if (entity instanceof DoorTileEntity)
+						{
+							final DoorTileEntity door = (DoorTileEntity) entity;
+							final Vector3i partnerPos = door.getPartnerPos();
+							
+							// Clear player-placed and mark player-removed for both positions.
+							_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
+							_world.markPlayerRemoved(_targetX, _targetY, _targetZ);
+							if (partnerPos != null)
+							{
+								_world.clearPlayerPlaced(partnerPos.x, partnerPos.y, partnerPos.z);
+								_world.markPlayerRemoved(partnerPos.x, partnerPos.y, partnerPos.z);
+							}
+							
+							// Destroy both halves (sets to AIR, removes tile entities, rebuilds mesh).
+							door.destroyBothHalves(_world);
+							
+							System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] — both halves destroyed.");
+							resetBreaking();
+							return;
+						}
+						
+						// Non-door tile entities: standard removal.
+						manager.remove(_targetX, _targetY, _targetZ);
 						entity.onRemoved(_world);
 						
 						// If the broken campfire was the active respawn point, clear it.
@@ -837,6 +893,11 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			final BlockSupport.CollapseResult collapseResult = BlockSupport.checkSupport(_world, _targetX, _targetY, _targetZ);
 			_destructionQueue.queueCollapseResult(collapseResult);
 			
+			// Check if breaking this block removes support from neighboring tile entities
+			// (torches, campfires, windows, doors). These aren't caught by BlockSupport
+			// because they aren't solid player-placed blocks.
+			removeSupportedTileEntities(_targetX, _targetY, _targetZ);
+			
 			resetBreaking();
 		}
 	}
@@ -865,6 +926,106 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private boolean hasAdjacentSolid(int x, int y, int z)
 	{
 		return _world.getBlock(x, y - 1, z).isSolid() || _world.getBlock(x, y + 1, z).isSolid() || _world.getBlock(x + 1, y, z).isSolid() || _world.getBlock(x - 1, y, z).isSolid() || _world.getBlock(x, y, z + 1).isSolid() || _world.getBlock(x, y, z - 1).isSolid();
+	}
+	
+	/** Neighbor offsets for tile entity support check (all 6 directions). */
+	// @formatter:off
+	private static final int[][] TE_NEIGHBOR_OFFSETS =
+	{
+		{ 0, 1, 0 },
+		{ 0, -1, 0 },
+		{ 0, 0, 1 },
+		{ 0, 0, -1 },
+		{ 1, 0, 0 },
+		{ -1, 0, 0 }
+	};
+	// @formatter:on
+	
+	/**
+	 * Checks all 6 neighbors of the broken block for tile entities whose support block<br>
+	 * was at the broken position. Removes any that lost their support.<br>
+	 * Handles special cases: campfire respawn point clearing, door dual-half destruction,<br>
+	 * and block light removal for torches and campfires.
+	 * @param brokenX the world X of the broken block
+	 * @param brokenY the world Y of the broken block
+	 * @param brokenZ the world Z of the broken block
+	 */
+	private void removeSupportedTileEntities(int brokenX, int brokenY, int brokenZ)
+	{
+		final TileEntityManager manager = _world.getTileEntityManager();
+		if (manager == null)
+		{
+			return;
+		}
+		
+		boolean needsRebuild = false;
+		
+		for (int[] offset : TE_NEIGHBOR_OFFSETS)
+		{
+			final int nx = brokenX + offset[0];
+			final int ny = brokenY + offset[1];
+			final int nz = brokenZ + offset[2];
+			
+			final TileEntity te = manager.get(nx, ny, nz);
+			if (te == null)
+			{
+				continue;
+			}
+			
+			// Check if the broken block was the support for this tile entity.
+			final Vector3i support = te.getSupportBlockPosition();
+			if (support.x != brokenX || support.y != brokenY || support.z != brokenZ)
+			{
+				continue;
+			}
+			
+			// Door: destroy both halves.
+			if (te instanceof DoorTileEntity)
+			{
+				final DoorTileEntity door = (DoorTileEntity) te;
+				final Vector3i partnerPos = door.getPartnerPos();
+				
+				_world.clearPlayerPlaced(nx, ny, nz);
+				_world.markPlayerRemoved(nx, ny, nz);
+				if (partnerPos != null)
+				{
+					_world.clearPlayerPlaced(partnerPos.x, partnerPos.y, partnerPos.z);
+					_world.markPlayerRemoved(partnerPos.x, partnerPos.y, partnerPos.z);
+				}
+				
+				door.destroyBothHalves(_world);
+				System.out.println("Door lost support at [" + nx + ", " + ny + ", " + nz + "] — both halves destroyed.");
+				// destroyBothHalves already rebuilds, but mark for rebuild in case of batching.
+				needsRebuild = true;
+				continue;
+			}
+			
+			// Campfire: clear respawn point if active.
+			if (te instanceof CampfireTileEntity)
+			{
+				final CampfireTileEntity campfire = (CampfireTileEntity) te;
+				if (campfire.isActivated())
+				{
+					_playerController.clearRespawnCampfire();
+					MessageManager.show("Respawn point lost! You will respawn at world origin.");
+				}
+			}
+			
+			// Standard tile entity removal: call onRemoved, remove from manager, set block to AIR.
+			te.onRemoved(_world);
+			manager.remove(nx, ny, nz);
+			_world.setBlockNoRebuild(nx, ny, nz, Block.AIR);
+			_world.clearPlayerPlaced(nx, ny, nz);
+			_world.markPlayerRemoved(nx, ny, nz);
+			needsRebuild = true;
+			
+			System.out.println("Tile entity lost support at [" + nx + ", " + ny + ", " + nz + "] — removed.");
+		}
+		
+		if (needsRebuild)
+		{
+			_world.rebuildDirtyRegionsImmediate();
+		}
 	}
 	
 	/**
@@ -979,6 +1140,18 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			hasPlace = true;
 		}
 		
+		// Window direct placement — aiming through a hole with empty space behind.
+		// The raycast detected a valid framed air block. Place the window directly there.
+		if (selectedBlock == Block.WINDOW && _windowDirectPlace)
+		{
+			placeX = _targetX;
+			placeY = _targetY;
+			placeZ = _targetZ;
+			hasPlace = true;
+			// Frame validation was already done in performRaycast via hasWindowFrame().
+			// Facing and attachment will be determined from frame geometry during tile entity creation.
+		}
+		
 		if (!hasPlace)
 		{
 			return;
@@ -1002,6 +1175,96 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				System.out.println("Cannot place CAMPFIRE here — needs a solid block below.");
 				return;
 			}
+		}
+		
+		// Window placement — normal path (targeting a solid wall block).
+		// Must target a solid block's side face (not top/bottom).
+		// All frame edges (top, bottom, and left or right of the panel) must be solid
+		// so the window sits in a proper wall opening, not dangling in open air.
+		if (selectedBlock == Block.WINDOW && !_windowDirectPlace)
+		{
+			if (_entryFace == Face.TOP || _entryFace == Face.BOTTOM)
+			{
+				System.out.println("Cannot place WINDOW on top/bottom faces — windows are vertical only.");
+				return;
+			}
+			
+			if (!targetBlock.isSolid())
+			{
+				System.out.println("Cannot place WINDOW here — needs a solid wall to attach to.");
+				return;
+			}
+			
+			// Check that all frame edges around the panel are solid or window blocks.
+			// NORTH/SOUTH facing (perpendicular to Z): frame = EAST, WEST, TOP, BOTTOM.
+			// EAST/WEST facing (perpendicular to X): frame = NORTH, SOUTH, TOP, BOTTOM.
+			final boolean topOk = isWindowFrameBlock(placeX, placeY + 1, placeZ);
+			final boolean bottomOk = isWindowFrameBlock(placeX, placeY - 1, placeZ);
+			final boolean leftOk;
+			final boolean rightOk;
+			
+			if (_entryFace == Face.NORTH || _entryFace == Face.SOUTH)
+			{
+				// Panel spans X axis — check EAST and WEST.
+				leftOk = isWindowFrameBlock(placeX - 1, placeY, placeZ);
+				rightOk = isWindowFrameBlock(placeX + 1, placeY, placeZ);
+			}
+			else
+			{
+				// Panel spans Z axis — check NORTH and SOUTH.
+				leftOk = isWindowFrameBlock(placeX, placeY, placeZ - 1);
+				rightOk = isWindowFrameBlock(placeX, placeY, placeZ + 1);
+			}
+			
+			// Fix: Require BOTH top and bottom to be solid, and at least ONE of left/right to be solid.
+			// This allows windows to be placed in corners or next to other windows.
+			if (!topOk || !bottomOk || (!leftOk && !rightOk))
+			{
+				System.out.println("Cannot place WINDOW here — needs solid blocks on frame edges.");
+				return;
+			}
+		}
+		
+		// Door placement — must target a solid block face where two vertical AIR blocks exist.
+		// Places DOOR_BOTTOM at placeY and DOOR_TOP at placeY + 1.
+		// The block below the door must be solid for support.
+		if (selectedBlock == Block.DOOR_BOTTOM)
+		{
+			// Determine the lower position for the door.
+			int doorBottomY = placeY;
+			
+			// If targeting a top face, the door goes at y+1 and y+2 above the targeted block.
+			if (_entryFace == Face.TOP)
+			{
+				doorBottomY = _targetY + 1;
+			}
+			
+			// Check that the block below the door is solid (for support).
+			final Block belowBlock = _world.getBlock(placeX, doorBottomY - 1, placeZ);
+			if (!belowBlock.isSolid())
+			{
+				System.out.println("Cannot place DOOR here — needs a solid block below.");
+				return;
+			}
+			
+			// Check that both door positions are AIR (or replaceable decorations).
+			final Block lowerBlock = _world.getBlock(placeX, doorBottomY, placeZ);
+			final Block upperBlock = _world.getBlock(placeX, doorBottomY + 1, placeZ);
+			if ((lowerBlock != Block.AIR && !lowerBlock.isDecoration()) || (upperBlock != Block.AIR && !upperBlock.isDecoration()))
+			{
+				System.out.println("Cannot place DOOR here — needs two vertical air blocks.");
+				return;
+			}
+			
+			// Check that both positions don't overlap the player.
+			if (overlapsPlayer(placeX, doorBottomY, placeZ) || overlapsPlayer(placeX, doorBottomY + 1, placeZ))
+			{
+				System.out.println("Cannot place DOOR — overlaps player.");
+				return;
+			}
+			
+			// Override placeY to the computed bottom position.
+			placeY = doorBottomY;
 		}
 		
 		// Flower/grass placement — must be on top of GRASS or DIRT.
@@ -1092,6 +1355,61 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						entity = placeholder;
 						break;
 					}
+					case WINDOW:
+					{
+						// Determine facing and attachment from entry face (normal) or frame geometry (direct).
+						final Facing windowFacing;
+						final Face windowAttach;
+						if (_windowDirectPlace)
+						{
+							windowFacing = getWindowFrameFacing(placeX, placeY, placeZ);
+							windowAttach = facingToAttachFace(windowFacing);
+						}
+						else
+						{
+							windowFacing = entryFaceToFacing(_entryFace);
+							windowAttach = oppositeFace(_entryFace);
+						}
+						final WindowTileEntity window = new WindowTileEntity(pos, windowAttach);
+						window.setFacing(windowFacing);
+						entity = window;
+						break;
+					}
+					case DOOR_BOTTOM:
+					{
+						// Place both halves and create two linked tile entities.
+						final int doorTopY = placeY + 1;
+						final Vector3i bottomPos = pos;
+						final Vector3i topPos = new Vector3i(placeX, doorTopY, placeZ);
+						
+						// Set the top block data.
+						_world.setBlockNoRebuild(placeX, doorTopY, placeZ, Block.DOOR_TOP);
+						_world.markPlayerPlaced(placeX, doorTopY, placeZ);
+						
+						// Attachment face and facing derived from player look direction.
+						// If an adjacent door exists on the hinge side, mirror the facing
+						// so both door knobs face each other (double-door effect).
+						Facing doorFacing = getPlayerFacing();
+						if (hasAdjacentDoor(placeX, placeY, placeZ, doorFacing))
+						{
+							doorFacing = mirrorFacing(doorFacing);
+						}
+						final Face doorAttach = facingToAttachFace(doorFacing);
+						
+						// Create linked tile entities.
+						final DoorTileEntity bottomEntity = new DoorTileEntity(bottomPos, Block.DOOR_BOTTOM, doorAttach, topPos, true);
+						bottomEntity.setFacing(doorFacing);
+						bottomEntity.onPlaced(_world);
+						manager.register(bottomEntity);
+						
+						final DoorTileEntity topEntity = new DoorTileEntity(topPos, Block.DOOR_TOP, doorAttach, bottomPos, false);
+						topEntity.setFacing(doorFacing);
+						topEntity.onPlaced(_world);
+						manager.register(topEntity);
+						
+						// entity stays null — we already registered both halves directly.
+						break;
+					}
 					default:
 					{
 						break;
@@ -1150,6 +1468,41 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			// Player looks more along Z axis.
 			// Looking north (+Z) → player sees SOUTH face → front faces SOUTH.
 			return dir.z > 0 ? Facing.SOUTH : Facing.NORTH;
+		}
+	}
+	
+	/**
+	 * Converts an entry face (the face of the target block the ray hit) to a Facing direction<br>
+	 * for the placed block. The placed block faces the same direction as the entry face<br>
+	 * so that its panel is perpendicular to the wall it is attached to.<br>
+	 * Only handles horizontal faces (NORTH/SOUTH/EAST/WEST). TOP/BOTTOM default to NORTH.
+	 * @param entryFace the entry face from the ray-AABB test
+	 * @return the facing direction for the placed block
+	 */
+	private static Facing entryFaceToFacing(Face entryFace)
+	{
+		switch (entryFace)
+		{
+			case NORTH:
+			{
+				return Facing.NORTH;
+			}
+			case SOUTH:
+			{
+				return Facing.SOUTH;
+			}
+			case EAST:
+			{
+				return Facing.EAST;
+			}
+			case WEST:
+			{
+				return Facing.WEST;
+			}
+			default:
+			{
+				return Facing.NORTH;
+			}
 		}
 	}
 	
@@ -1288,6 +1641,168 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	}
 	
 	/**
+	 * Returns true if the air block at the given position has solid blocks on all<br>
+	 * frame edges (top, bottom, and one of the horizontal sides) for at least one<br>
+	 * facing axis. Used by the raycast to detect valid window placement positions<br>
+	 * when the player aims through a hole in a wall with empty space behind it.
+	 */
+	private boolean hasWindowFrame(int x, int y, int z)
+	{
+		// Top and bottom must always be solid.
+		if (!isWindowFrameBlock(x, y + 1, z) || !isWindowFrameBlock(x, y - 1, z))
+		{
+			return false;
+		}
+		
+		// Check NORTH/SOUTH facing (panel spans X axis): need EAST or WEST solid.
+		if (isWindowFrameBlock(x + 1, y, z) || isWindowFrameBlock(x - 1, y, z))
+		{
+			return true;
+		}
+		
+		// Check EAST/WEST facing (panel spans Z axis): need NORTH or SOUTH solid.
+		if (isWindowFrameBlock(x, y, z + 1) || isWindowFrameBlock(x, y, z - 1))
+		{
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Returns true if the block at the given position can serve as a window frame edge.<br>
+	 * Solid blocks (dirt, stone, wood, glass) and existing WINDOW blocks qualify,<br>
+	 * allowing windows to be placed side by side in a row.
+	 */
+	private boolean isWindowFrameBlock(int x, int y, int z)
+	{
+		final Block block = _world.getBlock(x, y, z);
+		return block.isSolid() || block == Block.WINDOW;
+	}
+	
+	/**
+	 * Determines the window facing direction from the frame geometry at the given position.<br>
+	 * If EAST + WEST neighbors are solid, the panel spans X → faces NORTH or SOUTH.<br>
+	 * If NORTH + SOUTH neighbors are solid, the panel spans Z → faces EAST or WEST.<br>
+	 * Uses the camera direction to pick which way the front faces (toward the player).
+	 */
+	private Facing getWindowFrameFacing(int x, int y, int z)
+	{
+		final boolean eastOk = isWindowFrameBlock(x + 1, y, z);
+		final boolean westOk = isWindowFrameBlock(x - 1, y, z);
+		
+		if (eastOk && westOk)
+		{
+			// Panel perpendicular to Z axis.
+			return _camera.getDirection().z > 0 ? Facing.SOUTH : Facing.NORTH;
+		}
+		
+		// Panel perpendicular to X axis.
+		return _camera.getDirection().x > 0 ? Facing.WEST : Facing.EAST;
+	}
+	
+	/**
+	 * Converts a window frame facing direction to the corresponding attachment face.<br>
+	 * The attachment face is opposite to the facing direction.
+	 */
+	private static Face facingToAttachFace(Facing facing)
+	{
+		switch (facing)
+		{
+			case NORTH:
+			{
+				return Face.SOUTH;
+			}
+			case SOUTH:
+			{
+				return Face.NORTH;
+			}
+			case EAST:
+			{
+				return Face.WEST;
+			}
+			case WEST:
+			{
+				return Face.EAST;
+			}
+			default:
+			{
+				return Face.SOUTH;
+			}
+		}
+	}
+	
+	/**
+	 * Returns true if an existing DOOR_BOTTOM block exists on the hinge side<br>
+	 * of the given position for the given facing. Used to detect double-door<br>
+	 * placement so the new door's knob can be mirrored to face the existing door.
+	 * @param x door bottom X
+	 * @param y door bottom Y
+	 * @param z door bottom Z
+	 * @param facing the proposed facing for the new door
+	 * @return true if an adjacent door exists on the hinge side
+	 */
+	private boolean hasAdjacentDoor(int x, int y, int z, Facing facing)
+	{
+		// Hinge side (right from front view) for each facing:
+		// NORTH: +X, SOUTH: -X, EAST: -Z, WEST: +Z
+		switch (facing)
+		{
+			case NORTH:
+			{
+				return _world.getBlock(x + 1, y, z).isDoor();
+			}
+			case SOUTH:
+			{
+				return _world.getBlock(x - 1, y, z).isDoor();
+			}
+			case EAST:
+			{
+				return _world.getBlock(x, y, z - 1).isDoor();
+			}
+			case WEST:
+			{
+				return _world.getBlock(x, y, z + 1).isDoor();
+			}
+			default:
+			{
+				return false;
+			}
+		}
+	}
+	
+	/**
+	 * Returns the opposite facing along the same axis.<br>
+	 * Used to mirror a door's facing so the knob appears on the opposite side.
+	 */
+	private static Facing mirrorFacing(Facing facing)
+	{
+		switch (facing)
+		{
+			case NORTH:
+			{
+				return Facing.SOUTH;
+			}
+			case SOUTH:
+			{
+				return Facing.NORTH;
+			}
+			case EAST:
+			{
+				return Facing.WEST;
+			}
+			case WEST:
+			{
+				return Facing.EAST;
+			}
+			default:
+			{
+				return facing;
+			}
+		}
+	}
+	
+	/**
 	 * Checks if a soil-only block (flowers, tall grass) can be placed at the given position.<br>
 	 * Requires GRASS or DIRT directly below.
 	 */
@@ -1402,7 +1917,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 			else if (_targetSelf)
 			{
-				if (targetBlock.isSolid())
+				// Window direct placement: highlight the framed air block.
+				if (_windowDirectPlace)
+				{
+					showX = _targetX;
+					showY = _targetY;
+					showZ = _targetZ;
+				}
+				else if (targetBlock.isSolid())
 				{
 					// TOP/BOTTOM face center: always show placement above/below if empty.
 					if (_targetFace == Face.TOP || _targetFace == Face.BOTTOM)
@@ -1496,7 +2018,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			_highlightGeometry.setLocalTranslation(showX + 0.5f, showY + 0.5f, showZ + 0.5f);
 			
 			// Swap material based on breakability.
-			if (targetBlock.isBreakable())
+			// Window direct placement targets AIR (not breakable) but should use normal highlight.
+			if (targetBlock.isBreakable() || _windowDirectPlace)
 			{
 				_highlightGeometry.setMaterial(_highlightMaterial);
 			}

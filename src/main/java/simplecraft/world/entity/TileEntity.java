@@ -10,7 +10,7 @@ import simplecraft.world.World;
 
 /**
  * Base class for blocks that carry extra data and behavior beyond the block grid.<br>
- * Subclasses (campfire, torch, furnace, chest, etc.) override hooks for interaction,<br>
+ * Subclasses (campfire, torch, furnace, chest, window, door, etc.) override hooks for interaction,<br>
  * placement, removal, and per-frame updates.<br>
  * <br>
  * Each tile entity stores its world block position, block type, attachment face,<br>
@@ -24,8 +24,8 @@ import simplecraft.world.World;
  * (e.g. campfire, chest) default to {@link Face#BOTTOM}.<br>
  * <br>
  * The {@code facing} field records which cardinal direction the block's front face<br>
- * points toward. Used by CHEST and FURNACE so the front texture (latch, opening)<br>
- * renders on the correct world face based on where the player stood when placing.<br>
+ * points toward. Used by CHEST, FURNACE, WINDOW, and DOOR so the front texture<br>
+ * or panel orientation renders correctly based on where the player stood when placing.<br>
  * Defaults to {@link Facing#NORTH} for backward compatibility with older saves.
  * @author Pantelis Andrianakis
  * @since March 8th 2026
@@ -39,7 +39,7 @@ public abstract class TileEntity
 	/**
 	 * Cardinal direction a block's front face points toward.<br>
 	 * NORTH = front texture on the Z+ face (default).<br>
-	 * Used by CHEST, FURNACE, and CRAFTING_TABLE for directional placement.
+	 * Used by CHEST, FURNACE, CRAFTING_TABLE, WINDOW, and DOOR for directional placement.
 	 */
 	public enum Facing
 	{
@@ -73,7 +73,8 @@ public abstract class TileEntity
 	/**
 	 * Which cardinal direction the block's front face points toward.<br>
 	 * Defaults to NORTH for backward compatibility with saves that lack this field.<br>
-	 * Only visually meaningful for blocks with a front texture (CHEST, FURNACE).<br>
+	 * Only visually meaningful for blocks with a front texture (CHEST, FURNACE)<br>
+	 * or directional panels (WINDOW, DOOR).<br>
 	 * Stored in the base class for uniform serialization.
 	 */
 	protected Facing _facing = Facing.NORTH;
@@ -135,7 +136,7 @@ public abstract class TileEntity
 	
 	/**
 	 * Called when the player right-clicks this tile entity's block.<br>
-	 * Override to open GUIs, set respawn points, etc.
+	 * Override to open GUIs, toggle states, set respawn points, etc.
 	 * @param player the player controller
 	 * @param world the game world (for light/entity operations)
 	 */
@@ -197,6 +198,13 @@ public abstract class TileEntity
 		boolean activated = false;
 		String attachedFace = "BOTTOM";
 		String facing = "NORTH";
+		boolean open = false;
+		boolean flippedOpen = false;
+		boolean isBottom = true;
+		int partnerX = 0;
+		int partnerY = 0;
+		int partnerZ = 0;
+		boolean hasPartner = false;
 		
 		for (String line : data.split("\n"))
 		{
@@ -246,6 +254,37 @@ public abstract class TileEntity
 					facing = value;
 					break;
 				}
+				case "open":
+				{
+					open = Boolean.parseBoolean(value);
+					break;
+				}
+				case "flippedOpen":
+				{
+					flippedOpen = Boolean.parseBoolean(value);
+					break;
+				}
+				case "isBottom":
+				{
+					isBottom = Boolean.parseBoolean(value);
+					break;
+				}
+				case "partnerX":
+				{
+					partnerX = Integer.parseInt(value);
+					hasPartner = true;
+					break;
+				}
+				case "partnerY":
+				{
+					partnerY = Integer.parseInt(value);
+					break;
+				}
+				case "partnerZ":
+				{
+					partnerZ = Integer.parseInt(value);
+					break;
+				}
 			}
 		}
 		
@@ -280,6 +319,27 @@ public abstract class TileEntity
 				final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, Block.valueOf(type));
 				placeholder.setFacing(facingDir);
 				return placeholder;
+			}
+			case "WINDOW":
+			{
+				final WindowTileEntity window = new WindowTileEntity(pos, face);
+				window.setFacing(facingDir);
+				window.setOpen(open);
+				window.setFlippedOpen(flippedOpen);
+				return window;
+			}
+			case "DOOR_BOTTOM":
+			case "DOOR_TOP":
+			{
+				final Block doorBlock = Block.valueOf(type);
+				final boolean bottom = type.equals("DOOR_BOTTOM");
+				final Vector3i partnerPos = hasPartner ? new Vector3i(partnerX, partnerY, partnerZ) : null;
+				final DoorTileEntity door = new DoorTileEntity(pos, doorBlock, face, partnerPos, bottom);
+				door.setFacing(facingDir);
+				door.setOpen(open);
+				door.setFlippedOpen(flippedOpen);
+				door.setIsBottom(isBottom);
+				return door;
 			}
 			default:
 			{

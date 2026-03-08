@@ -10,8 +10,11 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.world.Block.Face;
 import simplecraft.world.Block.RenderMode;
+import simplecraft.world.entity.DoorTileEntity;
+import simplecraft.world.entity.TileEntity;
 import simplecraft.world.entity.TileEntity.Facing;
 import simplecraft.world.entity.TileEntityManager;
+import simplecraft.world.entity.WindowTileEntity;
 
 /**
  * Static utility class that builds jME3 Mesh objects from region block data.<br>
@@ -90,6 +93,14 @@ public class RegionMeshBuilder
 	
 	/** Blue component of the day/night sky tint. */
 	private static volatile float _cycleTintB = 1.0f;
+	
+	/**
+	 * Static reference to the tile entity manager for background mesh builds.<br>
+	 * The async remesh path cannot receive the manager as a parameter because<br>
+	 * RegionLoader constructs the call. Set from PlayingState alongside day/night params.<br>
+	 * ConcurrentHashMap is thread-safe for reads, which is all the mesh builder does.
+	 */
+	private static volatile TileEntityManager _globalTileEntityManager;
 	
 	// ========================================================
 	// Face Vertex Positions (relative to block origin 0,0,0).
@@ -416,6 +427,18 @@ public class RegionMeshBuilder
 		_cycleTintB = tintB;
 	}
 	
+	/**
+	 * Sets the global tile entity manager reference for background mesh builds.<br>
+	 * Called from PlayingState during world setup. The async remesh path uses this<br>
+	 * as a fallback when no explicit manager is passed, ensuring FLAT_PANEL blocks<br>
+	 * (doors, windows) remain visible during day/night and neighbor mesh rebuilds.
+	 * @param manager the tile entity manager, or null to clear
+	 */
+	public static void setGlobalTileEntityManager(TileEntityManager manager)
+	{
+		_globalTileEntityManager = manager;
+	}
+	
 	// ========================================================
 	// Full Region Mesh Building.
 	// ========================================================
@@ -473,6 +496,14 @@ public class RegionMeshBuilder
 	 */
 	public static RegionMeshData buildRegionMeshData(Region region, WorldBlockAccess worldAccess, TileEntityManager tileEntityManager)
 	{
+		// Fall back to the global reference when no explicit manager is passed.
+		// This allows background threads (async remesh) to access tile entity state
+		// for FLAT_PANEL blocks without changing the RegionLoader call chain.
+		if (tileEntityManager == null)
+		{
+			tileEntityManager = _globalTileEntityManager;
+		}
+		
 		// Ensure sky light data is up to date before building vertex colors.
 		region.ensureSkyLightComputed();
 		
@@ -481,7 +512,7 @@ public class RegionMeshBuilder
 		final int regionWorldZ = region.getWorldZ();
 		
 		// Pass 1: Count vertices needed for each mesh type.
-		final int[] counts = countVertices(region, worldAccess);
+		final int[] counts = countVertices(region, worldAccess, tileEntityManager);
 		final int opaqueVerts = counts[0];
 		final int transparentVerts = counts[1];
 		final int billboardVerts = counts[2];
@@ -628,6 +659,52 @@ public class RegionMeshBuilder
 							billUPtr += 8 * 2; // 8 verts × 2 UVs
 							billCPtr += 8 * 4; // 8 verts × 4 RGBA
 							billIPtr += 12; // 12 indices
+							break;
+						}
+						case FLAT_PANEL:
+						{
+							if (tileEntityManager != null)
+							{
+								final int worldX = regionWorldX + x;
+								final int worldZ = regionWorldZ + z;
+								final TileEntity te = tileEntityManager.get(worldX, y, worldZ);
+								if (te != null)
+								{
+									final Facing facing = te.getFacing();
+									boolean isOpen = false;
+									boolean flipSide = false;
+									if (te instanceof WindowTileEntity)
+									{
+										final WindowTileEntity wte = (WindowTileEntity) te;
+										isOpen = wte.isOpen();
+										flipSide = wte.isFlippedOpen();
+									}
+									else if (te instanceof DoorTileEntity)
+									{
+										final DoorTileEntity dte = (DoorTileEntity) te;
+										isOpen = dte.isOpen();
+										flipSide = dte.isFlippedOpen();
+									}
+									
+									// Flat panels sit in air/transparent space — use their own position's light.
+									final float skyLight = region.getSkyLight(x, y, z) * _cycleBrightness;
+									final float blockLight = region.getBlockLight(x, y, z) / 15.0f;
+									final float skyB = skyLight * BILLBOARD_SHADE;
+									final float blkB = blockLight * BILLBOARD_SHADE;
+									final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
+									
+									final float blkRatio = (finalB > MIN_BRIGHTNESS) ? (blkB / finalB) : 0;
+									final float r = finalB * lerp(_cycleTintR, WARM_TINT_R, blkRatio);
+									final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
+									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
+									
+									writeFlatPanel(billPos, billNorm, billUV, billCol, billIdx, x, y, z, facing, isOpen, flipSide, block, r, g, b, billVPtr, billUPtr, billCPtr, billIPtr);
+									billVPtr += 4 * 3; // 4 verts × 3 coords
+									billUPtr += 4 * 2; // 4 verts × 2 UVs
+									billCPtr += 4 * 4; // 4 verts × 4 RGBA
+									billIPtr += 6; // 6 indices
+								}
+							}
 							break;
 						}
 					}
@@ -838,13 +915,18 @@ public class RegionMeshBuilder
 	}
 	
 	/**
-	 * Counts vertices needed for each mesh type (first pass).
+	 * Counts vertices needed for each mesh type (first pass).<br>
+	 * When tileEntityManager is null (background builds), FLAT_PANEL blocks are skipped<br>
+	 * to match the main build loop which also skips them without a manager.
 	 */
-	private static int[] countVertices(Region region, WorldBlockAccess worldAccess)
+	private static int[] countVertices(Region region, WorldBlockAccess worldAccess, TileEntityManager tileEntityManager)
 	{
 		int opaque = 0;
 		int transparent = 0;
 		int billboard = 0;
+		
+		final int regionWorldX = region.getWorldX();
+		final int regionWorldZ = region.getWorldZ();
 		
 		for (int x = 0; x < Region.SIZE_XZ; x++)
 		{
@@ -891,6 +973,17 @@ public class RegionMeshBuilder
 							}
 							
 							billboard += 8;
+							break;
+						}
+						case FLAT_PANEL:
+						{
+							// Only count if tile entity manager is available and the entity exists.
+							// This must match the main build loop condition exactly to prevent
+							// array misalignment (counted but unwritten vertices).
+							if (tileEntityManager != null && tileEntityManager.get(regionWorldX + x, y, regionWorldZ + z) != null)
+							{
+								billboard += 4;
+							}
 							break;
 						}
 					}
@@ -1029,6 +1122,230 @@ public class RegionMeshBuilder
 		indices[iPtr + 3] = baseVertex;
 		indices[iPtr + 4] = baseVertex + 2;
 		indices[iPtr + 5] = baseVertex + 3;
+	}
+	
+	// ========================================================
+	// Flat Panel Quad (windows, doors).
+	// ========================================================
+	
+	/** Small offset to prevent z-fighting when panel is flush against a wall. */
+	private static final float PANEL_FLUSH_OFFSET = 0.01f;
+	
+	/**
+	 * Writes a single flat panel quad (4 vertices, 6 indices) into the billboard mesh arrays.<br>
+	 * The panel is a full-block-sized quad whose position and orientation depend on the<br>
+	 * tile entity's facing, open, and flippedOpen state.<br>
+	 * <br>
+	 * <b>Closed:</b> Panel sits centered in the block, perpendicular to the facing direction.<br>
+	 * <b>Open:</b> Panel swings 90° to the right (from the player's perspective looking at the<br>
+	 * panel's front face), becoming perpendicular to the other horizontal axis and flush<br>
+	 * against the right side wall of the block space.<br>
+	 * <b>Open + flipped:</b> Panel swings to the left side instead (for double-panel effect).
+	 * @param positions vertex position array
+	 * @param normals vertex normal array
+	 * @param texCoords vertex UV array
+	 * @param colors vertex color array
+	 * @param indices triangle index array
+	 * @param bx block local X
+	 * @param by block local Y
+	 * @param bz block local Z
+	 * @param facing which direction the panel faces when closed (perpendicular axis)
+	 * @param isOpen whether the panel is open (swung to one side)
+	 * @param flipSide whether the panel opens to the opposite side
+	 * @param block the block type (for atlas UV lookup)
+	 * @param r pre-computed red vertex color component
+	 * @param g pre-computed green vertex color component
+	 * @param b pre-computed blue vertex color component
+	 * @param vPtr write offset into positions/normals arrays
+	 * @param uvPtr write offset into texCoords array
+	 * @param cPtr write offset into colors array
+	 * @param iPtr write offset into indices array
+	 */
+	private static void writeFlatPanel(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Facing facing, boolean isOpen, boolean flipSide, Block block, float r, float g, float b, int vPtr, int uvPtr, int cPtr, int iPtr)
+	{
+		final int baseVertex = vPtr / 3;
+		final float[] uvBounds = getAtlasUVs(block, Face.TOP);
+		
+		float nx = 0;
+		float ny = 0;
+		float nz = 0;
+		
+		if (!isOpen)
+		{
+			// --- CLOSED: centered in block, perpendicular to facing direction ---
+			switch (facing)
+			{
+				case NORTH:
+				case SOUTH:
+				{
+					// Panel perpendicular to Z, centered at z+0.5, spans full X and Y.
+					final float fz = bz + 0.5f;
+					nz = (facing == Facing.NORTH) ? 1.0f : -1.0f;
+					writeQuadZ(positions, vPtr, bx, by, fz);
+					break;
+				}
+				case EAST:
+				case WEST:
+				{
+					// Panel perpendicular to X, centered at x+0.5, spans full Z and Y.
+					final float fx = bx + 0.5f;
+					nx = (facing == Facing.EAST) ? 1.0f : -1.0f;
+					writeQuadX(positions, vPtr, fx, by, bz);
+					break;
+				}
+				default:
+				{
+					nz = 1.0f;
+					writeQuadZ(positions, vPtr, bx, by, bz + 0.5f);
+					break;
+				}
+			}
+		}
+		else
+		{
+			// --- OPEN: swing 90° to the hinge side (opposite from door knob) ---
+			// Knob is on the player's left when looking at the front face.
+			// Door swings to the left (hinge side). Same physical direction from both sides.
+			// flipSide reverses direction (for double-panel effect with adjacent panel).
+			switch (facing)
+			{
+				case NORTH:
+				{
+					// Front faces +Z. Knob at -X (player left). Swings to +X (hinge right).
+					nx = 1.0f;
+					final float fx = flipSide ? (bx + 1.0f - PANEL_FLUSH_OFFSET) : (bx + PANEL_FLUSH_OFFSET);
+					writeQuadX(positions, vPtr, fx, by, bz);
+					break;
+				}
+				case SOUTH:
+				{
+					// Front faces -Z. Knob at +X (player left). Swings to -X (hinge right).
+					nx = -1.0f;
+					final float fx = flipSide ? (bx + PANEL_FLUSH_OFFSET) : (bx + 1.0f - PANEL_FLUSH_OFFSET);
+					writeQuadX(positions, vPtr, fx, by, bz);
+					break;
+				}
+				case EAST:
+				{
+					// Front faces +X. Knob at +Z (player left). Swings to -Z (hinge right).
+					nz = -1.0f;
+					final float fz = flipSide ? (bz + PANEL_FLUSH_OFFSET) : (bz + 1.0f - PANEL_FLUSH_OFFSET);
+					writeQuadZ(positions, vPtr, bx, by, fz);
+					break;
+				}
+				case WEST:
+				{
+					// Front faces -X. Knob at -Z (player left). Swings to +Z (hinge right).
+					nz = 1.0f;
+					final float fz = flipSide ? (bz + 1.0f - PANEL_FLUSH_OFFSET) : (bz + PANEL_FLUSH_OFFSET);
+					writeQuadZ(positions, vPtr, bx, by, fz);
+					break;
+				}
+				default:
+				{
+					nx = -1.0f;
+					writeQuadX(positions, vPtr, bx + PANEL_FLUSH_OFFSET, by, bz);
+					break;
+				}
+			}
+		}
+		
+		// Write normals and colors for all 4 vertices.
+		for (int v = 0; v < 4; v++)
+		{
+			normals[vPtr + v * 3] = nx;
+			normals[vPtr + v * 3 + 1] = ny;
+			normals[vPtr + v * 3 + 2] = nz;
+			
+			colors[cPtr + v * 4] = r;
+			colors[cPtr + v * 4 + 1] = g;
+			colors[cPtr + v * 4 + 2] = b;
+			colors[cPtr + v * 4 + 3] = 1.0f;
+		}
+		
+		// Write UVs. Flip horizontally so the door handle (right side of texture)
+		// appears correctly from the player's perspective:
+		// - Closed: knob on player's left (SOUTH and WEST facings need flip)
+		// - Open: knob on free edge (SOUTH and EAST facings need flip)
+		// When the panel swings 90°, the vertex ordering changes axis, so the
+		// flip condition is different for the open vs closed state.
+		final boolean flipU;
+		if (!isOpen)
+		{
+			flipU = (facing == Facing.SOUTH || facing == Facing.WEST);
+		}
+		else
+		{
+			flipU = (facing == Facing.SOUTH || facing == Facing.EAST);
+		}
+		final float uLeft = flipU ? uvBounds[2] : uvBounds[0];
+		final float uRight = flipU ? uvBounds[0] : uvBounds[2];
+		texCoords[uvPtr] = uLeft;
+		texCoords[uvPtr + 1] = uvBounds[3];
+		texCoords[uvPtr + 2] = uLeft;
+		texCoords[uvPtr + 3] = uvBounds[1];
+		texCoords[uvPtr + 4] = uRight;
+		texCoords[uvPtr + 5] = uvBounds[1];
+		texCoords[uvPtr + 6] = uRight;
+		texCoords[uvPtr + 7] = uvBounds[3];
+		
+		// Write indices (two triangles forming the quad).
+		indices[iPtr] = baseVertex;
+		indices[iPtr + 1] = baseVertex + 1;
+		indices[iPtr + 2] = baseVertex + 2;
+		indices[iPtr + 3] = baseVertex;
+		indices[iPtr + 4] = baseVertex + 2;
+		indices[iPtr + 5] = baseVertex + 3;
+	}
+	
+	/**
+	 * Writes 4 vertices for a Z-perpendicular quad (spans X and Y at fixed Z).<br>
+	 * Used for NORTH/SOUTH facing panels (closed) and EAST/WEST facing panels (open).
+	 * @param positions vertex position array
+	 * @param vPtr write offset
+	 * @param bx block local X origin (quad spans bx to bx+1)
+	 * @param by block local Y origin (quad spans by to by+1)
+	 * @param fz the fixed Z coordinate of the quad
+	 */
+	private static void writeQuadZ(float[] positions, int vPtr, int bx, int by, float fz)
+	{
+		positions[vPtr] = bx + 1;
+		positions[vPtr + 1] = by;
+		positions[vPtr + 2] = fz;
+		positions[vPtr + 3] = bx + 1;
+		positions[vPtr + 4] = by + 1;
+		positions[vPtr + 5] = fz;
+		positions[vPtr + 6] = bx;
+		positions[vPtr + 7] = by + 1;
+		positions[vPtr + 8] = fz;
+		positions[vPtr + 9] = bx;
+		positions[vPtr + 10] = by;
+		positions[vPtr + 11] = fz;
+	}
+	
+	/**
+	 * Writes 4 vertices for an X-perpendicular quad (spans Z and Y at fixed X).<br>
+	 * Used for EAST/WEST facing panels (closed) and NORTH/SOUTH facing panels (open).
+	 * @param positions vertex position array
+	 * @param vPtr write offset
+	 * @param fx the fixed X coordinate of the quad
+	 * @param by block local Y origin (quad spans by to by+1)
+	 * @param bz block local Z origin (quad spans bz to bz+1)
+	 */
+	private static void writeQuadX(float[] positions, int vPtr, float fx, int by, int bz)
+	{
+		positions[vPtr] = fx;
+		positions[vPtr + 1] = by;
+		positions[vPtr + 2] = bz;
+		positions[vPtr + 3] = fx;
+		positions[vPtr + 4] = by + 1;
+		positions[vPtr + 5] = bz;
+		positions[vPtr + 6] = fx;
+		positions[vPtr + 7] = by + 1;
+		positions[vPtr + 8] = bz + 1;
+		positions[vPtr + 9] = fx;
+		positions[vPtr + 10] = by;
+		positions[vPtr + 11] = bz + 1;
 	}
 	
 	/**

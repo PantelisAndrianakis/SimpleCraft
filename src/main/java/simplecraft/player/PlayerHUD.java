@@ -14,6 +14,7 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
+import simplecraft.state.PlayingState;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
 
@@ -611,8 +612,8 @@ public class PlayerHUD
 		final ColorRGBA blockColor = getBlockColor(selectedBlock);
 		_blockIndicatorMat.setColor("Color", blockColor);
 		
-		// Update name text with title-cased name.
-		final String displayName = formatBlockName(selectedBlock);
+		// Update name text with display name.
+		final String displayName = selectedBlock.getDisplayName();
 		_blockNameText.setText(displayName);
 		_blockNameTextShadow.setText(displayName);
 	}
@@ -642,8 +643,8 @@ public class PlayerHUD
 		_breakFill.setLocalScale(ratio, 1, 1);
 		
 		// Update text.
-		final Block targetBlock = SimpleCraft.getInstance().getStateManager().getState(simplecraft.state.PlayingState.class) != null ? getBreakingBlockFromInteraction() : Block.AIR;
-		final String blockName = targetBlock != null && targetBlock != Block.AIR ? formatBlockName(targetBlock) : "Block";
+		final Block targetBlock = SimpleCraft.getInstance().getStateManager().getState(PlayingState.class) != null ? getBreakingBlockFromInteraction() : Block.AIR;
+		final String blockName = targetBlock != null ? targetBlock.getDisplayName() : "Block";
 		final int remaining = hitsRequired - hitsDelivered;
 		final String text = blockName + " " + remaining + "/" + hitsRequired;
 		_breakText.setText(text);
@@ -890,36 +891,23 @@ public class PlayerHUD
 			{
 				return new ColorRGBA(0.1f, 0.55f, 0.3f, 1.0f);
 			}
+			case GLASS:
+			{
+				return new ColorRGBA(0.7f, 0.82f, 0.9f, 0.7f);
+			}
+			case WINDOW:
+			{
+				return new ColorRGBA(0.47f, 0.31f, 0.16f, 1.0f);
+			}
+			case DOOR_BOTTOM:
+			case DOOR_TOP:
+			{
+				return new ColorRGBA(0.55f, 0.35f, 0.18f, 1.0f);
+			}
 			default:
 			{
 				return new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f);
 			}
 		}
-	}
-	
-	/**
-	 * Formats a block enum name into title case (e.g. CRAFTING_TABLE → "Crafting Table").
-	 */
-	private static String formatBlockName(Block block)
-	{
-		if (block == null)
-		{
-			return "None";
-		}
-		
-		// GRASS is mentioned as DIRT, all other blocks keep their names.
-		final String[] words = (block == Block.GRASS ? Block.DIRT : block).name().toLowerCase().split("_");
-		final StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < words.length; i++)
-		{
-			if (i > 0)
-			{
-				sb.append(' ');
-			}
-			sb.append(Character.toUpperCase(words[i].charAt(0)));
-			sb.append(words[i].substring(1));
-		}
-		
-		return sb.toString();
 	}
 }

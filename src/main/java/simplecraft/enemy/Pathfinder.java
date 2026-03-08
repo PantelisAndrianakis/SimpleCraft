@@ -11,13 +11,17 @@ import com.jme3.math.Vector3f;
 
 import simplecraft.world.Block;
 import simplecraft.world.World;
+import simplecraft.world.entity.DoorTileEntity;
+import simplecraft.world.entity.TileEntity;
+import simplecraft.world.entity.TileEntityManager;
+import simplecraft.world.entity.WindowTileEntity;
 
 /**
  * A* grid pathfinder for the voxel world.<br>
  * Operates on the XZ block grid, treating each block column as a node.<br>
  * Accounts for ground height, step-up limits, headroom, water avoidance,<br>
  * and diagonal corner-cutting prevention.<br>
- * <br>
+ * Also checks for closed doors/windows that block movement.<br>
  * Usage: call {@link #findPath(World, Vector3f, Vector3f, int, int)} to get<br>
  * a list of waypoints from start to goal, or an empty list if no path exists.
  * @author Pantelis Andrianakis
@@ -190,6 +194,12 @@ public class Pathfinder
 					continue;
 				}
 				
+				// Check for closed doors or windows that would block movement.
+				if (isBlockedByClosedDoorOrWindow(world, nx, neighborGroundY, nz, current._x, current._z))
+				{
+					continue;
+				}
+				
 				// Cost calculation.
 				final float moveCost = (d < 4) ? CARDINAL_COST : DIAGONAL_COST;
 				// Penalize step-ups slightly to prefer flat paths.
@@ -219,6 +229,76 @@ public class Pathfinder
 		
 		// No path found within budget — return partial path to closest explored node.
 		return findClosestPartialPath(allNodes, goalX, goalZ);
+	}
+	
+	// ------------------------------------------------------------------
+	// Door and Window Blocking Check
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Checks if movement into a neighbor column is blocked by a closed door or window.
+	 * @param world the voxel world
+	 * @param targetX target column X
+	 * @param targetY ground Y at target
+	 * @param targetZ target column Z
+	 * @param fromX source column X (for determining which side we're approaching from)
+	 * @param fromZ source column Z
+	 * @return true if movement is blocked by a closed door/window
+	 */
+	private static boolean isBlockedByClosedDoorOrWindow(World world, int targetX, int targetY, int targetZ, int fromX, int fromZ)
+	{
+		final TileEntityManager manager = world.getTileEntityManager();
+		if (manager == null)
+		{
+			return false;
+		}
+		
+		// Check for door at ground level (enemy feet level).
+		final TileEntity groundEntity = manager.get(targetX, targetY, targetZ);
+		if (groundEntity instanceof DoorTileEntity)
+		{
+			final DoorTileEntity door = (DoorTileEntity) groundEntity;
+			// If door is closed, it blocks movement.
+			if (!door.isOpen())
+			{
+				return true;
+			}
+		}
+		
+		// Check for door at head level (enemy body might pass through upper half).
+		final TileEntity headEntity = manager.get(targetX, targetY + 1, targetZ);
+		if (headEntity instanceof DoorTileEntity)
+		{
+			final DoorTileEntity door = (DoorTileEntity) headEntity;
+			// If door is closed, it blocks movement (upper half matters for humanoids).
+			if (!door.isOpen())
+			{
+				return true;
+			}
+		}
+		
+		// Check for window at ground level.
+		if (groundEntity instanceof WindowTileEntity)
+		{
+			final WindowTileEntity window = (WindowTileEntity) groundEntity;
+			// If window is closed, it blocks movement.
+			if (!window.isOpen())
+			{
+				return true;
+			}
+		}
+		
+		// Check for window at head level (some windows might be placed higher).
+		if (headEntity instanceof WindowTileEntity)
+		{
+			final WindowTileEntity window = (WindowTileEntity) headEntity;
+			if (!window.isOpen())
+			{
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	
 	// ------------------------------------------------------------------
@@ -332,7 +412,59 @@ public class Pathfinder
 		}
 		
 		// Not water.
-		return !world.getBlock(bx, groundY, bz).isLiquid();
+		final Block footBlock = world.getBlock(bx, groundY, bz);
+		if (footBlock.isLiquid())
+		{
+			return false;
+		}
+		
+		// Check for closed doors/windows that would block the column entirely.
+		final TileEntityManager manager = world.getTileEntityManager();
+		if (manager != null)
+		{
+			// Check ground level.
+			final TileEntity groundEntity = manager.get(bx, groundY, bz);
+			if (groundEntity instanceof DoorTileEntity)
+			{
+				final DoorTileEntity door = (DoorTileEntity) groundEntity;
+				if (!door.isOpen())
+				{
+					return false;
+				}
+			}
+			if (groundEntity instanceof WindowTileEntity)
+			{
+				final WindowTileEntity window = (WindowTileEntity) groundEntity;
+				if (!window.isOpen())
+				{
+					return false;
+				}
+			}
+			
+			// Check head level for doors (upper half).
+			if (headroom > 1)
+			{
+				final TileEntity headEntity = manager.get(bx, groundY + 1, bz);
+				if (headEntity instanceof DoorTileEntity)
+				{
+					final DoorTileEntity door = (DoorTileEntity) headEntity;
+					if (!door.isOpen())
+					{
+						return false;
+					}
+				}
+				if (headEntity instanceof WindowTileEntity)
+				{
+					final WindowTileEntity window = (WindowTileEntity) headEntity;
+					if (!window.isOpen())
+					{
+						return false;
+					}
+				}
+			}
+		}
+		
+		return true;
 	}
 	
 	/**
@@ -340,11 +472,36 @@ public class Pathfinder
 	 */
 	private static boolean hasHeadroom(World world, int bx, int groundY, int bz, int headroom)
 	{
+		final TileEntityManager manager = world.getTileEntityManager();
+		
 		for (int h = 0; h < headroom; h++)
 		{
-			if (world.getBlock(bx, groundY + h, bz).isSolid())
+			final Block block = world.getBlock(bx, groundY + h, bz);
+			if (block.isSolid())
 			{
 				return false;
+			}
+			
+			// Check for closed doors/windows in the headroom space.
+			if (manager != null)
+			{
+				final TileEntity entity = manager.get(bx, groundY + h, bz);
+				if (entity instanceof DoorTileEntity)
+				{
+					final DoorTileEntity door = (DoorTileEntity) entity;
+					if (!door.isOpen())
+					{
+						return false;
+					}
+				}
+				if (entity instanceof WindowTileEntity)
+				{
+					final WindowTileEntity window = (WindowTileEntity) entity;
+					if (!window.isOpen())
+					{
+						return false;
+					}
+				}
 			}
 		}
 		return true;
