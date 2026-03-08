@@ -33,6 +33,7 @@ import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.FontManager;
+import simplecraft.ui.QuestionManager;
 import simplecraft.world.Block;
 import simplecraft.world.DayNightCycle;
 import simplecraft.world.Region;
@@ -40,6 +41,7 @@ import simplecraft.world.RegionMeshBuilder;
 import simplecraft.world.TextureAtlas;
 import simplecraft.world.World;
 import simplecraft.world.WorldInfo;
+import simplecraft.world.entity.TileEntityManager;
 
 /**
  * Playing state - the main game scene.<br>
@@ -183,7 +185,7 @@ public class PlayingState extends FadeableAppState
 			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			final GameStateManager gsm = simpleCraft.getGameStateManager();
-			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead)
+			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
 			{
 				// Set paused flag BEFORE the state transition so onExitState knows to preserve the world.
 				_paused = true;
@@ -291,6 +293,7 @@ public class PlayingState extends FadeableAppState
 		// Create world with day/night cycle reference for vertex color modulation.
 		_world = new World(seed, atlasMaterial);
 		_world.setDayNightCycle(_dayNightCycle);
+		EnemyLighting.setWorld(_world);
 		
 		// Attach world node to the scene.
 		app.getRootNode().attachChild(_world.getWorldNode());
@@ -449,6 +452,13 @@ public class PlayingState extends FadeableAppState
 				_spawnSystem.update(_playerController.getPosition(), _playerController.isInWater(), _world, tpf);
 			}
 			
+			// Update tile entity manager (campfire particles, furnace timers, etc.).
+			final TileEntityManager tileEntityManager = _world.getTileEntityManager();
+			if (tileEntityManager != null)
+			{
+				tileEntityManager.update(tpf);
+			}
+			
 			// Update combat system (enemy attacks, screen flash fade).
 			if (_combatSystem != null && _spawnSystem != null)
 			{
@@ -460,6 +470,9 @@ public class PlayingState extends FadeableAppState
 			{
 				// Player just died — show death screen.
 				_playerDead = true;
+				
+				// Dismiss any open question dialog (e.g. campfire respawn prompt).
+				QuestionManager.dismiss();
 				
 				// Unregister gameplay input.
 				_playerController.unregisterInput();
@@ -536,11 +549,22 @@ public class PlayingState extends FadeableAppState
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
-		// Find a valid Y at spawn position.
-		int spawnY = SPAWN_FALLBACK_Y;
-		for (int y = 255; y >= 0; y--)
+		// Get the active respawn point (campfire if set, otherwise initial spawn).
+		final Vector3f respawnPoint = _playerController.getActiveRespawnPoint();
+		final int respawnX = (int) respawnPoint.x;
+		final int respawnZ = (int) respawnPoint.z;
+		
+		// Find a valid Y at the respawn position.
+		// For campfire spawns: scan downward from the saved Y. The campfire spawn stores
+		// the player's feet position, so scanning from there avoids landing on a ceiling
+		// if the campfire is inside a building.
+		// For initial spawn: scan from the world top (surface is always open sky).
+		final boolean hasCampfire = _playerController.getCampfireSpawn() != null;
+		final int scanFrom = hasCampfire ? (int) respawnPoint.y : 255;
+		int spawnY = (int) respawnPoint.y;
+		for (int y = scanFrom; y >= 0; y--)
 		{
-			final Block block = _world.getBlock(SPAWN_X, y, SPAWN_Z);
+			final Block block = _world.getBlock(respawnX, y, respawnZ);
 			if (block != Block.AIR && !block.isLiquid())
 			{
 				spawnY = y + 1;
@@ -549,7 +573,7 @@ public class PlayingState extends FadeableAppState
 		}
 		
 		// Respawn the player.
-		_playerController.respawn(new Vector3f(SPAWN_X, spawnY, SPAWN_Z));
+		_playerController.respawn(new Vector3f(respawnX + 0.5f, spawnY, respawnZ + 0.5f));
 		_playerDead = false;
 		
 		// Hide death screen.
@@ -569,7 +593,7 @@ public class PlayingState extends FadeableAppState
 		// Hide cursor for first-person control.
 		app.getInputManager().setCursorVisible(false);
 		
-		System.out.println("Player respawned at [" + SPAWN_X + ", " + spawnY + ", " + SPAWN_Z + "] with full health.");
+		System.out.println("Player respawned at [" + respawnX + ", " + spawnY + ", " + respawnZ + "] with full health.");
 	}
 	
 	/**
@@ -590,6 +614,9 @@ public class PlayingState extends FadeableAppState
 		
 		// Clean up respawn listener if active.
 		cleanupRespawnListener();
+		
+		// Dismiss any open question dialog (e.g. campfire respawn prompt).
+		QuestionManager.dismiss();
 		
 		// Always disable controls (both for pause and full exit).
 		app.getInputManager().setCursorVisible(true);
@@ -727,6 +754,7 @@ public class PlayingState extends FadeableAppState
 		// Create and initialize the player controller with world reference for collision.
 		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world);
 		_playerController.setPosition(SPAWN_X, spawnY, SPAWN_Z);
+		_playerController.setInitialSpawn(SPAWN_X, spawnY, SPAWN_Z);
 		_playerController.registerInput();
 		
 		// Create and initialize block interaction (raycasting, breaking, placing).
@@ -734,6 +762,13 @@ public class PlayingState extends FadeableAppState
 		_blockInteraction.registerInput();
 		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
 		app.getRootNode().attachChild(_blockInteraction.getDestructionEffectsNode());
+		
+		// Attach the tile entity manager's visual node (particles, etc.) to the scene.
+		final TileEntityManager tileEntityManager = _world.getTileEntityManager();
+		if (tileEntityManager != null)
+		{
+			app.getRootNode().attachChild(tileEntityManager.getNode());
+		}
 		
 		// Create the player HUD.
 		createHUD();
@@ -822,6 +857,9 @@ public class PlayingState extends FadeableAppState
 		// Clean up respawn listener.
 		cleanupRespawnListener();
 		
+		// Dismiss any open question dialog (e.g. campfire respawn prompt).
+		QuestionManager.dismiss();
+		
 		// Clean up combat system.
 		if (_combatSystem != null)
 		{
@@ -856,6 +894,13 @@ public class PlayingState extends FadeableAppState
 		// Clean up world geometry.
 		if (_world != null)
 		{
+			// Detach tile entity visual node before world shutdown.
+			final TileEntityManager tileEntityManager = _world.getTileEntityManager();
+			if (tileEntityManager != null)
+			{
+				app.getRootNode().detachChild(tileEntityManager.getNode());
+			}
+			
 			_world.shutdown();
 			app.getRootNode().detachChild(_world.getWorldNode());
 			_world = null;

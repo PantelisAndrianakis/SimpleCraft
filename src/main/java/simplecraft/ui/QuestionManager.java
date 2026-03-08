@@ -37,6 +37,7 @@ public class QuestionManager
 	private static final float DIALOG_Z = 6f;
 	private static final float BUTTON_WIDTH_PERCENT = 0.10f;
 	private static final float BUTTON_HEIGHT_PERCENT = 0.065f;
+	private static final long CLICK_GRACE_PERIOD_MS = 500; // Ignore clicks for 500ms after dialog opens.
 	
 	// Active dialog elements.
 	private static Geometry _backdrop;
@@ -48,6 +49,9 @@ public class QuestionManager
 	private static Runnable _yesAction;
 	private static Runnable _noAction;
 	private static int _selectedIndex = -1; // -1 = no keyboard focus, 0 = Yes, 1 = No
+	
+	// Time-based click protection.
+	private static long _dialogOpenTime = 0;
 	
 	/**
 	 * Show a modal question dialog with Yes and No buttons.<br>
@@ -66,6 +70,9 @@ public class QuestionManager
 		final AssetManager assetManager = app.getAssetManager();
 		final float screenWidth = app.getCamera().getWidth();
 		final float screenHeight = app.getCamera().getHeight();
+		
+		// Record dialog open time for click grace period.
+		_dialogOpenTime = System.currentTimeMillis();
 		
 		// Store action references for keyboard confirmation.
 		_yesAction = yesAction;
@@ -105,9 +112,15 @@ public class QuestionManager
 		buttonRow.setBackground(null);
 		buttonRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		// Yes button.
+		// Yes button with grace period check.
 		_yesButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "Yes", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
 		{
+			// Ignore clicks within the grace period (prevents auto-click from previous mouse release).
+			if (System.currentTimeMillis() - _dialogOpenTime < CLICK_GRACE_PERIOD_MS)
+			{
+				return;
+			}
+			
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final Runnable action = _yesAction;
 			dismiss();
@@ -124,9 +137,15 @@ public class QuestionManager
 		buttonSpacer.setPreferredSize(new Vector3f(BUTTON_SPACING, 1, 0));
 		buttonRow.addChild(buttonSpacer);
 		
-		// No button.
+		// No button with grace period check.
 		_noButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "No", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
 		{
+			// Ignore clicks within the grace period (prevents auto-click from previous mouse release).
+			if (System.currentTimeMillis() - _dialogOpenTime < CLICK_GRACE_PERIOD_MS)
+			{
+				return;
+			}
+			
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final Runnable action = _noAction;
 			dismiss();
@@ -177,6 +196,7 @@ public class QuestionManager
 		_yesAction = null;
 		_noAction = null;
 		_selectedIndex = -1;
+		_dialogOpenTime = 0;
 	}
 	
 	/**

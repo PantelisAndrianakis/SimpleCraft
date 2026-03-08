@@ -20,13 +20,20 @@ import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.scene.debug.WireBox;
 import com.jme3.util.BufferUtils;
 
+import simplecraft.ui.MessageManager;
 import simplecraft.util.Rnd;
+import simplecraft.util.Vector3i;
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
 import simplecraft.world.BlockDestructionQueue;
 import simplecraft.world.BlockSupport;
 import simplecraft.world.TreeFeller;
 import simplecraft.world.World;
+import simplecraft.world.entity.CampfireTileEntity;
+import simplecraft.world.entity.PlaceholderTileEntity;
+import simplecraft.world.entity.TileEntity;
+import simplecraft.world.entity.TileEntityManager;
+import simplecraft.world.entity.TorchTileEntity;
 
 /**
  * Handles block interaction: raycasting, multi-hit breaking, placement, and selection.<br>
@@ -157,6 +164,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/** The face of the targeted block that the ray hit. */
 	private Face _targetFace;
+	
+	/** The raw entry face from the ray-AABB slab test, before any edge redirection. */
+	private Face _entryFace;
 	
 	/** World coordinates of the placement position (one step before hit). */
 	private int _placeX;
@@ -548,6 +558,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		if (tMin > tMax || tMax < 0)
 		{
 			_targetSelf = true;
+			_entryFace = Face.TOP;
 			return Face.TOP;
 		}
 		
@@ -558,6 +569,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		final float lz = Math.max(0, Math.min(1, origin.z + dir.z * t - bz));
 		
 		// Check edges of the hit face for redirection.
+		_entryFace = entryFace;
 		final Face edgeFace = checkFaceEdges(entryFace, lx, ly, lz);
 		
 		if (edgeFace != null)
@@ -777,6 +789,31 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			// Mark as player-removed (prevents enemy spawning in cleared areas).
 			_world.markPlayerRemoved(_targetX, _targetY, _targetZ);
 			
+			// Remove tile entity if present.
+			if (block.isTileEntity())
+			{
+				final TileEntityManager manager = _world.getTileEntityManager();
+				if (manager != null)
+				{
+					final TileEntity entity = manager.remove(_targetX, _targetY, _targetZ);
+					if (entity != null)
+					{
+						entity.onRemoved(_world);
+						
+						// If the broken campfire was the active respawn point, clear it.
+						if (entity instanceof CampfireTileEntity)
+						{
+							final CampfireTileEntity campfire = (CampfireTileEntity) entity;
+							if (campfire.isActivated())
+							{
+								_playerController.clearRespawnCampfire();
+								MessageManager.show("Respawn point lost! You will respawn at world origin.");
+							}
+						}
+					}
+				}
+			}
+			
 			// If any adjacent block is liquid, replace with WATER instead of AIR.
 			final Block replacement = (_targetY <= World.WATER_LEVEL && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR;
 			_world.setBlockImmediate(_targetX, _targetY, _targetZ, replacement);
@@ -867,7 +904,19 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		final Block targetBlock = _world.getBlock(_targetX, _targetY, _targetZ);
 		if (targetBlock.isTileEntity())
 		{
-			System.out.println("Interacted with " + targetBlock.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "]");
+			final TileEntityManager manager = _world.getTileEntityManager();
+			if (manager != null)
+			{
+				final TileEntity entity = manager.get(_targetX, _targetY, _targetZ);
+				if (entity != null)
+				{
+					entity.onInteract(_playerController, _world);
+				}
+				else
+				{
+					System.out.println("Interacted with " + targetBlock.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] — no tile entity registered.");
+				}
+			}
 			return;
 		}
 		
@@ -918,6 +967,17 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 		}
 		
+		// Face-snap placement — blocks that attach to surfaces (torches, doors, etc.)
+		// bypass the 20% edge redirect and always use the raw entry face.
+		if (selectedBlock.isFaceSnap() && _hasTarget && targetBlock.isSolid())
+		{
+			faceToOffset(_entryFace);
+			placeX = _targetX + _faceOffsetX;
+			placeY = _targetY + _faceOffsetY;
+			placeZ = _targetZ + _faceOffsetZ;
+			hasPlace = true;
+		}
+		
 		if (!hasPlace)
 		{
 			return;
@@ -929,6 +989,16 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			if (!canPlaceTorch(placeX, placeY, placeZ))
 			{
 				System.out.println("Cannot place TORCH here — needs a solid surface.");
+				return;
+			}
+		}
+		
+		// Campfire placement — must be on top of a solid block (floor only).
+		if (selectedBlock == Block.CAMPFIRE)
+		{
+			if (!_world.getBlock(placeX, placeY - 1, placeZ).isSolid())
+			{
+				System.out.println("Cannot place CAMPFIRE here — needs a solid block below.");
 				return;
 			}
 		}
@@ -981,6 +1051,51 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Place the block.
 		_world.setBlockImmediate(placeX, placeY, placeZ, selectedBlock);
 		_world.markPlayerPlaced(placeX, placeY, placeZ);
+		
+		// Create tile entity if this is a tile entity block.
+		if (selectedBlock.isTileEntity())
+		{
+			final TileEntityManager manager = _world.getTileEntityManager();
+			if (manager != null)
+			{
+				final Vector3i pos = new Vector3i(placeX, placeY, placeZ);
+				TileEntity entity = null;
+				
+				switch (selectedBlock)
+				{
+					case CAMPFIRE:
+					{
+						entity = new CampfireTileEntity(pos);
+						break;
+					}
+					case TORCH:
+					{
+						// Determine attachment face based on which block face the player clicked.
+						final Face attachedFace = determineTorchAttachment(placeX, placeY, placeZ, _entryFace);
+						entity = new TorchTileEntity(pos, attachedFace);
+						break;
+					}
+					case CHEST:
+					case CRAFTING_TABLE:
+					case FURNACE:
+					{
+						entity = new PlaceholderTileEntity(pos, selectedBlock);
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
+				
+				if (entity != null)
+				{
+					entity.onPlaced(_world);
+					manager.register(entity);
+				}
+			}
+		}
+		
 		System.out.println("Placed " + selectedBlock.name() + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
 	}
 	
@@ -1019,6 +1134,103 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		return false;
+	}
+	
+	/**
+	 * Determines the attachment face for a torch placed at the given position.<br>
+	 * Prefers the face opposite to the entry face (the block the player actually clicked),<br>
+	 * then falls back to floor, then to the first solid side neighbor.
+	 * @param clickedFace the entry face from the ray-AABB test (face of the target block that was hit)
+	 * @return the face of the adjacent solid block the torch attaches to
+	 */
+	private Face determineTorchAttachment(int x, int y, int z, Face clickedFace)
+	{
+		// Prefer the face the player actually clicked — the support block is opposite
+		// to the entry face direction. E.g. clicking the EAST face of a block places
+		// the torch one block to the east; the support block is to the WEST of the torch.
+		final Face preferred = oppositeFace(clickedFace);
+		if (isAttachableFace(x, y, z, preferred))
+		{
+			return preferred;
+		}
+		
+		// Fall back to floor placement.
+		if (_world.getBlock(x, y - 1, z).isSolid())
+		{
+			return Face.BOTTOM;
+		}
+		
+		// Wall attachment — check sides.
+		if (_world.getBlock(x + 1, y, z).isSolid())
+		{
+			return Face.EAST;
+		}
+		
+		if (_world.getBlock(x - 1, y, z).isSolid())
+		{
+			return Face.WEST;
+		}
+		
+		if (_world.getBlock(x, y, z + 1).isSolid())
+		{
+			return Face.NORTH;
+		}
+		
+		if (_world.getBlock(x, y, z - 1).isSolid())
+		{
+			return Face.SOUTH;
+		}
+		
+		// Fallback (shouldn't happen if canPlaceTorch passed).
+		return Face.BOTTOM;
+	}
+	
+	/**
+	 * Returns true if the block in the given face direction from (x, y, z) is solid.<br>
+	 * Used to validate a preferred attachment face.
+	 */
+	private boolean isAttachableFace(int x, int y, int z, Face face)
+	{
+		faceToOffset(face);
+		return _world.getBlock(x + _faceOffsetX, y + _faceOffsetY, z + _faceOffsetZ).isSolid();
+	}
+	
+	/**
+	 * Returns the opposite face.
+	 */
+	private static Face oppositeFace(Face face)
+	{
+		switch (face)
+		{
+			case TOP:
+			{
+				return Face.BOTTOM;
+			}
+			case BOTTOM:
+			{
+				return Face.TOP;
+			}
+			case NORTH:
+			{
+				return Face.SOUTH;
+			}
+			case SOUTH:
+			{
+				return Face.NORTH;
+			}
+			case EAST:
+			{
+				return Face.WEST;
+			}
+			case WEST:
+			{
+				return Face.EAST;
+			}
+			default:
+			{
+				return Face.BOTTOM;
+			}
+		}
 	}
 	
 	/**

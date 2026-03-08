@@ -50,6 +50,9 @@ public class TextureAtlas
 	private BufferedImage _atlasImage;
 	private Material _sharedMaterial;
 	
+	/** Static reference to the atlas texture for use by tile entities (torch billboard, etc.). */
+	private static Texture2D _atlasTexture;
+	
 	// ========================================================
 	// Atlas Building.
 	// ========================================================
@@ -150,6 +153,7 @@ public class TextureAtlas
 			texture.setMagFilter(Texture.MagFilter.Nearest);
 			texture.setMinFilter(Texture.MinFilter.NearestNoMipMaps);
 			texture.setWrap(Texture.WrapMode.EdgeClamp);
+			_atlasTexture = texture;
 			
 			// Build Unshaded material with atlas texture and vertex color support.
 			// VertexColor = true tells jME3 to multiply per-vertex colors with the texture.
@@ -181,6 +185,16 @@ public class TextureAtlas
 	public Material getSharedMaterial()
 	{
 		return _sharedMaterial;
+	}
+	
+	/**
+	 * Returns the atlas texture for use by tile entities that build their own materials<br>
+	 * (e.g. TorchTileEntity's billboard). Returns null if the atlas has not been built yet.
+	 * @return the atlas Texture2D
+	 */
+	public static Texture2D getAtlasTexture()
+	{
+		return _atlasTexture;
 	}
 	
 	// ========================================================

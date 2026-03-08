@@ -59,6 +59,19 @@ public class RegionMeshBuilder
 	private static final float MIN_BRIGHTNESS = 0.001f;
 	
 	// ========================================================
+	// Block Light Warm Tint (torch/campfire glow).
+	// ========================================================
+	
+	/** Red component of warm block light tint. */
+	private static final float WARM_TINT_R = 1.0f;
+	
+	/** Green component of warm block light tint. */
+	private static final float WARM_TINT_G = 0.85f;
+	
+	/** Blue component of warm block light tint. */
+	private static final float WARM_TINT_B = 0.55f;
+	
+	// ========================================================
 	// Day/Night Cycle Multipliers (global, updated by PlayingState).
 	// ========================================================
 	
@@ -494,11 +507,21 @@ public class RegionMeshBuilder
 							{
 								if (isFaceVisible(region, x, y, z, face, worldAccess))
 								{
-									// Light the face based on the NEIGHBOR (air) position's sky light,
-									// modulated by the day/night cycle brightness.
+									// Blend sky light and block light for this face.
 									final float skyLight = getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
-									final float brightness = Math.max(skyLight * FACE_SHADE[face.ordinal()], MIN_BRIGHTNESS);
-									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, block, brightness, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
+									final float blockLight = getNeighborBlockLight(region, x, y, z, face);
+									final float shade = FACE_SHADE[face.ordinal()];
+									final float skyB = skyLight * shade;
+									final float blkB = blockLight * shade;
+									final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
+									
+									// Warm tint ratio: how much of the light comes from block light.
+									final float blkRatio = (finalB > MIN_BRIGHTNESS) ? (blkB / finalB) : 0;
+									final float r = finalB * lerp(_cycleTintR, WARM_TINT_R, blkRatio);
+									final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
+									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
+									
+									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, block, r, g, b, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
 									opaqueVPtr += 4 * 3; // 4 verts × 3 coords
 									opaqueUPtr += 4 * 2; // 4 verts × 2 UVs
 									opaqueCPtr += 4 * 4; // 4 verts × 4 RGBA
@@ -514,8 +537,18 @@ public class RegionMeshBuilder
 								if (isTransparentFaceVisible(region, x, y, z, face, block, worldAccess))
 								{
 									final float skyLight = getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
-									final float brightness = Math.max(skyLight * FACE_SHADE[face.ordinal()], MIN_BRIGHTNESS);
-									writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, block, brightness, transVPtr, transUPtr, transCPtr, transIPtr);
+									final float blockLight = getNeighborBlockLight(region, x, y, z, face);
+									final float shade = FACE_SHADE[face.ordinal()];
+									final float skyB = skyLight * shade;
+									final float blkB = blockLight * shade;
+									final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
+									
+									final float blkRatio = (finalB > MIN_BRIGHTNESS) ? (blkB / finalB) : 0;
+									final float r = finalB * lerp(_cycleTintR, WARM_TINT_R, blkRatio);
+									final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
+									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
+									
+									writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, block, r, g, b, transVPtr, transUPtr, transCPtr, transIPtr);
 									transVPtr += 4 * 3;
 									transUPtr += 4 * 2;
 									transCPtr += 4 * 4;
@@ -526,11 +559,25 @@ public class RegionMeshBuilder
 						}
 						case CROSS_BILLBOARD:
 						{
-							// Billboards sit in air/transparent space — use their own position's sky light,
-							// modulated by the day/night cycle brightness.
+							// Torches are rendered by TorchTileEntity with wall tilt support.
+							if (block == Block.TORCH)
+							{
+								break;
+							}
+							
+							// Billboards sit in air/transparent space — use their own position's light.
 							final float skyLight = region.getSkyLight(x, y, z) * _cycleBrightness;
-							final float brightness = Math.max(skyLight * BILLBOARD_SHADE, MIN_BRIGHTNESS);
-							writeBillboard(billPos, billNorm, billUV, billCol, billIdx, x, y, z, block, brightness, billVPtr, billUPtr, billCPtr, billIPtr);
+							final float blockLight = region.getBlockLight(x, y, z) / 15.0f;
+							final float skyB = skyLight * BILLBOARD_SHADE;
+							final float blkB = blockLight * BILLBOARD_SHADE;
+							final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
+							
+							final float blkRatio = (finalB > MIN_BRIGHTNESS) ? (blkB / finalB) : 0;
+							final float r = finalB * lerp(_cycleTintR, WARM_TINT_R, blkRatio);
+							final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
+							final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
+							
+							writeBillboard(billPos, billNorm, billUV, billCol, billIdx, x, y, z, block, r, g, b, billVPtr, billUPtr, billCPtr, billIPtr);
 							billVPtr += 8 * 3; // 8 verts × 3 coords
 							billUPtr += 8 * 2; // 8 verts × 2 UVs
 							billCPtr += 8 * 4; // 8 verts × 4 RGBA
@@ -584,6 +631,45 @@ public class RegionMeshBuilder
 	}
 	
 	/**
+	 * Returns the block light (artificial light) at the neighbor position for a given face.<br>
+	 * Parallel to {@link #getNeighborSkyLight} — samples the air space the face looks at.<br>
+	 * Returns the block's own block light for cross-region boundaries (minor seam).
+	 * @return block light level normalized to [0.0, 1.0]
+	 */
+	private static float getNeighborBlockLight(Region region, int x, int y, int z, Face face)
+	{
+		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
+		final int nx = x + offset[0];
+		final int ny = y + offset[1];
+		final int nz = z + offset[2];
+		
+		if (ny < 0 || ny >= Region.SIZE_Y)
+		{
+			return 0.0f;
+		}
+		
+		if (nx >= 0 && nx < Region.SIZE_XZ && nz >= 0 && nz < Region.SIZE_XZ)
+		{
+			return region.getBlockLight(nx, ny, nz) / 15.0f;
+		}
+		
+		// Cross-region boundary — fall back to block's own block light.
+		return region.getBlockLight(x, y, z) / 15.0f;
+	}
+	
+	/**
+	 * Linear interpolation between two values.
+	 * @param a start value (when t = 0)
+	 * @param b end value (when t = 1)
+	 * @param t interpolation factor [0, 1]
+	 * @return interpolated value
+	 */
+	private static float lerp(float a, float b, float t)
+	{
+		return a + (b - a) * t;
+	}
+	
+	/**
 	 * Counts vertices needed for each mesh type (first pass).
 	 */
 	private static int[] countVertices(Region region, WorldBlockAccess worldAccess)
@@ -630,6 +716,12 @@ public class RegionMeshBuilder
 						}
 						case CROSS_BILLBOARD:
 						{
+							// Torches are rendered by TorchTileEntity with wall tilt support.
+							if (block == Block.TORCH)
+							{
+								break;
+							}
+							
 							billboard += 8;
 							break;
 						}
@@ -648,9 +740,11 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Writes one face directly to pre-allocated arrays, including vertex color data.
-	 * @param brightness the pre-computed brightness for all 4 vertices of this face (skyLight × faceShade)
+	 * @param r pre-computed red component for all 4 vertices (light × tint)
+	 * @param g pre-computed green component for all 4 vertices
+	 * @param b pre-computed blue component for all 4 vertices
 	 */
-	private static void writeFace(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Face face, Block block, float brightness, int vPtr, int uvPtr, int cPtr, int iPtr)
+	private static void writeFace(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Face face, Block block, float r, float g, float b, int vPtr, int uvPtr, int cPtr, int iPtr)
 	{
 		final int faceOrdinal = face.ordinal();
 		final int baseVertex = vPtr / 3;
@@ -681,10 +775,10 @@ public class RegionMeshBuilder
 			texCoords[uvPtr + v * 2] = uvBounds[0] + unitU * (uvBounds[2] - uvBounds[0]);
 			texCoords[uvPtr + v * 2 + 1] = uvBounds[1] + unitV * (uvBounds[3] - uvBounds[1]);
 			
-			// Vertex color (RGBA) — brightness from sky light × face shade × day/night tint.
-			colors[cPtr + v * 4] = brightness * _cycleTintR; // R
-			colors[cPtr + v * 4 + 1] = brightness * _cycleTintG; // G
-			colors[cPtr + v * 4 + 2] = brightness * _cycleTintB; // B
+			// Vertex color (RGBA) — pre-blended sky/block light with warm tint.
+			colors[cPtr + v * 4] = r; // R
+			colors[cPtr + v * 4 + 1] = g; // G
+			colors[cPtr + v * 4 + 2] = b; // B
 			colors[cPtr + v * 4 + 3] = 1.0f; // A
 		}
 		
@@ -699,23 +793,25 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Writes billboard directly to pre-allocated arrays, including vertex color data.
-	 * @param brightness the pre-computed brightness for all 8 vertices (skyLight × BILLBOARD_SHADE)
+	 * @param r pre-computed red component for all 8 vertices
+	 * @param g pre-computed green component for all 8 vertices
+	 * @param b pre-computed blue component for all 8 vertices
 	 */
-	private static void writeBillboard(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Block block, float brightness, int vPtr, int uvPtr, int cPtr, int iPtr)
+	private static void writeBillboard(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, Block block, float r, float g, float b, int vPtr, int uvPtr, int cPtr, int iPtr)
 	{
 		final float[] uvBounds = getAtlasUVs(block, Face.TOP);
 		
 		// Write Quad A.
-		writeBillboardQuad(positions, normals, texCoords, colors, indices, bx, by, bz, BILLBOARD_QUAD_A_FLAT[0], uvBounds, brightness, vPtr, uvPtr, cPtr, iPtr);
+		writeBillboardQuad(positions, normals, texCoords, colors, indices, bx, by, bz, BILLBOARD_QUAD_A_FLAT[0], uvBounds, r, g, b, vPtr, uvPtr, cPtr, iPtr);
 		
 		// Write Quad B.
-		writeBillboardQuad(positions, normals, texCoords, colors, indices, bx, by, bz, BILLBOARD_QUAD_B_FLAT[0], uvBounds, brightness, vPtr + 4 * 3, uvPtr + 4 * 2, cPtr + 4 * 4, iPtr + 6);
+		writeBillboardQuad(positions, normals, texCoords, colors, indices, bx, by, bz, BILLBOARD_QUAD_B_FLAT[0], uvBounds, r, g, b, vPtr + 4 * 3, uvPtr + 4 * 2, cPtr + 4 * 4, iPtr + 6);
 	}
 	
 	/**
 	 * Writes a single billboard quad, including vertex color data.
 	 */
-	private static void writeBillboardQuad(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, float[] quadVerts, float[] uvBounds, float brightness, int vPtr, int uvPtr, int cPtr, int iPtr)
+	private static void writeBillboardQuad(float[] positions, float[] normals, float[] texCoords, float[] colors, int[] indices, int bx, int by, int bz, float[] quadVerts, float[] uvBounds, float r, float g, float b, int vPtr, int uvPtr, int cPtr, int iPtr)
 	{
 		final int baseVertex = vPtr / 3;
 		
@@ -737,10 +833,10 @@ public class RegionMeshBuilder
 			normals[vPtr + v * 3 + 1] = 0;
 			normals[vPtr + v * 3 + 2] = nz;
 			
-			// Vertex color — brightness × day/night tint.
-			colors[cPtr + v * 4] = brightness * _cycleTintR; // R
-			colors[cPtr + v * 4 + 1] = brightness * _cycleTintG; // G
-			colors[cPtr + v * 4 + 2] = brightness * _cycleTintB; // B
+			// Vertex color — pre-blended sky/block light with warm tint.
+			colors[cPtr + v * 4] = r; // R
+			colors[cPtr + v * 4 + 1] = g; // G
+			colors[cPtr + v * 4 + 2] = b; // B
 			colors[cPtr + v * 4 + 3] = 1.0f; // A
 		}
 		

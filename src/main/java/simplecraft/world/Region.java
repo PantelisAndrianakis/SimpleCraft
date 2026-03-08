@@ -36,6 +36,12 @@ public class Region
 	private final int _regionX;
 	private final int _regionZ;
 	
+	/**
+	 * Per-block light levels from artificial light sources (torches, campfires).<br>
+	 * Range [0, 15]. 0 = no block light. Propagated via BFS flood-fill in World.
+	 */
+	private final byte[][][] _blockLight = new byte[SIZE_XZ][SIZE_Y][SIZE_XZ];
+	
 	/** True if the mesh needs to be rebuilt due to block changes. */
 	private boolean _meshDirty = true;
 	
@@ -303,6 +309,43 @@ public class Region
 		final int depth = ceilingY - y;
 		final float light = 1.0f - (depth * SKY_LIGHT_FALLOFF);
 		return Math.max(light, SKY_LIGHT_MINIMUM);
+	}
+	
+	// ========================================================
+	// Block Light System (artificial light sources).
+	// ========================================================
+	
+	/**
+	 * Sets the block light level at the given local coordinates.
+	 * @param x local X (0..15)
+	 * @param y local Y (0..127)
+	 * @param z local Z (0..15)
+	 * @param level light level (0..15)
+	 */
+	public void setBlockLight(int x, int y, int z, int level)
+	{
+		if (isInBounds(x, y, z))
+		{
+			_blockLight[x][y][z] = (byte) level;
+		}
+	}
+	
+	/**
+	 * Returns the block light level at the given local coordinates.<br>
+	 * Returns 0 for out-of-bounds positions.
+	 * @param x local X (0..15)
+	 * @param y local Y (0..127)
+	 * @param z local Z (0..15)
+	 * @return light level in the range [0, 15]
+	 */
+	public int getBlockLight(int x, int y, int z)
+	{
+		if (!isInBounds(x, y, z))
+		{
+			return 0;
+		}
+		
+		return _blockLight[x][y][z] & 0xFF;
 	}
 	
 	// ========================================================

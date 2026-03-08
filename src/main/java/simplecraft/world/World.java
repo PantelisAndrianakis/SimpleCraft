@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -20,6 +22,7 @@ import com.jme3.scene.Node;
 
 import simplecraft.world.RegionLoader.ReadyRegion;
 import simplecraft.world.RegionMeshBuilder.RegionMeshResult;
+import simplecraft.world.entity.TileEntityManager;
 
 /**
  * Manages a collection of regions that form the game world.<br>
@@ -99,6 +102,9 @@ public class World
 	/** Background terrain generator and mesh builder. */
 	private final RegionLoader _regionLoader;
 	
+	/** Central registry for all active tile entities. */
+	private final TileEntityManager _tileEntityManager;
+	
 	/** Day/night cycle reference for vertex color modulation during mesh rebuilds. */
 	private DayNightCycle _dayNightCycle;
 	
@@ -150,6 +156,7 @@ public class World
 		_billboardMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
 		
 		_regionLoader = new RegionLoader(seed);
+		_tileEntityManager = new TileEntityManager();
 	}
 	
 	// ========================================================
@@ -1123,6 +1130,325 @@ public class World
 	}
 	
 	// ========================================================
+	// Tile Entity Manager.
+	// ========================================================
+	
+	/**
+	 * Returns the tile entity manager for this world.
+	 */
+	public TileEntityManager getTileEntityManager()
+	{
+		return _tileEntityManager;
+	}
+	
+	// ========================================================
+	// Block Light System.
+	// ========================================================
+	
+	/** Six-directional offsets for BFS light propagation. */
+	private static final int[][] LIGHT_DIRS =
+	{
+		// @formatter:off
+		{ 1, 0, 0 },
+		{ -1, 0, 0 },
+		{ 0, 1, 0 },
+		{ 0, -1, 0 },
+		{ 0, 0, 1 },
+		{ 0, 0, -1 }
+		// @formatter:on
+	};
+	
+	/**
+	 * Propagates block light from a light source using BFS flood-fill.<br>
+	 * Light decays by 1 per block and does not pass through solid blocks.<br>
+	 * Cross-region propagation is supported. Affected regions are marked<br>
+	 * dirty and rebuilt immediately after propagation completes.
+	 * @param worldX light source world X
+	 * @param worldY light source world Y
+	 * @param worldZ light source world Z
+	 * @param lightLevel the light intensity (1-15)
+	 */
+	public void propagateBlockLight(int worldX, int worldY, int worldZ, int lightLevel)
+	{
+		if (lightLevel <= 0)
+		{
+			return;
+		}
+		
+		final Queue<int[]> queue = new LinkedList<>();
+		queue.add(new int[]
+		{
+			worldX,
+			worldY,
+			worldZ,
+			lightLevel
+		});
+		
+		while (!queue.isEmpty())
+		{
+			final int[] entry = queue.poll();
+			final int x = entry[0];
+			final int y = entry[1];
+			final int z = entry[2];
+			final int light = entry[3];
+			
+			if (light <= 0 || y < 0 || y >= Region.SIZE_Y)
+			{
+				continue;
+			}
+			
+			// Resolve region and local coordinates.
+			final int rx = Math.floorDiv(x, Region.SIZE_XZ);
+			final int rz = Math.floorDiv(z, Region.SIZE_XZ);
+			final Region region = _regions.get(regionKey(rx, rz));
+			if (region == null)
+			{
+				continue;
+			}
+			
+			final int lx = Math.floorMod(x, Region.SIZE_XZ);
+			final int lz = Math.floorMod(z, Region.SIZE_XZ);
+			
+			// Only set if new light is brighter than existing.
+			if (region.getBlockLight(lx, y, lz) >= light)
+			{
+				continue;
+			}
+			
+			// Don't propagate through solid blocks (except the source itself).
+			final Block block = region.getBlock(lx, y, lz);
+			if (block.isSolid() && !(x == worldX && y == worldY && z == worldZ))
+			{
+				continue;
+			}
+			
+			region.setBlockLight(lx, y, lz, light);
+			region.markMeshDirty();
+			_regionLoader.updateRegionCache(region);
+			_batchDirtyRegions.add(regionKey(rx, rz));
+			
+			// Propagate to 6 neighbors with decay.
+			if (light > 1)
+			{
+				final int nextLight = light - 1;
+				for (int[] dir : LIGHT_DIRS)
+				{
+					queue.add(new int[]
+					{
+						x + dir[0],
+						y + dir[1],
+						z + dir[2],
+						nextLight
+					});
+				}
+			}
+		}
+		
+		rebuildDirtyRegionsImmediate();
+	}
+	
+	/**
+	 * Removes block light contribution from the given world position.<br>
+	 * Uses BFS to clear light values that originated from this source,<br>
+	 * then re-propagates from any remaining neighboring light sources<br>
+	 * found at the cleared boundary.
+	 * @param worldX light source world X
+	 * @param worldY light source world Y
+	 * @param worldZ light source world Z
+	 */
+	public void removeBlockLight(int worldX, int worldY, int worldZ)
+	{
+		// Get the current light level at the source.
+		final int rx = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int rz = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region sourceRegion = _regions.get(regionKey(rx, rz));
+		if (sourceRegion == null)
+		{
+			return;
+		}
+		
+		final int slx = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int slz = Math.floorMod(worldZ, Region.SIZE_XZ);
+		final int sourceLevel = sourceRegion.getBlockLight(slx, worldY, slz);
+		if (sourceLevel <= 0)
+		{
+			return;
+		}
+		
+		// BFS removal: clear light that was contributed by this source.
+		// Track blocks at the boundary that still have light (from other sources)
+		// so we can re-propagate from them after clearing.
+		final Queue<int[]> removeQueue = new LinkedList<>();
+		final Queue<int[]> repropQueue = new LinkedList<>();
+		final Set<Long> visited = new HashSet<>();
+		
+		removeQueue.add(new int[]
+		{
+			worldX,
+			worldY,
+			worldZ,
+			sourceLevel
+		});
+		
+		while (!removeQueue.isEmpty())
+		{
+			final int[] entry = removeQueue.poll();
+			final int x = entry[0];
+			final int y = entry[1];
+			final int z = entry[2];
+			final int expectedLight = entry[3];
+			
+			if (y < 0 || y >= Region.SIZE_Y)
+			{
+				continue;
+			}
+			
+			final long posKey = ((long) (x & 0xFFFFF) << 40) | ((long) (y & 0xFF) << 32) | ((long) (z & 0xFFFFF));
+			if (visited.contains(posKey))
+			{
+				continue;
+			}
+			visited.add(posKey);
+			
+			final int crx = Math.floorDiv(x, Region.SIZE_XZ);
+			final int crz = Math.floorDiv(z, Region.SIZE_XZ);
+			final Region region = _regions.get(regionKey(crx, crz));
+			if (region == null)
+			{
+				continue;
+			}
+			
+			final int lx = Math.floorMod(x, Region.SIZE_XZ);
+			final int lz = Math.floorMod(z, Region.SIZE_XZ);
+			final int currentLight = region.getBlockLight(lx, y, lz);
+			
+			if (currentLight > 0 && currentLight <= expectedLight)
+			{
+				// This block was lit by the removed source — clear it.
+				region.setBlockLight(lx, y, lz, 0);
+				region.markMeshDirty();
+				_regionLoader.updateRegionCache(region);
+				_batchDirtyRegions.add(regionKey(crx, crz));
+				
+				// Continue clearing outward.
+				if (expectedLight > 1)
+				{
+					final int nextExpected = expectedLight - 1;
+					for (int[] dir : LIGHT_DIRS)
+					{
+						removeQueue.add(new int[]
+						{
+							x + dir[0],
+							y + dir[1],
+							z + dir[2],
+							nextExpected
+						});
+					}
+				}
+			}
+			else if (currentLight > expectedLight)
+			{
+				// This block has brighter light from another source — re-propagate from here.
+				repropQueue.add(new int[]
+				{
+					x,
+					y,
+					z,
+					currentLight
+				});
+			}
+		}
+		
+		// Re-propagate from remaining light sources at the boundary.
+		while (!repropQueue.isEmpty())
+		{
+			final int[] entry = repropQueue.poll();
+			final int x = entry[0];
+			final int y = entry[1];
+			final int z = entry[2];
+			final int light = entry[3];
+			
+			if (light <= 1 || y < 0 || y >= Region.SIZE_Y)
+			{
+				continue;
+			}
+			
+			final int nextLight = light - 1;
+			for (int[] dir : LIGHT_DIRS)
+			{
+				final int nx = x + dir[0];
+				final int ny = y + dir[1];
+				final int nz = z + dir[2];
+				
+				if (ny < 0 || ny >= Region.SIZE_Y)
+				{
+					continue;
+				}
+				
+				final int nrx = Math.floorDiv(nx, Region.SIZE_XZ);
+				final int nrz = Math.floorDiv(nz, Region.SIZE_XZ);
+				final Region nRegion = _regions.get(regionKey(nrx, nrz));
+				if (nRegion == null)
+				{
+					continue;
+				}
+				
+				final int nlx = Math.floorMod(nx, Region.SIZE_XZ);
+				final int nlz = Math.floorMod(nz, Region.SIZE_XZ);
+				
+				if (nRegion.getBlockLight(nlx, ny, nlz) < nextLight)
+				{
+					final Block block = nRegion.getBlock(nlx, ny, nlz);
+					if (!block.isSolid())
+					{
+						nRegion.setBlockLight(nlx, ny, nlz, nextLight);
+						nRegion.markMeshDirty();
+						_regionLoader.updateRegionCache(nRegion);
+						_batchDirtyRegions.add(regionKey(nrx, nrz));
+						repropQueue.add(new int[]
+						{
+							nx,
+							ny,
+							nz,
+							nextLight
+						});
+					}
+				}
+			}
+		}
+		
+		rebuildDirtyRegionsImmediate();
+	}
+	
+	/**
+	 * Returns the block light level at the given world coordinates.<br>
+	 * Returns 0 if the region is not loaded or coordinates are out of bounds.
+	 * @param worldX world X coordinate
+	 * @param worldY world Y coordinate
+	 * @param worldZ world Z coordinate
+	 * @return block light level in the range [0, 15]
+	 */
+	public int getBlockLight(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y)
+		{
+			return 0;
+		}
+		
+		final int rx = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int rz = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(rx, rz));
+		if (region == null)
+		{
+			return 0;
+		}
+		
+		final int lx = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int lz = Math.floorMod(worldZ, Region.SIZE_XZ);
+		return region.getBlockLight(lx, worldY, lz);
+	}
+	
+	// ========================================================
 	// Lifecycle.
 	// ========================================================
 	
@@ -1133,6 +1459,7 @@ public class World
 	public void shutdown()
 	{
 		_regionLoader.shutdown();
+		_tileEntityManager.cleanup();
 		_pendingChanges.clear();
 		synchronized (_pendingRemesh)
 		{

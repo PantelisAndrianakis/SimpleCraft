@@ -10,6 +10,7 @@ import com.jme3.renderer.Camera;
 
 import simplecraft.input.GameInputManager;
 import simplecraft.player.PlayerCollision.CollisionResult;
+import simplecraft.util.Vector3i;
 import simplecraft.world.Block;
 import simplecraft.world.World;
 
@@ -133,6 +134,12 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/** Description of the damage source that last killed the player. */
 	private String _deathCause = "";
+	
+	/** Initial spawn point — always the world origin spawn position. This NEVER changes once set. */
+	private final Vector3f _initialSpawn = new Vector3f();
+	
+	/** Campfire respawn point — set when the player activates a campfire. Null if no campfire active. */
+	private Vector3f _campfireSpawn;
 	
 	/** Flag set when damage is taken this frame (for external flash triggers). */
 	private boolean _damageTakenThisFrame;
@@ -655,5 +662,69 @@ public class PlayerController implements ActionListener, AnalogListener
 	public void setSelectedBlock(Block selectedBlock)
 	{
 		_selectedBlock = selectedBlock;
+	}
+	
+	// ========== Respawn Point Management ==========
+	
+	/**
+	 * Returns the initial spawn point (world origin). Always valid.
+	 */
+	public Vector3f getInitialSpawn()
+	{
+		return _initialSpawn;
+	}
+	
+	/**
+	 * Sets the initial spawn point. Called once when the player first enters the world.
+	 * @param x world X coordinate
+	 * @param y world Y coordinate (feet level)
+	 * @param z world Z coordinate
+	 */
+	public void setInitialSpawn(float x, float y, float z)
+	{
+		_initialSpawn.set(x, y, z);
+	}
+	
+	/**
+	 * Returns the campfire respawn point, or null if no campfire is active.
+	 */
+	public Vector3f getCampfireSpawn()
+	{
+		return _campfireSpawn;
+	}
+	
+	/**
+	 * Sets the campfire respawn point when the player activates a campfire.<br>
+	 * Uses the player's current standing position — where you click the campfire<br>
+	 * is where you respawn, not on top of the campfire block itself.
+	 */
+	public void setRespawnCampfire()
+	{
+		_campfireSpawn = new Vector3f(_position.x, _position.y, _position.z);
+		System.out.println("Campfire respawn set at [" + _campfireSpawn.x + ", " + _campfireSpawn.y + ", " + _campfireSpawn.z + "]");
+	}
+	
+	/**
+	 * Clears the campfire respawn point. Called when the active campfire is broken.
+	 */
+	public void clearRespawnCampfire()
+	{
+		_campfireSpawn = null;
+		System.out.println("Campfire respawn cleared. Will respawn at world origin.");
+	}
+	
+	/**
+	 * Returns the active respawn point — campfire if set, otherwise initial spawn.<br>
+	 * This is the position the player teleports to on death.
+	 * @return the active respawn position (always non-null)
+	 */
+	public Vector3f getActiveRespawnPoint()
+	{
+		if (_campfireSpawn != null)
+		{
+			return _campfireSpawn;
+		}
+		
+		return _initialSpawn;
 	}
 }

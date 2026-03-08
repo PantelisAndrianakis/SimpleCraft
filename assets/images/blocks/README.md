@@ -4,8 +4,6 @@ By: Pantelis Andrianakis
 
 Generated through a python script and hand adjusted in Paint.NET  
 
-## Cube Textures (Opaque)
-
 ### 1. `grass_top.png` - Fresh Spring Lawn
 A bright, cheerful green that reminds you of fresh spring grass. Up close, you can see tiny variations in color—some patches slightly darker than others, just like real grass where some blades are in shade. It's the kind of grass that would feel cool and soft under your bare feet.
 
@@ -63,12 +61,8 @@ The side of a furnace made from rough cobblestones fitted together. Darker patch
 ### 19. `furnace_top.png - The Vent Above
 The top of the furnace, with a dark square vent in the center where heat and smoke escape. The stone around it is slightly darker from constant exposure, and a faint orange glow deep inside the vent hints at the fire below, still working.
 
-## Transparent Cube Texture
-
 ### 20. `leaves.png - Sun-Dappled Canopy
 A lush cluster of dark green leaves with holes of sky showing through. About half the pixels are completely transparent, letting light filter down like through a real tree canopy. Some leaves are darker in shadow, others brighter where sun hits them—just like standing under a real tree on a sunny day.
-
-## Cross-Billboard Textures (Transparent Background)
 
 ### 21. `berry_bush.png - Wild and Fruitful
 A scraggly bush with dark green leaves and bright red berries peeking out. The bush shape is irregular and natural—not a perfect circle, but a real, wild tangle. Some berries are brighter than others, ripe and ready to pick. Looks like it was found at the edge of a forest.
@@ -99,3 +93,6 @@ A graceful, flowing clump of tall olive-green seaweed that sways with the ocean 
 
 ### 30. `short_seaweed.png` - Tidal Pool Carpet
 A dense patch of shorter, rubbery seaweed that hugs the ocean floor. Thick, rounded blades cluster together in a lush underwater carpet, with occasional lighter highlights where bubbles get trapped between the fronds. Some blades have wavy, ruffled edges, and the color is a rich, deep green with hints of bronze—like the kind of seaweed you'd find clinging to rocks in a peaceful tidal pool.
+
+### 31. `transparent.png` — The Void Between
+Nothing to see here. Every single pixel is completely empty—pure transparency. It's the texture that exists only to be invisible, used on the top and bottom of seaweed so those beautiful kelp fronds are only seen from the sides where they matter. It's the digital equivalent of air.
