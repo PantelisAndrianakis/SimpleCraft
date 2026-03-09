@@ -139,6 +139,17 @@ public class WorldInfo
 		return getWorldsDirectory().resolve(getDirectoryName());
 	}
 	
+	/**
+	 * Returns true if this world has save data (world.dat exists).<br>
+	 * Used to determine whether to load saved progress on world entry.
+	 * @return true if a save file exists for this world
+	 */
+	public boolean hasSaveData()
+	{
+		final Path worldDat = getWorldDirectory().resolve("world.dat");
+		return Files.exists(worldDat);
+	}
+	
 	// --- Static persistence methods ---
 	
 	/**

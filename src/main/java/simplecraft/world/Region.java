@@ -70,6 +70,9 @@ public class Region
 	/** True if sky light data needs to be recomputed before next mesh build. */
 	private boolean _skyLightDirty = true;
 	
+	/** True if this region has been modified by the player (block placed/removed). */
+	private boolean _modified = false;
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -145,6 +148,117 @@ public class Region
 	public long getLastMeshBuildTime()
 	{
 		return _lastMeshBuildTime;
+	}
+	
+	// ========================================================
+	// Modified Flag (player changes tracking for save system).
+	// ========================================================
+	
+	/**
+	 * Marks this region as modified by the player.<br>
+	 * Modified regions are included when saving world data.
+	 */
+	public void markModified()
+	{
+		_modified = true;
+	}
+	
+	/**
+	 * Returns true if this region has been modified by the player.
+	 */
+	public boolean isModified()
+	{
+		return _modified;
+	}
+	
+	// ========================================================
+	// Raw Block Data (for save/load).
+	// ========================================================
+	
+	/** Total number of bytes in a flat copy of the blocks array. */
+	public static final int RAW_DATA_SIZE = SIZE_XZ * SIZE_Y * SIZE_XZ;
+	
+	/**
+	 * Returns a flat byte array copy of the entire block data.<br>
+	 * Layout: x varies slowest, z varies fastest.<br>
+	 * Index = (x * SIZE_Y * SIZE_XZ) + (y * SIZE_XZ) + z.<br>
+	 * Used for serialization (save system).
+	 * @return a new byte array of length {@link #RAW_DATA_SIZE}
+	 */
+	public byte[] getRawBlockData()
+	{
+		final byte[] flat = new byte[RAW_DATA_SIZE];
+		int index = 0;
+		for (int x = 0; x < SIZE_XZ; x++)
+		{
+			for (int y = 0; y < SIZE_Y; y++)
+			{
+				for (int z = 0; z < SIZE_XZ; z++)
+				{
+					flat[index++] = _blocks[x][y][z];
+				}
+			}
+		}
+		return flat;
+	}
+	
+	/**
+	 * Overwrites the entire block data from a flat byte array.<br>
+	 * Layout must match {@link #getRawBlockData()} — x slowest, z fastest.<br>
+	 * Automatically marks mesh and sky light as dirty.<br>
+	 * Used for deserialization (load system).
+	 * @param flat a byte array of length {@link #RAW_DATA_SIZE}
+	 */
+	public void setRawBlockData(byte[] flat)
+	{
+		if (flat == null || flat.length != RAW_DATA_SIZE)
+		{
+			System.err.println("Region.setRawBlockData: Invalid data length. Expected " + RAW_DATA_SIZE + ", got " + (flat != null ? flat.length : "null"));
+			return;
+		}
+		
+		int index = 0;
+		for (int x = 0; x < SIZE_XZ; x++)
+		{
+			for (int y = 0; y < SIZE_Y; y++)
+			{
+				for (int z = 0; z < SIZE_XZ; z++)
+				{
+					_blocks[x][y][z] = flat[index++];
+				}
+			}
+		}
+		
+		markMeshDirty();
+		_skyLightDirty = true;
+	}
+	
+	/**
+	 * Replaces the player-placed block set with the given set.<br>
+	 * Used for deserialization (load system).
+	 * @param set the set of packed local positions
+	 */
+	public void setPlayerPlacedSet(Set<Long> set)
+	{
+		_playerPlacedBlocks.clear();
+		if (set != null)
+		{
+			_playerPlacedBlocks.addAll(set);
+		}
+	}
+	
+	/**
+	 * Replaces the player-removed block set with the given set.<br>
+	 * Used for deserialization (load system).
+	 * @param set the set of packed local positions
+	 */
+	public void setPlayerRemovedSet(Set<Long> set)
+	{
+		_playerRemovedBlocks.clear();
+		if (set != null)
+		{
+			_playerRemovedBlocks.addAll(set);
+		}
 	}
 	
 	// ========================================================

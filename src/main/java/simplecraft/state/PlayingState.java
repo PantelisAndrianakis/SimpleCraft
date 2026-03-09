@@ -2,6 +2,7 @@ package simplecraft.state;
 
 import java.awt.Font;
 import java.util.List;
+import java.util.Map;
 
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
@@ -31,6 +32,9 @@ import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
+import simplecraft.save.SaveManager;
+import simplecraft.save.SaveManager.PlayerSaveData;
+import simplecraft.save.SaveManager.SavedRegionData;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.FontManager;
 import simplecraft.ui.QuestionManager;
@@ -127,6 +131,12 @@ public class PlayingState extends FadeableAppState
 	/** Starting time of day for new worlds (0.3 = early morning). */
 	private static final float STARTING_TIME_OF_DAY = 0.3f;
 	
+	/** Loaded player save data for restoring state after spawn. Null if no save exists. */
+	private PlayerSaveData _playerSaveData;
+	
+	/** Loaded tile entity save data for restoring after spawn. Null if no save exists. */
+	private String _tileEntitySaveData;
+	
 	// ========================================================
 	// Loading Screen / Pending Spawn.
 	// ========================================================
@@ -187,6 +197,12 @@ public class PlayingState extends FadeableAppState
 			final GameStateManager gsm = simpleCraft.getGameStateManager();
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
 			{
+				// Auto-save before pausing.
+				if (_world != null && _playerController != null && _dayNightCycle != null)
+				{
+					SaveManager.save(_world, _playerController, _dayNightCycle);
+				}
+				
 				// Set paused flag BEFORE the state transition so onExitState knows to preserve the world.
 				_paused = true;
 				gsm.switchTo(GameState.PAUSED);
@@ -261,8 +277,14 @@ public class PlayingState extends FadeableAppState
 		// No scene lights needed — lighting is fully baked into vertex colors via Unshaded materials.
 		// Sky light + directional face shading is computed per-vertex in RegionMeshBuilder.
 		
-		// Initialize the day/night cycle (starts at early morning).
-		_dayNightCycle = new DayNightCycle(STARTING_TIME_OF_DAY);
+		// Check for existing save data before creating the day/night cycle.
+		// Load player data first so we can use saved time of day.
+		_playerSaveData = SaveManager.loadPlayerData();
+		_tileEntitySaveData = SaveManager.loadTileEntityData();
+		
+		// Initialize the day/night cycle. Use saved time if loading, otherwise start at early morning.
+		final float startTime = _playerSaveData != null ? _playerSaveData.getTimeOfDay() : STARTING_TIME_OF_DAY;
+		_dayNightCycle = new DayNightCycle(startTime);
 		
 		// Set initial terrain lighting so regions built during loading use the correct values.
 		final ColorRGBA initialTint = _dayNightCycle.getTerrainTint();
@@ -296,6 +318,14 @@ public class PlayingState extends FadeableAppState
 		_world.setDayNightCycle(_dayNightCycle);
 		EnemyLighting.setWorld(_world);
 		
+		// Load saved region data and feed to the world for deferred application.
+		final Map<Long, SavedRegionData> savedRegions = SaveManager.loadWorldData();
+		if (savedRegions != null && !savedRegions.isEmpty())
+		{
+			_world.setSavedRegionData(savedRegions);
+			System.out.println("PlayingState: Loaded " + savedRegions.size() + " saved regions for deferred application.");
+		}
+		
 		// Attach world node to the scene.
 		app.getRootNode().attachChild(_world.getWorldNode());
 		
@@ -307,9 +337,11 @@ public class PlayingState extends FadeableAppState
 		_pendingSpawn = true;
 		_spawnWaitFrames = 0;
 		
-		// Kick off region loading around the spawn position.
+		// Kick off region loading around the spawn/saved position.
 		final int renderDistance = app.getSettingsManager().getRenderDistance();
-		_world.update(new Vector3f(SPAWN_X, SPAWN_FALLBACK_Y, SPAWN_Z), renderDistance);
+		final float loadCenterX = _playerSaveData != null ? _playerSaveData.getPosX() : SPAWN_X;
+		final float loadCenterZ = _playerSaveData != null ? _playerSaveData.getPosZ() : SPAWN_Z;
+		_world.update(new Vector3f(loadCenterX, SPAWN_FALLBACK_Y, loadCenterZ), renderDistance);
 		
 		// Hide cursor during loading.
 		app.getInputManager().setCursorVisible(false);
@@ -328,16 +360,20 @@ public class PlayingState extends FadeableAppState
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			
+			// Determine spawn/load center (saved position or default spawn).
+			final int spawnCheckX = _playerSaveData != null ? (int) _playerSaveData.getPosX() : SPAWN_X;
+			final int spawnCheckZ = _playerSaveData != null ? (int) _playerSaveData.getPosZ() : SPAWN_Z;
+			
 			// Keep ticking the world so async region loading progresses.
-			_world.update(new Vector3f(SPAWN_X, SPAWN_FALLBACK_Y, SPAWN_Z), renderDistance);
+			_world.update(new Vector3f(spawnCheckX, SPAWN_FALLBACK_Y, spawnCheckZ), renderDistance);
 			
 			_spawnWaitFrames++;
 			
-			// Scan for terrain at spawn position.
+			// Scan for terrain at the target position.
 			int spawnY = -1;
 			for (int y = 255; y >= 0; y--)
 			{
-				final Block block = _world.getBlock(SPAWN_X, y, SPAWN_Z);
+				final Block block = _world.getBlock(spawnCheckX, y, spawnCheckZ);
 				if (block != Block.AIR)
 				{
 					spawnY = y + 1; // Stand on top of it.
@@ -638,7 +674,11 @@ public class PlayingState extends FadeableAppState
 			return;
 		}
 		
-		// Full exit (returning to main menu) — tear down everything.
+		// Full exit (returning to main menu) — save and tear down everything.
+		if (_world != null && _playerController != null && _dayNightCycle != null)
+		{
+			SaveManager.save(_world, _playerController, _dayNightCycle);
+		}
 		destroyWorld();
 	}
 	
@@ -754,8 +794,40 @@ public class PlayingState extends FadeableAppState
 		
 		// Create and initialize the player controller with world reference for collision.
 		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world);
-		_playerController.setPosition(SPAWN_X, spawnY, SPAWN_Z);
-		_playerController.setInitialSpawn(SPAWN_X, spawnY, SPAWN_Z);
+		
+		// Restore player state from save data if available.
+		if (_playerSaveData != null)
+		{
+			// Use saved position (the spawnY from terrain scan is a fallback — saved position is authoritative).
+			_playerController.setPosition(_playerSaveData.getPosX(), _playerSaveData.getPosY(), _playerSaveData.getPosZ());
+			_playerController.setHealth(_playerSaveData.getHealth());
+			
+			// Restore initial spawn point.
+			_playerController.setInitialSpawn(_playerSaveData.getInitialSpawnX(), _playerSaveData.getInitialSpawnY(), _playerSaveData.getInitialSpawnZ());
+			
+			// Restore selected block.
+			final int ordinal = _playerSaveData.getSelectedBlockOrdinal();
+			final Block[] blocks = Block.values();
+			if (ordinal >= 0 && ordinal < blocks.length)
+			{
+				_playerController.setSelectedBlock(blocks[ordinal]);
+			}
+			
+			// Restore campfire spawn point.
+			if (_playerSaveData.hasCampfireSpawn())
+			{
+				_playerController.setCampfireSpawnDirect(new Vector3f(_playerSaveData.getCampfireSpawnX(), _playerSaveData.getCampfireSpawnY(), _playerSaveData.getCampfireSpawnZ()));
+			}
+			
+			System.out.println("Restored player from save: pos=[" + _playerSaveData.getPosX() + ", " + _playerSaveData.getPosY() + ", " + _playerSaveData.getPosZ() + "], health=" + _playerSaveData.getHealth());
+		}
+		else
+		{
+			// New world — use default spawn position.
+			_playerController.setPosition(SPAWN_X, spawnY, SPAWN_Z);
+			_playerController.setInitialSpawn(SPAWN_X, spawnY, SPAWN_Z);
+		}
+		
 		_playerController.registerInput();
 		
 		// Create and initialize block interaction (raycasting, breaking, placing).
@@ -764,12 +836,23 @@ public class PlayingState extends FadeableAppState
 		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
 		app.getRootNode().attachChild(_blockInteraction.getDestructionEffectsNode());
 		
-		// Attach the tile entity manager's visual node (particles, etc.) to the scene.
+		// Restore saved tile entities BEFORE attaching tile entity visual node,
+		// so particles and other visuals are created during deserialization.
 		final TileEntityManager tileEntityManager = _world.getTileEntityManager();
 		if (tileEntityManager != null)
 		{
+			if (_tileEntitySaveData != null && !_tileEntitySaveData.isEmpty())
+			{
+				tileEntityManager.deserializeAll(_tileEntitySaveData, _world);
+				System.out.println("Restored tile entities from save data.");
+			}
+			
 			app.getRootNode().attachChild(tileEntityManager.getNode());
 		}
+		
+		// Clear save data references — no longer needed.
+		_playerSaveData = null;
+		_tileEntitySaveData = null;
 		
 		// Create the player HUD.
 		createHUD();
@@ -803,7 +886,8 @@ public class PlayingState extends FadeableAppState
 		// Ensure cursor is hidden for first-person control.
 		app.getInputManager().setCursorVisible(false);
 		
-		System.out.println("World loaded. Player spawned at [" + SPAWN_X + ", " + spawnY + ", " + SPAWN_Z + "]");
+		final Vector3f pos = _playerController.getPosition();
+		System.out.println("World loaded. Player at [" + pos.x + ", " + pos.y + ", " + pos.z + "]");
 	}
 	
 	// ========================================================
@@ -925,6 +1009,8 @@ public class PlayingState extends FadeableAppState
 		
 		_textureAtlas = null;
 		_activeWorld = null;
+		_playerSaveData = null;
+		_tileEntitySaveData = null;
 		
 		// Clear active world reference when leaving the game session.
 		app.setActiveWorld(null);

@@ -21,6 +21,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
 
+import simplecraft.save.SaveManager.SavedRegionData;
 import simplecraft.world.RegionLoader.ReadyRegion;
 import simplecraft.world.RegionMeshBuilder.RegionMeshResult;
 import simplecraft.world.entity.DoorTileEntity;
@@ -134,6 +135,9 @@ public class World
 	/** Set of region keys dirtied during a batch operation (tree felling, block support). */
 	private final Set<Long> _batchDirtyRegions = new HashSet<>();
 	
+	/** Saved region data from a previous session, to be applied as regions load. */
+	private Map<Long, SavedRegionData> _savedRegionData;
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -174,6 +178,15 @@ public class World
 	private static long regionKey(int regionX, int regionZ)
 	{
 		return ((long) regionX << 32) | (regionZ & 0xFFFFFFFFL);
+	}
+	
+	/**
+	 * Public accessor for packing region coordinates into a key.<br>
+	 * Used by SaveManager to match saved data to loaded regions.
+	 */
+	public static long packRegionKey(int regionX, int regionZ)
+	{
+		return regionKey(regionX, regionZ);
 	}
 	
 	/**
@@ -324,6 +337,23 @@ public class World
 			{
 				// New region — add to map and attach (do NOT mark clean, needs remesh for boundaries).
 				_regions.put(key, region);
+				
+				// Apply saved data if this region was modified in a previous session.
+				if (_savedRegionData != null)
+				{
+					final SavedRegionData saved = _savedRegionData.remove(key);
+					if (saved != null)
+					{
+						region.setRawBlockData(saved.getBlockData());
+						region.setPlayerPlacedSet(saved.getPlayerPlaced());
+						region.setPlayerRemovedSet(saved.getPlayerRemoved());
+						region.markModified();
+						// Mesh from background thread is now stale — mark dirty for remesh.
+						region.markMeshDirty();
+						_regionLoader.updateRegionCache(region);
+					}
+				}
+				
 				attachRegionGeometryFromData(region, ready.getMeshData());
 				newlyLoaded.add(key);
 			}
@@ -390,6 +420,7 @@ public class World
 		
 		// Update block (this will mark region dirty if block actually changed).
 		region.setBlock(localX, change._worldY, localZ, change._newBlock);
+		region.markModified();
 		
 		// Update cache.
 		_regionLoader.updateRegionCache(region);
@@ -769,6 +800,7 @@ public class World
 		
 		// Update block data.
 		region.setBlock(localX, worldY, localZ, block);
+		region.markModified();
 		_regionLoader.updateRegionCache(region);
 		
 		// Immediate synchronous mesh rebuild for the affected region.
@@ -864,6 +896,7 @@ public class World
 		
 		// Update block data (marks region dirty if block changed).
 		region.setBlock(localX, worldY, localZ, block);
+		region.markModified();
 		_regionLoader.updateRegionCache(region);
 		_batchDirtyRegions.add(key);
 		
@@ -944,6 +977,7 @@ public class World
 		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
 		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
 		region.setBlockSilent(localX, worldY, localZ, block);
+		region.markModified();
 		_regionLoader.updateRegionCache(region);
 	}
 	
@@ -1559,6 +1593,35 @@ public class World
 	public int getRegionCount()
 	{
 		return _regions.size();
+	}
+	
+	/**
+	 * Returns a list of all loaded regions that have been modified by the player.<br>
+	 * Used by SaveManager to determine which regions need saving.
+	 * @return list of modified regions (may be empty, never null)
+	 */
+	public List<Region> getModifiedRegions()
+	{
+		final List<Region> modified = new ArrayList<>();
+		for (Region region : _regions.values())
+		{
+			if (region.isModified())
+			{
+				modified.add(region);
+			}
+		}
+		return modified;
+	}
+	
+	/**
+	 * Sets saved region data to be applied as regions load.<br>
+	 * Called during world initialization when loading a previously saved world.<br>
+	 * Each entry maps a packed region key to its saved block/player data.
+	 * @param savedData the map of region key → saved data, or null to clear
+	 */
+	public void setSavedRegionData(Map<Long, SavedRegionData> savedData)
+	{
+		_savedRegionData = savedData;
 	}
 	
 	// ========================================================

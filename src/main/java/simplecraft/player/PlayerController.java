@@ -10,7 +10,6 @@ import com.jme3.renderer.Camera;
 
 import simplecraft.input.GameInputManager;
 import simplecraft.player.PlayerCollision.CollisionResult;
-import simplecraft.util.Vector3i;
 import simplecraft.world.Block;
 import simplecraft.world.World;
 
@@ -711,6 +710,18 @@ public class PlayerController implements ActionListener, AnalogListener
 	{
 		_campfireSpawn = null;
 		System.out.println("Campfire respawn cleared. Will respawn at world origin.");
+	}
+	
+	/**
+	 * Sets the campfire respawn point directly from a saved world position.<br>
+	 * Unlike {@link #setRespawnCampfire()}, this does NOT capture the player's<br>
+	 * current position — the vector is used as-is (it was already saved).
+	 * @param spawnPos the exact respawn position (feet level)
+	 */
+	public void setCampfireSpawnDirect(Vector3f spawnPos)
+	{
+		_campfireSpawn = new Vector3f(spawnPos);
+		System.out.println("Campfire respawn restored at [" + _campfireSpawn.x + ", " + _campfireSpawn.y + ", " + _campfireSpawn.z + "]");
 	}
 	
 	/**
