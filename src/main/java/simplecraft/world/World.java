@@ -245,6 +245,19 @@ public class World
 			
 			for (long key : toUnload)
 			{
+				// Preserve current-session modifications before unloading.
+				// Without this, modified regions regenerate from seed when reloaded
+				// (e.g. after death respawn far from the modified area).
+				final Region unloadRegion = _regions.get(key);
+				if (unloadRegion != null && unloadRegion.isModified())
+				{
+					if (_savedRegionData == null)
+					{
+						_savedRegionData = new HashMap<>();
+					}
+					_savedRegionData.put(key, new SavedRegionData(unloadRegion.getRawBlockData(), new HashSet<>(unloadRegion.getPlayerPlacedSet()), new HashSet<>(unloadRegion.getPlayerRemovedSet())));
+				}
+				
 				detachRegionGeometry(key);
 				_regions.remove(key);
 				_regionLoader.cancelPending(key);
