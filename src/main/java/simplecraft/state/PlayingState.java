@@ -153,11 +153,30 @@ public class PlayingState extends FadeableAppState
 	/** Maximum frames to wait for terrain before using fallback spawn height. */
 	private static final int SPAWN_TIMEOUT_FRAMES = 300;
 	
+	/**
+	 * Minimum region radius around the spawn point that must be fully loaded<br>
+	 * before the loading screen is removed. A radius of 2 means a 5×5 grid<br>
+	 * (25 regions), ensuring the player never sees terrain pop-in on spawn.
+	 */
+	private static final int SPAWN_MIN_REGION_RADIUS = 2;
+	
 	/** True while waiting for terrain to generate at the spawn position. */
 	private boolean _pendingSpawn;
 	
 	/** Frame counter while waiting for terrain. */
 	private int _spawnWaitFrames;
+	
+	/** Target X coordinate for pending spawn (initial or respawn). */
+	private int _spawnTargetX;
+	
+	/** Target Z coordinate for pending spawn (initial or respawn). */
+	private int _spawnTargetZ;
+	
+	/** Y coordinate to scan downward from when looking for terrain (255 for surface, lower for campfire). */
+	private int _spawnScanFromY;
+	
+	/** Fallback Y if terrain never loads within the timeout. */
+	private int _spawnFallbackY;
 	
 	/** Loading screen container node attached to guiNode. */
 	private Node _loadingScreenNode;
@@ -336,12 +355,14 @@ public class PlayingState extends FadeableAppState
 		// Begin pending spawn — world needs to generate terrain before we can place the player.
 		_pendingSpawn = true;
 		_spawnWaitFrames = 0;
+		_spawnTargetX = _playerSaveData != null ? (int) _playerSaveData.getPosX() : SPAWN_X;
+		_spawnTargetZ = _playerSaveData != null ? (int) _playerSaveData.getPosZ() : SPAWN_Z;
+		_spawnScanFromY = 255;
+		_spawnFallbackY = SPAWN_FALLBACK_Y;
 		
 		// Kick off region loading around the spawn/saved position.
 		final int renderDistance = app.getSettingsManager().getRenderDistance();
-		final float loadCenterX = _playerSaveData != null ? _playerSaveData.getPosX() : SPAWN_X;
-		final float loadCenterZ = _playerSaveData != null ? _playerSaveData.getPosZ() : SPAWN_Z;
-		_world.update(new Vector3f(loadCenterX, SPAWN_FALLBACK_Y, loadCenterZ), renderDistance);
+		_world.update(new Vector3f(_spawnTargetX, SPAWN_FALLBACK_Y, _spawnTargetZ), renderDistance);
 		
 		// Hide cursor during loading.
 		app.getInputManager().setCursorVisible(false);
@@ -360,24 +381,19 @@ public class PlayingState extends FadeableAppState
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			
-			// Determine spawn/load center (saved position or default spawn).
-			final int spawnCheckX = _playerSaveData != null ? (int) _playerSaveData.getPosX() : SPAWN_X;
-			final int spawnCheckZ = _playerSaveData != null ? (int) _playerSaveData.getPosZ() : SPAWN_Z;
-			
 			// Keep ticking the world so async region loading progresses.
-			_world.update(new Vector3f(spawnCheckX, SPAWN_FALLBACK_Y, spawnCheckZ), renderDistance);
+			_world.update(new Vector3f(_spawnTargetX, _spawnFallbackY, _spawnTargetZ), renderDistance);
 			
 			_spawnWaitFrames++;
 			
 			// Scan for terrain at the target position.
 			int spawnY = -1;
-			for (int y = 255; y >= 0; y--)
+			for (int y = _spawnScanFromY; y >= 0; y--)
 			{
-				final Block block = _world.getBlock(spawnCheckX, y, spawnCheckZ);
-				if (block != Block.AIR)
+				final Block block = _world.getBlock(_spawnTargetX, y, _spawnTargetZ);
+				if (block != Block.AIR && !block.isLiquid())
 				{
 					spawnY = y + 1; // Stand on top of it.
-					System.out.println("Spawn terrain found: " + block.name() + " at Y=" + y + ", spawning player at Y=" + spawnY + " (waited " + _spawnWaitFrames + " frames)");
 					break;
 				}
 			}
@@ -385,13 +401,25 @@ public class PlayingState extends FadeableAppState
 			// Use fallback if timeout reached.
 			if (spawnY < 0 && _spawnWaitFrames >= SPAWN_TIMEOUT_FRAMES)
 			{
-				spawnY = SPAWN_FALLBACK_Y;
+				spawnY = _spawnFallbackY;
 				System.out.println("Spawn timeout after " + _spawnWaitFrames + " frames, using fallback Y=" + spawnY);
 			}
 			
-			// If we found a valid spawn, finalize setup.
+			// Even after finding terrain, wait for nearby regions to load so the
+			// player doesn't see terrain pop-in. Skip this check on timeout.
+			if (spawnY >= 0 && _spawnWaitFrames < SPAWN_TIMEOUT_FRAMES)
+			{
+				if (!areSpawnRegionsReady(_spawnTargetX, _spawnTargetZ))
+				{
+					// Terrain found but surrounding regions still loading — keep waiting.
+					return;
+				}
+			}
+			
+			// If we found a valid spawn (and regions are ready), finalize setup.
 			if (spawnY >= 0)
 			{
+				System.out.println("Spawn ready at Y=" + spawnY + " (waited " + _spawnWaitFrames + " frames)");
 				finalizeSpawn(spawnY);
 			}
 			
@@ -531,7 +559,7 @@ public class PlayingState extends FadeableAppState
 				{
 					_respawnListener = (String name, boolean isPressed, float t) ->
 					{
-						if (isPressed && ACTION_RESPAWN.equals(name) && _playerDead)
+						if (isPressed && ACTION_RESPAWN.equals(name) && _playerDead && !_pendingSpawn)
 						{
 							performRespawn();
 						}
@@ -574,8 +602,10 @@ public class PlayingState extends FadeableAppState
 	}
 	
 	/**
-	 * Respawns the player at the world spawn point with full health and air.<br>
-	 * Hides the death screen, re-registers input, and hides the cursor.
+	 * Initiates respawn by showing a loading screen and entering the pending spawn loop.<br>
+	 * Reuses the same {@code _pendingSpawn} mechanism as the initial world entry.<br>
+	 * The player controller already exists, so {@link #finalizeSpawn(int)} detects<br>
+	 * this and performs a lightweight respawn instead of full world initialization.
 	 */
 	private void performRespawn()
 	{
@@ -588,49 +618,32 @@ public class PlayingState extends FadeableAppState
 		
 		// Get the active respawn point (campfire if set, otherwise initial spawn).
 		final Vector3f respawnPoint = _playerController.getActiveRespawnPoint();
-		final int respawnX = (int) respawnPoint.x;
-		final int respawnZ = (int) respawnPoint.z;
+		_spawnTargetX = (int) respawnPoint.x;
+		_spawnTargetZ = (int) respawnPoint.z;
 		
-		// Find a valid Y at the respawn position.
-		// For campfire spawns: scan downward from the saved Y. The campfire spawn stores
-		// the player's feet position, so scanning from there avoids landing on a ceiling
-		// if the campfire is inside a building.
+		// For campfire spawns: scan downward from the saved Y to avoid landing on a ceiling.
 		// For initial spawn: scan from the world top (surface is always open sky).
 		final boolean hasCampfire = _playerController.getCampfireSpawn() != null;
-		final int scanFrom = hasCampfire ? (int) respawnPoint.y : 255;
-		int spawnY = (int) respawnPoint.y;
-		for (int y = scanFrom; y >= 0; y--)
-		{
-			final Block block = _world.getBlock(respawnX, y, respawnZ);
-			if (block != Block.AIR && !block.isLiquid())
-			{
-				spawnY = y + 1;
-				break;
-			}
-		}
+		_spawnScanFromY = hasCampfire ? (int) respawnPoint.y : 255;
+		_spawnFallbackY = hasCampfire ? (int) respawnPoint.y : SPAWN_FALLBACK_Y;
 		
-		// Respawn the player.
-		_playerController.respawn(new Vector3f(respawnX + 0.5f, spawnY, respawnZ + 0.5f));
-		_playerDead = false;
-		
-		// Hide death screen.
+		// Hide death screen, clean up HUD, and show loading screen.
 		if (_playerHUD != null)
 		{
 			_playerHUD.hideDeathScreen();
 		}
-		
-		// Clean up respawn listener and re-register gameplay input.
+		cleanupHUD();
 		cleanupRespawnListener();
-		_playerController.registerInput();
-		if (_blockInteraction != null)
-		{
-			_blockInteraction.registerInput();
-		}
+		showLoadingScreen();
 		
-		// Hide cursor for first-person control.
+		// Hide cursor during loading.
 		app.getInputManager().setCursorVisible(false);
 		
-		System.out.println("Player respawned at [" + respawnX + ", " + spawnY + ", " + respawnZ + "] with full health.");
+		// Enter pending spawn — the existing loop will tick the world and call finalizeSpawn.
+		_pendingSpawn = true;
+		_spawnWaitFrames = 0;
+		
+		System.out.println("Respawn initiated — waiting for terrain at [" + _spawnTargetX + ", " + _spawnTargetZ + "]...");
 	}
 	
 	/**
@@ -775,9 +788,37 @@ public class PlayingState extends FadeableAppState
 	// ========================================================
 	
 	/**
-	 * Called once terrain is available at the spawn position.<br>
-	 * Creates the player controller, block interaction, and HUD,<br>
-	 * then removes the loading screen and begins gameplay.
+	 * Returns true if a minimum grid of regions around the spawn point is loaded.<br>
+	 * Checks a (2×{@value #SPAWN_MIN_REGION_RADIUS}+1)² square grid, ensuring the<br>
+	 * player won't see terrain pop-in when the loading screen is removed.
+	 * @param worldX spawn world X coordinate
+	 * @param worldZ spawn world Z coordinate
+	 * @return true if all required regions are loaded
+	 */
+	private boolean areSpawnRegionsReady(int worldX, int worldZ)
+	{
+		final int centerRX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int centerRZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		
+		for (int rx = centerRX - SPAWN_MIN_REGION_RADIUS; rx <= centerRX + SPAWN_MIN_REGION_RADIUS; rx++)
+		{
+			for (int rz = centerRZ - SPAWN_MIN_REGION_RADIUS; rz <= centerRZ + SPAWN_MIN_REGION_RADIUS; rz++)
+			{
+				if (_world.getRegion(rx, rz) == null)
+				{
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * Called once terrain is available at the spawn position and nearby regions are loaded.<br>
+	 * On initial entry: creates the player controller, block interaction, and HUD.<br>
+	 * On respawn: places the player, re-registers input, and recreates the HUD.<br>
+	 * In both cases, removes the loading screen and begins gameplay.
 	 * @param spawnY the Y coordinate to place the player (feet level)
 	 */
 	private void finalizeSpawn(int spawnY)
@@ -785,6 +826,35 @@ public class PlayingState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
 		_pendingSpawn = false;
+		
+		// --- Respawn path: player controller already exists (death → respawn). ---
+		if (_playerController != null)
+		{
+			// Place the player at the confirmed terrain position.
+			_playerController.respawn(new Vector3f(_spawnTargetX + 0.5f, spawnY, _spawnTargetZ + 0.5f));
+			_playerDead = false;
+			
+			// Re-register gameplay input.
+			_playerController.registerInput();
+			if (_blockInteraction != null)
+			{
+				_blockInteraction.registerInput();
+			}
+			
+			// Recreate the HUD (was cleaned up when the loading screen was shown).
+			createHUD();
+			
+			// Remove the loading screen.
+			hideLoadingScreen();
+			
+			// Ensure cursor is hidden for first-person control.
+			app.getInputManager().setCursorVisible(false);
+			
+			System.out.println("Player respawned at [" + _spawnTargetX + ", " + spawnY + ", " + _spawnTargetZ + "] with full health.");
+			return;
+		}
+		
+		// --- Initial spawn path: first entry into the world. ---
 		
 		// Set sky background color from the day/night cycle now that loading is complete.
 		if (_dayNightCycle != null)

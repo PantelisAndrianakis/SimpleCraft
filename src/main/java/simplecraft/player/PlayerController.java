@@ -11,6 +11,7 @@ import com.jme3.renderer.Camera;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.PlayerCollision.CollisionResult;
 import simplecraft.world.Block;
+import simplecraft.world.Region;
 import simplecraft.world.World;
 
 /**
@@ -242,6 +243,21 @@ public class PlayerController implements ActionListener, AnalogListener
 		if (isDead())
 		{
 			// Still update camera position so it doesn't glitch.
+			_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
+			_camera.setLocation(_eyePos);
+			return;
+		}
+		
+		// Safety net: if the region at the player's feet isn't loaded yet,
+		// float in place (zero velocity, no movement) to prevent falling through
+		// unloaded terrain. This can happen during respawn or world re-entry
+		// when the loading screen finishes but surrounding regions are still
+		// being built by background threads.
+		final int playerRegionX = Math.floorDiv((int) Math.floor(_position.x), Region.SIZE_XZ);
+		final int playerRegionZ = Math.floorDiv((int) Math.floor(_position.z), Region.SIZE_XZ);
+		if (_world.getRegion(playerRegionX, playerRegionZ) == null)
+		{
+			_velocity.set(0, 0, 0);
 			_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
 			_camera.setLocation(_eyePos);
 			return;
