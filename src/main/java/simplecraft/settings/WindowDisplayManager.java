@@ -10,7 +10,7 @@ import simplecraft.SimpleCraft;
 /**
  * Manages window display mode transitions using borderless windowed fullscreen.<br>
  * Avoids GLFW exclusive fullscreen entirely to prevent NVIDIA and gamma/HDR side effects.<br>
- * The borderless window is 1 pixel shorter than the monitor to prevent Windows<br>
+ * The borderless window is 1 pixel larger than the monitor to prevent Windows<br>
  * from triggering "fullscreen optimizations" which alter the gamma/color pipeline.
  * @author Pantelis Andrianakis
  * @since February 20th 2026
@@ -39,7 +39,7 @@ public class WindowDisplayManager
 			final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(monitor);
 			final int monitorWidth = (vidMode != null) ? vidMode.width() : app.getSettingsManager().getScreenWidth();
 			final int monitorHeight = (vidMode != null) ? vidMode.height() : app.getSettingsManager().getScreenHeight();
-			final int windowHeight = monitorHeight - 1;
+			final int windowHeight = monitorHeight + 1;
 			
 			GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
 			GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_FLOATING, GLFW.GLFW_TRUE);
