@@ -18,6 +18,7 @@ import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyAI.AIState;
 import simplecraft.player.PlayerController;
 import simplecraft.util.Rnd;
+import simplecraft.world.World;
 
 /**
  * Manages all combat interactions between the player and enemies.<br>
@@ -84,6 +85,13 @@ public class CombatSystem
 	 * Approximates the torso center for all enemy types.
 	 */
 	private static final float ENEMY_CENTER_OFFSET = 0.9f;
+	
+	/**
+	 * Step size for the line-of-sight solid block check (blocks).<br>
+	 * Smaller values are more accurate but cost more iterations.<br>
+	 * 0.5 is a good balance: at max range (3 blocks), only 6 steps.
+	 */
+	private static final float LOS_STEP_SIZE = 0.5f;
 	
 	// ------------------------------------------------------------------
 	// Fields.
@@ -210,16 +218,19 @@ public class CombatSystem
 	/**
 	 * Attempts a player attack via camera raycast. Finds the closest enemy whose<br>
 	 * center mass is within {@link #PLAYER_HIT_RADIUS} of the camera ray, up to<br>
-	 * {@link #PLAYER_ATTACK_RANGE} blocks away. If a hit is found, deals damage<br>
-	 * and starts the attack cooldown.<br>
+	 * {@link #PLAYER_ATTACK_RANGE} blocks away. Before confirming a hit, checks<br>
+	 * line-of-sight by stepping along the ray and verifying no solid block is between<br>
+	 * the camera and the enemy. If a hit is found, deals damage and starts the<br>
+	 * attack cooldown.<br>
 	 * <br>
 	 * Called by {@link simplecraft.state.PlayingState} on left-click, before block<br>
 	 * interaction processes. Returns true if an enemy was hit (suppresses block breaking).
 	 * @param camera the player's camera (ray origin and direction)
 	 * @param enemies the list of currently active enemies
+	 * @param world the game world for solid block line-of-sight checks
 	 * @return true if an enemy was hit, false if the attack missed or is on cooldown
 	 */
-	public boolean tryPlayerAttack(Camera camera, List<Enemy> enemies)
+	public boolean tryPlayerAttack(Camera camera, List<Enemy> enemies, World world)
 	{
 		_rayOrigin.set(camera.getLocation());
 		_rayDir.set(camera.getDirection()).normalizeLocal();
@@ -273,7 +284,15 @@ public class CombatSystem
 		
 		if (closestEnemy != null)
 		{
-			// Enemy is in the crosshair — always suppress block breaking.
+			// Line-of-sight check: step along the ray and verify no solid block
+			// is between the camera and the enemy. This prevents hitting enemies
+			// through walls, floors, and other solid geometry.
+			if (isBlockedByTerrain(closestDist, world))
+			{
+				return false;
+			}
+			
+			// Enemy is in the crosshair with clear line of sight — always suppress block breaking.
 			// Only deal damage when the cooldown has expired.
 			if (_playerAttackTimer <= 0)
 			{
@@ -292,6 +311,31 @@ public class CombatSystem
 			}
 			
 			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Steps along the stored ray ({@link #_rayOrigin}, {@link #_rayDir}) checking<br>
+	 * for solid blocks. Returns true if any solid block is found before the given distance.
+	 * @param maxDist the distance along the ray to check (enemy distance)
+	 * @param world the game world
+	 * @return true if a solid block blocks line-of-sight
+	 */
+	private boolean isBlockedByTerrain(float maxDist, World world)
+	{
+		// Start one step in (avoid checking the block the player is standing in).
+		for (float t = LOS_STEP_SIZE; t < maxDist; t += LOS_STEP_SIZE)
+		{
+			final int bx = (int) Math.floor(_rayOrigin.x + _rayDir.x * t);
+			final int by = (int) Math.floor(_rayOrigin.y + _rayDir.y * t);
+			final int bz = (int) Math.floor(_rayOrigin.z + _rayDir.z * t);
+			
+			if (world.getBlock(bx, by, bz).isSolid())
+			{
+				return true;
+			}
 		}
 		
 		return false;
