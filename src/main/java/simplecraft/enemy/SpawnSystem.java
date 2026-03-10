@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 
@@ -147,6 +149,19 @@ public class SpawnSystem
 	
 	/** Vertical range above spawn point to check for player activity. */
 	private static final int PLAYER_ACTIVITY_CHECK_HEIGHT = 3;
+	
+	/**
+	 * Maximum BFS radius for the enclosure check (blocks).<br>
+	 * If a ground-level flood fill from the spawn point cannot escape this radius<br>
+	 * due to player-placed walls (solid or flat panel), the point is considered<br>
+	 * enclosed (e.g. inside a house) and enemies will not spawn there.
+	 */
+	private static final int ENCLOSURE_CHECK_RADIUS = 8;
+	
+	/** Cardinal direction offsets for the enclosure BFS. */
+	// @formatter:off
+	private static final int[][] CARDINAL_DIRS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+	// @formatter:on
 	
 	// ------------------------------------------------------------------
 	// Spawn tables.
@@ -566,7 +581,7 @@ public class SpawnSystem
 		point.worldY = groundY;
 		point.resolvedType = point.landType;
 		point.aquatic = false;
-		point.valid = !hasPlayerActivity(world, bx, groundY, bz);
+		point.valid = !hasPlayerActivity(world, bx, groundY, bz) && !isEnclosedByPlayer(world, bx, groundY, bz);
 		if (point.valid)
 		{
 			point.activationDelay = ACTIVATION_DELAY;
@@ -686,7 +701,7 @@ public class SpawnSystem
 					if (distSq >= ACTIVATION_RANGE_MIN_SQ && distSq <= activationRangeMaxSq && _activeCount < maxEnemies)
 					{
 						// Re-check for player buildings (may have built since resolution).
-						if (hasPlayerActivity(world, point.worldX, point.worldY, point.worldZ))
+						if (hasPlayerActivity(world, point.worldX, point.worldY, point.worldZ) || isEnclosedByPlayer(world, point.worldX, point.worldY, point.worldZ))
 						{
 							continue;
 						}
@@ -826,6 +841,99 @@ public class SpawnSystem
 		}
 		
 		return false;
+	}
+	
+	/**
+	 * Ground-level flood fill to detect if a spawn point is inside a player-built enclosure.<br>
+	 * <br>
+	 * Starting from the spawn position, BFS expands outward on the XZ plane at foot and head<br>
+	 * level. A cell is passable if neither foot nor head height contains a solid or flat panel<br>
+	 * block (so walls, doors, and windows all count as barriers).<br>
+	 * <br>
+	 * If the fill reaches {@link #ENCLOSURE_CHECK_RADIUS} blocks from the start, the area is<br>
+	 * open and the method returns false immediately. If the fill terminates without escaping<br>
+	 * (all paths blocked) and at least one boundary block was player-placed, the area is<br>
+	 * enclosed and the method returns true. Natural caves (no player blocks on the boundary)<br>
+	 * are not considered enclosed.<br>
+	 * <br>
+	 * Typical cost: 20–50 block lookups for a house interior; early exit for open terrain.
+	 * @param world the game world
+	 * @param startX spawn world X
+	 * @param startY spawn world Y (feet level)
+	 * @param startZ spawn world Z
+	 * @return true if the spawn point is inside a player-built enclosure
+	 */
+	private static boolean isEnclosedByPlayer(World world, int startX, int startY, int startZ)
+	{
+		final int radiusSq = ENCLOSURE_CHECK_RADIUS * ENCLOSURE_CHECK_RADIUS;
+		final Set<Long> visited = new HashSet<>();
+		final Queue<int[]> queue = new LinkedList<>();
+		boolean hitPlayerBlock = false;
+		
+		final long startKey = ((long) startX << 32) | (startZ & 0xFFFFFFFFL);
+		visited.add(startKey);
+		queue.add(new int[]
+		{
+			startX,
+			startZ
+		});
+		
+		while (!queue.isEmpty())
+		{
+			final int[] current = queue.poll();
+			final int cx = current[0];
+			final int cz = current[1];
+			
+			for (int[] dir : CARDINAL_DIRS)
+			{
+				final int nx = cx + dir[0];
+				final int nz = cz + dir[1];
+				final long key = ((long) nx << 32) | (nz & 0xFFFFFFFFL);
+				
+				if (visited.contains(key))
+				{
+					continue;
+				}
+				visited.add(key);
+				
+				// Check if this cell has reached the escape radius.
+				final int dx = nx - startX;
+				final int dz = nz - startZ;
+				if ((dx * dx + dz * dz) >= radiusSq)
+				{
+					return false; // Open area — flood fill escaped.
+				}
+				
+				// Check if passable at foot and head level.
+				// Solid blocks and flat panels (doors, windows) count as walls.
+				final Block foot = world.getBlock(nx, startY, nz);
+				final Block head = world.getBlock(nx, startY + 1, nz);
+				final boolean footBlocked = foot.isSolid() || foot.isFlatPanel();
+				final boolean headBlocked = head.isSolid() || head.isFlatPanel();
+				
+				if (!footBlocked && !headBlocked)
+				{
+					// Passable — continue flood fill.
+					queue.add(new int[]
+					{
+						nx,
+						nz
+					});
+				}
+				else
+				{
+					// Blocked — check if the wall is player-placed.
+					if (world.isPlayerPlaced(nx, startY, nz) || world.isPlayerPlaced(nx, startY + 1, nz))
+					{
+						hitPlayerBlock = true;
+					}
+				}
+			}
+		}
+		
+		// BFS terminated without escaping — enclosed only if player blocks formed the barrier.
+		// Natural caves (no player blocks on boundary) are not considered enclosed.
+		return hitPlayerBlock;
 	}
 	
 	// ------------------------------------------------------------------
