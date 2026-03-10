@@ -1,9 +1,13 @@
 package simplecraft.state;
 
 import java.awt.Font;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Stream;
 
 import com.jme3.app.Application;
 import com.jme3.input.event.MouseButtonEvent;
@@ -471,9 +475,10 @@ public class WorldSelectState extends FadeableAppState
 			entry.addChild(savedLabel);
 		}
 		
-		// --- Row 3: [Seed | Last played] ---
+		// --- Row 3: [Seed | Last played | Size] ---
 		final String lastPlayed = DATE_FORMAT.format(new Date(world.getLastPlayedAt()));
-		final Label infoLabel = new Label(" Seed: " + world.getSeed() + "  |  " + lastPlayed);
+		final String sizeText = formatDirectorySize(world.getWorldDirectory());
+		final Label infoLabel = new Label(" Seed: " + world.getSeed() + "  |  " + lastPlayed + "  |  " + sizeText);
 		infoLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 12));
 		infoLabel.setFontSize(12);
 		infoLabel.setColor(INFO_TEXT_COLOR);
@@ -967,5 +972,63 @@ public class WorldSelectState extends FadeableAppState
 		final Label spacer = new Label("");
 		spacer.setPreferredSize(new Vector3f(1, height, 0));
 		_dialogContainer.addChild(spacer);
+	}
+	
+	// --- Directory Size Helpers ---
+	
+	/**
+	 * Calculates the total size of all files in a directory (recursive).<br>
+	 * Returns 0 if the directory does not exist or an error occurs.
+	 * @param dir the directory path
+	 * @return total size in bytes
+	 */
+	private static long getDirectorySize(Path dir)
+	{
+		if (dir == null || !Files.exists(dir))
+		{
+			return 0;
+		}
+		
+		try (Stream<Path> walk = Files.walk(dir))
+		{
+			return walk.filter(Files::isRegularFile).mapToLong(f ->
+			{
+				try
+				{
+					return Files.size(f);
+				}
+				catch (IOException e)
+				{
+					return 0;
+				}
+			}).sum();
+		}
+		catch (IOException e)
+		{
+			return 0;
+		}
+	}
+	
+	/**
+	 * Formats a directory's total size into a human-readable string.<br>
+	 * Examples: "1.2 KB", "3.5 MB", "0 B".
+	 * @param dir the directory path
+	 * @return formatted size string
+	 */
+	private static String formatDirectorySize(Path dir)
+	{
+		final long bytes = getDirectorySize(dir);
+		if (bytes < 1024)
+		{
+			return bytes + " B";
+		}
+		else if (bytes < 1024 * 1024)
+		{
+			return String.format("%.1f KB", bytes / 1024.0);
+		}
+		else
+		{
+			return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+		}
 	}
 }
