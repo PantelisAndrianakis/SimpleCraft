@@ -401,7 +401,7 @@ public class TorchTileEntity extends TileEntity
 	/**
 	 * Returns the block light level emitted by a placed torch.
 	 */
-	public static int getLightLevel()
+	public int getLightLevel()
 	{
 		return TORCH_LIGHT_LEVEL;
 	}

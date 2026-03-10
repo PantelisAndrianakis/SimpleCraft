@@ -473,6 +473,11 @@ public class CampfireTileEntity extends TileEntity
 		world.removeBlockLight(_position.x, _position.y, _position.z);
 	}
 	
+	public int getLightLevel()
+	{
+		return _activated ? LIGHT_LEVEL_ACTIVE : LIGHT_LEVEL_INACTIVE;
+	}
+	
 	// ========================================================
 	// Serialization.
 	// ========================================================

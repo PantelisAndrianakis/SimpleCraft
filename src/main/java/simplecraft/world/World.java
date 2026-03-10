@@ -1553,6 +1553,48 @@ public class World
 		return region.getBlockLight(lx, worldY, lz);
 	}
 	
+	/**
+	 * Scans all loaded regions for light-emitting blocks and re-propagates their light.<br>
+	 * Called after loading a saved world to restore block light data, which is not persisted<br>
+	 * (only block types and tile entities are saved — light is derived from block placement).<br>
+	 * <br>
+	 * Uses {@link Block#getLightLevel()} to identify emitters and their intensity.<br>
+	 * Dirty regions are rebuilt once after all lights have been propagated.
+	 */
+	public void repropagateAllBlockLights()
+	{
+		int lightCount = 0;
+		
+		for (Region region : _regions.values())
+		{
+			final int originX = region.getRegionX() * Region.SIZE_XZ;
+			final int originZ = region.getRegionZ() * Region.SIZE_XZ;
+			
+			for (int x = 0; x < Region.SIZE_XZ; x++)
+			{
+				for (int z = 0; z < Region.SIZE_XZ; z++)
+				{
+					for (int y = 0; y < Region.SIZE_Y; y++)
+					{
+						final Block block = region.getBlock(x, y, z);
+						final int lightLevel = block.getLightLevel();
+						if (lightLevel > 0)
+						{
+							propagateBlockLight(originX + x, y, originZ + z, lightLevel);
+							lightCount++;
+						}
+					}
+				}
+			}
+		}
+		
+		if (lightCount > 0)
+		{
+			rebuildDirtyRegionsImmediate();
+			System.out.println("World: Re-propagated " + lightCount + " block light sources.");
+		}
+	}
+	
 	// ========================================================
 	// Lifecycle.
 	// ========================================================

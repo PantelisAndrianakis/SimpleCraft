@@ -920,6 +920,11 @@ public class PlayingState extends FadeableAppState
 			app.getRootNode().attachChild(tileEntityManager.getNode());
 		}
 		
+		// Re-propagate block light for all light-emitting blocks (torches, campfires).
+		// Block light data is not persisted — only block types and tile entities are saved.
+		// This restores the lighting state so torches and campfires illuminate their surroundings.
+		_world.repropagateAllBlockLights();
+		
 		// Clear save data references — no longer needed.
 		_playerSaveData = null;
 		_tileEntitySaveData = null;

@@ -175,6 +175,21 @@ public enum Block
 		return _decoration;
 	}
 	
+	public int getLightLevel()
+	{
+		if (this == CAMPFIRE)
+		{
+			return 14;
+		}
+		
+		if (this == TORCH)
+		{
+			return 10;
+		}
+		
+		return 0;
+	}
+	
 	/**
 	 * Returns true if this block snaps to the exact face the player is looking at,<br>
 	 * bypassing the 20% edge redirect used for solid block stacking.<br>
