@@ -940,11 +940,12 @@ public class PlayingState extends FadeableAppState
 		// Wire combat references so SpawnSystem can trigger death healing drops.
 		_spawnSystem.setCombatReferences(_combatSystem, _playerController);
 		
-		// Start day music with a fade-in.
+		// Start music matching the current time of day.
 		final AudioManager audioManager = app.getAudioManager();
 		if (audioManager != null)
 		{
-			audioManager.fadeInMusic(MusicManager.DAY_MUSIC_PATH, 3.0f);
+			final String startTrack = _dayNightCycle.isNight() ? MusicManager.NIGHT_MUSIC_PATH : MusicManager.DAY_MUSIC_PATH;
+			audioManager.fadeInMusic(startTrack, 3.0f);
 			
 			// Initialize the music manager (orchestrates day/night and water music transitions).
 			_musicManager = new MusicManager(audioManager, _dayNightCycle);
