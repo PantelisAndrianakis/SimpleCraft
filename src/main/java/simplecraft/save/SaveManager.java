@@ -9,11 +9,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -428,7 +427,7 @@ public class SaveManager
 	 * Returns a map of packed region key → SavedRegionData.
 	 * @return the loaded region data map, or null if no save exists or read fails
 	 */
-	public static Map<Long, SavedRegionData> loadWorldData()
+	public static ConcurrentHashMap<Long, SavedRegionData> loadWorldData()
 	{
 		final WorldInfo activeWorld = SimpleCraft.getInstance().getActiveWorld();
 		if (activeWorld == null)
@@ -447,7 +446,7 @@ public class SaveManager
 			DataInputStream in = new DataInputStream(gzip))
 		{
 			final int regionCount = in.readInt();
-			final Map<Long, SavedRegionData> savedData = new HashMap<>();
+			final ConcurrentHashMap<Long, SavedRegionData> savedData = new ConcurrentHashMap<>();
 			
 			for (int i = 0; i < regionCount; i++)
 			{
@@ -479,6 +478,8 @@ public class SaveManager
 				final long key = World.packRegionKey(regionX, regionZ);
 				savedData.put(key, new SavedRegionData(blockData, playerPlaced, playerRemoved));
 			}
+			
+			in.close();
 			
 			System.out.println("SaveManager: Loaded " + regionCount + " saved regions from " + file);
 			return savedData;

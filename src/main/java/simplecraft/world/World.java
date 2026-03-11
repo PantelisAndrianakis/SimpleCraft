@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.jme3.material.Material;
@@ -135,8 +136,13 @@ public class World
 	/** Set of region keys dirtied during a batch operation (tree felling, block support). */
 	private final Set<Long> _batchDirtyRegions = new HashSet<>();
 	
-	/** Saved region data from a previous session, to be applied as regions load. */
-	private Map<Long, SavedRegionData> _savedRegionData;
+	/**
+	 * Saved region data from a previous session or unloaded modified regions.<br>
+	 * Shared with RegionLoader (ConcurrentHashMap for thread-safe access).<br>
+	 * Background threads consume entries during generation; the main thread adds<br>
+	 * entries when unloading modified regions mid-session.
+	 */
+	private ConcurrentHashMap<Long, SavedRegionData> _savedRegionData;
 	
 	// ========================================================
 	// Constructor.
@@ -253,7 +259,8 @@ public class World
 				{
 					if (_savedRegionData == null)
 					{
-						_savedRegionData = new HashMap<>();
+						_savedRegionData = new ConcurrentHashMap<>();
+						_regionLoader.setSavedRegionData(_savedRegionData);
 					}
 					_savedRegionData.put(key, new SavedRegionData(unloadRegion.getRawBlockData(), new HashSet<>(unloadRegion.getPlayerPlacedSet()), new HashSet<>(unloadRegion.getPlayerRemovedSet())));
 				}
@@ -348,23 +355,16 @@ public class World
 			}
 			else
 			{
-				// New region — add to map and attach (do NOT mark clean, needs remesh for boundaries).
+				// New region — add to map and attach.
+				// Saved data (if any) was already applied by RegionLoader before mesh building,
+				// so the mesh is correct from the start — no flicker.
 				_regions.put(key, region);
 				
-				// Apply saved data if this region was modified in a previous session.
-				if (_savedRegionData != null)
+				// If saved data was applied on the background thread, update the cache reference
+				// so future remeshes and neighbor lookups see the modified block data.
+				if (ready.hadSavedData())
 				{
-					final SavedRegionData saved = _savedRegionData.remove(key);
-					if (saved != null)
-					{
-						region.setRawBlockData(saved.getBlockData());
-						region.setPlayerPlacedSet(saved.getPlayerPlaced());
-						region.setPlayerRemovedSet(saved.getPlayerRemoved());
-						region.markModified();
-						// Mesh from background thread is now stale — mark dirty for remesh.
-						region.markMeshDirty();
-						_regionLoader.updateRegionCache(region);
-					}
+					_regionLoader.updateRegionCache(region);
 				}
 				
 				attachRegionGeometryFromData(region, ready.getMeshData());
@@ -1234,6 +1234,29 @@ public class World
 		}
 	}
 	
+	/**
+	 * Rebuilds all currently loaded region meshes synchronously on the main thread.<br>
+	 * Called once after tile entity deserialization during world load to ensure<br>
+	 * FLAT_PANEL blocks (doors, windows) have correct geometry. These blocks<br>
+	 * require TileEntityManager data (facing direction, open/closed state) that<br>
+	 * is unavailable during initial background mesh building — the TileEntityManager<br>
+	 * is populated only after regions are already attached to the scene graph.
+	 */
+	public void rebuildAllLoadedRegions()
+	{
+		for (Entry<Long, Region> entry : _regions.entrySet())
+		{
+			final long key = entry.getKey();
+			final Region region = entry.getValue();
+			_regionLoader.cancelPending(key);
+			region.markMeshDirty();
+			_regionLoader.updateRegionCache(region);
+			_batchDirtyRegions.add(key);
+		}
+		
+		rebuildDirtyRegionsImmediate();
+	}
+	
 	// ========================================================
 	// Tile Entity Manager.
 	// ========================================================
@@ -1674,9 +1697,10 @@ public class World
 	 * Each entry maps a packed region key to its saved block/player data.
 	 * @param savedData the map of region key → saved data, or null to clear
 	 */
-	public void setSavedRegionData(Map<Long, SavedRegionData> savedData)
+	public void setSavedRegionData(ConcurrentHashMap<Long, SavedRegionData> savedData)
 	{
 		_savedRegionData = savedData;
+		_regionLoader.setSavedRegionData(_savedRegionData);
 	}
 	
 	// ========================================================

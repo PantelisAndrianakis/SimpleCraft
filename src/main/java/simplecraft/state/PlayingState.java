@@ -2,7 +2,7 @@ package simplecraft.state;
 
 import java.awt.Font;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
@@ -338,7 +338,7 @@ public class PlayingState extends FadeableAppState
 		EnemyLighting.setWorld(_world);
 		
 		// Load saved region data and feed to the world for deferred application.
-		final Map<Long, SavedRegionData> savedRegions = SaveManager.loadWorldData();
+		final ConcurrentHashMap<Long, SavedRegionData> savedRegions = SaveManager.loadWorldData();
 		if (savedRegions != null && !savedRegions.isEmpty())
 		{
 			_world.setSavedRegionData(savedRegions);
@@ -924,6 +924,12 @@ public class PlayingState extends FadeableAppState
 		// Block light data is not persisted — only block types and tile entities are saved.
 		// This restores the lighting state so torches and campfires illuminate their surroundings.
 		_world.repropagateAllBlockLights();
+		
+		// Rebuild all loaded region meshes now that tile entities are populated.
+		// FLAT_PANEL blocks (doors, windows) require TileEntityManager data for correct
+		// geometry (facing direction, open/closed state), which was unavailable during
+		// initial background mesh building when the TileEntityManager was still empty.
+		_world.rebuildAllLoadedRegions();
 		
 		// Clear save data references — no longer needed.
 		_playerSaveData = null;

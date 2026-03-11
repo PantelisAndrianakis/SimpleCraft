@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import simplecraft.save.SaveManager.SavedRegionData;
 import simplecraft.world.RegionMeshBuilder.RegionMeshData;
 
 /**
@@ -16,7 +17,11 @@ import simplecraft.world.RegionMeshBuilder.RegionMeshData;
  * The main thread only needs to create jME3 Mesh objects and attach geometry (fast).<br>
  * <br>
  * Supports both initial region generation and remeshing of existing regions after block changes.<br>
- * Includes dirty flag checking to avoid unnecessary rebuilds.
+ * Includes dirty flag checking to avoid unnecessary rebuilds.<br>
+ * <br>
+ * When saved region data is provided, it is applied after terrain generation but before<br>
+ * mesh building so the first mesh already reflects saved modifications. This avoids a<br>
+ * visual flicker where procedurally generated blocks appear briefly before being replaced.
  * @author Pantelis Andrianakis
  * @since February 26th 2026
  */
@@ -41,11 +46,13 @@ public class RegionLoader
 	{
 		private final Region _region;
 		private final RegionMeshData _meshData;
+		private final boolean _hadSavedData;
 		
-		public ReadyRegion(Region region, RegionMeshData meshData)
+		public ReadyRegion(Region region, RegionMeshData meshData, boolean hadSavedData)
 		{
 			_region = region;
 			_meshData = meshData;
+			_hadSavedData = hadSavedData;
 		}
 		
 		public Region getRegion()
@@ -56,6 +63,15 @@ public class RegionLoader
 		public RegionMeshData getMeshData()
 		{
 			return _meshData;
+		}
+		
+		/**
+		 * Returns true if saved data was applied to this region before mesh building.<br>
+		 * The main thread uses this to mark the region as modified and update the cache.
+		 */
+		public boolean hadSavedData()
+		{
+			return _hadSavedData;
 		}
 	}
 	
@@ -70,6 +86,13 @@ public class RegionLoader
 	
 	/** Cache for quick region lookup during remesh. */
 	private final Map<Long, Region> _regionCache = new ConcurrentHashMap<>();
+	
+	/**
+	 * Shared saved region data map (owned by World, thread-safe).<br>
+	 * Background threads consume entries (remove) after terrain generation.<br>
+	 * The main thread adds entries when unloading modified regions.
+	 */
+	private ConcurrentHashMap<Long, SavedRegionData> _savedRegionData;
 	
 	// ========================================================
 	// Constructor.
@@ -103,13 +126,29 @@ public class RegionLoader
 	}
 	
 	// ========================================================
+	// Saved Region Data.
+	// ========================================================
+	
+	/**
+	 * Sets the shared saved region data map.<br>
+	 * Called by World during initialization when loading a previously saved world.<br>
+	 * Background threads will consume entries from this map during region generation.
+	 * @param savedData the shared ConcurrentHashMap, or null to clear
+	 */
+	public void setSavedRegionData(ConcurrentHashMap<Long, SavedRegionData> savedData)
+	{
+		_savedRegionData = savedData;
+	}
+	
+	// ========================================================
 	// Load Requests.
 	// ========================================================
 	
 	/**
 	 * Submits a region for background generation and mesh building if not already pending.<br>
-	 * The background thread performs terrain generation, tree placement, and vertex array<br>
-	 * building. The completed result appears in {@link #pollReady()} once finished.
+	 * The background thread performs terrain generation, tree placement, applies any saved<br>
+	 * region data, and then builds vertex arrays. The completed result appears in<br>
+	 * {@link #pollReady()} once finished.
 	 * @param regionX the region X coordinate
 	 * @param regionZ the region Z coordinate
 	 * @return true if the request was submitted, false if already pending
@@ -141,6 +180,22 @@ public class RegionLoader
 				return;
 			}
 			
+			// Apply saved data BEFORE mesh building so the first mesh is correct.
+			// Uses ConcurrentHashMap.remove for atomic check-and-take (thread-safe).
+			boolean hadSavedData = false;
+			if (_savedRegionData != null)
+			{
+				final SavedRegionData saved = _savedRegionData.remove(key);
+				if (saved != null)
+				{
+					region.setRawBlockData(saved.getBlockData());
+					region.setPlayerPlacedSet(saved.getPlayerPlaced());
+					region.setPlayerRemovedSet(saved.getPlayerRemoved());
+					region.markModified();
+					hadSavedData = true;
+				}
+			}
+			
 			// Cache the region for potential future remesh.
 			_regionCache.put(key, region);
 			
@@ -158,7 +213,7 @@ public class RegionLoader
 				region.markMeshClean();
 			}
 			
-			_readyQueue.add(new ReadyRegion(region, meshData));
+			_readyQueue.add(new ReadyRegion(region, meshData, hadSavedData));
 		});
 		
 		return true;
@@ -212,7 +267,7 @@ public class RegionLoader
 			
 			// Do NOT mark clean here — main thread marks clean when the result is polled.
 			// This avoids a race where background markMeshClean overwrites a main-thread markMeshDirty.
-			_readyQueue.add(new ReadyRegion(region, meshData));
+			_readyQueue.add(new ReadyRegion(region, meshData, false));
 		});
 		
 		return true;
