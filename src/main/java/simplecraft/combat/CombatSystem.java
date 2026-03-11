@@ -156,9 +156,10 @@ public class CombatSystem
 	 * Per-frame update. Checks enemy attacks, processes flash fade-out.
 	 * @param player the player controller
 	 * @param enemies the list of currently active enemies
+	 * @param world the game world for line-of-sight checks
 	 * @param tpf time per frame in seconds
 	 */
-	public void update(PlayerController player, List<Enemy> enemies, float tpf)
+	public void update(PlayerController player, List<Enemy> enemies, World world, float tpf)
 	{
 		// Tick player attack cooldown.
 		if (_playerAttackTimer > 0)
@@ -198,6 +199,12 @@ public class CombatSystem
 				final float dist = enemy.getPosition().distance(player.getPosition());
 				if (dist <= enemy.getAttackRange() * 1.2f)
 				{
+					// Line-of-sight check: enemies cannot hit through walls.
+					if (isLineOfSightBlocked(enemy.getPosition(), ENEMY_CENTER_OFFSET, player.getPosition(), ENEMY_CENTER_OFFSET, world))
+					{
+						continue;
+					}
+					
 					final String source = "Killed by " + formatEnemyName(enemy.getType());
 					player.takeDamage(enemy.getAttackDamage(), source);
 					triggerDamageFlash();
@@ -347,6 +354,55 @@ public class CombatSystem
 	public boolean isPlayerAttackOnCooldown()
 	{
 		return _playerAttackTimer > 0;
+	}
+	
+	/**
+	 * Checks line-of-sight between two positions by stepping along the line and<br>
+	 * testing for solid blocks. Used to prevent enemy attacks through walls.
+	 * @param fromPos the source position (feet level)
+	 * @param fromYOffset vertical offset from source feet to check point (center mass)
+	 * @param toPos the target position (feet level)
+	 * @param toYOffset vertical offset from target feet to check point (center mass)
+	 * @param world the game world
+	 * @return true if a solid block blocks the line between the two points
+	 */
+	private boolean isLineOfSightBlocked(Vector3f fromPos, float fromYOffset, Vector3f toPos, float toYOffset, World world)
+	{
+		final float startX = fromPos.x;
+		final float startY = fromPos.y + fromYOffset;
+		final float startZ = fromPos.z;
+		final float endX = toPos.x;
+		final float endY = toPos.y + toYOffset;
+		final float endZ = toPos.z;
+		
+		final float dx = endX - startX;
+		final float dy = endY - startY;
+		final float dz = endZ - startZ;
+		final float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+		
+		if (dist < LOS_STEP_SIZE)
+		{
+			return false;
+		}
+		
+		final float invDist = 1.0f / dist;
+		final float dirX = dx * invDist;
+		final float dirY = dy * invDist;
+		final float dirZ = dz * invDist;
+		
+		for (float t = LOS_STEP_SIZE; t < dist; t += LOS_STEP_SIZE)
+		{
+			final int bx = (int) Math.floor(startX + dirX * t);
+			final int by = (int) Math.floor(startY + dirY * t);
+			final int bz = (int) Math.floor(startZ + dirZ * t);
+			
+			if (world.getBlock(bx, by, bz).isSolid())
+			{
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	
 	/**

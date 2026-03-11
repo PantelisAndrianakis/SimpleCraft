@@ -527,7 +527,7 @@ public class PlayingState extends FadeableAppState
 			// Update combat system (enemy attacks, screen flash fade).
 			if (_combatSystem != null && _spawnSystem != null)
 			{
-				_combatSystem.update(_playerController, _spawnSystem.getEnemies(), tpf);
+				_combatSystem.update(_playerController, _spawnSystem.getEnemies(), _world, tpf);
 			}
 			
 			// --- Death detection and respawn ---
