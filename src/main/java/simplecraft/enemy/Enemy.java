@@ -11,7 +11,9 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 
+import simplecraft.audio.AudioManager;
 import simplecraft.enemy.EnemyAI.AIState;
+import simplecraft.util.Rnd;
 import simplecraft.world.World;
 
 /**
@@ -47,6 +49,15 @@ public class Enemy
 	
 	/** Duration of the white hit flash in seconds. */
 	private static final float HIT_FLASH_DURATION = 0.1f;
+	
+	/** Minimum interval between ambient sounds (seconds). */
+	private static final float AMBIENT_SOUND_MIN_INTERVAL = 5.0f;
+	
+	/** Maximum interval between ambient sounds (seconds). */
+	private static final float AMBIENT_SOUND_MAX_INTERVAL = 8.0f;
+	
+	/** Maximum distance from the player at which ambient sounds are played (blocks). */
+	private static final float AMBIENT_SOUND_RANGE = 25.0f;
 	
 	// ------------------------------------------------------------------
 	// Fields.
@@ -153,6 +164,9 @@ public class Enemy
 	/** Whether the hit flash is currently active (materials swapped to white). */
 	private boolean _hitFlashActive;
 	
+	/** Countdown timer for next ambient sound (seconds). */
+	private float _ambientSoundTimer = AMBIENT_SOUND_MIN_INTERVAL + Rnd.nextFloat() * (AMBIENT_SOUND_MAX_INTERVAL - AMBIENT_SOUND_MIN_INTERVAL);
+	
 	// ------------------------------------------------------------------
 	// Pathfinding fields.
 	// ------------------------------------------------------------------
@@ -231,12 +245,14 @@ public class Enemy
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Deals damage to this enemy. Triggers a white hit flash on the model.<br>
+	 * Deals damage to this enemy. Triggers a white hit flash on the model<br>
+	 * and plays the appropriate hit or death sound effect.<br>
 	 * If health drops to zero, the enemy dies: {@code isAlive()} returns false<br>
 	 * and the state timer resets so the spawn system can track the death linger period.
 	 * @param amount the amount of damage to deal (positive)
+	 * @param audioManager the audio manager for sound effect playback
 	 */
-	public void takeDamage(float amount)
+	public void takeDamage(float amount, AudioManager audioManager)
 	{
 		if (!_alive || _dying || amount <= 0)
 		{
@@ -252,6 +268,12 @@ public class Enemy
 			
 			// Stop movement so the death pose plays cleanly.
 			_isMoving = false;
+			
+			audioManager.playSfx(AudioManager.SFX_ENEMY_DEATH);
+		}
+		else
+		{
+			audioManager.playSfx(AudioManager.SFX_ENEMY_HIT);
 		}
 		
 		// Trigger hit flash (white materials for HIT_FLASH_DURATION).
@@ -320,13 +342,15 @@ public class Enemy
 	
 	/**
 	 * Per-frame update. Drives AI behavior via {@link EnemyAI} and then<br>
-	 * procedural animation via {@link EnemyAnimator}.
+	 * procedural animation via {@link EnemyAnimator}.<br>
+	 * Also plays positional ambient sounds when the enemy is within range of the player.
 	 * @param playerPos the player's current world position
 	 * @param playerInWater true if the player's feet are in water
 	 * @param world the game world for block queries
+	 * @param audioManager the audio manager for positional sound effects
 	 * @param tpf time per frame in seconds
 	 */
-	public void update(Vector3f playerPos, boolean playerInWater, World world, float tpf)
+	public void update(Vector3f playerPos, boolean playerInWater, World world, AudioManager audioManager, float tpf)
 	{
 		// Skip AI and animation while the spawn-in effect is playing.
 		if (_spawning)
@@ -342,6 +366,76 @@ public class Enemy
 		
 		// Animator drives limb rotations and visual effects.
 		EnemyAnimator.update(this, tpf, _isMoving);
+		
+		// Ambient sounds — only while alive and within range of the player.
+		if (_alive && !_dying)
+		{
+			updateAmbientSound(playerPos, audioManager, tpf);
+		}
+	}
+	
+	/**
+	 * Ticks the ambient sound timer and plays a positional type-specific sound<br>
+	 * when the timer expires and the player is within {@link #AMBIENT_SOUND_RANGE}.
+	 */
+	private void updateAmbientSound(Vector3f playerPos, AudioManager audioManager, float tpf)
+	{
+		_ambientSoundTimer -= tpf;
+		if (_ambientSoundTimer > 0)
+		{
+			return;
+		}
+		
+		// Reset timer for next ambient sound.
+		_ambientSoundTimer = AMBIENT_SOUND_MIN_INTERVAL + Rnd.nextFloat() * (AMBIENT_SOUND_MAX_INTERVAL - AMBIENT_SOUND_MIN_INTERVAL);
+		
+		// Only play if the player is within audible range.
+		final float distSq = _position.distanceSquared(playerPos);
+		if (distSq > AMBIENT_SOUND_RANGE * AMBIENT_SOUND_RANGE)
+		{
+			return;
+		}
+		
+		final String sfxPath = getAmbientSoundPath();
+		if (sfxPath != null)
+		{
+			audioManager.playSfx(sfxPath);
+		}
+	}
+	
+	/**
+	 * Returns the ambient sound asset path for this enemy's type, or null if none.
+	 * @return the SFX asset path, or null for types with no ambient sound
+	 */
+	public String getAmbientSoundPath()
+	{
+		switch (_type)
+		{
+			case ZOMBIE:
+			{
+				return AudioManager.SFX_ZOMBIE_GROAN;
+			}
+			case SKELETON:
+			{
+				return AudioManager.SFX_SKELETON_RATTLE;
+			}
+			case WOLF:
+			{
+				return AudioManager.SFX_WOLF_GROWL;
+			}
+			case SPIDER:
+			{
+				return AudioManager.SFX_SPIDER_HISS;
+			}
+			case SLIME:
+			{
+				return AudioManager.SFX_SLIME_SQUELCH;
+			}
+			default:
+			{
+				return null;
+			}
+		}
 	}
 	
 	/**

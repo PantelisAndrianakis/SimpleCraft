@@ -8,6 +8,7 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 
+import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.PlayerCollision.CollisionResult;
 import simplecraft.world.Block;
@@ -48,6 +49,13 @@ public class PlayerController implements ActionListener, AnalogListener
 	private final InputManager _inputManager;
 	private final World _world;
 	private final PlayerCollision _collision;
+	private final AudioManager _audioManager;
+	
+	/** Interval between footstep sounds while moving on ground (seconds). */
+	private static final float FOOTSTEP_INTERVAL = 0.45f;
+	
+	/** Footstep timer — counts up while moving on ground, resets on each sound. */
+	private float _footstepTimer;
 	
 	/** World position of the player (feet level). */
 	private final Vector3f _position = new Vector3f();
@@ -171,13 +179,15 @@ public class PlayerController implements ActionListener, AnalogListener
 	 * @param camera the jME3 camera to control
 	 * @param inputManager the jME3 input manager to register listeners on
 	 * @param world the game world for block collision lookups
+	 * @param audioManager the audio manager for sound effect playback
 	 */
-	public PlayerController(Camera camera, InputManager inputManager, World world)
+	public PlayerController(Camera camera, InputManager inputManager, World world, AudioManager audioManager)
 	{
 		_camera = camera;
 		_inputManager = inputManager;
 		_world = world;
 		_collision = new PlayerCollision();
+		_audioManager = audioManager;
 		
 		// Reduce near clip so geometry at the player's collision boundary (0.3 blocks
 		// from walls) is never clipped. setFrustumPerspective rebuilds the full
@@ -410,6 +420,22 @@ public class PlayerController implements ActionListener, AnalogListener
 			_drowningLogged = false;
 		}
 		
+		// --- Footsteps ---
+		if (_onGround && !_inWater && (_moveForward || _moveBack || _moveLeft || _moveRight))
+		{
+			_footstepTimer += tpf;
+			if (_footstepTimer >= FOOTSTEP_INTERVAL)
+			{
+				_footstepTimer = 0;
+				_audioManager.playSfx(getFootstepSound());
+			}
+		}
+		else
+		{
+			// Reset timer when not moving on ground so first step is instant on resume.
+			_footstepTimer = FOOTSTEP_INTERVAL;
+		}
+		
 		// Update camera position (eye height above feet).
 		_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
 		_camera.setLocation(_eyePos);
@@ -458,6 +484,44 @@ public class PlayerController implements ActionListener, AnalogListener
 	public boolean isDead()
 	{
 		return _health <= 0;
+	}
+	
+	/**
+	 * Returns the footstep sound path based on the block under the player's feet.<br>
+	 * Checks the block at (floor(x), floor(y - 0.1), floor(z)) to sample the surface<br>
+	 * the player is standing on. Falls back to stone step for unmapped block types.
+	 * @return the asset path of the appropriate footstep sound
+	 */
+	private String getFootstepSound()
+	{
+		final int bx = (int) Math.floor(_position.x);
+		final int by = (int) Math.floor(_position.y - 0.1f);
+		final int bz = (int) Math.floor(_position.z);
+		final Block block = _world.getBlock(bx, by, bz);
+		
+		switch (block)
+		{
+			case GRASS:
+			{
+				return AudioManager.SFX_STEP_GRASS;
+			}
+			case DIRT:
+			{
+				return AudioManager.SFX_STEP_DIRT;
+			}
+			case SAND:
+			{
+				return AudioManager.SFX_STEP_SAND;
+			}
+			case WOOD:
+			{
+				return AudioManager.SFX_STEP_WOOD;
+			}
+			default:
+			{
+				return AudioManager.SFX_STEP_STONE;
+			}
+		}
 	}
 	
 	/**

@@ -863,7 +863,7 @@ public class PlayingState extends FadeableAppState
 		}
 		
 		// Create and initialize the player controller with world reference for collision.
-		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world);
+		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world, app.getAudioManager());
 		
 		// Restore player state from save data if available.
 		if (_playerSaveData != null)
@@ -901,7 +901,7 @@ public class PlayingState extends FadeableAppState
 		_playerController.registerInput();
 		
 		// Create and initialize block interaction (raycasting, breaking, placing).
-		_blockInteraction = new BlockInteraction(app.getCamera(), app.getInputManager(), _world, _playerController, app.getAssetManager());
+		_blockInteraction = new BlockInteraction(app.getCamera(), app.getInputManager(), _world, _playerController, app.getAssetManager(), app.getAudioManager());
 		_blockInteraction.registerInput();
 		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
 		app.getRootNode().attachChild(_blockInteraction.getDestructionEffectsNode());
@@ -938,9 +938,10 @@ public class PlayingState extends FadeableAppState
 		_spawnSystem = new SpawnSystem(enemyNode, app.getAssetManager(), _world.getSeed());
 		_spawnSystem.setPlayerSpawnZone(SPAWN_X, SPAWN_Z);
 		_spawnSystem.setDayNightCycle(_dayNightCycle);
+		_spawnSystem.setAudioManager(app.getAudioManager());
 		
 		// Initialize the combat system (screen flashes, enemy → player damage, player → enemy attacks).
-		_combatSystem = new CombatSystem();
+		_combatSystem = new CombatSystem(app.getAudioManager());
 		
 		// Wire combat references so SpawnSystem can trigger death healing drops.
 		_spawnSystem.setCombatReferences(_combatSystem, _playerController);

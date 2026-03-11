@@ -20,6 +20,7 @@ import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.scene.debug.WireBox;
 import com.jme3.util.BufferUtils;
 
+import simplecraft.audio.AudioManager;
 import simplecraft.ui.MessageManager;
 import simplecraft.util.Rnd;
 import simplecraft.util.Vector3i;
@@ -144,6 +145,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private final InputManager _inputManager;
 	private final World _world;
 	private final PlayerController _playerController;
+	private final AudioManager _audioManager;
 	
 	/** Scene node for highlight and crack overlay geometries. */
 	private final Node _overlayNode = new Node("BlockInteractionOverlay");
@@ -247,13 +249,15 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	 * @param world the game world for block queries and modifications
 	 * @param playerController the player controller for position and selected block
 	 * @param assetManager the jME3 asset manager for material creation
+	 * @param audioManager the audio manager for sound effect playback
 	 */
-	public BlockInteraction(Camera camera, InputManager inputManager, World world, PlayerController playerController, AssetManager assetManager)
+	public BlockInteraction(Camera camera, InputManager inputManager, World world, PlayerController playerController, AssetManager assetManager, AudioManager audioManager)
 	{
 		_camera = camera;
 		_inputManager = inputManager;
 		_world = world;
 		_playerController = playerController;
+		_audioManager = audioManager;
 		
 		// Create highlight material (bright white, unshaded).
 		_highlightMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
@@ -804,6 +808,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Deliver hit.
 		_hitsDelivered++;
 		_hitCooldownTimer = HIT_COOLDOWN;
+		_audioManager.playSfx(block.isDecoration() ? AudioManager.SFX_STEP_GRASS : AudioManager.SFX_BLOCK_HIT);
 		
 		System.out.println("Hit " + block.name() + " (" + _hitsDelivered + "/" + _hitsRequired + ")");
 		
@@ -814,6 +819,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		if (_hitsDelivered >= _hitsRequired)
 		{
 			System.out.println("Broke " + block.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "]");
+			_audioManager.playSfx(block.isDecoration() ? AudioManager.SFX_STEP_DIRT : AudioManager.SFX_BLOCK_BREAK);
 			
 			// Clear player-placed flag before removal.
 			_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
@@ -849,6 +855,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 							door.destroyBothHalves(_world);
 							
 							System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] — both halves destroyed.");
+							_audioManager.playSfx(AudioManager.SFX_BLOCK_BREAK);
 							resetBreaking();
 							return;
 						}
@@ -1073,6 +1080,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				if (entity != null)
 				{
 					entity.onInteract(_playerController, _world);
+					
+					// Play a thud on door open/close and window flip.
+					if (entity instanceof DoorTileEntity || entity instanceof WindowTileEntity)
+					{
+						_audioManager.playSfx(AudioManager.SFX_BLOCK_HIT);
+					}
 				}
 				else
 				{
@@ -1440,6 +1453,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		System.out.println("Placed " + selectedBlock.name() + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
+		_audioManager.playSfx(AudioManager.SFX_BLOCK_PLACE);
 	}
 	
 	/**

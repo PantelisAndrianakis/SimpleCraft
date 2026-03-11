@@ -26,8 +26,35 @@ import com.jme3.math.Vector3f;
  */
 public class AudioManager
 {
-	// Public SFX paths.
+	// Public SFX paths — UI.
 	public static final String UI_CLICK_SFX_PATH = "sounds/ui/click.ogg";
+	
+	// Public SFX paths — player footsteps.
+	public static final String SFX_STEP_GRASS = "sounds/player/step_grass.ogg";
+	public static final String SFX_STEP_DIRT = "sounds/player/step_dirt.ogg";
+	public static final String SFX_STEP_STONE = "sounds/player/step_stone.ogg";
+	public static final String SFX_STEP_SAND = "sounds/player/step_sand.ogg";
+	public static final String SFX_STEP_WOOD = "sounds/player/step_wood.ogg";
+	
+	// Public SFX paths — player combat.
+	public static final String SFX_PLAYER_HURT = "sounds/player/player_hurt.ogg";
+	public static final String SFX_PLAYER_DEATH = "sounds/player/player_death.ogg";
+	
+	// Public SFX paths — block interaction.
+	public static final String SFX_BLOCK_HIT = "sounds/blocks/block_hit.ogg";
+	public static final String SFX_BLOCK_BREAK = "sounds/blocks/block_break.ogg";
+	public static final String SFX_BLOCK_PLACE = "sounds/blocks/block_place.ogg";
+	
+	// Public SFX paths — enemy ambient.
+	public static final String SFX_ZOMBIE_GROAN = "sounds/enemies/zombie_groan.ogg";
+	public static final String SFX_SKELETON_RATTLE = "sounds/enemies/skeleton_rattle.ogg";
+	public static final String SFX_WOLF_GROWL = "sounds/enemies/wolf_growl.ogg";
+	public static final String SFX_SPIDER_HISS = "sounds/enemies/spider_hiss.ogg";
+	public static final String SFX_SLIME_SQUELCH = "sounds/enemies/slime_squelch.ogg";
+	
+	// Public SFX paths — enemy combat.
+	public static final String SFX_ENEMY_HIT = "sounds/enemies/enemy_hit.ogg";
+	public static final String SFX_ENEMY_DEATH = "sounds/enemies/enemy_death.ogg";
 	
 	// Asset manager used.
 	private final AssetManager _assetManager;

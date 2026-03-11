@@ -15,6 +15,7 @@ import com.jme3.asset.AssetManager;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
+import simplecraft.audio.AudioManager;
 import simplecraft.combat.CombatSystem;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.player.PlayerController;
@@ -307,6 +308,9 @@ public class SpawnSystem
 	/** Reference to the day/night cycle for night-aware spawn rates. */
 	private DayNightCycle _dayNightCycle;
 	
+	/** Reference to the audio manager for enemy sound effects. */
+	private AudioManager _audioManager;
+	
 	/**
 	 * Creates a new region-based spawn system.
 	 * @param enemyNode the scene node to attach enemy models to
@@ -351,6 +355,15 @@ public class SpawnSystem
 	public void setDayNightCycle(DayNightCycle dayNightCycle)
 	{
 		_dayNightCycle = dayNightCycle;
+	}
+	
+	/**
+	 * Sets the audio manager reference for enemy sound effects.
+	 * @param audioManager the audio manager instance
+	 */
+	public void setAudioManager(AudioManager audioManager)
+	{
+		_audioManager = audioManager;
 	}
 	
 	// ------------------------------------------------------------------
@@ -674,7 +687,7 @@ public class SpawnSystem
 						skyLight *= _dayNightCycle.getSkyBrightness();
 					}
 					enemy.setSkyLight(skyLight);
-					enemy.update(playerPos, playerInWater, world, tpf);
+					enemy.update(playerPos, playerInWater, world, _audioManager, tpf);
 					
 					// Update hit flash for alive enemies (fades white material back to original).
 					enemy.updateVisuals(tpf);

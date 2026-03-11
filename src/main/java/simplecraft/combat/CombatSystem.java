@@ -13,6 +13,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
+import simplecraft.audio.AudioManager;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyAI.AIState;
@@ -118,6 +119,9 @@ public class CombatSystem
 	/** The GUI node this system's overlays are attached to. */
 	private final Node _guiNode;
 	
+	/** Audio manager for combat sound effects. */
+	private final AudioManager _audioManager;
+	
 	/** Player attack cooldown timer (counts down to 0). */
 	private float _playerAttackTimer;
 	
@@ -129,11 +133,13 @@ public class CombatSystem
 	
 	/**
 	 * Creates the combat system and attaches its screen flash overlay to the GUI.
+	 * @param audioManager the audio manager for combat sound effects
 	 */
-	public CombatSystem()
+	public CombatSystem(AudioManager audioManager)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		_guiNode = app.getGuiNode();
+		_audioManager = audioManager;
 		
 		final int screenWidth = app.getCamera().getWidth();
 		final int screenHeight = app.getCamera().getHeight();
@@ -208,6 +214,12 @@ public class CombatSystem
 					final String source = "Killed by " + formatEnemyName(enemy.getType());
 					player.takeDamage(enemy.getAttackDamage(), source);
 					triggerDamageFlash();
+					_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					
+					if (player.isDead())
+					{
+						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
+					}
 					
 					System.out.println(formatEnemyName(enemy.getType()) + " hit player for " + String.format("%.1f", enemy.getAttackDamage()) + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 				}
@@ -303,11 +315,11 @@ public class CombatSystem
 			// Only deal damage when the cooldown has expired.
 			if (_playerAttackTimer <= 0)
 			{
-				closestEnemy.takeDamage(PLAYER_ATTACK_DAMAGE);
+				closestEnemy.takeDamage(PLAYER_ATTACK_DAMAGE, _audioManager);
 				_playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
 				
 				final String name = formatEnemyName(closestEnemy.getType());
-				if (closestEnemy.isAlive())
+				if (!closestEnemy.isDying())
 				{
 					System.out.println("Hit " + name + " for " + String.format("%.1f", PLAYER_ATTACK_DAMAGE) + " damage! HP: " + String.format("%.1f", closestEnemy.getHealth()) + "/" + String.format("%.0f", closestEnemy.getMaxHealth()));
 				}
