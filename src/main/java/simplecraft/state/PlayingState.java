@@ -25,6 +25,7 @@ import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.audio.MusicManager;
 import simplecraft.combat.CombatSystem;
+import simplecraft.effects.ParticleManager;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
@@ -98,6 +99,9 @@ public class PlayingState extends FadeableAppState
 	
 	/** Orchestrates music transitions based on day/night phase, underground, and player submersion. */
 	private MusicManager _musicManager;
+	
+	/** Manages particle effects for block breaking and combat damage. */
+	private ParticleManager _particleManager;
 	
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
@@ -522,6 +526,12 @@ public class PlayingState extends FadeableAppState
 			if (tileEntityManager != null)
 			{
 				tileEntityManager.update(tpf);
+			}
+			
+			// Update particle effects (auto-cleanup of expired emitters).
+			if (_particleManager != null)
+			{
+				_particleManager.update(tpf);
 			}
 			
 			// Update combat system (enemy attacks, screen flash fade).
@@ -949,6 +959,14 @@ public class PlayingState extends FadeableAppState
 		// Initialize the combat system (screen flashes, enemy → player damage, player → enemy attacks).
 		_combatSystem = new CombatSystem(app.getAudioManager());
 		
+		// Initialize the particle manager for block break and combat effects.
+		_particleManager = new ParticleManager(app.getAssetManager());
+		app.getRootNode().attachChild(_particleManager.getNode());
+		
+		// Wire particle manager to block interaction and combat system.
+		_blockInteraction.setParticleManager(_particleManager);
+		_combatSystem.setParticleManager(_particleManager);
+		
 		// Wire combat references so SpawnSystem can trigger death healing drops.
 		_spawnSystem.setCombatReferences(_combatSystem, _playerController);
 		
@@ -1033,6 +1051,14 @@ public class PlayingState extends FadeableAppState
 		{
 			_combatSystem.cleanup();
 			_combatSystem = null;
+		}
+		
+		// Clean up particle manager.
+		if (_particleManager != null)
+		{
+			_particleManager.cleanup();
+			app.getRootNode().detachChild(_particleManager.getNode());
+			_particleManager = null;
 		}
 		
 		// Clean up player controller.

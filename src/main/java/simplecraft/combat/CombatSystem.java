@@ -14,6 +14,7 @@ import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
+import simplecraft.effects.ParticleManager;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyAI.AIState;
@@ -124,6 +125,9 @@ public class CombatSystem
 	
 	/** Player attack cooldown timer (counts down to 0). */
 	private float _playerAttackTimer;
+	
+	/** Particle effect manager for damage hit particles. */
+	private ParticleManager _particleManager;
 	
 	// Reusable vectors for raycast math (avoid per-frame allocation).
 	private final Vector3f _rayOrigin = new Vector3f();
@@ -318,6 +322,14 @@ public class CombatSystem
 				closestEnemy.takeDamage(PLAYER_ATTACK_DAMAGE, _audioManager);
 				_playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
 				
+				// Spawn red damage particles at the enemy's center mass.
+				if (_particleManager != null)
+				{
+					final Vector3f hitPos = new Vector3f(closestEnemy.getPosition());
+					hitPos.y += ENEMY_CENTER_OFFSET;
+					_particleManager.spawnDamage(hitPos);
+				}
+				
 				final String name = formatEnemyName(closestEnemy.getType());
 				if (!closestEnemy.isDying())
 				{
@@ -490,6 +502,15 @@ public class CombatSystem
 	public void cleanup()
 	{
 		_guiNode.detachChild(_flashGeometry);
+	}
+	
+	/**
+	 * Sets the particle manager for combat hit visual effects.
+	 * @param particleManager the particle manager instance
+	 */
+	public void setParticleManager(ParticleManager particleManager)
+	{
+		_particleManager = particleManager;
 	}
 	
 	// ------------------------------------------------------------------

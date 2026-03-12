@@ -21,6 +21,7 @@ import com.jme3.scene.debug.WireBox;
 import com.jme3.util.BufferUtils;
 
 import simplecraft.audio.AudioManager;
+import simplecraft.effects.ParticleManager;
 import simplecraft.ui.MessageManager;
 import simplecraft.util.Rnd;
 import simplecraft.util.Vector3i;
@@ -217,6 +218,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/** Manages staggered visual destruction of auto-destroyed blocks. */
 	private final BlockDestructionQueue _destructionQueue;
+	
+	/** Particle effect manager for block break effects. */
+	private ParticleManager _particleManager;
 	
 	// Camera shake.
 	private float _shakeTimer;
@@ -820,6 +824,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			System.out.println("Broke " + block.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "]");
 			_audioManager.playSfx(block.isDecoration() ? AudioManager.SFX_STEP_DIRT : AudioManager.SFX_BLOCK_BREAK);
+			
+			// Spawn block break particles at the broken block position.
+			if (_particleManager != null)
+			{
+				_particleManager.spawnBlockBreak(new Vector3f(_targetX, _targetY, _targetZ), block);
+			}
 			
 			// Clear player-placed flag before removal.
 			_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
@@ -2411,5 +2421,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setShowHighlight(boolean show)
 	{
 		_showHighlight = show;
+	}
+	
+	/**
+	 * Sets the particle manager for block break visual effects.
+	 * @param particleManager the particle manager instance
+	 */
+	public void setParticleManager(ParticleManager particleManager)
+	{
+		_particleManager = particleManager;
 	}
 }

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.jme3.math.ColorRGBA;
+
 /**
  * Defines all block types with their rendering, gameplay, and atlas properties.<br>
  * Texture filenames are defined per block. Atlas indices are resolved dynamically by {@link TextureAtlas} during atlas building.
@@ -234,6 +236,103 @@ public enum Block
 	public boolean isFlatPanel()
 	{
 		return _renderMode == RenderMode.FLAT_PANEL;
+	}
+	
+	/**
+	 * Returns an approximate RGB color for this block, used by the particle system<br>
+	 * to color break particles. Returns a neutral gray for blocks without a clear color.
+	 * @return a ColorRGBA representing this block's dominant surface color
+	 */
+	public ColorRGBA getParticleColor()
+	{
+		switch (this)
+		{
+			case GRASS:
+			{
+				return new ColorRGBA(0.36f, 0.55f, 0.20f, 1.0f);
+			}
+			case DIRT:
+			{
+				return new ColorRGBA(0.55f, 0.38f, 0.22f, 1.0f);
+			}
+			case STONE:
+			{
+				return new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f);
+			}
+			case SAND:
+			{
+				return new ColorRGBA(0.85f, 0.80f, 0.55f, 1.0f);
+			}
+			case WOOD:
+			{
+				return new ColorRGBA(0.60f, 0.42f, 0.22f, 1.0f);
+			}
+			case LEAVES:
+			{
+				return new ColorRGBA(0.20f, 0.50f, 0.15f, 1.0f);
+			}
+			case IRON_ORE:
+			{
+				return new ColorRGBA(0.65f, 0.55f, 0.50f, 1.0f);
+			}
+			case BERRY_BUSH:
+			{
+				return new ColorRGBA(0.30f, 0.45f, 0.20f, 1.0f);
+			}
+			case CAMPFIRE:
+			{
+				return new ColorRGBA(0.60f, 0.35f, 0.15f, 1.0f);
+			}
+			case CHEST:
+			case CRAFTING_TABLE:
+			{
+				return new ColorRGBA(0.55f, 0.40f, 0.20f, 1.0f);
+			}
+			case FURNACE:
+			{
+				return new ColorRGBA(0.55f, 0.55f, 0.55f, 1.0f);
+			}
+			case TORCH:
+			{
+				return new ColorRGBA(0.80f, 0.65f, 0.20f, 1.0f);
+			}
+			case GLASS:
+			case WINDOW:
+			{
+				return new ColorRGBA(0.80f, 0.90f, 0.95f, 1.0f);
+			}
+			case DOOR_BOTTOM:
+			case DOOR_TOP:
+			{
+				return new ColorRGBA(0.55f, 0.40f, 0.22f, 1.0f);
+			}
+			case TALL_GRASS:
+			case TALL_SEAWEED:
+			case SHORT_SEAWEED:
+			{
+				return new ColorRGBA(0.25f, 0.55f, 0.18f, 1.0f);
+			}
+			case RED_POPPY:
+			{
+				return new ColorRGBA(0.80f, 0.15f, 0.15f, 1.0f);
+			}
+			case DANDELION:
+			{
+				return new ColorRGBA(0.90f, 0.85f, 0.20f, 1.0f);
+			}
+			case BLUE_ORCHID:
+			{
+				return new ColorRGBA(0.20f, 0.45f, 0.85f, 1.0f);
+			}
+			case WHITE_DAISY:
+			{
+				return new ColorRGBA(0.90f, 0.90f, 0.85f, 1.0f);
+			}
+			default:
+			{
+				return new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f);
+			}
+		}
 	}
 	
 	// ========================================================
