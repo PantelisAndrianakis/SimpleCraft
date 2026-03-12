@@ -45,6 +45,12 @@ public class Region
 	/** True if the mesh needs to be rebuilt due to block changes. */
 	private boolean _meshDirty = true;
 	
+	/**
+	 * Monotonic counter incremented on every successful mesh rebuild.<br>
+	 * Used to detect stale async remesh results that were built before a sync rebuild.
+	 */
+	private volatile int _meshVersion = 0;
+	
 	/** Timestamp of last mesh build (for debugging/performance monitoring). */
 	private long _lastMeshBuildTime = 0;
 	
@@ -139,7 +145,19 @@ public class Region
 	public void markMeshClean()
 	{
 		_meshDirty = false;
+		_meshVersion++;
 		_lastMeshBuildTime = System.currentTimeMillis();
+	}
+	
+	/**
+	 * Returns the current mesh version counter.<br>
+	 * Incremented on every successful mesh rebuild (sync or async).<br>
+	 * Used by RegionLoader to detect stale async results: if the version has changed<br>
+	 * since the async job was submitted, a sync rebuild occurred and the async result is stale.
+	 */
+	public int getMeshVersion()
+	{
+		return _meshVersion;
 	}
 	
 	/**

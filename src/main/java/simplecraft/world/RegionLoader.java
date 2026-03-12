@@ -47,12 +47,14 @@ public class RegionLoader
 		private final Region _region;
 		private final RegionMeshData _meshData;
 		private final boolean _hadSavedData;
+		private final int _meshVersionAtSubmit;
 		
-		public ReadyRegion(Region region, RegionMeshData meshData, boolean hadSavedData)
+		public ReadyRegion(Region region, RegionMeshData meshData, boolean hadSavedData, int meshVersionAtSubmit)
 		{
 			_region = region;
 			_meshData = meshData;
 			_hadSavedData = hadSavedData;
+			_meshVersionAtSubmit = meshVersionAtSubmit;
 		}
 		
 		public Region getRegion()
@@ -72,6 +74,16 @@ public class RegionLoader
 		public boolean hadSavedData()
 		{
 			return _hadSavedData;
+		}
+		
+		/**
+		 * Returns the region's mesh version at the time this async job was submitted.<br>
+		 * If the region's current version differs, a sync rebuild occurred after submission<br>
+		 * and this result is stale (should be discarded).
+		 */
+		public int getMeshVersionAtSubmit()
+		{
+			return _meshVersionAtSubmit;
 		}
 	}
 	
@@ -213,7 +225,7 @@ public class RegionLoader
 				region.markMeshClean();
 			}
 			
-			_readyQueue.add(new ReadyRegion(region, meshData, hadSavedData));
+			_readyQueue.add(new ReadyRegion(region, meshData, hadSavedData, region.getMeshVersion()));
 		});
 		
 		return true;
@@ -254,6 +266,11 @@ public class RegionLoader
 			return false; // Already pending.
 		}
 		
+		// Capture the region's mesh version at submit time.
+		// If a sync rebuild occurs while the background thread is running, the version
+		// will have incremented and the main thread can detect the stale result.
+		final int versionAtSubmit = region.getMeshVersion();
+		
 		_executor.submit(() ->
 		{
 			// Check if still pending (may have been cancelled while queued).
@@ -267,7 +284,7 @@ public class RegionLoader
 			
 			// Do NOT mark clean here — main thread marks clean when the result is polled.
 			// This avoids a race where background markMeshClean overwrites a main-thread markMeshDirty.
-			_readyQueue.add(new ReadyRegion(region, meshData, false));
+			_readyQueue.add(new ReadyRegion(region, meshData, false, versionAtSubmit));
 		});
 		
 		return true;

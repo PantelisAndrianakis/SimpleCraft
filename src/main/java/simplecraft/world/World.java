@@ -346,6 +346,17 @@ public class World
 					continue;
 				}
 				
+				// Reject stale async results: if the region's mesh version has changed
+				// since this async job was submitted, a sync rebuild occurred with newer
+				// block data. Applying this result would overwrite the correct mesh
+				// (e.g. replacing a mesh that includes a freshly placed block with one
+				// that was built from pre-placement data). Re-queue for a fresh remesh.
+				if (ready.getMeshVersionAtSubmit() != loadedRegion.getMeshVersion())
+				{
+					markForRemesh(key);
+					continue;
+				}
+				
 				// Remesh result for an already-loaded region — swap geometry.
 				detachRegionGeometry(key);
 				attachRegionGeometryFromData(region, ready.getMeshData());
