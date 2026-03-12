@@ -83,6 +83,15 @@ public class CombatSystem
 	private static final float PLAYER_HIT_RADIUS = 0.5f;
 	
 	/**
+	 * Close-range sphere radius for point-blank hit detection (blocks).<br>
+	 * When the 3D distance from the camera to an enemy's center mass is within this<br>
+	 * threshold, the hit registers regardless of the cylinder projection. This prevents<br>
+	 * enemies pressed against the player from being unhittable due to the vertical<br>
+	 * gap between eye height and enemy center mass exceeding the cylinder hit radius.
+	 */
+	private static final float CLOSE_RANGE_RADIUS = 1.5f;
+	
+	/**
 	 * Vertical offset from enemy feet to center mass for hit detection (blocks).<br>
 	 * Approximates the torso center for all enemy types.
 	 */
@@ -278,6 +287,32 @@ public class CombatSystem
 			
 			// Vector from ray origin to enemy center.
 			_toEnemy.set(centerX - _rayOrigin.x, centerY - _rayOrigin.y, centerZ - _rayOrigin.z);
+			
+			// Check close-range sphere first: if the enemy center is within arm's
+			// reach of the camera AND roughly in front of the player, the hit registers
+			// regardless of cylinder projection. This handles enemies pressed against
+			// the player where the vertical gap between eye height and enemy center
+			// mass exceeds the cylinder hit radius.
+			final float distSq = _toEnemy.lengthSquared();
+			if (distSq <= CLOSE_RANGE_RADIUS * CLOSE_RANGE_RADIUS)
+			{
+				// Facing check: dot product between camera direction and direction
+				// to enemy must be positive (enemy is in front of the player).
+				// At close range dot can be small due to the vertical angle down,
+				// so a simple > 0 (forward hemisphere) is sufficient.
+				final float facingDot = _toEnemy.dot(_rayDir);
+				if (facingDot > 0)
+				{
+					// Use straight-line distance for sorting (closer = better).
+					final float dist = (float) Math.sqrt(distSq);
+					if (dist < closestDist)
+					{
+						closestEnemy = enemy;
+						closestDist = dist;
+					}
+				}
+				continue;
+			}
 			
 			// Project onto ray direction to find closest point on ray.
 			final float dot = _toEnemy.dot(_rayDir);
