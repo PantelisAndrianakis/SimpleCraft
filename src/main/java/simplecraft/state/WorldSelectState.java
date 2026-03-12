@@ -33,7 +33,6 @@ import com.simsilica.lemur.event.MouseEventControl;
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.input.MenuNavigationManager;
-import simplecraft.save.SaveManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
@@ -86,8 +85,7 @@ public class WorldSelectState extends FadeableAppState
 	private static final ColorRGBA PAGE_TEXT_COLOR = new ColorRGBA(0.7f, 0.7f, 0.7f, 0.9f);
 	private static final ColorRGBA DELETE_SYMBOL_COLOR = new ColorRGBA(0.55f, 0.55f, 0.55f, 0.9f);
 	private static final ColorRGBA DELETE_SYMBOL_HOVER = new ColorRGBA(0.9f, 0.2f, 0.2f, 1f);
-	private static final ColorRGBA SAVED_INDICATOR_COLOR = new ColorRGBA(0.4f, 0.8f, 0.4f, 0.95f);
-	
+
 	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 	
 	private Picture _background;
@@ -463,19 +461,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		entry.addChild(nameRow);
 		
-		// --- Row 2: [Saved indicator] (only for worlds with save data) ---
-		final boolean hasSave = SaveManager.hasSaveData(world);
-		if (hasSave)
-		{
-			final Label savedLabel = new Label(" " + FontManager.SYMBOL_SQUARE + " Saved");
-			savedLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 12));
-			savedLabel.setFontSize(12);
-			savedLabel.setColor(SAVED_INDICATOR_COLOR);
-			savedLabel.setInsets(new Insets3f(2, 0, 0, 0));
-			entry.addChild(savedLabel);
-		}
-		
-		// --- Row 3: [Seed | Last played | Size] ---
+		// --- Row 2: [Seed | Last played | Size] ---
 		final String lastPlayed = DATE_FORMAT.format(new Date(world.getLastPlayedAt()));
 		final String sizeText = formatDirectorySize(world.getWorldDirectory());
 		final Label infoLabel = new Label(" Seed: " + world.getSeed() + "  |  " + lastPlayed + "  |  " + sizeText);
@@ -485,7 +471,7 @@ public class WorldSelectState extends FadeableAppState
 		infoLabel.setInsets(new Insets3f(0, 0, screenHeight * INFO_BOTTOM_PERCENT, 0));
 		entry.addChild(infoLabel);
 		
-		// --- Row 4: [Play] centered ---
+		// --- Row 3: [Play] centered ---
 		final Container playRow = new Container(new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.None));
 		playRow.setBackground(null);
 		playRow.setInsets(new Insets3f(0, 0, screenHeight * 0.01f, 0));
