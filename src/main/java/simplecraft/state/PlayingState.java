@@ -31,6 +31,7 @@ import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
 import simplecraft.player.BlockInteraction;
+import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
 import simplecraft.save.SaveManager;
@@ -72,13 +73,17 @@ import simplecraft.world.entity.TileEntityManager;
  * <br>
  * <b>Combat priority:</b> On left click, the combat system raycasts for enemies first.<br>
  * If an enemy is in the crosshair, block interaction attack is suppressed. This prevents<br>
- * accidentally mining blocks behind enemies while fighting.
+ * accidentally mining blocks behind enemies while fighting.<br>
+ * <br>
+ * <b>Inventory:</b> Tab toggles the inventory screen. While open, player movement and<br>
+ * block interaction are disabled. Escape also closes the inventory if it is open.
  * @author Pantelis Andrianakis
  * @since February 18th 2026
  */
 public class PlayingState extends FadeableAppState
 {
 	private ActionListener _pauseListener;
+	private ActionListener _inventoryListener;
 	private TextureAtlas _textureAtlas;
 	private World _world;
 	private WorldInfo _activeWorld;
@@ -87,6 +92,7 @@ public class PlayingState extends FadeableAppState
 	private PlayerController _playerController;
 	private BlockInteraction _blockInteraction;
 	private PlayerHUD _playerHUD;
+	private InventoryScreen _inventoryScreen;
 	
 	/** Manages automatic enemy spawning, despawning, and updates. */
 	private SpawnSystem _spawnSystem;
@@ -216,6 +222,13 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
+			// If inventory is open, close it instead of opening pause.
+			if (_inventoryScreen != null && _inventoryScreen.isOpen())
+			{
+				_inventoryScreen.close();
+				return;
+			}
+			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			final GameStateManager gsm = simpleCraft.getGameStateManager();
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
@@ -233,6 +246,41 @@ public class PlayingState extends FadeableAppState
 		};
 		
 		simpleCraft.getInputManager().addListener(_pauseListener, GameInputManager.PAUSE);
+		
+		// Register inventory toggle listener (Tab key).
+		_inventoryListener = (String name, boolean isPressed, float tpf) ->
+		{
+			if (!isPressed)
+			{
+				return;
+			}
+			
+			if (!GameInputManager.INVENTORY.equals(name))
+			{
+				return;
+			}
+			
+			// Only toggle inventory during active gameplay (not loading, dead, paused, or in question dialog).
+			final GameStateManager gsm = simpleCraft.getGameStateManager();
+			if (gsm.getCurrentState() != GameState.PLAYING || _pendingSpawn || _playerDead || QuestionManager.isActive())
+			{
+				return;
+			}
+			
+			if (_inventoryScreen != null)
+			{
+				if (_inventoryScreen.isOpen())
+				{
+					_inventoryScreen.close();
+				}
+				else
+				{
+					_inventoryScreen.open();
+				}
+			}
+		};
+		
+		simpleCraft.getInputManager().addListener(_inventoryListener, GameInputManager.INVENTORY);
 	}
 	
 	@Override
@@ -243,6 +291,13 @@ public class PlayingState extends FadeableAppState
 		{
 			SimpleCraft.getInstance().getInputManager().removeListener(_pauseListener);
 			_pauseListener = null;
+		}
+		
+		// Remove the inventory listener.
+		if (_inventoryListener != null)
+		{
+			SimpleCraft.getInstance().getInputManager().removeListener(_inventoryListener);
+			_inventoryListener = null;
 		}
 		
 		// Safety net: destroy world if still alive when state is detached.
@@ -473,8 +528,24 @@ public class PlayingState extends FadeableAppState
 				_musicManager.update(tpf, _playerController.isInWater(), underground);
 			}
 			
-			// Update player movement and camera.
-			_playerController.update(tpf);
+			// Determine if inventory is open (skip player movement and block interaction when open).
+			final boolean inventoryOpen = _inventoryScreen != null && _inventoryScreen.isOpen();
+			
+			// Update player movement and camera (skip when inventory is open).
+			if (!inventoryOpen)
+			{
+				_playerController.update(tpf);
+			}
+			else
+			{
+				// Still update camera position so it doesn't glitch.
+				// Player update handles camera — when inventory is open, input is unregistered
+				// so no movement occurs, but we still need to call update for camera positioning.
+				_playerController.update(tpf);
+				
+				// Update inventory screen.
+				_inventoryScreen.update(tpf);
+			}
 			
 			// Check for fall damage / drowning screen flashes.
 			// These are detected via flags set during playerController.update().
@@ -497,8 +568,9 @@ public class PlayingState extends FadeableAppState
 			// --- Player → Enemy attack priority ---
 			// Check enemies FIRST on left-click. If the crosshair is on an enemy,
 			// suppress block interaction's attack so we don't mine blocks behind enemies.
+			// Skip combat when inventory is open.
 			boolean suppressBlockAttack = false;
-			if (_combatSystem != null && _spawnSystem != null && !_playerDead)
+			if (_combatSystem != null && _spawnSystem != null && !_playerDead && !inventoryOpen)
 			{
 				if (_blockInteraction != null && _blockInteraction.isAttackHeld())
 				{
@@ -508,7 +580,8 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			// Update block interaction (raycasting, breaking, placing).
-			if (_blockInteraction != null && !_playerDead)
+			// Skip when inventory is open.
+			if (_blockInteraction != null && !_playerDead && !inventoryOpen)
 			{
 				_blockInteraction.setAttackSuppressed(suppressBlockAttack);
 				_blockInteraction.setShowHighlight(app.getSettingsManager().isShowHighlight());
@@ -545,6 +618,12 @@ public class PlayingState extends FadeableAppState
 			{
 				// Player just died — show death screen.
 				_playerDead = true;
+				
+				// Close inventory if open.
+				if (_inventoryScreen != null && _inventoryScreen.isOpen())
+				{
+					_inventoryScreen.close();
+				}
 				
 				// Dismiss any open question dialog (e.g. campfire respawn prompt).
 				QuestionManager.dismiss();
@@ -601,7 +680,6 @@ public class PlayingState extends FadeableAppState
 					_playerController.getAir(),
 					_playerController.getMaxAir(),
 					_playerController.isHeadSubmerged(),
-					_playerController.getSelectedBlock(),
 					_blockInteraction != null ? _blockInteraction.getHitsDelivered() : 0,
 					_blockInteraction != null ? _blockInteraction.getHitsRequired() : 0,
 					_blockInteraction != null && _blockInteraction.isBreaking(),
@@ -674,6 +752,12 @@ public class PlayingState extends FadeableAppState
 		
 		// Clean up respawn listener if active.
 		cleanupRespawnListener();
+		
+		// Close inventory if open.
+		if (_inventoryScreen != null && _inventoryScreen.isOpen())
+		{
+			_inventoryScreen.close();
+		}
 		
 		// Dismiss any open question dialog (e.g. campfire respawn prompt).
 		QuestionManager.dismiss();
@@ -988,19 +1072,29 @@ public class PlayingState extends FadeableAppState
 	// ========================================================
 	
 	/**
-	 * Creates the player HUD and links it to the block interaction handler.
+	 * Creates the player HUD, inventory screen, and links them to the block interaction handler.
 	 */
 	private void createHUD()
 	{
 		_playerHUD = new PlayerHUD();
 		_playerHUD.setBlockInteraction(_blockInteraction);
+		_playerHUD.setInventory(_playerController.getInventory());
+		
+		// Create inventory screen (hidden initially).
+		_inventoryScreen = new InventoryScreen(_playerController, _blockInteraction);
 	}
 	
 	/**
-	 * Removes the player HUD from the screen.
+	 * Removes the player HUD and inventory screen.
 	 */
 	private void cleanupHUD()
 	{
+		if (_inventoryScreen != null)
+		{
+			_inventoryScreen.cleanup();
+			_inventoryScreen = null;
+		}
+		
 		if (_playerHUD != null)
 		{
 			_playerHUD.cleanup();

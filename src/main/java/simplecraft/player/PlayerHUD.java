@@ -14,23 +14,29 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
+import simplecraft.item.Inventory;
+import simplecraft.item.ItemInstance;
+import simplecraft.item.ItemTemplate;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
 
 /**
- * In-game heads-up display showing health, air, selected block, crosshair,<br>
+ * In-game heads-up display showing health, air, hotbar, crosshair,<br>
  * block-breaking progress, and the death/respawn screen.<br>
  * <br>
  * All elements are attached to the application's GUI node (screen-space overlay).<br>
- * Call {@link #update(float, float, float, float, boolean, Block, int, int, boolean, boolean)} each frame<br>
+ * Call {@link #update(float, float, float, float, boolean, int, int, boolean, boolean)} each frame<br>
  * with current player state, and {@link #cleanup()} when leaving the playing state.<br>
  * <br>
  * <b>Crosshair:</b> Small "+" at screen center, white with slight transparency.<br>
  * <b>Health bar:</b> Top-left, red fill proportional to health. Dark background.<br>
  * <b>Air meter:</b> Blue bar below health, visible only when submerged. Fades in/out<br>
  * over 0.5 seconds. Flashes red when air drops below 3 seconds.<br>
- * <b>Selected block:</b> Bottom-center, colored square with block name text.<br>
+ * <b>Hotbar:</b> 9 rectangular slots horizontally centered at screen bottom.<br>
+ * Each slot shows a colored square for the item type, optional label letter,<br>
+ * stack count (if > 1), and durability bar for weapons/tools.<br>
+ * Selected slot has a bright highlight border.<br>
  * <b>Break progress:</b> Small bar below crosshair showing "BlockName 3/8" while breaking.<br>
  * <b>Death screen:</b> Translucent dark overlay with "You Died" text, death cause,<br>
  * and "Click to Respawn" prompt. Shown when health reaches 0.
@@ -64,9 +70,6 @@ public class PlayerHUD
 	/** Background padding around bars. */
 	private static final float BG_PADDING = 3f;
 	
-	/** Selected block indicator square size in pixels. */
-	private static final float BLOCK_INDICATOR_SIZE = 32f;
-	
 	/** Break progress bar width in pixels. */
 	private static final float BREAK_BAR_WIDTH = 140f;
 	
@@ -88,6 +91,18 @@ public class PlayerHUD
 	/** Flash rate in cycles per second when air is critically low. */
 	private static final float AIR_FLASH_RATE = 3.0f;
 	
+	/** Number of hotbar slots. */
+	private static final int HOTBAR_SIZE = Inventory.HOTBAR_SLOTS;
+	
+	/** Pixel spacing between hotbar slots. */
+	private static final float HOTBAR_SLOT_SPACING = 2f;
+	
+	/** Padding around the hotbar slot fill for the background. */
+	private static final float HOTBAR_BG_PADDING = 2f;
+	
+	/** Height of the durability bar in pixels. */
+	private static final float DURABILITY_BAR_HEIGHT = 3f;
+	
 	// ========================================================
 	// Colors.
 	// ========================================================
@@ -102,6 +117,14 @@ public class PlayerHUD
 	private static final ColorRGBA COLOR_CROSSHAIR = new ColorRGBA(1.0f, 1.0f, 1.0f, 0.7f);
 	private static final ColorRGBA COLOR_TEXT = new ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 	private static final ColorRGBA COLOR_TEXT_SHADOW = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.8f);
+	
+	// Hotbar colors.
+	private static final ColorRGBA COLOR_HOTBAR_BG = new ColorRGBA(0.1f, 0.1f, 0.1f, 0.7f);
+	private static final ColorRGBA COLOR_HOTBAR_EMPTY = new ColorRGBA(0.2f, 0.2f, 0.2f, 0.5f);
+	private static final ColorRGBA COLOR_HOTBAR_HIGHLIGHT = new ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
+	private static final ColorRGBA COLOR_DURABILITY_GREEN = new ColorRGBA(0.2f, 0.85f, 0.2f, 1.0f);
+	private static final ColorRGBA COLOR_DURABILITY_YELLOW = new ColorRGBA(0.9f, 0.85f, 0.2f, 1.0f);
+	private static final ColorRGBA COLOR_DURABILITY_RED = new ColorRGBA(0.9f, 0.2f, 0.2f, 1.0f);
 	
 	// Death screen colors.
 	private static final ColorRGBA COLOR_DEATH_OVERLAY = new ColorRGBA(0.1f, 0.0f, 0.0f, 0.7f);
@@ -143,12 +166,32 @@ public class PlayerHUD
 	private boolean _wasSubmerged;
 	private float _airFlashTimer;
 	
-	// Selected block display.
-	private Geometry _blockIndicatorBg;
-	private Geometry _blockIndicator;
-	private BitmapText _blockNameText;
-	private BitmapText _blockNameTextShadow;
-	private Material _blockIndicatorMat;
+	// Hotbar.
+	private final Geometry[] _hotbarBg = new Geometry[HOTBAR_SIZE];
+	private final Geometry[] _hotbarFill = new Geometry[HOTBAR_SIZE];
+	private final Material[] _hotbarFillMat = new Material[HOTBAR_SIZE];
+	private final BitmapText[] _hotbarLabel = new BitmapText[HOTBAR_SIZE];
+	private final BitmapText[] _hotbarCount = new BitmapText[HOTBAR_SIZE];
+	private final BitmapText[] _hotbarCountShadow = new BitmapText[HOTBAR_SIZE];
+	private final Geometry[] _hotbarDurBar = new Geometry[HOTBAR_SIZE];
+	private final Material[] _hotbarDurMat = new Material[HOTBAR_SIZE];
+	private Geometry _hotbarHighlight;
+	private Material _hotbarHighlightMat;
+	
+	/** Computed hotbar slot size in pixels (proportional to screen height). */
+	private final float _hotbarSlotSize;
+	
+	/** Screen X origin of each hotbar slot. */
+	private final float[] _hotbarSlotX = new float[HOTBAR_SIZE];
+	
+	/** Screen Y origin of hotbar slots (all same). */
+	private float _hotbarSlotY;
+	
+	/** Inventory reference for reading hotbar data. */
+	private Inventory _inventory;
+	
+	/** Tracks the last selected hotbar index to avoid redundant highlight repositioning. */
+	private int _lastSelectedIndex = -1;
 	
 	// Break progress.
 	private Geometry _breakBg;
@@ -192,6 +235,9 @@ public class PlayerHUD
 		final int fontSize = Math.max(12, (int) (_screenHeight * 0.018f));
 		_font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, fontSize);
 		
+		// Compute hotbar slot size proportional to screen height.
+		_hotbarSlotSize = Math.max(32f, _screenHeight * 0.037f);
+		
 		// Container node for easy cleanup.
 		_hudNode = new Node("PlayerHUD");
 		
@@ -199,7 +245,7 @@ public class PlayerHUD
 		buildCrosshair();
 		buildHealthBar();
 		buildAirMeter();
-		buildSelectedBlock();
+		buildHotbar();
 		buildBreakProgress();
 		buildDeathScreen();
 		
@@ -284,37 +330,70 @@ public class PlayerHUD
 		setAirAlpha(0);
 	}
 	
-	private void buildSelectedBlock()
+	/**
+	 * Builds the 9-slot hotbar at the bottom center of the screen.
+	 */
+	private void buildHotbar()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
-		// Bottom-center of screen.
-		final float centerX = _screenWidth / 2f;
-		final float indicatorX = centerX - BLOCK_INDICATOR_SIZE / 2f;
-		final float indicatorY = EDGE_PADDING;
+		final float totalWidth = HOTBAR_SIZE * _hotbarSlotSize + (HOTBAR_SIZE - 1) * HOTBAR_SLOT_SPACING;
+		final float startX = (_screenWidth - totalWidth) / 2f;
+		_hotbarSlotY = EDGE_PADDING;
 		
-		// Background (slightly larger).
-		_blockIndicatorBg = createQuad("BlockIndicatorBg", BLOCK_INDICATOR_SIZE + BG_PADDING * 2, BLOCK_INDICATOR_SIZE + BG_PADDING * 2, COLOR_BG, app);
-		_blockIndicatorBg.setLocalTranslation(indicatorX - BG_PADDING, indicatorY - BG_PADDING, 0);
-		_hudNode.attachChild(_blockIndicatorBg);
+		for (int i = 0; i < HOTBAR_SIZE; i++)
+		{
+			_hotbarSlotX[i] = startX + i * (_hotbarSlotSize + HOTBAR_SLOT_SPACING);
+			
+			// Background quad (slightly larger for border effect).
+			final float bgSize = _hotbarSlotSize + HOTBAR_BG_PADDING * 2;
+			_hotbarBg[i] = createQuad("HotbarBg" + i, bgSize, bgSize, COLOR_HOTBAR_BG, app);
+			_hotbarBg[i].setLocalTranslation(_hotbarSlotX[i] - HOTBAR_BG_PADDING, _hotbarSlotY - HOTBAR_BG_PADDING, 0);
+			_hudNode.attachChild(_hotbarBg[i]);
+			
+			// Fill quad (colored by item type).
+			_hotbarFillMat[i] = createColorMaterial(COLOR_HOTBAR_EMPTY, app);
+			_hotbarFill[i] = createQuadWithMaterial("HotbarFill" + i, _hotbarSlotSize, _hotbarSlotSize, _hotbarFillMat[i]);
+			_hotbarFill[i].setLocalTranslation(_hotbarSlotX[i], _hotbarSlotY, 0.1f);
+			_hudNode.attachChild(_hotbarFill[i]);
+			
+			// Label text (type indicator: W, P, A, S, +).
+			_hotbarLabel[i] = new BitmapText(_font);
+			_hotbarLabel[i].setText("");
+			_hotbarLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+			_hotbarLabel[i].setColor(COLOR_TEXT.clone());
+			_hotbarLabel[i].setCullHint(BitmapText.CullHint.Always);
+			_hudNode.attachChild(_hotbarLabel[i]);
+			
+			// Count text (bottom-right of slot).
+			_hotbarCountShadow[i] = new BitmapText(_font);
+			_hotbarCountShadow[i].setText("");
+			_hotbarCountShadow[i].setSize(_font.getCharSet().getRenderedSize());
+			_hotbarCountShadow[i].setColor(COLOR_TEXT_SHADOW.clone());
+			_hotbarCountShadow[i].setCullHint(BitmapText.CullHint.Always);
+			_hudNode.attachChild(_hotbarCountShadow[i]);
+			
+			_hotbarCount[i] = new BitmapText(_font);
+			_hotbarCount[i].setText("");
+			_hotbarCount[i].setSize(_font.getCharSet().getRenderedSize());
+			_hotbarCount[i].setColor(COLOR_TEXT.clone());
+			_hotbarCount[i].setCullHint(BitmapText.CullHint.Always);
+			_hudNode.attachChild(_hotbarCount[i]);
+			
+			// Durability bar (bottom of slot, hidden by default).
+			_hotbarDurMat[i] = createColorMaterial(COLOR_DURABILITY_GREEN, app);
+			_hotbarDurBar[i] = createQuadWithMaterial("HotbarDur" + i, _hotbarSlotSize, DURABILITY_BAR_HEIGHT, _hotbarDurMat[i]);
+			_hotbarDurBar[i].setLocalTranslation(_hotbarSlotX[i], _hotbarSlotY, 0.2f);
+			_hotbarDurBar[i].setCullHint(Geometry.CullHint.Always);
+			_hudNode.attachChild(_hotbarDurBar[i]);
+		}
 		
-		// Colored square.
-		_blockIndicatorMat = createColorMaterial(new ColorRGBA(0.6f, 0.4f, 0.2f, 1.0f), app);
-		_blockIndicator = createQuadWithMaterial("BlockIndicator", BLOCK_INDICATOR_SIZE, BLOCK_INDICATOR_SIZE, _blockIndicatorMat);
-		_blockIndicator.setLocalTranslation(indicatorX, indicatorY, 0.1f);
-		_hudNode.attachChild(_blockIndicator);
-		
-		// Block name text (positioned to the right of the indicator).
-		_blockNameTextShadow = createText("Dirt", COLOR_TEXT_SHADOW);
-		_blockNameText = createText("Dirt", COLOR_TEXT);
-		
-		final float textX = indicatorX + BLOCK_INDICATOR_SIZE + BG_PADDING + 6;
-		final float textY = indicatorY + BLOCK_INDICATOR_SIZE / 2f + _blockNameText.getLineHeight() / 4f;
-		_blockNameTextShadow.setLocalTranslation(textX + 1, textY - 1, 0.1f);
-		_blockNameText.setLocalTranslation(textX, textY, 0.2f);
-		
-		_hudNode.attachChild(_blockNameTextShadow);
-		_hudNode.attachChild(_blockNameText);
+		// Selection highlight — bright border quad drawn behind the selected slot.
+		final float hlSize = _hotbarSlotSize + HOTBAR_BG_PADDING * 2 + 2;
+		_hotbarHighlightMat = createColorMaterial(COLOR_HOTBAR_HIGHLIGHT, app);
+		_hotbarHighlight = createQuadWithMaterial("HotbarHighlight", hlSize, hlSize, _hotbarHighlightMat);
+		_hotbarHighlight.setLocalTranslation(0, 0, -0.1f);
+		_hudNode.attachChild(_hotbarHighlight);
 	}
 	
 	private void buildBreakProgress()
@@ -432,6 +511,19 @@ public class PlayerHUD
 	}
 	
 	// ========================================================
+	// Inventory Setter.
+	// ========================================================
+	
+	/**
+	 * Sets the inventory reference used to populate hotbar slots.
+	 * @param inventory the player inventory
+	 */
+	public void setInventory(Inventory inventory)
+	{
+		_inventory = inventory;
+	}
+	
+	// ========================================================
 	// Update.
 	// ========================================================
 	
@@ -442,19 +534,18 @@ public class PlayerHUD
 	 * @param air current air supply in seconds
 	 * @param maxAir maximum air supply in seconds
 	 * @param headSubmerged true if the player's head is underwater
-	 * @param selectedBlock the currently selected block for placement
 	 * @param hitsDelivered number of hits dealt to the current target
 	 * @param hitsRequired total hits needed to break the current target
 	 * @param isBreaking true if the player is actively breaking a block
 	 * @param showCrosshair true if the crosshair should be visible
 	 */
-	public void update(float health, float maxHealth, float air, float maxAir, boolean headSubmerged, Block selectedBlock, int hitsDelivered, int hitsRequired, boolean isBreaking, boolean showCrosshair)
+	public void update(float health, float maxHealth, float air, float maxAir, boolean headSubmerged, int hitsDelivered, int hitsRequired, boolean isBreaking, boolean showCrosshair)
 	{
 		final float tpf = SimpleCraft.getInstance().getTimer().getTimePerFrame();
 		
 		updateHealthBar(health, maxHealth);
 		updateAirMeter(air, maxAir, headSubmerged, tpf);
-		updateSelectedBlock(selectedBlock);
+		updateHotbar();
 		updateBreakProgress(hitsDelivered, hitsRequired, isBreaking);
 		
 		// Toggle crosshair visibility based on settings (hidden when dead).
@@ -594,37 +685,120 @@ public class PlayerHUD
 		}
 	}
 	
-	// ---- Selected block ----
+	// ---- Hotbar ----
 	
-	/** Tracks the last displayed block to avoid redundant updates. */
-	private Block _lastSelectedBlock;
-	
-	private void updateSelectedBlock(Block selectedBlock)
+	/**
+	 * Updates all 9 hotbar slots and the selection highlight from the inventory.
+	 */
+	private void updateHotbar()
 	{
-		if (selectedBlock == _lastSelectedBlock)
+		if (_inventory == null)
 		{
 			return;
 		}
 		
-		_lastSelectedBlock = selectedBlock;
-		
-		// Null means the hotbar slot is empty or holds a non-block item.
-		if (selectedBlock == null)
+		for (int i = 0; i < HOTBAR_SIZE; i++)
 		{
-			_blockIndicatorMat.setColor("Color", new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f));
-			_blockNameText.setText("");
-			_blockNameTextShadow.setText("");
+			final ItemInstance stack = _inventory.getSlot(i);
+			updateHotbarSlot(i, stack);
+		}
+		
+		// Update selection highlight position.
+		final int selectedIndex = _inventory.getSelectedHotbarIndex();
+		if (selectedIndex != _lastSelectedIndex)
+		{
+			_lastSelectedIndex = selectedIndex;
+			// final float hlSize = _hotbarSlotSize + HOTBAR_BG_PADDING * 2 + 2;
+			final float hlX = _hotbarSlotX[selectedIndex] - HOTBAR_BG_PADDING - 1;
+			final float hlY = _hotbarSlotY - HOTBAR_BG_PADDING - 1;
+			_hotbarHighlight.setLocalTranslation(hlX, hlY, -0.1f);
+		}
+	}
+	
+	/**
+	 * Updates the visual representation of a single hotbar slot.
+	 */
+	private void updateHotbarSlot(int index, ItemInstance stack)
+	{
+		if (stack == null || stack.isEmpty())
+		{
+			_hotbarFillMat[index].setColor("Color", COLOR_HOTBAR_EMPTY);
+			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
+			_hotbarCount[index].setCullHint(BitmapText.CullHint.Always);
+			_hotbarCountShadow[index].setCullHint(BitmapText.CullHint.Always);
+			_hotbarDurBar[index].setCullHint(Geometry.CullHint.Always);
 			return;
 		}
 		
-		// Update block indicator color based on block type.
-		final ColorRGBA blockColor = getBlockColor(selectedBlock);
-		_blockIndicatorMat.setColor("Color", blockColor);
+		final ItemTemplate item = stack.getTemplate();
 		
-		// Update name text with display name.
-		final String displayName = selectedBlock.getDisplayName();
-		_blockNameText.setText(displayName);
-		_blockNameTextShadow.setText(displayName);
+		// Fill color based on item type.
+		final ColorRGBA fillColor = InventoryScreen.getItemColor(item);
+		_hotbarFillMat[index].setColor("Color", fillColor);
+		
+		// Label (type indicator letter).
+		final String label = InventoryScreen.getItemLabel(item);
+		if (label != null && !label.isEmpty())
+		{
+			_hotbarLabel[index].setText(label);
+			final float labelWidth = _hotbarLabel[index].getLineWidth();
+			final float labelHeight = _hotbarLabel[index].getLineHeight();
+			final float labelX = _hotbarSlotX[index] + (_hotbarSlotSize - labelWidth) / 2f;
+			final float labelY = _hotbarSlotY + (_hotbarSlotSize + labelHeight) / 2f;
+			_hotbarLabel[index].setLocalTranslation(labelX, labelY, 0.3f);
+			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Never);
+		}
+		else
+		{
+			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
+		}
+		
+		// Count (shown if count > 1).
+		if (stack.getCount() > 1)
+		{
+			final String countStr = String.valueOf(stack.getCount());
+			_hotbarCount[index].setText(countStr);
+			_hotbarCountShadow[index].setText(countStr);
+			
+			final float countWidth = _hotbarCount[index].getLineWidth();
+			final float countX = _hotbarSlotX[index] + _hotbarSlotSize - countWidth - 2;
+			final float countY = _hotbarSlotY + _hotbarCount[index].getLineHeight() + 1;
+			_hotbarCount[index].setLocalTranslation(countX, countY, 0.3f);
+			_hotbarCountShadow[index].setLocalTranslation(countX + 1, countY - 1, 0.2f);
+			_hotbarCount[index].setCullHint(BitmapText.CullHint.Never);
+			_hotbarCountShadow[index].setCullHint(BitmapText.CullHint.Never);
+		}
+		else
+		{
+			_hotbarCount[index].setCullHint(BitmapText.CullHint.Always);
+			_hotbarCountShadow[index].setCullHint(BitmapText.CullHint.Always);
+		}
+		
+		// Durability bar.
+		if (stack.hasDurability())
+		{
+			final float percent = stack.getDurabilityPercent();
+			_hotbarDurBar[index].setLocalScale(percent, 1, 1);
+			
+			if (percent > 0.6f)
+			{
+				_hotbarDurMat[index].setColor("Color", COLOR_DURABILITY_GREEN);
+			}
+			else if (percent > 0.3f)
+			{
+				_hotbarDurMat[index].setColor("Color", COLOR_DURABILITY_YELLOW);
+			}
+			else
+			{
+				_hotbarDurMat[index].setColor("Color", COLOR_DURABILITY_RED);
+			}
+			
+			_hotbarDurBar[index].setCullHint(Geometry.CullHint.Never);
+		}
+		else
+		{
+			_hotbarDurBar[index].setCullHint(Geometry.CullHint.Always);
+		}
 	}
 	
 	// ---- Break progress ----
@@ -817,106 +991,5 @@ public class PlayerHUD
 		
 		text.setLocalTranslation(textX, textY, 0.2f);
 		shadow.setLocalTranslation(textX + 1, textY - 1, 0.1f);
-	}
-	
-	/**
-	 * Returns a representative color for a block type (used for the indicator square).
-	 */
-	private static ColorRGBA getBlockColor(Block block)
-	{
-		if (block == null)
-		{
-			return new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f);
-		}
-		
-		switch (block)
-		{
-			case GRASS:
-			{
-				return new ColorRGBA(0.3f, 0.7f, 0.2f, 1.0f);
-			}
-			case DIRT:
-			{
-				return new ColorRGBA(0.55f, 0.35f, 0.18f, 1.0f);
-			}
-			case STONE:
-			{
-				return new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f);
-			}
-			case SAND:
-			{
-				return new ColorRGBA(0.9f, 0.85f, 0.6f, 1.0f);
-			}
-			case WOOD:
-			{
-				return new ColorRGBA(0.45f, 0.3f, 0.15f, 1.0f);
-			}
-			case LEAVES:
-			{
-				return new ColorRGBA(0.15f, 0.5f, 0.1f, 1.0f);
-			}
-			case CAMPFIRE:
-			{
-				return new ColorRGBA(0.9f, 0.4f, 0.1f, 1.0f);
-			}
-			case CHEST:
-			{
-				return new ColorRGBA(0.6f, 0.45f, 0.2f, 1.0f);
-			}
-			case CRAFTING_TABLE:
-			{
-				return new ColorRGBA(0.5f, 0.35f, 0.2f, 1.0f);
-			}
-			case FURNACE:
-			{
-				return new ColorRGBA(0.45f, 0.45f, 0.45f, 1.0f);
-			}
-			case TORCH:
-			{
-				return new ColorRGBA(1.0f, 0.85f, 0.3f, 1.0f);
-			}
-			case TALL_GRASS:
-			{
-				return new ColorRGBA(0.25f, 0.6f, 0.2f, 1.0f);
-			}
-			case RED_POPPY:
-			{
-				return new ColorRGBA(0.9f, 0.2f, 0.15f, 1.0f);
-			}
-			case DANDELION:
-			{
-				return new ColorRGBA(1.0f, 0.9f, 0.1f, 1.0f);
-			}
-			case BLUE_ORCHID:
-			{
-				return new ColorRGBA(0.2f, 0.4f, 0.9f, 1.0f);
-			}
-			case WHITE_DAISY:
-			{
-				return new ColorRGBA(0.95f, 0.95f, 0.95f, 1.0f);
-			}
-			case TALL_SEAWEED:
-			case SHORT_SEAWEED:
-			{
-				return new ColorRGBA(0.1f, 0.55f, 0.3f, 1.0f);
-			}
-			case GLASS:
-			{
-				return new ColorRGBA(0.7f, 0.82f, 0.9f, 0.7f);
-			}
-			case WINDOW:
-			{
-				return new ColorRGBA(0.47f, 0.31f, 0.16f, 1.0f);
-			}
-			case DOOR_BOTTOM:
-			case DOOR_TOP:
-			{
-				return new ColorRGBA(0.55f, 0.35f, 0.18f, 1.0f);
-			}
-			default:
-			{
-				return new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f);
-			}
-		}
 	}
 }
