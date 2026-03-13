@@ -913,8 +913,8 @@ public class OptionsState extends FadeableAppState
 				
 				final int keyCode = event.getKeyCode();
 				
-				// Escape cancels the rebind in both modes.
-				if (keyCode == KeyInput.KEY_ESCAPE)
+				// Escape cancels the rebind in both modes, but we need to be able to bind ESC key for pause action.
+				if (keyCode == KeyInput.KEY_ESCAPE && !"pause".equals(action))
 				{
 					app.enqueue(() ->
 					{

@@ -18,6 +18,7 @@ import java.util.zip.GZIPOutputStream;
 
 import simplecraft.SimpleCraft;
 import simplecraft.player.PlayerController;
+import simplecraft.world.Block;
 import simplecraft.world.DayNightCycle;
 import simplecraft.world.Region;
 import simplecraft.world.World;
@@ -312,7 +313,8 @@ public class SaveManager
 			out.writeFloat(player.getHealth());
 			
 			// Selected block ordinal.
-			out.writeInt(player.getSelectedBlock().ordinal());
+			final Block block = player.getSelectedBlock();
+			out.writeInt(block != null ? block.ordinal() : 0);
 			
 			// Time of day.
 			out.writeFloat(dayNightCycle.getTimeOfDay());

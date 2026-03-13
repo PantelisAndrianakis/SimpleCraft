@@ -138,6 +138,12 @@ public class PlayingState extends FadeableAppState
 	/** True while the game is paused. Set before the state transition to prevent teardown. */
 	private boolean _paused;
 	
+	/** Time when the state was last entered (for pause debouncing). */
+	private long _lastEnterTime;
+	
+	/** Minimum time in milliseconds that must pass after entering before pause can be triggered again. */
+	private static final long PAUSE_DEBOUNCE_TIME = 333; // 333ms delay.
+	
 	/** Starting time of day for new worlds (0.3 = early morning). */
 	private static final float STARTING_TIME_OF_DAY = 0.3f;
 	
@@ -222,6 +228,22 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
+			// Don't process PAUSE if we're in PAUSED state.
+			final GameStateManager gsm = simpleCraft.getGameStateManager();
+			if (gsm.getCurrentState() == GameState.PAUSED)
+			{
+				// Let the pause menu handle the ESC key.
+				return;
+			}
+			
+			// Debounce pause key to prevent immediate re-pausing after returning from pause.
+			final long currentTime = System.currentTimeMillis();
+			if (currentTime - _lastEnterTime < PAUSE_DEBOUNCE_TIME)
+			{
+				System.out.println("PlayingState: Debouncing PAUSE - too soon after enter (" + (currentTime - _lastEnterTime) + "ms)");
+				return;
+			}
+			
 			// If inventory is open, close it instead of opening pause.
 			if (_inventoryScreen != null && _inventoryScreen.isOpen())
 			{
@@ -230,7 +252,6 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
-			final GameStateManager gsm = simpleCraft.getGameStateManager();
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
 			{
 				// Auto-save before pausing.
@@ -245,7 +266,7 @@ public class PlayingState extends FadeableAppState
 			}
 		};
 		
-		simpleCraft.getInputManager().addListener(_pauseListener, GameInputManager.PAUSE);
+		simpleCraft.getGameInputManager().addTrackedListener(_pauseListener, GameInputManager.PAUSE);
 		
 		// Register inventory toggle listener (Tab key).
 		_inventoryListener = (String name, boolean isPressed, float tpf) ->
@@ -280,7 +301,7 @@ public class PlayingState extends FadeableAppState
 			}
 		};
 		
-		simpleCraft.getInputManager().addListener(_inventoryListener, GameInputManager.INVENTORY);
+		simpleCraft.getGameInputManager().addTrackedListener(_inventoryListener, GameInputManager.INVENTORY);
 	}
 	
 	@Override
@@ -289,14 +310,14 @@ public class PlayingState extends FadeableAppState
 		// Remove the pause listener when this state is permanently detached.
 		if (_pauseListener != null)
 		{
-			SimpleCraft.getInstance().getInputManager().removeListener(_pauseListener);
+			SimpleCraft.getInstance().getGameInputManager().removeTrackedListener(_pauseListener);
 			_pauseListener = null;
 		}
 		
 		// Remove the inventory listener.
 		if (_inventoryListener != null)
 		{
-			SimpleCraft.getInstance().getInputManager().removeListener(_inventoryListener);
+			SimpleCraft.getInstance().getGameInputManager().removeTrackedListener(_inventoryListener);
 			_inventoryListener = null;
 		}
 		
@@ -308,6 +329,9 @@ public class PlayingState extends FadeableAppState
 	protected void onEnterState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		// Record the time we entered this state (for pause debouncing).
+		_lastEnterTime = System.currentTimeMillis();
 		
 		// Returning from pause — world is still alive, just restore controls.
 		if (_world != null && !_pendingSpawn)

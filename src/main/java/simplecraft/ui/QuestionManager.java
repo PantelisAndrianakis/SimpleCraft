@@ -37,7 +37,7 @@ public class QuestionManager
 	private static final float DIALOG_Z = 6f;
 	private static final float BUTTON_WIDTH_PERCENT = 0.10f;
 	private static final float BUTTON_HEIGHT_PERCENT = 0.065f;
-	private static final long CLICK_GRACE_PERIOD_MS = 500; // Ignore clicks for 500ms after dialog opens.
+	private static final long CLICK_GRACE_PERIOD_MS = 333; // Ignore clicks for 333ms after dialog opens.
 	
 	// Active dialog elements.
 	private static Geometry _backdrop;

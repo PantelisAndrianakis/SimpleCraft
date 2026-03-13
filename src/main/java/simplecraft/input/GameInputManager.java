@@ -2,9 +2,11 @@ package simplecraft.input;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -19,6 +21,7 @@ import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 
 import simplecraft.SimpleCraft;
+import simplecraft.settings.SettingsManager;
 import simplecraft.ui.MessageManager;
 
 /**
@@ -48,8 +51,6 @@ public class GameInputManager
 	// Game actions.
 	public static final String ATTACK = "attack";
 	public static final String PLACE_BLOCK = "place_block";
-	public static final String NEXT_BLOCK = "next_block";
-	public static final String PREV_BLOCK = "prev_block";
 	public static final String INVENTORY = "inventory";
 	
 	// UI actions.
@@ -60,7 +61,6 @@ public class GameInputManager
 	public static final String UI_LEFT = "ui_left";
 	public static final String UI_RIGHT = "ui_right";
 	public static final String UI_CONFIRM = "ui_confirm";
-	public static final String UI_BACK = "ui_back";
 	
 	/**
 	 * Ordered list of rebindable keyboard actions for the options UI.<br>
@@ -75,8 +75,8 @@ public class GameInputManager
 		{MOVE_RIGHT, "Move Right", "Movement"},
 		{JUMP, "Jump / Swim Up", "Movement"},
 		{SWIM_DOWN, "Swim Down / Crouch", "Movement"},
-		{NEXT_BLOCK, "Next Block", "Actions"},
-		{PREV_BLOCK, "Prev Block", "Actions"},
+		{SCREENSHOT, "Screenshot", "Actions"},
+		{PAUSE, "Pause / Menu", "Actions"},
 		{INVENTORY, "Inventory", "Actions"},
 		// @formatter:on
 	};
@@ -90,8 +90,6 @@ public class GameInputManager
 		// @formatter:off
 		{"Block Scroll", "Scroll Wheel"},
 		{"Look Around", "Mouse Move"},
-		{"Pause / Menu", "Escape"},
-		{"Screenshot", "F2"},
 		// @formatter:on
 	};
 	
@@ -118,9 +116,9 @@ public class GameInputManager
 		defaults.put(MOVE_RIGHT, KeyInput.KEY_D);
 		defaults.put(JUMP, KeyInput.KEY_SPACE);
 		defaults.put(SWIM_DOWN, KeyInput.KEY_LSHIFT);
-		defaults.put(NEXT_BLOCK, KeyInput.KEY_E);
-		defaults.put(PREV_BLOCK, KeyInput.KEY_Q);
 		defaults.put(INVENTORY, KeyInput.KEY_TAB);
+		defaults.put(PAUSE, KeyInput.KEY_ESCAPE);
+		defaults.put(SCREENSHOT, KeyInput.KEY_F2);
 		DEFAULT_KEY_CODES = Collections.unmodifiableMap(defaults);
 	}
 	
@@ -202,6 +200,7 @@ public class GameInputManager
 		names.put(KeyInput.KEY_F11, "F11");
 		names.put(KeyInput.KEY_F12, "F12");
 		// Modifiers and special keys.
+		names.put(KeyInput.KEY_ESCAPE, "Escape");
 		names.put(KeyInput.KEY_SPACE, "Space");
 		names.put(KeyInput.KEY_LSHIFT, "L.Shift");
 		names.put(KeyInput.KEY_RSHIFT, "R.Shift");
@@ -253,6 +252,15 @@ public class GameInputManager
 	
 	// Current mouse button codes (mutable, starts from defaults then overridden by saved settings).
 	private final Map<String, Integer> _currentMouseCodes = new LinkedHashMap<>();
+	
+	/**
+	 * Tracked action listeners per action name. When a mapping is deleted and recreated during rebinding, jME3 strips all listener associations.<br>
+	 * Tracked listeners are automatically re-registered after mapping recreation in reregisterMapping().
+	 */
+	private final Map<String, List<ActionListener>> _trackedListeners = new LinkedHashMap<>();
+	
+	/** Stored reference to the screenshot listener so it survives mapping recreation. */
+	private ActionListener _screenshotListener;
 	
 	private final InputManager _inputManager;
 	
@@ -344,8 +352,6 @@ public class GameInputManager
 		_inputManager.addMapping(UI_RIGHT, new KeyTrigger(KeyInput.KEY_D));
 		_inputManager.addMapping(UI_CONFIRM, new KeyTrigger(KeyInput.KEY_RETURN));
 		_inputManager.addMapping(UI_CONFIRM, new KeyTrigger(KeyInput.KEY_SPACE));
-		_inputManager.addMapping(UI_BACK, new KeyTrigger(KeyInput.KEY_ESCAPE));
-		_inputManager.addMapping(PAUSE, new KeyTrigger(KeyInput.KEY_ESCAPE));
 	}
 	
 	/**
@@ -358,10 +364,6 @@ public class GameInputManager
 		{
 			_inputManager.addMapping(entry.getKey(), new MouseButtonTrigger(entry.getValue()));
 		}
-		
-		// Mouse wheel for block selection (in addition to keyboard keys).
-		_inputManager.addMapping(NEXT_BLOCK, new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
-		_inputManager.addMapping(PREV_BLOCK, new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
 		
 		// Mouse axes for looking (analog input).
 		_inputManager.addMapping(LOOK_LEFT, new MouseAxisTrigger(MouseInput.AXIS_X, true));
@@ -409,9 +411,9 @@ public class GameInputManager
 		stateManager.attach(screenshotState);
 		
 		// Use F2 instead of Print Screen to avoid Windows interception.
-		_inputManager.addMapping(SCREENSHOT, new KeyTrigger(KeyInput.KEY_F2));
-		
-		_inputManager.addListener(new ActionListener()
+		// Note: The SCREENSHOT mapping is already added via setupKeyboardMappings()
+		// from _currentKeyCodes, so we just need to add the listener.
+		_screenshotListener = new ActionListener()
 		{
 			@Override
 			public void onAction(String name, boolean isPressed, float tpf)
@@ -427,9 +429,62 @@ public class GameInputManager
 					MessageManager.show("Screenshot captured!", 2f, 0.5f);
 				}
 			}
-		}, SCREENSHOT);
+		};
+		
+		// Use tracked listener so it survives mapping recreation during rebinding.
+		addTrackedListener(_screenshotListener, SCREENSHOT);
 		
 		System.out.println("Screenshots will be saved to: " + picturesPath);
+	}
+	
+	// ========== TRACKED LISTENER API ==========
+	
+	/**
+	 * Register an ActionListener that survives mapping recreation during rebinding.<br>
+	 * When {@link #reregisterMapping(String)} or {@link #reregisterMouseMapping(String)}<br>
+	 * rebuilds a mapping, all tracked listeners for that action are automatically re-added.<br>
+	 * Use this instead of {@code InputManager.addListener()} for any listener that must<br>
+	 * persist across keybinding changes.
+	 * @param listener The ActionListener to register
+	 * @param actions One or more action names to listen for
+	 */
+	public void addTrackedListener(ActionListener listener, String... actions)
+	{
+		for (String action : actions)
+		{
+			_trackedListeners.computeIfAbsent(action, k -> new ArrayList<>()).add(listener);
+		}
+		_inputManager.addListener(listener, actions);
+	}
+	
+	/**
+	 * Remove a tracked ActionListener from all actions it was registered for.<br>
+	 * Also removes from the underlying jME3 InputManager.
+	 * @param listener The ActionListener to remove
+	 */
+	public void removeTrackedListener(ActionListener listener)
+	{
+		for (List<ActionListener> list : _trackedListeners.values())
+		{
+			list.remove(listener);
+		}
+		_inputManager.removeListener(listener);
+	}
+	
+	/**
+	 * Re-add all tracked listeners for the given action to the jME3 InputManager.<br>
+	 * Called internally after a mapping is deleted and recreated during rebinding.
+	 */
+	private void readdTrackedListeners(String action)
+	{
+		final List<ActionListener> listeners = _trackedListeners.get(action);
+		if (listeners != null)
+		{
+			for (ActionListener listener : listeners)
+			{
+				_inputManager.addListener(listener, action);
+			}
+		}
 	}
 	
 	// ========== REBINDING API ==========
@@ -488,7 +543,7 @@ public class GameInputManager
 		reregisterMapping(action);
 		
 		// Persist to settings.
-		final simplecraft.settings.SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
+		final SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
 		settings.setKeybindings(_currentKeyCodes);
 		
 		return swappedAction;
@@ -512,7 +567,7 @@ public class GameInputManager
 		resetMouseBindings();
 		
 		// Clear persisted overrides.
-		final simplecraft.settings.SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
+		final SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
 		settings.clearKeybindings();
 		settings.clearMouseBindings();
 		
@@ -595,7 +650,8 @@ public class GameInputManager
 	}
 	
 	/**
-	 * Delete and re-add the InputManager mouse button mapping for a single action.
+	 * Delete and re-add the InputManager mouse button mapping for a single action.<br>
+	 * Tracked listeners are automatically re-registered after recreation.
 	 */
 	private void reregisterMouseMapping(String action)
 	{
@@ -616,6 +672,9 @@ public class GameInputManager
 		{
 			_inputManager.addMapping(action, new KeyTrigger(keyCode));
 		}
+		
+		// Re-add all tracked listeners that were stripped by deleteMapping.
+		readdTrackedListeners(action);
 	}
 	
 	/**
@@ -652,11 +711,12 @@ public class GameInputManager
 	
 	/**
 	 * Delete and re-add the InputManager mapping for a single action,<br>
-	 * preserving any mouse triggers that share the same action name.
+	 * preserving any mouse triggers that share the same action name.<br>
+	 * Tracked listeners are automatically re-registered after recreation.
 	 */
 	private void reregisterMapping(String action)
 	{
-		// Remove the old mapping entirely (keyboard + mouse triggers).
+		// Remove the old mapping entirely (keyboard + mouse triggers + listeners).
 		if (_inputManager.hasMapping(action))
 		{
 			_inputManager.deleteMapping(action);
@@ -669,15 +729,8 @@ public class GameInputManager
 			_inputManager.addMapping(action, new KeyTrigger(keyCode));
 		}
 		
-		// Re-add mouse triggers for actions that also have mouse input.
-		if (NEXT_BLOCK.equals(action))
-		{
-			_inputManager.addMapping(action, new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
-		}
-		else if (PREV_BLOCK.equals(action))
-		{
-			_inputManager.addMapping(action, new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));
-		}
+		// Re-add all tracked listeners that were stripped by deleteMapping.
+		readdTrackedListeners(action);
 	}
 	
 	/**
@@ -709,8 +762,8 @@ public class GameInputManager
 	 */
 	public static boolean isValidBindingKey(int keyCode)
 	{
-		// Reject Escape (reserved for pause/back) and invalid codes.
-		return keyCode > 0 && keyCode != KeyInput.KEY_ESCAPE;
+		// Reject invalid codes.
+		return keyCode > 0;
 	}
 	
 	/**

@@ -3,7 +3,6 @@ package simplecraft.input;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.jme3.input.InputManager;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Spatial;
@@ -267,7 +266,7 @@ public class MenuNavigationManager
 	// ========== CONFIGURATION ==========
 	
 	/**
-	 * Set the action to execute when UI_BACK is pressed.<br>
+	 * Set the action to execute when the PAUSE key is pressed in a menu.<br>
 	 * This action fires regardless of focus mode (mouse or keyboard).
 	 * @param backAction The Runnable to execute, or null to disable
 	 */
@@ -359,13 +358,12 @@ public class MenuNavigationManager
 	// ========== LISTENER LIFECYCLE ==========
 	
 	/**
-	 * Register the navigation ActionListener on the given InputManager.<br>
-	 * Listens for UI_UP, UI_DOWN, UI_LEFT, UI_RIGHT, UI_CONFIRM, UI_BACK.
+	 * Register the navigation ActionListener on the GameInputManager.<br>
+	 * Listens for UI_UP, UI_DOWN, UI_LEFT, UI_RIGHT, UI_CONFIRM, and PAUSE.<br>
+	 * Uses tracked listener registration so the PAUSE binding survives rebinding.
 	 */
 	public void register()
 	{
-		final InputManager inputManager = SimpleCraft.getInstance().getInputManager();
-		
 		_listener = (String name, boolean isPressed, float tpf) ->
 		{
 			if (!isPressed)
@@ -389,7 +387,7 @@ public class MenuNavigationManager
 			}
 			
 			// Back action always fires regardless of focus mode.
-			if (GameInputManager.UI_BACK.equals(name))
+			if (GameInputManager.PAUSE.equals(name))
 			{
 				if (_backAction != null)
 				{
@@ -450,7 +448,8 @@ public class MenuNavigationManager
 			}
 		};
 		
-		inputManager.addListener(_listener, GameInputManager.UI_UP, GameInputManager.UI_DOWN, GameInputManager.UI_LEFT, GameInputManager.UI_RIGHT, GameInputManager.UI_CONFIRM, GameInputManager.UI_BACK);
+		// Use tracked listener so PAUSE binding survives rebinding in OptionsState.
+		SimpleCraft.getInstance().getGameInputManager().addTrackedListener(_listener, GameInputManager.UI_UP, GameInputManager.UI_DOWN, GameInputManager.UI_LEFT, GameInputManager.UI_RIGHT, GameInputManager.UI_CONFIRM, GameInputManager.PAUSE);
 	}
 	
 	/**
@@ -460,7 +459,7 @@ public class MenuNavigationManager
 	{
 		if (_listener != null)
 		{
-			SimpleCraft.getInstance().getInputManager().removeListener(_listener);
+			SimpleCraft.getInstance().getGameInputManager().removeTrackedListener(_listener);
 			_listener = null;
 		}
 	}
@@ -515,7 +514,7 @@ public class MenuNavigationManager
 				QuestionManager.confirmSelection();
 				break;
 			}
-			case GameInputManager.UI_BACK:
+			case GameInputManager.PAUSE:
 			{
 				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				QuestionManager.dismiss();
