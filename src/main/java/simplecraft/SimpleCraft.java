@@ -11,6 +11,7 @@ import com.simsilica.lemur.GuiGlobals;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
+import simplecraft.item.ItemRegistry;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
 import simplecraft.settings.WindowIconManager;
@@ -125,6 +126,9 @@ public class SimpleCraft extends SimpleApplication
 		_gameStateManager.registerState(GameState.OPTIONS, new OptionsState());
 		_gameStateManager.registerState(GameState.PLAYING, new PlayingState());
 		_gameStateManager.registerState(GameState.PAUSED, new PauseMenuState());
+		
+		// Register all items in the item catalog.
+		ItemRegistry.registerDefaults();
 		
 		// Switch to initial splash state.
 		_gameStateManager.switchTo(GameState.INTRO);
