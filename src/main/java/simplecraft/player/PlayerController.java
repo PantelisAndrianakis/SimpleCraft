@@ -10,6 +10,11 @@ import com.jme3.renderer.Camera;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
+import simplecraft.item.Inventory;
+import simplecraft.item.ItemInstance;
+import simplecraft.item.ItemRegistry;
+import simplecraft.item.ItemTemplate;
+import simplecraft.item.ItemType;
 import simplecraft.player.PlayerCollision.CollisionResult;
 import simplecraft.world.Block;
 import simplecraft.world.Region;
@@ -50,6 +55,9 @@ public class PlayerController implements ActionListener, AnalogListener
 	private final World _world;
 	private final PlayerCollision _collision;
 	private final AudioManager _audioManager;
+	
+	/** Player inventory (36 slots: 0-8 hotbar, 9-35 main). */
+	private final Inventory _inventory;
 	
 	/** Interval between footstep sounds while moving on ground (seconds). */
 	private static final float FOOTSTEP_INTERVAL = 0.45f;
@@ -112,6 +120,12 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Rate at which air restores when head is above water (multiplier of drain rate). */
 	private static final float AIR_RESTORE_MULTIPLIER = 3.0f;
 	
+	/** Base fist attack damage when no weapon or tool is held. */
+	private static final float FIST_DAMAGE = 3.0f;
+	
+	/** Base fist attack speed (cooldown in seconds) when no weapon or tool is held. */
+	private static final float FIST_ATTACK_SPEED = 0.4f;
+	
 	// Reusable vectors to avoid per-frame allocation.
 	private final Vector3f _forward = new Vector3f();
 	private final Vector3f _right = new Vector3f();
@@ -136,9 +150,6 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/** Spawn protection — ignores fall damage until the player touches ground for the first time. */
 	private boolean _spawnProtection = true;
-	
-	/** Currently selected block for placement. Managed by {@link BlockInteraction}. */
-	private Block _selectedBlock = Block.DIRT;
 	
 	/** Description of the damage source that last killed the player. */
 	private String _deathCause = "";
@@ -188,6 +199,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		_world = world;
 		_collision = new PlayerCollision();
 		_audioManager = audioManager;
+		_inventory = new Inventory();
 		
 		// Reduce near clip so geometry at the player's collision boundary (0.3 blocks
 		// from walls) is never clipped. setFrustumPerspective rebuilds the full
@@ -195,6 +207,46 @@ public class PlayerController implements ActionListener, AnalogListener
 		// caused distortion because they only modified one frustum parameter.
 		final float aspect = (float) _camera.getWidth() / _camera.getHeight();
 		_camera.setFrustumPerspective(45f, aspect, 0.1f, 1000f);
+		
+		// Give starting inventory.
+		initStartingInventory();
+	}
+	
+	/**
+	 * Populates the hotbar with default starting items.
+	 */
+	private void initStartingInventory()
+	{
+		final ItemTemplate dirt = ItemRegistry.get("dirt");
+		final ItemTemplate stone = ItemRegistry.get("stone");
+		final ItemTemplate wood = ItemRegistry.get("wood");
+		final ItemTemplate craftingTable = ItemRegistry.get("crafting_table");
+		final ItemTemplate campfire = ItemRegistry.get("campfire");
+		
+		if (dirt != null)
+		{
+			_inventory.setSlot(0, new ItemInstance(dirt, 64));
+		}
+		
+		if (stone != null)
+		{
+			_inventory.setSlot(1, new ItemInstance(stone, 64));
+		}
+		
+		if (wood != null)
+		{
+			_inventory.setSlot(2, new ItemInstance(wood, 64));
+		}
+		
+		if (craftingTable != null)
+		{
+			_inventory.setSlot(3, new ItemInstance(craftingTable, 1));
+		}
+		
+		if (campfire != null)
+		{
+			_inventory.setSlot(4, new ItemInstance(campfire, 1));
+		}
 	}
 	
 	/**
@@ -661,6 +713,79 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 	}
 	
+	// ========== Inventory-Driven Queries ==========
+	
+	/**
+	 * Returns the player inventory.
+	 * @return the inventory instance
+	 */
+	public Inventory getInventory()
+	{
+		return _inventory;
+	}
+	
+	/**
+	 * Returns the Block that the currently selected hotbar item places, or null<br>
+	 * if the selected item is not a BLOCK type (or the slot is empty).
+	 * @return the placeable Block, or null
+	 */
+	public Block getSelectedBlock()
+	{
+		final ItemInstance selected = _inventory.getSelectedItem();
+		if (selected == null)
+		{
+			return null;
+		}
+		
+		final ItemTemplate item = selected.getTemplate();
+		if (item.getType() == ItemType.BLOCK)
+		{
+			return item.getPlacesBlock();
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Returns the attack damage of the currently held item.<br>
+	 * Weapons and tools use their defined damage; empty hand or non-combat items return fist damage (3.0).
+	 * @return attack damage value
+	 */
+	public float getAttackDamage()
+	{
+		final ItemInstance selected = _inventory.getSelectedItem();
+		if (selected != null)
+		{
+			final ItemTemplate item = selected.getTemplate();
+			if ((item.getType() == ItemType.WEAPON || item.getType() == ItemType.TOOL) && item.getWeaponDamage() > 0)
+			{
+				return item.getWeaponDamage();
+			}
+		}
+		
+		return FIST_DAMAGE;
+	}
+	
+	/**
+	 * Returns the attack speed (cooldown in seconds) of the currently held item.<br>
+	 * Weapons and tools use their defined speed; empty hand or non-combat items return fist speed (0.4s).
+	 * @return attack speed in seconds
+	 */
+	public float getAttackSpeed()
+	{
+		final ItemInstance selected = _inventory.getSelectedItem();
+		if (selected != null)
+		{
+			final ItemTemplate item = selected.getTemplate();
+			if ((item.getType() == ItemType.WEAPON || item.getType() == ItemType.TOOL) && item.getWeaponSpeed() > 0)
+			{
+				return item.getWeaponSpeed();
+			}
+		}
+		
+		return FIST_ATTACK_SPEED;
+	}
+	
 	// ========== Getters / Setters ==========
 	
 	public float getMoveSpeed()
@@ -731,16 +856,6 @@ public class PlayerController implements ActionListener, AnalogListener
 	public boolean isSwimming()
 	{
 		return _isSwimming;
-	}
-	
-	public Block getSelectedBlock()
-	{
-		return _selectedBlock;
-	}
-	
-	public void setSelectedBlock(Block selectedBlock)
-	{
-		_selectedBlock = selectedBlock;
 	}
 	
 	// ========== Respawn Point Management ==========

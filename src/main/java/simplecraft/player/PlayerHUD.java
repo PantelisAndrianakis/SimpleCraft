@@ -608,6 +608,15 @@ public class PlayerHUD
 		
 		_lastSelectedBlock = selectedBlock;
 		
+		// Null means the hotbar slot is empty or holds a non-block item.
+		if (selectedBlock == null)
+		{
+			_blockIndicatorMat.setColor("Color", new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f));
+			_blockNameText.setText("");
+			_blockNameTextShadow.setText("");
+			return;
+		}
+		
 		// Update block indicator color based on block type.
 		final ColorRGBA blockColor = getBlockColor(selectedBlock);
 		_blockIndicatorMat.setColor("Color", blockColor);

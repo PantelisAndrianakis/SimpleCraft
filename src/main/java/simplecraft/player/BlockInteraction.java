@@ -102,32 +102,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private static final String ACTION_NEXT_BLOCK = "NEXT_BLOCK";
 	private static final String ACTION_PREV_BLOCK = "PREV_BLOCK";
 	
-	/** Ordered list of blocks the player can place. */
-	private static final Block[] PLACEABLE_BLOCKS =
-	{
-		Block.GRASS,
-		Block.DIRT,
-		Block.STONE,
-		Block.SAND,
-		Block.WOOD,
-		Block.LEAVES,
-		Block.CAMPFIRE,
-		Block.CHEST,
-		Block.CRAFTING_TABLE,
-		Block.FURNACE,
-		Block.TORCH,
-		Block.TALL_GRASS,
-		Block.RED_POPPY,
-		Block.DANDELION,
-		Block.BLUE_ORCHID,
-		Block.WHITE_DAISY,
-		Block.TALL_SEAWEED,
-		Block.SHORT_SEAWEED,
-		Block.GLASS,
-		Block.WINDOW,
-		Block.DOOR_BOTTOM
-	};
-	
 	/** Flower and decoration blocks that can only be placed on GRASS or DIRT. */
 	private static final Block[] SOIL_ONLY_BLOCKS =
 	{
@@ -209,9 +183,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	 * preventing block breaking behind enemies during melee combat.
 	 */
 	private boolean _attackSuppressed;
-	
-	// Block selection.
-	private int _selectedBlockIndex;
 	
 	/** Whether the block highlight is enabled (from display settings). */
 	private boolean _showHighlight = true;
@@ -304,10 +275,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_crackGeometry.setQueueBucket(Bucket.Transparent);
 		_crackGeometry.setCullHint(Geometry.CullHint.Always); // Hidden initially.
 		_overlayNode.attachChild(_crackGeometry);
-		
-		// Set initial selected block.
-		_selectedBlockIndex = 1; // DIRT
-		_playerController.setSelectedBlock(PLACEABLE_BLOCKS[_selectedBlockIndex]);
 		
 		// Create destruction queue for staggered visual effects.
 		_destructionQueue = new BlockDestructionQueue(_world, assetManager);
@@ -1883,23 +1850,19 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	// ========================================================
 	
 	/**
-	 * Cycles to the next placeable block.
+	 * Cycles to the next hotbar slot.
 	 */
 	private void nextBlock()
 	{
-		_selectedBlockIndex = (_selectedBlockIndex + 1) % PLACEABLE_BLOCKS.length;
-		_playerController.setSelectedBlock(PLACEABLE_BLOCKS[_selectedBlockIndex]);
-		System.out.println("Selected: " + PLACEABLE_BLOCKS[_selectedBlockIndex].name());
+		_playerController.getInventory().nextHotbar();
 	}
 	
 	/**
-	 * Cycles to the previous placeable block.
+	 * Cycles to the previous hotbar slot.
 	 */
 	private void previousBlock()
 	{
-		_selectedBlockIndex = (_selectedBlockIndex - 1 + PLACEABLE_BLOCKS.length) % PLACEABLE_BLOCKS.length;
-		_playerController.setSelectedBlock(PLACEABLE_BLOCKS[_selectedBlockIndex]);
-		System.out.println("Selected: " + PLACEABLE_BLOCKS[_selectedBlockIndex].name());
+		_playerController.getInventory().prevHotbar();
 	}
 	
 	// ========================================================
@@ -2389,11 +2352,11 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	}
 	
 	/**
-	 * Returns the currently selected placeable block.
+	 * Returns the currently selected placeable block, or null if no block is selected.
 	 */
 	public Block getSelectedBlock()
 	{
-		return PLACEABLE_BLOCKS[_selectedBlockIndex];
+		return _playerController.getSelectedBlock();
 	}
 	
 	/**

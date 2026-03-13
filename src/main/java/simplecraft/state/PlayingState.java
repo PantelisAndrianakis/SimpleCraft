@@ -885,14 +885,6 @@ public class PlayingState extends FadeableAppState
 			// Restore initial spawn point.
 			_playerController.setInitialSpawn(_playerSaveData.getInitialSpawnX(), _playerSaveData.getInitialSpawnY(), _playerSaveData.getInitialSpawnZ());
 			
-			// Restore selected block.
-			final int ordinal = _playerSaveData.getSelectedBlockOrdinal();
-			final Block[] blocks = Block.values();
-			if (ordinal >= 0 && ordinal < blocks.length)
-			{
-				_playerController.setSelectedBlock(blocks[ordinal]);
-			}
-			
 			// Restore campfire spawn point.
 			if (_playerSaveData.hasCampfireSpawn())
 			{
