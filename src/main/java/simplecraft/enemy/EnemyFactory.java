@@ -66,37 +66,37 @@ public class EnemyFactory
 			case ZOMBIE:
 			{
 				buildZombie(enemy, assetManager);
-				applyStats(enemy, 10, 2.5f, 16, 1.5f, 2.0f, 1.5f, false);
+				applyStats(enemy, 18, 2.5f, 16, 1.5f, 5.0f, 1.5f, false);
 				break;
 			}
 			case SKELETON:
 			{
 				buildSkeleton(enemy, assetManager);
-				applyStats(enemy, 8, 2.8f, 18, 1.5f, 1.5f, 1.5f, false);
+				applyStats(enemy, 15, 2.8f, 18, 1.5f, 5.0f, 1.5f, false);
 				break;
 			}
 			case WOLF:
 			{
 				buildWolf(enemy, assetManager);
-				applyStats(enemy, 6, 4.0f, 20, 1.2f, 1.5f, 1.0f, false);
+				applyStats(enemy, 12, 4.0f, 20, 1.2f, 4.0f, 1.0f, false);
 				break;
 			}
 			case SPIDER:
 			{
 				buildSpider(enemy, assetManager);
-				applyStats(enemy, 6, 3.0f, 12, 1.0f, 1.0f, 1.2f, false);
+				applyStats(enemy, 9, 3.0f, 12, 1.0f, 3.0f, 1.2f, false);
 				break;
 			}
 			case SLIME:
 			{
 				buildSlime(enemy, assetManager);
-				applyStats(enemy, 4, 1.5f, 10, 1.0f, 1.0f, 2.0f, false);
+				applyStats(enemy, 6, 1.5f, 10, 1.0f, 2.0f, 2.0f, false);
 				break;
 			}
 			case PIRANHA:
 			{
 				buildPiranha(enemy, assetManager);
-				applyStats(enemy, 3, 5.0f, 12, 0.8f, 1.5f, 0.8f, true);
+				applyStats(enemy, 3, 5.0f, 12, 0.8f, 1.0f, 0.8f, true);
 				break;
 			}
 			case PLAYER:

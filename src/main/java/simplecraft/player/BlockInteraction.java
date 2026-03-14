@@ -201,6 +201,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	/** Particle effect manager for block break effects. */
 	private ParticleManager _particleManager;
 	
+	/** Viewmodel renderer for triggering swing animation on block hits. */
+	private ViewmodelRenderer _viewmodelRenderer;
+	
 	// Camera shake.
 	private float _shakeTimer;
 	private final Vector3f _shakeOffset = new Vector3f();
@@ -815,6 +818,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_hitsDelivered++;
 		_hitCooldownTimer = HIT_COOLDOWN;
 		_audioManager.playSfx(block.isDecoration() ? AudioManager.SFX_STEP_GRASS : AudioManager.SFX_BLOCK_HIT);
+		
+		// Trigger viewmodel swing animation.
+		if (_viewmodelRenderer != null)
+		{
+			_viewmodelRenderer.triggerSwing();
+		}
 		
 		// Durability loss — correct tool costs 1, wrong tool/weapon costs 2.
 		final int durabilityCost = getDurabilityCostPerHit(block, heldItem);
@@ -2624,5 +2633,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setParticleManager(ParticleManager particleManager)
 	{
 		_particleManager = particleManager;
+	}
+	
+	/**
+	 * Sets the viewmodel renderer for triggering swing animation on block hits.
+	 * @param viewmodelRenderer the viewmodel renderer instance
+	 */
+	public void setViewmodelRenderer(ViewmodelRenderer viewmodelRenderer)
+	{
+		_viewmodelRenderer = viewmodelRenderer;
 	}
 }

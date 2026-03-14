@@ -34,6 +34,7 @@ import simplecraft.player.BlockInteraction;
 import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
+import simplecraft.player.ViewmodelRenderer;
 import simplecraft.save.SaveManager;
 import simplecraft.save.SaveManager.PlayerSaveData;
 import simplecraft.save.SaveManager.SavedRegionData;
@@ -108,6 +109,9 @@ public class PlayingState extends FadeableAppState
 	
 	/** Manages particle effects for block breaking and combat damage. */
 	private ParticleManager _particleManager;
+	
+	/** Renders the held item sprite in the lower-right of the screen. */
+	private ViewmodelRenderer _viewmodelRenderer;
 	
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
@@ -585,6 +589,12 @@ public class PlayingState extends FadeableAppState
 				}
 			}
 			
+			// Update viewmodel (held item sprite — swap, swing, bob).
+			if (_viewmodelRenderer != null)
+			{
+				_viewmodelRenderer.update(SimpleCraft.getInstance().getCamera(), _playerController.getInventory(), _playerController.isMoving() && _playerController.isOnGround(), tpf);
+			}
+			
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			_world.update(_playerController.getPosition(), renderDistance);
@@ -601,6 +611,13 @@ public class PlayingState extends FadeableAppState
 					final List<Enemy> enemies = _spawnSystem.getEnemies();
 					suppressBlockAttack = _combatSystem.tryPlayerAttack(app.getCamera(), enemies, _world, _playerController);
 				}
+			}
+			
+			// Trigger viewmodel swing on any left-click (air, block, or enemy).
+			// triggerSwing() is idempotent — only starts if not already swinging.
+			if (_viewmodelRenderer != null && _blockInteraction != null && _blockInteraction.isAttackHeld() && !_playerDead && !inventoryOpen)
+			{
+				_viewmodelRenderer.triggerSwing();
 			}
 			
 			// Update block interaction (raycasting, breaking, placing).
@@ -1016,6 +1033,9 @@ public class PlayingState extends FadeableAppState
 		app.getRootNode().attachChild(_blockInteraction.getOverlayNode());
 		app.getRootNode().attachChild(_blockInteraction.getDestructionEffectsNode());
 		
+		// Create the viewmodel renderer (first-person held item sprite on GUI).
+		_viewmodelRenderer = new ViewmodelRenderer(app.getAssetManager(), app.getRootNode());
+		
 		// Restore saved tile entities BEFORE attaching tile entity visual node,
 		// so particles and other visuals are created during deserialization.
 		final TileEntityManager tileEntityManager = _world.getTileEntityManager();
@@ -1066,6 +1086,10 @@ public class PlayingState extends FadeableAppState
 		// Wire particle manager to block interaction and combat system.
 		_blockInteraction.setParticleManager(_particleManager);
 		_combatSystem.setParticleManager(_particleManager);
+		
+		// Wire viewmodel renderer to block interaction and combat system for swing animation.
+		_blockInteraction.setViewmodelRenderer(_viewmodelRenderer);
+		_combatSystem.setViewmodelRenderer(_viewmodelRenderer);
 		
 		// Wire combat references so SpawnSystem can trigger death healing drops.
 		_spawnSystem.setCombatReferences(_combatSystem, _playerController);
@@ -1169,6 +1193,13 @@ public class PlayingState extends FadeableAppState
 			_particleManager.cleanup();
 			app.getRootNode().detachChild(_particleManager.getNode());
 			_particleManager = null;
+		}
+		
+		// Clean up viewmodel renderer.
+		if (_viewmodelRenderer != null)
+		{
+			_viewmodelRenderer.cleanup();
+			_viewmodelRenderer = null;
 		}
 		
 		// Clean up player controller.

@@ -21,6 +21,7 @@ import simplecraft.enemy.EnemyAI.AIState;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.player.PlayerController;
+import simplecraft.player.ViewmodelRenderer;
 import simplecraft.util.Rnd;
 import simplecraft.world.World;
 
@@ -134,6 +135,9 @@ public class CombatSystem
 	
 	/** Particle effect manager for damage hit particles. */
 	private ParticleManager _particleManager;
+	
+	/** Viewmodel renderer for triggering swing animation on player attacks. */
+	private ViewmodelRenderer _viewmodelRenderer;
 	
 	// Reusable vectors for raycast math (avoid per-frame allocation).
 	private final Vector3f _rayOrigin = new Vector3f();
@@ -358,6 +362,12 @@ public class CombatSystem
 				closestEnemy.takeDamage(attackDamage, _audioManager);
 				_playerAttackTimer = attackSpeed;
 				
+				// Trigger viewmodel swing animation.
+				if (_viewmodelRenderer != null)
+				{
+					_viewmodelRenderer.triggerSwing();
+				}
+				
 				// Durability loss — every successful attack costs 1 durability.
 				final Inventory inventory = playerController.getInventory();
 				final ItemInstance held = inventory.getSelectedItem();
@@ -561,6 +571,15 @@ public class CombatSystem
 	public void setParticleManager(ParticleManager particleManager)
 	{
 		_particleManager = particleManager;
+	}
+	
+	/**
+	 * Sets the viewmodel renderer for triggering swing animation on player attacks.
+	 * @param viewmodelRenderer the viewmodel renderer instance
+	 */
+	public void setViewmodelRenderer(ViewmodelRenderer viewmodelRenderer)
+	{
+		_viewmodelRenderer = viewmodelRenderer;
 	}
 	
 	// ------------------------------------------------------------------

@@ -870,6 +870,16 @@ public class PlayerController implements ActionListener, AnalogListener
 		return _isSwimming;
 	}
 	
+	/**
+	 * Returns true if the player has horizontal movement input (any WASD key held).<br>
+	 * Used by the viewmodel renderer for walk bob animation.
+	 * @return true if the player is actively moving
+	 */
+	public boolean isMoving()
+	{
+		return _moveForward || _moveBack || _moveLeft || _moveRight;
+	}
+	
 	// ========== Respawn Point Management ==========
 	
 	/**
