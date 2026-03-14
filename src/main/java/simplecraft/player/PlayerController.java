@@ -217,25 +217,27 @@ public class PlayerController implements ActionListener, AnalogListener
 	 */
 	private void initStartingInventory()
 	{
+		final ItemTemplate woodPickaxe = ItemRegistry.get("wood_pickaxe");
+		final ItemTemplate woodAxe = ItemRegistry.get("wood_axe");
+		final ItemTemplate woodSword = ItemRegistry.get("wood_sword");
+		final ItemTemplate craftingTable = ItemRegistry.get("crafting_table");
 		final ItemTemplate dirt = ItemRegistry.get("dirt");
 		final ItemTemplate stone = ItemRegistry.get("stone");
 		final ItemTemplate wood = ItemRegistry.get("wood");
-		final ItemTemplate craftingTable = ItemRegistry.get("crafting_table");
-		final ItemTemplate campfire = ItemRegistry.get("campfire");
 		
-		if (dirt != null)
+		if (woodPickaxe != null)
 		{
-			_inventory.setSlot(0, new ItemInstance(dirt, 64));
+			_inventory.setSlot(0, new ItemInstance(woodPickaxe, 1));
 		}
 		
-		if (stone != null)
+		if (woodAxe != null)
 		{
-			_inventory.setSlot(1, new ItemInstance(stone, 64));
+			_inventory.setSlot(1, new ItemInstance(woodAxe, 1));
 		}
 		
-		if (wood != null)
+		if (woodSword != null)
 		{
-			_inventory.setSlot(2, new ItemInstance(wood, 64));
+			_inventory.setSlot(2, new ItemInstance(woodSword, 1));
 		}
 		
 		if (craftingTable != null)
@@ -243,9 +245,19 @@ public class PlayerController implements ActionListener, AnalogListener
 			_inventory.setSlot(3, new ItemInstance(craftingTable, 1));
 		}
 		
-		if (campfire != null)
+		if (dirt != null)
 		{
-			_inventory.setSlot(4, new ItemInstance(campfire, 1));
+			_inventory.setSlot(4, new ItemInstance(dirt, 64));
+		}
+		
+		if (stone != null)
+		{
+			_inventory.setSlot(5, new ItemInstance(stone, 64));
+		}
+		
+		if (wood != null)
+		{
+			_inventory.setSlot(6, new ItemInstance(wood, 64));
 		}
 	}
 	
@@ -737,10 +749,10 @@ public class PlayerController implements ActionListener, AnalogListener
 			return null;
 		}
 		
-		final ItemTemplate item = selected.getTemplate();
-		if (item.getType() == ItemType.BLOCK)
+		final ItemTemplate template = selected.getTemplate();
+		if (template.getType() == ItemType.BLOCK)
 		{
-			return item.getPlacesBlock();
+			return template.getPlacesBlock();
 		}
 		
 		return null;
@@ -756,10 +768,10 @@ public class PlayerController implements ActionListener, AnalogListener
 		final ItemInstance selected = _inventory.getSelectedItem();
 		if (selected != null)
 		{
-			final ItemTemplate item = selected.getTemplate();
-			if ((item.getType() == ItemType.WEAPON || item.getType() == ItemType.TOOL) && item.getWeaponDamage() > 0)
+			final ItemTemplate template = selected.getTemplate();
+			if ((template.getType() == ItemType.WEAPON || template.getType() == ItemType.TOOL) && template.getWeaponDamage() > 0)
 			{
-				return item.getWeaponDamage();
+				return template.getWeaponDamage();
 			}
 		}
 		
@@ -776,10 +788,10 @@ public class PlayerController implements ActionListener, AnalogListener
 		final ItemInstance selected = _inventory.getSelectedItem();
 		if (selected != null)
 		{
-			final ItemTemplate item = selected.getTemplate();
-			if ((item.getType() == ItemType.WEAPON || item.getType() == ItemType.TOOL) && item.getWeaponSpeed() > 0)
+			final ItemTemplate template = selected.getTemplate();
+			if ((template.getType() == ItemType.WEAPON || template.getType() == ItemType.TOOL) && template.getWeaponSpeed() > 0)
 			{
-				return item.getWeaponSpeed();
+				return template.getWeaponSpeed();
 			}
 		}
 		

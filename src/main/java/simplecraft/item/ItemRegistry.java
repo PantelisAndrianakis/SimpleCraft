@@ -96,22 +96,22 @@ public class ItemRegistry
 	
 	/**
 	 * Registers an item in the catalog.
-	 * @param item the item to register
+	 * @param template the item to register
 	 */
-	private static void register(ItemTemplate item)
+	private static void register(ItemTemplate template)
 	{
-		ITEMS.put(item.getId(), item);
+		ITEMS.put(template.getId(), template);
 	}
 	
 	/**
 	 * Registers a block item and its block-to-item mapping.
-	 * @param item the block item to register
+	 * @param template the block item to register
 	 * @param block the Block enum value it corresponds to
 	 */
-	private static void registerBlockItem(ItemTemplate item, Block block)
+	private static void registerBlockItem(ItemTemplate template, Block block)
 	{
-		ITEMS.put(item.getId(), item);
-		BLOCK_TO_ITEM.put(block, item.getId());
+		ITEMS.put(template.getId(), template);
+		BLOCK_TO_ITEM.put(block, template.getId());
 	}
 	
 	/**

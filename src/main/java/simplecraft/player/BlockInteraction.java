@@ -22,6 +22,11 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.effects.ParticleManager;
+import simplecraft.item.Inventory;
+import simplecraft.item.ItemInstance;
+import simplecraft.item.ItemRegistry;
+import simplecraft.item.ItemTemplate;
+import simplecraft.item.ItemType;
 import simplecraft.ui.MessageManager;
 import simplecraft.util.Rnd;
 import simplecraft.util.Vector3i;
@@ -163,6 +168,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private int _breakingY;
 	private int _breakingZ;
 	private boolean _isBreaking;
+	
+	/** The item held when breaking started (for reset on tool switch). */
+	private ItemInstance _breakingWithItem;
 	
 	/** Number of hits delivered to the current target. */
 	private int _hitsDelivered;
@@ -463,12 +471,21 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			prevBlockZ = bz;
 		}
 		
-		// If target changed, reset breaking progress.
+		// If target changed or held item changed, reset breaking progress.
 		if (_hasTarget)
 		{
 			if (!_isBreaking || _targetX != _breakingX || _targetY != _breakingY || _targetZ != _breakingZ)
 			{
 				resetBreaking();
+			}
+			else if (_isBreaking)
+			{
+				// Same block, but check if the player switched tools — recalculate hits required.
+				final ItemInstance currentItem = _playerController.getInventory().getSelectedItem();
+				if (currentItem != _breakingWithItem)
+				{
+					resetBreaking();
+				}
 			}
 		}
 		else
@@ -760,10 +777,27 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Unbreakable block (WATER, BEDROCK).
 		if (!block.isBreakable())
 		{
+			// Still costs durability (wrong target = 2) — don't waste your tools on bedrock.
+			final Inventory inventory = _playerController.getInventory();
+			final ItemInstance held = inventory.getSelectedItem();
+			if (held != null && held.hasDurability())
+			{
+				final boolean broken = held.loseDurability(DURABILITY_COST_WRONG);
+				if (broken)
+				{
+					final String toolName = held.getTemplate().getDisplayName();
+					inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
+					MessageManager.show("Your " + toolName + " broke!");
+					System.out.println("Tool broke: " + toolName);
+				}
+			}
 			_hitCooldownTimer = HIT_COOLDOWN;
 			System.out.println("Cannot break " + block.name() + " — unbreakable.");
 			return;
 		}
+		
+		final Inventory inventory = _playerController.getInventory();
+		final ItemInstance heldItem = inventory.getSelectedItem();
 		
 		// Start tracking this block if not already.
 		if (!_isBreaking)
@@ -772,7 +806,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			_breakingY = _targetY;
 			_breakingZ = _targetZ;
 			_hitsDelivered = 0;
-			_hitsRequired = block.getHardness();
+			_hitsRequired = getEffectiveHits(block, heldItem);
+			_breakingWithItem = heldItem;
 			_isBreaking = true;
 		}
 		
@@ -780,6 +815,33 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_hitsDelivered++;
 		_hitCooldownTimer = HIT_COOLDOWN;
 		_audioManager.playSfx(block.isDecoration() ? AudioManager.SFX_STEP_GRASS : AudioManager.SFX_BLOCK_HIT);
+		
+		// Durability loss — correct tool costs 1, wrong tool/weapon costs 2.
+		final int durabilityCost = getDurabilityCostPerHit(block, heldItem);
+		if (durabilityCost > 0 && heldItem != null && heldItem.hasDurability())
+		{
+			final boolean broken = heldItem.loseDurability(durabilityCost);
+			if (broken)
+			{
+				final String toolName = heldItem.getTemplate().getDisplayName();
+				inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
+				MessageManager.show("Your " + toolName + " broke!");
+				System.out.println("Tool broke: " + toolName);
+				
+				// Tool broke mid-block-break — recalculate effective hits with bare hands.
+				final ItemInstance newHeld = inventory.getSelectedItem();
+				final int newRequired = getEffectiveHits(block, newHeld);
+				// Scale progress: keep the same ratio of completion.
+				if (newRequired > _hitsRequired)
+				{
+					final float progress = (float) _hitsDelivered / _hitsRequired;
+					_hitsRequired = newRequired;
+					_hitsDelivered = (int) (progress * newRequired);
+				}
+				// Update tracked item so the tool-switch check doesn't reset on next frame.
+				_breakingWithItem = newHeld;
+			}
+		}
 		
 		System.out.println("Hit " + block.name() + " (" + _hitsDelivered + "/" + _hitsRequired + ")");
 		
@@ -831,6 +893,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 							// Destroy both halves (sets to AIR, removes tile entities, rebuilds mesh).
 							door.destroyBothHalves(_world);
 							
+							// Drop the door item into inventory.
+							dropBlockItem(Block.DOOR_BOTTOM);
+							
 							System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] — both halves destroyed.");
 							_audioManager.playSfx(AudioManager.SFX_BLOCK_BREAK);
 							resetBreaking();
@@ -859,12 +924,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			final Block replacement = (_targetY <= World.WATER_LEVEL && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR;
 			_world.setBlockImmediate(_targetX, _targetY, _targetZ, replacement);
 			
-			// Berry bush — instant food healing. Bush is already destroyed.
-			if (block == Block.BERRY_BUSH)
-			{
-				_playerController.heal(4.0f);
-				System.out.println("Ate berries! +4 HP (Health: " + String.format("%.1f", _playerController.getHealth()) + "/" + String.format("%.0f", _playerController.getMaxHealth()) + ")");
-			}
+			// Drop block item into inventory.
+			dropBlockItem(block);
 			
 			// If WOOD was broken, trigger tree felling (block is already AIR).
 			if (block == Block.WOOD)
@@ -886,6 +947,152 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 	}
 	
+	/** Block damage per hit with the correct tool. */
+	private static final float BLOCK_DAMAGE_CORRECT_TOOL = 3.0f;
+	
+	/** Block damage per hit with a wrong tool or weapon. */
+	private static final float BLOCK_DAMAGE_WRONG_TOOL = 2.0f;
+	
+	/** Block damage per hit with bare hands, blocks, or non-combat items. */
+	private static final float BLOCK_DAMAGE_BARE_HANDS = 1.0f;
+	
+	/** Weapon durability cost per hit on the correct block type. */
+	private static final int DURABILITY_COST_CORRECT = 1;
+	
+	/** Weapon durability cost per hit on the wrong block type. */
+	private static final int DURABILITY_COST_WRONG = 2;
+	
+	/**
+	 * Calculates the effective number of hits required to break a block.<br>
+	 * <ul>
+	 * <li>Correct tool (matching bestTool): 3 damage per hit</li>
+	 * <li>Wrong tool or weapon: 2 damage per hit</li>
+	 * <li>Bare hands / blocks / consumables / materials: 1 damage per hit</li>
+	 * </ul>
+	 * Hits = ceil(blockHP / damagePerHit).
+	 * @param block the block being broken
+	 * @param heldItem the currently held ItemInstance, or null for bare hands
+	 * @return effective hits required, or -1 if unbreakable
+	 */
+	private int getEffectiveHits(Block block, ItemInstance heldItem)
+	{
+		final int hardness = block.getHardness();
+		if (hardness <= 0)
+		{
+			return -1; // Unbreakable.
+		}
+		
+		final float damagePerHit = getBlockDamagePerHit(block, heldItem);
+		return (int) Math.ceil(hardness / damagePerHit);
+	}
+	
+	/**
+	 * Returns the block damage per hit for the given held item against the given block.
+	 * @param block the target block
+	 * @param heldItem the held item, or null for bare hands
+	 * @return 3.0 for correct tool, 2.0 for wrong tool/weapon, 1.0 for everything else
+	 */
+	private float getBlockDamagePerHit(Block block, ItemInstance heldItem)
+	{
+		if (heldItem == null)
+		{
+			return BLOCK_DAMAGE_BARE_HANDS;
+		}
+		
+		final ItemTemplate template = heldItem.getTemplate();
+		final ItemType type = template.getType();
+		
+		if (type == ItemType.TOOL)
+		{
+			final Block.ToolType bestTool = block.getBestTool();
+			if (bestTool != Block.ToolType.NONE && template.getToolType() == bestTool)
+			{
+				return BLOCK_DAMAGE_CORRECT_TOOL;
+			}
+			// Tool but wrong type.
+			return BLOCK_DAMAGE_WRONG_TOOL;
+		}
+		
+		if (type == ItemType.WEAPON)
+		{
+			return BLOCK_DAMAGE_WRONG_TOOL;
+		}
+		
+		// Blocks, consumables, materials — same as bare hands.
+		return BLOCK_DAMAGE_BARE_HANDS;
+	}
+	
+	/**
+	 * Returns the weapon durability cost per hit for the given held item against the given block.
+	 * @param block the target block
+	 * @param heldItem the held item, or null for bare hands
+	 * @return 1 for correct tool, 2 for wrong tool/weapon, 0 for non-durability items
+	 */
+	private int getDurabilityCostPerHit(Block block, ItemInstance heldItem)
+	{
+		if (heldItem == null || !heldItem.hasDurability())
+		{
+			return 0;
+		}
+		
+		final ItemTemplate template = heldItem.getTemplate();
+		
+		// Correct tool: 1 durability per hit.
+		if (template.hasTool())
+		{
+			final Block.ToolType bestTool = block.getBestTool();
+			if (bestTool != Block.ToolType.NONE && template.getToolType() == bestTool)
+			{
+				return DURABILITY_COST_CORRECT;
+			}
+		}
+		
+		// Wrong tool or weapon: 2 durability per hit.
+		return DURABILITY_COST_WRONG;
+	}
+	
+	/**
+	 * Drops the appropriate item for a broken block into the player's inventory.<br>
+	 * Handles special drops (STONE → stone_shard, IRON_ORE → iron_nugget, etc.),<br>
+	 * LEAVES 25% drop chance, and standard block-to-item drops.
+	 * @param block the block that was broken
+	 */
+	private void dropBlockItem(Block block)
+	{
+		// Leaves have a 25% chance to drop; 75% nothing.
+		if (block == Block.LEAVES)
+		{
+			if (Rnd.nextFloat() >= 0.25f)
+			{
+				return; // No drop.
+			}
+		}
+		
+		final String dropId = ItemRegistry.getDropItemId(block);
+		if (dropId == null)
+		{
+			return; // Block drops nothing.
+		}
+		
+		final ItemTemplate dropItem = ItemRegistry.get(dropId);
+		if (dropItem == null)
+		{
+			System.out.println("WARNING: No item registered for drop ID '" + dropId + "' from block " + block.name());
+			return;
+		}
+		
+		final Inventory inventory = _playerController.getInventory();
+		final boolean added = inventory.addItem(new ItemInstance(dropItem, 1));
+		if (added)
+		{
+			System.out.println("Picked up: " + dropItem.getDisplayName());
+		}
+		else
+		{
+			System.out.println("WARNING: Inventory full — could not pick up " + dropItem.getDisplayName());
+		}
+	}
+	
 	/**
 	 * Resets the breaking state (progress, target tracking).
 	 */
@@ -894,6 +1101,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_isBreaking = false;
 		_hitsDelivered = 0;
 		_hitsRequired = 0;
+		_breakingWithItem = null;
 	}
 	
 	/**
@@ -1073,6 +1281,26 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		final Block selectedBlock = _playerController.getSelectedBlock();
+		
+		// Consumable use — right-click with a consumable item heals the player.
+		final Inventory inventory = _playerController.getInventory();
+		final ItemInstance selectedItem = inventory.getSelectedItem();
+		if (selectedItem != null && selectedItem.getTemplate().getType() == ItemType.CONSUMABLE)
+		{
+			if (_playerController.getHealth() < _playerController.getMaxHealth())
+			{
+				final float healAmount = selectedItem.getTemplate().getHealAmount();
+				_playerController.heal(healAmount);
+				inventory.consumeSelectedItem();
+				System.out.println("Used " + selectedItem.getTemplate().getDisplayName() + "! +" + String.format("%.1f", healAmount) + " HP (Health: " + String.format("%.1f", _playerController.getHealth()) + "/" + String.format("%.0f", _playerController.getMaxHealth()) + ")");
+			}
+			else
+			{
+				System.out.println("Health is already full.");
+			}
+			return;
+		}
+		
 		if (selectedBlock == null || selectedBlock == Block.AIR)
 		{
 			return;
@@ -1428,6 +1656,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			_world.setBlockImmediate(placeX, placeY, placeZ, selectedBlock);
 			_world.markPlayerPlaced(placeX, placeY, placeZ);
 		}
+		
+		// Consume one item from inventory for the placed block.
+		inventory.consumeSelectedItem();
 		
 		System.out.println("Placed " + selectedBlock.name() + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
 		_audioManager.playSfx(AudioManager.SFX_BLOCK_PLACE);

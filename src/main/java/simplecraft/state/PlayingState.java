@@ -599,7 +599,7 @@ public class PlayingState extends FadeableAppState
 				if (_blockInteraction != null && _blockInteraction.isAttackHeld())
 				{
 					final List<Enemy> enemies = _spawnSystem.getEnemies();
-					suppressBlockAttack = _combatSystem.tryPlayerAttack(app.getCamera(), enemies, _world);
+					suppressBlockAttack = _combatSystem.tryPlayerAttack(app.getCamera(), enemies, _world, _playerController);
 				}
 			}
 			

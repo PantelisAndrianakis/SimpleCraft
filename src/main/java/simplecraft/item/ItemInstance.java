@@ -9,30 +9,30 @@ package simplecraft.item;
  */
 public class ItemInstance
 {
-	private final ItemTemplate _item;
+	private final ItemTemplate _template;
 	private int _count;
 	private int _durability;
 	
 	/**
 	 * Creates a new ItemInstance with the given count.<br>
 	 * Durability is initialized to the item's max durability (0 for non-durability items).
-	 * @param item the item template
+	 * @param template the item template
 	 * @param count initial quantity (clamped to 1..maxStackSize)
 	 */
-	public ItemInstance(ItemTemplate item, int count)
+	public ItemInstance(ItemTemplate template, int count)
 	{
-		_item = item;
-		_count = Math.max(1, Math.min(count, item.getMaxStackSize()));
-		_durability = item.getMaxDurability();
+		_template = template;
+		_count = Math.max(1, Math.min(count, template.getMaxStackSize()));
+		_durability = template.getMaxDurability();
 	}
 	
 	/**
 	 * Creates a single-count ItemInstance.
-	 * @param item the item template
+	 * @param template the item template
 	 */
-	public ItemInstance(ItemTemplate item)
+	public ItemInstance(ItemTemplate template)
 	{
-		this(item, 1);
+		this(template, 1);
 	}
 	
 	// ========================================================
@@ -41,7 +41,7 @@ public class ItemInstance
 	
 	public ItemTemplate getTemplate()
 	{
-		return _item;
+		return _template;
 	}
 	
 	public int getCount()
@@ -72,7 +72,7 @@ public class ItemInstance
 			return false;
 		}
 		
-		if (_item != other._item)
+		if (_template != other._template)
 		{
 			return false;
 		}
@@ -98,7 +98,7 @@ public class ItemInstance
 	 */
 	public int add(int amount)
 	{
-		final int maxStackSize = _item.getMaxStackSize();
+		final int maxStackSize = _template.getMaxStackSize();
 		final int space = maxStackSize - _count;
 		
 		if (amount <= space)
@@ -140,7 +140,7 @@ public class ItemInstance
 	 */
 	public boolean isFull()
 	{
-		return _count >= _item.getMaxStackSize();
+		return _count >= _template.getMaxStackSize();
 	}
 	
 	/**
@@ -149,7 +149,7 @@ public class ItemInstance
 	 */
 	public ItemInstance copy()
 	{
-		final ItemInstance clone = new ItemInstance(_item, _count);
+		final ItemInstance clone = new ItemInstance(_template, _count);
 		clone._durability = _durability;
 		return clone;
 	}
@@ -163,7 +163,7 @@ public class ItemInstance
 	 */
 	public boolean hasDurability()
 	{
-		return _item.getMaxDurability() > 0;
+		return _template.getMaxDurability() > 0;
 	}
 	
 	/**
@@ -194,7 +194,7 @@ public class ItemInstance
 	 */
 	public float getDurabilityPercent()
 	{
-		final int maxDurability = _item.getMaxDurability();
+		final int maxDurability = _template.getMaxDurability();
 		if (maxDurability <= 0)
 		{
 			return 1.0f;
@@ -208,8 +208,8 @@ public class ItemInstance
 	{
 		if (hasDurability())
 		{
-			return _item.getDisplayName() + " x" + _count + " [" + _durability + "/" + _item.getMaxDurability() + "]";
+			return _template.getDisplayName() + " x" + _count + " [" + _durability + "/" + _template.getMaxDurability() + "]";
 		}
-		return _item.getDisplayName() + " x" + _count;
+		return _template.getDisplayName() + " x" + _count;
 	}
 }

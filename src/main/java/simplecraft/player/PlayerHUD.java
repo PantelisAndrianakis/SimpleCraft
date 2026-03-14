@@ -730,14 +730,14 @@ public class PlayerHUD
 			return;
 		}
 		
-		final ItemTemplate item = stack.getTemplate();
+		final ItemTemplate template = stack.getTemplate();
 		
 		// Fill color based on item type.
-		final ColorRGBA fillColor = InventoryScreen.getItemColor(item);
+		final ColorRGBA fillColor = InventoryScreen.getItemColor(template);
 		_hotbarFillMat[index].setColor("Color", fillColor);
 		
 		// Label (type indicator letter).
-		final String label = InventoryScreen.getItemLabel(item);
+		final String label = InventoryScreen.getItemLabel(template);
 		if (label != null && !label.isEmpty())
 		{
 			_hotbarLabel[index].setText(label);

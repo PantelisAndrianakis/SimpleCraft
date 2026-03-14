@@ -573,15 +573,15 @@ public class InventoryScreen implements ActionListener
 			return;
 		}
 		
-		final ItemTemplate item = stack.getTemplate();
+		final ItemTemplate template = stack.getTemplate();
 		// final ItemType type = item.getType();
 		
 		// Set fill color based on item type.
-		final ColorRGBA fillColor = getItemColor(item);
+		final ColorRGBA fillColor = getItemColor(template);
 		_slotFillMat[index].setColor("Color", fillColor);
 		
 		// Label (type indicator).
-		final String label = getItemLabel(item);
+		final String label = getItemLabel(template);
 		if (label != null && !label.isEmpty())
 		{
 			_slotLabel[index].setText(label);
@@ -928,18 +928,18 @@ public class InventoryScreen implements ActionListener
 	/**
 	 * Returns a display color for the given item based on its type.
 	 */
-	static ColorRGBA getItemColor(ItemTemplate item)
+	static ColorRGBA getItemColor(ItemTemplate template)
 	{
-		if (item == null)
+		if (template == null)
 		{
 			return new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f);
 		}
 		
-		switch (item.getType())
+		switch (template.getType())
 		{
 			case BLOCK:
 			{
-				final Block block = item.getPlacesBlock();
+				final Block block = template.getPlacesBlock();
 				if (block != null)
 				{
 					return getBlockColor(block);
@@ -972,14 +972,14 @@ public class InventoryScreen implements ActionListener
 	/**
 	 * Returns a short label for the given item (type indicator shown in the slot center).
 	 */
-	static String getItemLabel(ItemTemplate item)
+	static String getItemLabel(ItemTemplate template)
 	{
-		if (item == null)
+		if (template == null)
 		{
 			return null;
 		}
 		
-		switch (item.getType())
+		switch (template.getType())
 		{
 			case WEAPON:
 			{
@@ -987,7 +987,7 @@ public class InventoryScreen implements ActionListener
 			}
 			case TOOL:
 			{
-				switch (item.getToolType())
+				switch (template.getToolType())
 				{
 					case PICKAXE:
 					{

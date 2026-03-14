@@ -18,6 +18,8 @@ import simplecraft.effects.ParticleManager;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyAI.AIState;
+import simplecraft.item.Inventory;
+import simplecraft.item.ItemInstance;
 import simplecraft.player.PlayerController;
 import simplecraft.util.Rnd;
 import simplecraft.world.World;
@@ -25,9 +27,10 @@ import simplecraft.world.World;
 /**
  * Manages all combat interactions between the player and enemies.<br>
  * <br>
- * <b>Player → Enemy damage:</b> {@link #tryPlayerAttack(Camera, List)} raycasts from the camera<br>
+ * <b>Player → Enemy damage:</b> {@link #tryPlayerAttack(Camera, List, World, PlayerController)} raycasts from the camera<br>
  * with a 3-block reach and a generous 0.5-block hit cylinder around each enemy's center mass.<br>
- * The closest hit enemy takes 3.0 damage. A 0.4-second cooldown prevents attack spam.<br>
+ * The closest hit enemy takes damage based on the held weapon/tool (bare hands: 3.0).<br>
+ * Attack cooldown varies by weapon speed. Durability is consumed per hit.<br>
  * Hit and death feedback is handled by {@link Enemy#takeDamage(float)} (white flash, scale-down).<br>
  * <br>
  * <b>Enemy → Player damage:</b> Scans all enemies in ATTACK state each frame. When an enemy's attack cooldown fires and the player is within attack range, damage is dealt via {@link PlayerController#takeDamage(float, String)}.<br>
@@ -67,14 +70,8 @@ public class CombatSystem
 	// Player attack constants.
 	// ------------------------------------------------------------------
 	
-	/** Damage dealt per player attack. */
-	private static final float PLAYER_ATTACK_DAMAGE = 3.0f;
-	
 	/** Maximum raycast reach in blocks. */
 	private static final float PLAYER_ATTACK_RANGE = 3.0f;
-	
-	/** Cooldown between player attacks in seconds. */
-	private static final float PLAYER_ATTACK_COOLDOWN = 0.4f;
 	
 	/**
 	 * Generous hit cylinder radius around enemy center mass (blocks).<br>
@@ -252,17 +249,18 @@ public class CombatSystem
 	 * center mass is within {@link #PLAYER_HIT_RADIUS} of the camera ray, up to<br>
 	 * {@link #PLAYER_ATTACK_RANGE} blocks away. Before confirming a hit, checks<br>
 	 * line-of-sight by stepping along the ray and verifying no solid block is between<br>
-	 * the camera and the enemy. If a hit is found, deals damage and starts the<br>
-	 * attack cooldown.<br>
+	 * the camera and the enemy. If a hit is found, deals damage based on the held<br>
+	 * weapon/tool and starts the attack cooldown. Durability is consumed per hit.<br>
 	 * <br>
 	 * Called by {@link simplecraft.state.PlayingState} on left-click, before block<br>
 	 * interaction processes. Returns true if an enemy was hit (suppresses block breaking).
 	 * @param camera the player's camera (ray origin and direction)
 	 * @param enemies the list of currently active enemies
 	 * @param world the game world for solid block line-of-sight checks
+	 * @param playerController the player controller for attack damage, speed, and inventory
 	 * @return true if an enemy was hit, false if the attack missed or is on cooldown
 	 */
-	public boolean tryPlayerAttack(Camera camera, List<Enemy> enemies, World world)
+	public boolean tryPlayerAttack(Camera camera, List<Enemy> enemies, World world, PlayerController playerController)
 	{
 		_rayOrigin.set(camera.getLocation());
 		_rayDir.set(camera.getDirection()).normalizeLocal();
@@ -354,8 +352,25 @@ public class CombatSystem
 			// Only deal damage when the cooldown has expired.
 			if (_playerAttackTimer <= 0)
 			{
-				closestEnemy.takeDamage(PLAYER_ATTACK_DAMAGE, _audioManager);
-				_playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
+				final float attackDamage = playerController.getAttackDamage();
+				final float attackSpeed = playerController.getAttackSpeed();
+				
+				closestEnemy.takeDamage(attackDamage, _audioManager);
+				_playerAttackTimer = attackSpeed;
+				
+				// Durability loss — every successful attack costs 1 durability.
+				final Inventory inventory = playerController.getInventory();
+				final ItemInstance held = inventory.getSelectedItem();
+				if (held != null && held.hasDurability())
+				{
+					final boolean broken = held.loseDurability(1);
+					if (broken)
+					{
+						final String toolName = held.getTemplate().getDisplayName();
+						inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
+						System.out.println("Combat: " + toolName + " broke!");
+					}
+				}
 				
 				// Spawn red damage particles at the enemy's center mass.
 				if (_particleManager != null)
@@ -368,11 +383,11 @@ public class CombatSystem
 				final String name = formatEnemyName(closestEnemy.getType());
 				if (!closestEnemy.isDying())
 				{
-					System.out.println("Hit " + name + " for " + String.format("%.1f", PLAYER_ATTACK_DAMAGE) + " damage! HP: " + String.format("%.1f", closestEnemy.getHealth()) + "/" + String.format("%.0f", closestEnemy.getMaxHealth()));
+					System.out.println("Hit " + name + " for " + String.format("%.1f", attackDamage) + " damage! HP: " + String.format("%.1f", closestEnemy.getHealth()) + "/" + String.format("%.0f", closestEnemy.getMaxHealth()));
 				}
 				else
 				{
-					System.out.println("Killed " + name + "! Final hit dealt " + String.format("%.1f", PLAYER_ATTACK_DAMAGE) + " damage.");
+					System.out.println("Killed " + name + "! Final hit dealt " + String.format("%.1f", attackDamage) + " damage.");
 				}
 			}
 			

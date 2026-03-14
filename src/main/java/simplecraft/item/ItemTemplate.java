@@ -48,7 +48,7 @@ public class ItemTemplate
 	 * @param id unique key (e.g. "dirt", "stone")
 	 * @param displayName human-readable name
 	 * @param placesBlock the Block enum value this item places
-	 * @return new block Item
+	 * @return new block ItemTemplate
 	 */
 	public static ItemTemplate block(String id, String displayName, Block placesBlock)
 	{
@@ -62,7 +62,7 @@ public class ItemTemplate
 	 * @param damage attack damage
 	 * @param speed attack cooldown in seconds
 	 * @param durability maximum durability
-	 * @return new weapon Item
+	 * @return new weapon ItemTemplate
 	 */
 	public static ItemTemplate weapon(String id, String displayName, float damage, float speed, int durability)
 	{
@@ -78,7 +78,7 @@ public class ItemTemplate
 	 * @param damage weapon damage when used in combat
 	 * @param speed attack cooldown in seconds
 	 * @param durability maximum durability
-	 * @return new tool Item
+	 * @return new tool ItemTemplate
 	 */
 	public static ItemTemplate tool(String id, String displayName, ToolType toolType, float damage, float speed, int durability)
 	{
@@ -90,7 +90,7 @@ public class ItemTemplate
 	 * @param id unique key (e.g. "health_potion")
 	 * @param displayName human-readable name
 	 * @param healAmount health restored on use
-	 * @return new consumable Item
+	 * @return new consumable ItemTemplate
 	 */
 	public static ItemTemplate consumable(String id, String displayName, float healAmount)
 	{
@@ -101,7 +101,7 @@ public class ItemTemplate
 	 * Creates a crafting material. Stack size 64, no durability, not placeable.
 	 * @param id unique key (e.g. "wood_plank")
 	 * @param displayName human-readable name
-	 * @return new material Item
+	 * @return new material ItemTemplate
 	 */
 	public static ItemTemplate material(String id, String displayName)
 	{
@@ -174,6 +174,16 @@ public class ItemTemplate
 	}
 	
 	/**
+	 * Returns true if this item is a TOOL type (pickaxe, axe, shovel).<br>
+	 * Tools have a tool affinity that speeds up breaking matching blocks.
+	 * @return true for TOOL items, false for everything else
+	 */
+	public boolean hasTool()
+	{
+		return _type == ItemType.TOOL;
+	}
+	
+	/**
 	 * Tool affinity type for TOOL items (PICKAXE, AXE, SHOVEL). NONE for everything else.
 	 */
 	public ToolType getToolType()
@@ -192,6 +202,6 @@ public class ItemTemplate
 	@Override
 	public String toString()
 	{
-		return "Item[" + _id + " (" + _displayName + ") type=" + _type + "]";
+		return "ItemTemplate[" + _id + " (" + _displayName + ") type=" + _type + "]";
 	}
 }
