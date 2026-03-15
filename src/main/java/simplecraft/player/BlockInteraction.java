@@ -1,5 +1,7 @@
 package simplecraft.player;
 
+import java.util.List;
+
 import com.jme3.asset.AssetManager;
 import com.jme3.input.InputManager;
 import com.jme3.input.MouseInput;
@@ -22,6 +24,7 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.effects.ParticleManager;
+import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemRegistry;
@@ -203,6 +206,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/** Viewmodel renderer for triggering swing animation on block hits. */
 	private ViewmodelRenderer _viewmodelRenderer;
+	
+	/** Drop manager for spawning world drops when blocks are broken. */
+	private DropManager _dropManager;
 	
 	// Camera shake.
 	private float _shakeTimer;
@@ -902,8 +908,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 							// Destroy both halves (sets to AIR, removes tile entities, rebuilds mesh).
 							door.destroyBothHalves(_world);
 							
-							// Drop the door item into inventory.
-							dropBlockItem(Block.DOOR_BOTTOM);
+							// Drop the door item on the ground.
+							dropBlockItem(Block.DOOR_BOTTOM, _targetX, _targetY, _targetZ);
 							
 							System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] — both halves destroyed.");
 							_audioManager.playSfx(AudioManager.SFX_BLOCK_BREAK);
@@ -933,8 +939,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			final Block replacement = (_targetY <= World.WATER_LEVEL && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR;
 			_world.setBlockImmediate(_targetX, _targetY, _targetZ, replacement);
 			
-			// Drop block item into inventory.
-			dropBlockItem(block);
+			// Drop block item on the ground at the broken block position.
+			dropBlockItem(block, _targetX, _targetY, _targetZ);
 			
 			// If WOOD was broken, trigger tree felling (block is already AIR).
 			if (block == Block.WOOD)
@@ -944,9 +950,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				
 				// Drop items for each block destroyed by the felling cascade.
 				// The broken block itself was already handled by dropBlockItem above.
-				for (Block blockItem : fellingResult.getBlockTypes())
+				// Each felled block drops at its own world position.
+				final List<Block> felledTypes = fellingResult.getBlockTypes();
+				final List<int[]> felledPositions = fellingResult.getBlocks();
+				for (int i = 0; i < felledTypes.size(); i++)
 				{
-					dropBlockItem(blockItem);
+					final int[] pos = felledPositions.get(i);
+					dropBlockItem(felledTypes.get(i), pos[0], pos[1], pos[2]);
 				}
 			}
 			
@@ -1068,12 +1078,16 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	}
 	
 	/**
-	 * Drops the appropriate item for a broken block into the player's inventory.<br>
+	 * Spawns a dropped item on the ground at the given block position.<br>
 	 * Handles special drops (STONE → stone_shard, IRON_ORE → iron_nugget, etc.),<br>
-	 * LEAVES 25% drop chance, and standard block-to-item drops.
+	 * LEAVES 25% drop chance, and standard block-to-item drops.<br>
+	 * If the DropManager is not set, falls back to adding directly to the inventory.
 	 * @param block the block that was broken
+	 * @param bx the world X of the broken block
+	 * @param by the world Y of the broken block
+	 * @param bz the world Z of the broken block
 	 */
-	private void dropBlockItem(Block block)
+	private void dropBlockItem(Block block, int bx, int by, int bz)
 	{
 		// Leaves have a 25% chance to drop; 75% nothing.
 		if (block == Block.LEAVES)
@@ -1097,15 +1111,41 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return;
 		}
 		
-		final Inventory inventory = _playerController.getInventory();
-		final boolean added = inventory.addItem(new ItemInstance(dropItem, 1));
-		if (added)
+		final ItemInstance stack = new ItemInstance(dropItem, 1);
+		
+		// Spawn as a world drop at the broken block position.
+		if (_dropManager != null)
 		{
-			System.out.println("Picked up: " + dropItem.getDisplayName());
+			// Find ground level below the block position so drops don't float in the air.
+			// Scans downward from the block's Y to find the first solid block surface.
+			int groundY = by;
+			for (int y = by - 1; y >= 0; y--)
+			{
+				if (_world.getBlock(bx, y, bz).isSolid())
+				{
+					groundY = y + 1; // Stand on top of the solid block.
+					break;
+				}
+			}
+			
+			// Center of the block + slight random offset for visual spread.
+			final float dropX = bx + 0.5f + (Rnd.nextFloat() - 0.5f) * 0.3f;
+			final float dropZ = bz + 0.5f + (Rnd.nextFloat() - 0.5f) * 0.3f;
+			_dropManager.spawnDrop(new Vector3f(dropX, groundY, dropZ), stack);
 		}
 		else
 		{
-			System.out.println("WARNING: Inventory full — could not pick up " + dropItem.getDisplayName());
+			// Fallback: add directly to inventory if DropManager is not wired.
+			final Inventory inventory = _playerController.getInventory();
+			final boolean added = inventory.addItem(stack);
+			if (added)
+			{
+				System.out.println("Picked up: " + dropItem.getDisplayName());
+			}
+			else
+			{
+				System.out.println("WARNING: Inventory full — could not pick up " + dropItem.getDisplayName());
+			}
 		}
 	}
 	
@@ -2649,5 +2689,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setViewmodelRenderer(ViewmodelRenderer viewmodelRenderer)
 	{
 		_viewmodelRenderer = viewmodelRenderer;
+	}
+	
+	/**
+	 * Sets the drop manager for spawning world drops when blocks are broken.
+	 * @param dropManager the drop manager instance
+	 */
+	public void setDropManager(DropManager dropManager)
+	{
+		_dropManager = dropManager;
 	}
 }

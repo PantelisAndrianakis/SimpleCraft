@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.material.Material;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
@@ -13,9 +14,11 @@ import simplecraft.audio.AudioManager;
 /**
  * Manages all dropped items in the world.<br>
  * <br>
- * Dropped items are small colored cubes that bob and spin at the position where<br>
- * an enemy died. Each frame, the manager updates animations, checks player proximity<br>
- * for automatic pickup, and removes expired drops.<br>
+ * Dropped items are small visuals that bob and spin at the position where<br>
+ * a block was broken or an enemy died. Block items render as mini textured cubes<br>
+ * using the atlas material; other items use billboard sprites or colored cubes.<br>
+ * Each frame, the manager updates animations, checks player proximity<br>
+ * for pickup, and removes expired drops.<br>
  * <br>
  * A maximum of {@link #MAX_ACTIVE_DROPS} drops can exist simultaneously. When the<br>
  * limit is reached, the oldest drop is removed to make room for a new one.<br>
@@ -56,15 +59,20 @@ public class DropManager
 	/** Audio manager for pickup sound effect. */
 	private final AudioManager _audioManager;
 	
+	/** Shared texture atlas material for rendering mini block cubes, or null. */
+	private final Material _atlasMaterial;
+	
 	/**
 	 * Creates a new drop manager.
 	 * @param assetManager the asset manager for creating materials
 	 * @param audioManager the audio manager for pickup sounds
+	 * @param atlasMaterial the shared texture atlas material for block drops, or null
 	 */
-	public DropManager(AssetManager assetManager, AudioManager audioManager)
+	public DropManager(AssetManager assetManager, AudioManager audioManager, Material atlasMaterial)
 	{
 		_assetManager = assetManager;
 		_audioManager = audioManager;
+		_atlasMaterial = atlasMaterial;
 		_dropNode = new Node("DroppedItems");
 	}
 	
@@ -88,7 +96,7 @@ public class DropManager
 			_dropNode.detachChild(oldest.getNode());
 		}
 		
-		final DroppedItem drop = new DroppedItem(instance, position, _assetManager);
+		final DroppedItem drop = new DroppedItem(instance, position, _assetManager, _atlasMaterial);
 		_drops.add(drop);
 		_dropNode.attachChild(drop.getNode());
 		

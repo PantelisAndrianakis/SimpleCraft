@@ -87,6 +87,9 @@ public class PlayingState extends FadeableAppState
 	private ActionListener _pauseListener;
 	private ActionListener _inventoryListener;
 	private TextureAtlas _textureAtlas;
+	
+	/** The shared texture atlas material used for all block rendering and mini-cube drops. */
+	private Material _atlasMaterial;
 	private World _world;
 	private WorldInfo _activeWorld;
 	private FilterPostProcessor _fpp;
@@ -418,6 +421,7 @@ public class PlayingState extends FadeableAppState
 		_textureAtlas.buildAtlas(app.getAssetManager());
 		// _textureAtlas.saveDebugAtlas("debug_atlas.png"); // Save debug image when needed.
 		final Material atlasMaterial = _textureAtlas.createMaterial(app.getAssetManager());
+		_atlasMaterial = atlasMaterial;
 		
 		// Get seed from active world.
 		final long seed = _activeWorld != null ? _activeWorld.getSeedValue() : 0;
@@ -1090,11 +1094,14 @@ public class PlayingState extends FadeableAppState
 		_combatSystem = new CombatSystem(app.getAudioManager());
 		
 		// Initialize the drop manager (enemy death drops, pickup, despawn).
-		_dropManager = new DropManager(app.getAssetManager(), app.getAudioManager());
+		_dropManager = new DropManager(app.getAssetManager(), app.getAudioManager(), _atlasMaterial);
 		app.getRootNode().attachChild(_dropManager.getNode());
 		
 		// Wire drop manager to combat system for enemy death drops.
 		_combatSystem.setDropManager(_dropManager);
+		
+		// Wire drop manager to block interaction for block break drops.
+		_blockInteraction.setDropManager(_dropManager);
 		
 		// Initialize the particle manager for block break and combat effects.
 		_particleManager = new ParticleManager(app.getAssetManager());
@@ -1283,6 +1290,7 @@ public class PlayingState extends FadeableAppState
 		_musicManager = null;
 		
 		_textureAtlas = null;
+		_atlasMaterial = null;
 		_activeWorld = null;
 		_playerSaveData = null;
 		_tileEntitySaveData = null;

@@ -155,14 +155,6 @@ public class ItemRegistry
 		switch (block)
 		{
 			// Special drops — different from the block itself.
-			case STONE:
-			{
-				return "stone_shard";
-			}
-			case IRON_ORE:
-			{
-				return "iron_nugget";
-			}
 			case BERRY_BUSH:
 			{
 				return "berries";
@@ -182,6 +174,8 @@ public class ItemRegistry
 			case DIRT:
 			case SAND:
 			case WOOD:
+			case STONE:
+			case IRON_ORE:
 			case TORCH:
 			case RED_POPPY:
 			case DANDELION:
