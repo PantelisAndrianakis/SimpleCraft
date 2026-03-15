@@ -30,6 +30,7 @@ import simplecraft.enemy.Enemy;
 import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
+import simplecraft.item.DropManager;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
@@ -100,6 +101,9 @@ public class PlayingState extends FadeableAppState
 	
 	/** Manages enemy → player damage, player → enemy attacks, screen flashes, and death healing drops. */
 	private CombatSystem _combatSystem;
+	
+	/** Manages dropped items in the world (enemy death drops, pickup, despawn). */
+	private DropManager _dropManager;
 	
 	/** Manages the day/night cycle — sky brightness, tint, and viewport color. */
 	private DayNightCycle _dayNightCycle;
@@ -635,6 +639,12 @@ public class PlayingState extends FadeableAppState
 				_spawnSystem.update(_playerController.getPosition(), _playerController.isInWater(), _world, tpf);
 			}
 			
+			// Update dropped items (bob animation, pickup checks, expiration).
+			if (_dropManager != null && !_playerDead)
+			{
+				_dropManager.update(_playerController.getPosition(), _playerController.getInventory(), tpf);
+			}
+			
 			// Update tile entity manager (campfire particles, furnace timers, etc.).
 			final TileEntityManager tileEntityManager = _world.getTileEntityManager();
 			if (tileEntityManager != null)
@@ -1079,6 +1089,13 @@ public class PlayingState extends FadeableAppState
 		// Initialize the combat system (screen flashes, enemy → player damage, player → enemy attacks).
 		_combatSystem = new CombatSystem(app.getAudioManager());
 		
+		// Initialize the drop manager (enemy death drops, pickup, despawn).
+		_dropManager = new DropManager(app.getAssetManager(), app.getAudioManager());
+		app.getRootNode().attachChild(_dropManager.getNode());
+		
+		// Wire drop manager to combat system for enemy death drops.
+		_combatSystem.setDropManager(_dropManager);
+		
 		// Initialize the particle manager for block break and combat effects.
 		_particleManager = new ParticleManager(app.getAssetManager());
 		app.getRootNode().attachChild(_particleManager.getNode());
@@ -1185,6 +1202,14 @@ public class PlayingState extends FadeableAppState
 		{
 			_combatSystem.cleanup();
 			_combatSystem = null;
+		}
+		
+		// Clean up drop manager.
+		if (_dropManager != null)
+		{
+			_dropManager.cleanup();
+			app.getRootNode().detachChild(_dropManager.getNode());
+			_dropManager = null;
 		}
 		
 		// Clean up particle manager.

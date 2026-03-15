@@ -18,11 +18,12 @@ import simplecraft.effects.ParticleManager;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyAI.AIState;
+import simplecraft.enemy.EnemyDropTable;
+import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.player.PlayerController;
 import simplecraft.player.ViewmodelRenderer;
-import simplecraft.util.Rnd;
 import simplecraft.world.World;
 
 /**
@@ -38,7 +39,8 @@ import simplecraft.world.World;
  * <br>
  * <b>Screen flash:</b> Full-screen colored quad on the GUI node that fades out over 0.3 seconds. Red (alpha 0.3) for damage, green (alpha 0.2) for healing. Reused across all damage/healing sources — any new flash restarts the timer.<br>
  * <br>
- * <b>Enemy death healing:</b> When an enemy dies, a 30% chance to heal the player by 2.0 HP (temporary scrap-finding mechanic until proper item drops exist).
+ * <b>Enemy death drops:</b> When an enemy dies, its drop table is rolled via {@link EnemyDropTable}<br>
+ * and resulting items are spawned as world drops via the {@link DropManager}.
  * @author Pantelis Andrianakis
  * @since March 6th 2026
  */
@@ -56,16 +58,6 @@ public class CombatSystem
 	
 	/** Starting alpha for the healing (green) flash. */
 	private static final float HEAL_FLASH_ALPHA = 0.2f;
-	
-	// ------------------------------------------------------------------
-	// Enemy death healing constants.
-	// ------------------------------------------------------------------
-	
-	/** Chance (0-1) that killing an enemy yields a healing drop. */
-	private static final float ENEMY_DROP_CHANCE = 0.3f;
-	
-	/** HP healed when an enemy drops food scraps. */
-	private static final float ENEMY_DROP_HEAL = 2.0f;
 	
 	// ------------------------------------------------------------------
 	// Player attack constants.
@@ -138,6 +130,9 @@ public class CombatSystem
 	
 	/** Viewmodel renderer for triggering swing animation on player attacks. */
 	private ViewmodelRenderer _viewmodelRenderer;
+	
+	/** Drop manager for spawning item drops on enemy death. */
+	private DropManager _dropManager;
 	
 	// Reusable vectors for raycast math (avoid per-frame allocation).
 	private final Vector3f _rayOrigin = new Vector3f();
@@ -490,22 +485,34 @@ public class CombatSystem
 	}
 	
 	/**
-	 * Called when an enemy dies. Rolls for a healing drop.
+	 * Called when an enemy dies. Rolls the drop table for the enemy type<br>
+	 * and spawns each resulting item as a world drop via the {@link DropManager}.
 	 * @param player the player controller
 	 * @param enemy the enemy that just died
 	 */
 	public void onEnemyDeath(PlayerController player, Enemy enemy)
 	{
-		if (player.isDead())
+		if (_dropManager == null)
 		{
 			return;
 		}
 		
-		if (Rnd.nextFloat() < ENEMY_DROP_CHANCE)
+		final Vector3f deathPos = enemy.getPosition();
+		final List<ItemInstance> drops = EnemyDropTable.rollDrops(enemy.getType(), deathPos.x, deathPos.z);
+		
+		for (int i = 0; i < drops.size(); i++)
 		{
-			player.heal(ENEMY_DROP_HEAL);
-			triggerHealFlash();
-			System.out.println("Found food! +2 HP (Health: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()) + ")");
+			// Offset each drop slightly so they don't overlap.
+			final float offsetX = (i % 2 == 0) ? (i * 0.2f) : -(i * 0.2f);
+			final float offsetZ = (i % 2 == 0) ? -(i * 0.15f) : (i * 0.15f);
+			final Vector3f dropPos = new Vector3f(deathPos.x + offsetX, deathPos.y, deathPos.z + offsetZ);
+			
+			_dropManager.spawnDrop(dropPos, drops.get(i));
+		}
+		
+		if (!drops.isEmpty())
+		{
+			System.out.println(formatEnemyName(enemy.getType()) + " dropped " + drops.size() + " item(s).");
 		}
 	}
 	
@@ -580,6 +587,15 @@ public class CombatSystem
 	public void setViewmodelRenderer(ViewmodelRenderer viewmodelRenderer)
 	{
 		_viewmodelRenderer = viewmodelRenderer;
+	}
+	
+	/**
+	 * Sets the drop manager for spawning item drops on enemy death.
+	 * @param dropManager the drop manager instance
+	 */
+	public void setDropManager(DropManager dropManager)
+	{
+		_dropManager = dropManager;
 	}
 	
 	// ------------------------------------------------------------------
