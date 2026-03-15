@@ -22,6 +22,7 @@ import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
+import simplecraft.item.ItemTextureResolver;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
 import simplecraft.world.World;
@@ -573,7 +574,8 @@ public class InventoryScreen implements ActionListener
 	{
 		if (stack == null || stack.isEmpty())
 		{
-			// Empty slot.
+			// Empty slot — clear any texture and show empty color.
+			_slotFillMat[index].clearParam("ColorMap");
 			_slotFillMat[index].setColor("Color", COLOR_SLOT_EMPTY);
 			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
 			_slotCount[index].setCullHint(BitmapText.CullHint.Always);
@@ -583,28 +585,40 @@ public class InventoryScreen implements ActionListener
 		}
 		
 		final ItemTemplate template = stack.getTemplate();
-		// final ItemType type = item.getType();
 		
-		// Set fill color based on item type.
-		final ColorRGBA fillColor = getItemColor(template);
-		_slotFillMat[index].setColor("Color", fillColor);
+		// Try to resolve a sprite texture (drops → items → blocks paths).
+		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
 		
-		// Label (type indicator).
-		final String label = getItemLabel(template);
-		if (label != null && !label.isEmpty())
+		if (slotTexture != null)
 		{
-			_slotLabel[index].setText(label);
-			// Center the label in the slot.
-			final float labelWidth = _slotLabel[index].getLineWidth();
-			final float labelHeight = _slotLabel[index].getLineHeight();
-			final float labelX = _slotX[index] + (_slotSize - labelWidth) / 2f;
-			final float labelY = _slotY[index] + (_slotSize + labelHeight) / 2f;
-			_slotLabel[index].setLocalTranslation(labelX, labelY, Z_TEXT);
-			_slotLabel[index].setCullHint(BitmapText.CullHint.Never);
+			// Textured slot — show the sprite, hide the type label letter.
+			_slotFillMat[index].setTexture("ColorMap", slotTexture);
+			_slotFillMat[index].setColor("Color", ColorRGBA.White);
+			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
 		}
 		else
 		{
-			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
+			// No sprite — use colored quad with type label.
+			_slotFillMat[index].clearParam("ColorMap");
+			final ColorRGBA fillColor = getItemColor(template);
+			_slotFillMat[index].setColor("Color", fillColor);
+			
+			// Label (type indicator).
+			final String label = getItemLabel(template);
+			if (label != null && !label.isEmpty())
+			{
+				_slotLabel[index].setText(label);
+				final float labelWidth = _slotLabel[index].getLineWidth();
+				final float labelHeight = _slotLabel[index].getLineHeight();
+				final float labelX = _slotX[index] + (_slotSize - labelWidth) / 2f;
+				final float labelY = _slotY[index] + (_slotSize + labelHeight) / 2f;
+				_slotLabel[index].setLocalTranslation(labelX, labelY, Z_TEXT);
+				_slotLabel[index].setCullHint(BitmapText.CullHint.Never);
+			}
+			else
+			{
+				_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
+			}
 		}
 		
 		// Count (shown if count > 1).
@@ -735,27 +749,39 @@ public class InventoryScreen implements ActionListener
 		final float heldX = cx - heldSize / 2f;
 		final float heldY = cy - heldSize / 2f;
 		
-		// Color.
-		final ColorRGBA color = getItemColor(_heldStack.getTemplate());
-		_heldQuadMat.setColor("Color", color);
+		// Try to resolve a sprite texture for the held item.
+		final com.jme3.texture.Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
 		
-		_heldQuad.setLocalTranslation(heldX, heldY, Z_HELD);
-		_heldQuad.setCullHint(Geometry.CullHint.Never);
-		
-		// Label.
-		final String label = getItemLabel(_heldStack.getTemplate());
-		if (label != null && !label.isEmpty())
+		if (heldTexture != null)
 		{
-			_heldLabel.setText(label);
-			final float labelWidth = _heldLabel.getLineWidth();
-			final float labelHeight = _heldLabel.getLineHeight();
-			_heldLabel.setLocalTranslation(heldX + (heldSize - labelWidth) / 2f, heldY + (heldSize + labelHeight) / 2f, Z_HELD + 0.1f);
-			_heldLabel.setCullHint(BitmapText.CullHint.Never);
+			_heldQuadMat.setTexture("ColorMap", heldTexture);
+			_heldQuadMat.setColor("Color", ColorRGBA.White);
+			_heldLabel.setCullHint(BitmapText.CullHint.Always);
 		}
 		else
 		{
-			_heldLabel.setCullHint(BitmapText.CullHint.Always);
+			_heldQuadMat.clearParam("ColorMap");
+			final ColorRGBA color = getItemColor(_heldStack.getTemplate());
+			_heldQuadMat.setColor("Color", color);
+			
+			// Label.
+			final String label = getItemLabel(_heldStack.getTemplate());
+			if (label != null && !label.isEmpty())
+			{
+				_heldLabel.setText(label);
+				final float labelWidth = _heldLabel.getLineWidth();
+				final float labelHeight = _heldLabel.getLineHeight();
+				_heldLabel.setLocalTranslation(heldX + (heldSize - labelWidth) / 2f, heldY + (heldSize + labelHeight) / 2f, Z_HELD + 0.1f);
+				_heldLabel.setCullHint(BitmapText.CullHint.Never);
+			}
+			else
+			{
+				_heldLabel.setCullHint(BitmapText.CullHint.Always);
+			}
 		}
+		
+		_heldQuad.setLocalTranslation(heldX, heldY, Z_HELD);
+		_heldQuad.setCullHint(Geometry.CullHint.Never);
 		
 		// Count.
 		if (_heldStack.getCount() > 1)

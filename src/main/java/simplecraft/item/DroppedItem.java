@@ -1,7 +1,6 @@
 package simplecraft.item;
 
 import com.jme3.asset.AssetManager;
-import com.jme3.asset.AssetNotFoundException;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -26,13 +25,12 @@ import simplecraft.world.TextureAtlas;
 /**
  * A world entity representing an item floating on the ground after a block break or enemy death.<br>
  * <br>
- * <b>Visual modes (checked in order):</b><br>
+ * <b>Visual modes (checked in priority order):</b><br>
  * <ol>
  * <li><b>Mini textured cube</b> — if the item is a BLOCK type and an atlas material is available,<br>
- * renders as a small 0.3-block cube with the block's actual per-face atlas textures.<br>
- * This gives the same look as the full-size block in the world, shrunk down.</li>
- * <li><b>Billboard sprite</b> — if a texture exists at {@code assets/images/drops/<item_id>.png},<br>
- * renders as a camera-facing quad (0.4 blocks) with that sprite.</li>
+ * renders as a small 0.3-block cube with the block's actual per-face atlas textures.</li>
+ * <li><b>Billboard sprite</b> — if a texture exists at {@code Images/drops/<item_id>.png}<br>
+ * or {@code Images/items/<item_id>.png}, renders as a camera-facing quad (0.4 blocks).</li>
  * <li><b>Colored cube</b> — fallback: a small solid-color cube (0.3 blocks) tinted per item type.</li>
  * </ol>
  * Mini-cube and colored-cube drops spin slowly around the Y axis. Billboard drops face the<br>
@@ -64,12 +62,6 @@ public class DroppedItem
 	
 	/** Width and height of the billboard quad in blocks. */
 	private static final float BILLBOARD_SIZE = 0.4f;
-	
-	/**
-	 * Asset path prefix for drop textures.<br>
-	 * Full path: {@code assets/images/drops/<item_id>.png}
-	 */
-	private static final String DROP_TEXTURE_PATH = "assets/images/drops/";
 	
 	// ------------------------------------------------------------------
 	// Atlas UV constants (mirrors RegionMeshBuilder).
@@ -132,7 +124,7 @@ public class DroppedItem
 	
 	/**
 	 * Creates a new dropped item at the given world position.<br>
-	 * Chooses the best visual mode in order: mini textured cube → billboard sprite → colored cube.
+	 * Chooses the best visual mode: mini textured cube (blocks) → billboard sprite → colored cube.
 	 * @param instance the item stack to drop
 	 * @param position the world position (ground level at the drop origin)
 	 * @param assetManager the asset manager for creating materials and loading textures
@@ -149,7 +141,8 @@ public class DroppedItem
 		_node = new Node("DroppedItem_" + itemId);
 		
 		// ------------------------------------------------------------------
-		// Mode 1: Mini textured cube for block items with atlas textures.
+		// Priority 1: Mini textured cube for block items with atlas textures.
+		// Block-type items always render as spinning 3D cubes, never billboards.
 		// ------------------------------------------------------------------
 		final Block placedBlock = instance.getTemplate().getType() == ItemType.BLOCK ? instance.getTemplate().getPlacesBlock() : null;
 		if (placedBlock != null && atlasMaterial != null && placedBlock.getAtlasIndex() >= 0)
@@ -166,23 +159,10 @@ public class DroppedItem
 		}
 		
 		// ------------------------------------------------------------------
-		// Mode 2: Billboard sprite if assets/images/drops/<item_id>.png exists.
+		// Priority 2: Billboard sprite for non-block items (Images/drops/ then Images/items/).
 		// ------------------------------------------------------------------
-		Texture dropTexture = null;
-		try
-		{
-			dropTexture = assetManager.loadTexture(DROP_TEXTURE_PATH + itemId + ".png");
-		}
-		catch (AssetNotFoundException ignored)
-		{
-			// No texture — will fall back to colored cube.
-		}
-		catch (Exception ignored)
-		{
-			// Any other loading error — fall back silently.
-		}
-		
-		if (dropTexture != null)
+		final Texture spriteTexture = ItemTextureResolver.resolve(assetManager, instance.getTemplate());
+		if (spriteTexture != null)
 		{
 			_isBillboard = true;
 			
@@ -190,7 +170,7 @@ public class DroppedItem
 			final Geometry geom = new Geometry("DropBillboard", quad);
 			
 			final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-			mat.setTexture("ColorMap", dropTexture);
+			mat.setTexture("ColorMap", spriteTexture);
 			mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 			geom.setMaterial(mat);
 			geom.setQueueBucket(Bucket.Transparent);
@@ -209,7 +189,7 @@ public class DroppedItem
 		}
 		
 		// ------------------------------------------------------------------
-		// Mode 3: Colored cube fallback.
+		// Priority 3: Colored cube fallback.
 		// ------------------------------------------------------------------
 		_isBillboard = false;
 		
@@ -229,9 +209,7 @@ public class DroppedItem
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Builds a small cube mesh with per-face atlas UVs matching the given block type.<br>
-	 * Uses 24 vertices (4 per face), each with correct positions, normals, atlas UV<br>
-	 * coordinates, and white vertex colors (full brightness, required by the atlas material).
+	 * Builds a small cube mesh with per-face atlas UVs matching the given block type.
 	 * @param block the block to use for atlas UV lookups
 	 * @return the custom mini cube mesh
 	 */
@@ -313,7 +291,6 @@ public class DroppedItem
 			case TOP:
 			{
 				ny = 1;
-				// v0(-h,h,-h) v1(-h,h,h) v2(h,h,h) v3(h,h,-h)
 				pos[p] = -h;
 				pos[p + 1] = h;
 				pos[p + 2] = -h;
@@ -331,7 +308,6 @@ public class DroppedItem
 			case BOTTOM:
 			{
 				ny = -1;
-				// v0(-h,-h,h) v1(-h,-h,-h) v2(h,-h,-h) v3(h,-h,h)
 				pos[p] = -h;
 				pos[p + 1] = -h;
 				pos[p + 2] = h;
@@ -349,7 +325,6 @@ public class DroppedItem
 			case NORTH:
 			{
 				nz = 1;
-				// v0(h,-h,h) v1(h,h,h) v2(-h,h,h) v3(-h,-h,h)
 				pos[p] = h;
 				pos[p + 1] = -h;
 				pos[p + 2] = h;
@@ -367,7 +342,6 @@ public class DroppedItem
 			case SOUTH:
 			{
 				nz = -1;
-				// v0(-h,-h,-h) v1(-h,h,-h) v2(h,h,-h) v3(h,-h,-h)
 				pos[p] = -h;
 				pos[p + 1] = -h;
 				pos[p + 2] = -h;
@@ -385,7 +359,6 @@ public class DroppedItem
 			case EAST:
 			{
 				nx = 1;
-				// v0(h,-h,-h) v1(h,h,-h) v2(h,h,h) v3(h,-h,h)
 				pos[p] = h;
 				pos[p + 1] = -h;
 				pos[p + 2] = -h;
@@ -403,7 +376,6 @@ public class DroppedItem
 			case WEST:
 			{
 				nx = -1;
-				// v0(-h,-h,h) v1(-h,h,h) v2(-h,h,-h) v3(-h,-h,-h)
 				pos[p] = -h;
 				pos[p + 1] = -h;
 				pos[p + 2] = h;
@@ -458,14 +430,12 @@ public class DroppedItem
 		}
 		else
 		{
-			// Fallback — full atlas (shouldn't happen for valid blocks).
 			u0 = UV_PADDING;
 			v0 = UV_PADDING;
 			u1 = 1.0f - UV_PADDING;
 			v1 = 1.0f - UV_PADDING;
 		}
 		
-		// UV winding: v0(u0,v1) v1(u0,v0) v2(u1,v0) v3(u1,v1)
 		texCoords[t] = u0;
 		texCoords[t + 1] = v1;
 		texCoords[t + 2] = u0;

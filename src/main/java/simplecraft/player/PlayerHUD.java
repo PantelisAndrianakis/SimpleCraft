@@ -17,6 +17,7 @@ import simplecraft.SimpleCraft;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
+import simplecraft.item.ItemTextureResolver;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
@@ -722,6 +723,8 @@ public class PlayerHUD
 	{
 		if (stack == null || stack.isEmpty())
 		{
+			// Empty slot — clear any texture and show empty color.
+			_hotbarFillMat[index].clearParam("ColorMap");
 			_hotbarFillMat[index].setColor("Color", COLOR_HOTBAR_EMPTY);
 			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
 			_hotbarCount[index].setCullHint(BitmapText.CullHint.Always);
@@ -732,25 +735,39 @@ public class PlayerHUD
 		
 		final ItemTemplate template = stack.getTemplate();
 		
-		// Fill color based on item type.
-		final ColorRGBA fillColor = InventoryScreen.getItemColor(template);
-		_hotbarFillMat[index].setColor("Color", fillColor);
+		// Try to resolve a sprite texture (drops → items → blocks paths).
+		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
 		
-		// Label (type indicator letter).
-		final String label = InventoryScreen.getItemLabel(template);
-		if (label != null && !label.isEmpty())
+		if (slotTexture != null)
 		{
-			_hotbarLabel[index].setText(label);
-			final float labelWidth = _hotbarLabel[index].getLineWidth();
-			final float labelHeight = _hotbarLabel[index].getLineHeight();
-			final float labelX = _hotbarSlotX[index] + (_hotbarSlotSize - labelWidth) / 2f;
-			final float labelY = _hotbarSlotY + (_hotbarSlotSize + labelHeight) / 2f;
-			_hotbarLabel[index].setLocalTranslation(labelX, labelY, 0.3f);
-			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Never);
+			// Textured slot — show the sprite, hide the type label letter.
+			_hotbarFillMat[index].setTexture("ColorMap", slotTexture);
+			_hotbarFillMat[index].setColor("Color", ColorRGBA.White);
+			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
 		}
 		else
 		{
-			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
+			// No sprite — use colored quad with type label.
+			_hotbarFillMat[index].clearParam("ColorMap");
+			final ColorRGBA fillColor = InventoryScreen.getItemColor(template);
+			_hotbarFillMat[index].setColor("Color", fillColor);
+			
+			// Label (type indicator letter).
+			final String label = InventoryScreen.getItemLabel(template);
+			if (label != null && !label.isEmpty())
+			{
+				_hotbarLabel[index].setText(label);
+				final float labelWidth = _hotbarLabel[index].getLineWidth();
+				final float labelHeight = _hotbarLabel[index].getLineHeight();
+				final float labelX = _hotbarSlotX[index] + (_hotbarSlotSize - labelWidth) / 2f;
+				final float labelY = _hotbarSlotY + (_hotbarSlotSize + labelHeight) / 2f;
+				_hotbarLabel[index].setLocalTranslation(labelX, labelY, 0.3f);
+				_hotbarLabel[index].setCullHint(BitmapText.CullHint.Never);
+			}
+			else
+			{
+				_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
+			}
 		}
 		
 		// Count (shown if count > 1).

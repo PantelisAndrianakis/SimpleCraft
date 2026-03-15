@@ -31,6 +31,7 @@ import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
 import simplecraft.item.DropManager;
+import simplecraft.item.ItemTextureResolver;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
@@ -1306,6 +1307,9 @@ public class PlayingState extends FadeableAppState
 		
 		_textureAtlas = null;
 		_atlasMaterial = null;
+		
+		// Clear cached item textures so they are reloaded for the next world.
+		ItemTextureResolver.clearCache();
 		_activeWorld = null;
 		_playerSaveData = null;
 		_tileEntitySaveData = null;

@@ -691,7 +691,7 @@ public class GameInputManager
 	/**
 	 * Get the human-readable display name for a mouse button code.
 	 * @param buttonCode The MouseInput button constant
-	 * @return A display string (e.g., "Left Click"), or "Button XXX" for unknown buttons
+	 * @return A display string (e.g., "Left Click"), or "Button XX" for unknown buttons
 	 */
 	public static String getMouseButtonName(int buttonCode)
 	{
@@ -747,7 +747,7 @@ public class GameInputManager
 	/**
 	 * Get the human-readable display name for a key code.
 	 * @param keyCode The jME3 KeyInput constant
-	 * @return A short display string (e.g., "W", "Space", "L.Shift"), or "Key XXX" for unknown keys
+	 * @return A short display string (e.g., "W", "Space", "L.Shift"), or "Key XX" for unknown keys
 	 */
 	public static String getKeyName(int keyCode)
 	{
