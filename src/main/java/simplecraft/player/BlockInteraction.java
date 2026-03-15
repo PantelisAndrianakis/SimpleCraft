@@ -941,6 +941,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			{
 				final TreeFeller.FellingResult fellingResult = TreeFeller.fellTree(_world, _targetX, _targetY, _targetZ);
 				_destructionQueue.queueTreeFelling(fellingResult);
+				
+				// Drop items for each block destroyed by the felling cascade.
+				// The broken block itself was already handled by dropBlockItem above.
+				for (Block blockItem : fellingResult.getBlockTypes())
+				{
+					dropBlockItem(blockItem);
+				}
 			}
 			
 			// Check block support for nearby player-placed blocks.
