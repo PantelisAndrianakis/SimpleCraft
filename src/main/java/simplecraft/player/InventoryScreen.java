@@ -10,6 +10,7 @@ import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector2f;
+import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -17,11 +18,13 @@ import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
+import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
+import simplecraft.world.World;
 
 /**
  * Full inventory screen opened with Tab.<br>
@@ -106,6 +109,12 @@ public class InventoryScreen implements ActionListener
 	private final Inventory _inventory;
 	private final PlayerController _playerController;
 	private final BlockInteraction _blockInteraction;
+	
+	/** Drop manager for spawning world drops when items are discarded from the inventory. */
+	private DropManager _dropManager;
+	
+	/** World reference for ground-level lookups when dropping items. */
+	private World _world;
 	
 	private final Node _guiNode;
 	private final Node _screenNode;
@@ -460,12 +469,12 @@ public class InventoryScreen implements ActionListener
 		
 		_open = false;
 		
-		// If holding a stack, return it to inventory (or drop if full).
+		// If holding a stack, return it to inventory (or drop into world if full).
 		if (_heldStack != null)
 		{
 			if (!_inventory.addItem(_heldStack))
 			{
-				System.out.println("Inventory full — discarded held stack: " + _heldStack);
+				dropItemIntoWorld(_heldStack);
 			}
 			_heldStack = null;
 		}
@@ -800,10 +809,10 @@ public class InventoryScreen implements ActionListener
 	{
 		if (slot < 0)
 		{
-			// Clicked outside grid — discard held stack.
+			// Clicked outside grid — drop held stack into the world.
 			if (_heldStack != null)
 			{
-				System.out.println("Discarded: " + _heldStack);
+				dropItemIntoWorld(_heldStack);
 				_heldStack = null;
 			}
 			return;
@@ -903,6 +912,89 @@ public class InventoryScreen implements ActionListener
 			}
 		}
 		return -1;
+	}
+	
+	// ========================================================
+	// World Drop Support.
+	// ========================================================
+	
+	/**
+	 * Sets the drop manager for spawning world drops when items are discarded.
+	 * @param dropManager the drop manager instance
+	 */
+	public void setDropManager(DropManager dropManager)
+	{
+		_dropManager = dropManager;
+	}
+	
+	/**
+	 * Sets the world reference for ground-level lookups when dropping items.
+	 * @param world the game world
+	 */
+	public void setWorld(World world)
+	{
+		_world = world;
+	}
+	
+	/**
+	 * Drops an item stack into the world slightly in front of the player.<br>
+	 * The drop is placed 1.5 blocks forward from the player's position in the<br>
+	 * camera look direction (horizontal only), then scanned downward to find<br>
+	 * the ground surface. Falls back to silent discard if DropManager is not set.
+	 * @param stack the item stack to drop
+	 */
+	private void dropItemIntoWorld(ItemInstance stack)
+	{
+		if (stack == null || stack.isEmpty())
+		{
+			return;
+		}
+		
+		if (_dropManager == null)
+		{
+			System.out.println("Discarded (no DropManager): " + stack);
+			return;
+		}
+		
+		// Calculate drop position: 1.5 blocks in front of the player on the horizontal plane.
+		final Vector3f playerPos = _playerController.getPosition();
+		final Vector3f camDir = SimpleCraft.getInstance().getCamera().getDirection();
+		
+		// Horizontal-only forward direction (ignore vertical look angle).
+		final float hLength = (float) Math.sqrt(camDir.x * camDir.x + camDir.z * camDir.z);
+		final float forwardDist = 1.5f;
+		float dropX;
+		float dropZ;
+		if (hLength > 0.001f)
+		{
+			dropX = playerPos.x + (camDir.x / hLength) * forwardDist;
+			dropZ = playerPos.z + (camDir.z / hLength) * forwardDist;
+		}
+		else
+		{
+			// Looking straight up/down — drop at player position.
+			dropX = playerPos.x;
+			dropZ = playerPos.z;
+		}
+		
+		// Find ground level below the drop position.
+		final int bx = (int) Math.floor(dropX);
+		final int bz = (int) Math.floor(dropZ);
+		int groundY = (int) playerPos.y;
+		if (_world != null)
+		{
+			for (int y = (int) playerPos.y; y >= 0; y--)
+			{
+				if (_world.getBlock(bx, y, bz).isSolid())
+				{
+					groundY = y + 1;
+					break;
+				}
+			}
+		}
+		
+		_dropManager.spawnDrop(new Vector3f(dropX, groundY, dropZ), stack);
+		System.out.println("Dropped into world: " + stack);
 	}
 	
 	// ========================================================

@@ -1103,6 +1103,13 @@ public class PlayingState extends FadeableAppState
 		// Wire drop manager to block interaction for block break drops.
 		_blockInteraction.setDropManager(_dropManager);
 		
+		// Wire drop manager and world to inventory screen for item discards.
+		if (_inventoryScreen != null)
+		{
+			_inventoryScreen.setDropManager(_dropManager);
+			_inventoryScreen.setWorld(_world);
+		}
+		
 		// Initialize the particle manager for block break and combat effects.
 		_particleManager = new ParticleManager(app.getAssetManager());
 		app.getRootNode().attachChild(_particleManager.getNode());
@@ -1154,6 +1161,14 @@ public class PlayingState extends FadeableAppState
 		
 		// Create inventory screen (hidden initially).
 		_inventoryScreen = new InventoryScreen(_playerController, _blockInteraction);
+		if (_dropManager != null)
+		{
+			_inventoryScreen.setDropManager(_dropManager);
+		}
+		if (_world != null)
+		{
+			_inventoryScreen.setWorld(_world);
+		}
 	}
 	
 	/**
