@@ -982,13 +982,13 @@ public class InventoryScreen implements ActionListener
 			return;
 		}
 		
-		// Calculate drop position: 1.5 blocks in front of the player on the horizontal plane.
+		// Calculate drop position: 2.5 blocks in front of the player on the horizontal plane.
 		final Vector3f playerPos = _playerController.getPosition();
 		final Vector3f camDir = SimpleCraft.getInstance().getCamera().getDirection();
 		
 		// Horizontal-only forward direction (ignore vertical look angle).
 		final float hLength = (float) Math.sqrt(camDir.x * camDir.x + camDir.z * camDir.z);
-		final float forwardDist = 1.5f;
+		final float forwardDist = 2.5f;
 		float dropX;
 		float dropZ;
 		if (hLength > 0.001f)
@@ -1004,12 +1004,15 @@ public class InventoryScreen implements ActionListener
 		}
 		
 		// Find ground level below the drop position.
+		// Start one block above feet level — handles 1-block step-ups in terrain
+		// ahead while staying below ceilings and roofs.
 		final int bx = (int) Math.floor(dropX);
 		final int bz = (int) Math.floor(dropZ);
-		int groundY = (int) playerPos.y;
+		int groundY = (int) Math.ceil(playerPos.y);
 		if (_world != null)
 		{
-			for (int y = (int) playerPos.y; y >= 0; y--)
+			final int startY = (int) Math.ceil(playerPos.y) + 1;
+			for (int y = startY; y >= 0; y--)
 			{
 				if (_world.getBlock(bx, y, bz).isSolid())
 				{
