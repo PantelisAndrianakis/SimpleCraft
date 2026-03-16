@@ -384,7 +384,7 @@ public class OptionsState extends FadeableAppState
 		positionContentContainer(_displayContent, screenCenterX, screenHeight / 0.83f);
 		positionContentContainer(_audioContent, screenCenterX, screenHeight / 0.83f);
 		positionContentContainer(_keyMovementContent, screenCenterX, screenHeight / 0.78f);
-		positionContentContainer(_keyActionsContent, screenCenterX, screenHeight / 0.78f);
+		positionContentContainer(_keyActionsContent, screenCenterX, screenHeight / 1.0f);
 		positionContentContainer(_keyMouseContent, screenCenterX, screenHeight / 0.78f);
 		
 		// --- Button Row (Defaults + Back) ---

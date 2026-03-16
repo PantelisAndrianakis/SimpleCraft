@@ -9,6 +9,8 @@ import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.AnalogListener;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
+
+import simplecraft.input.GameInputManager;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -329,6 +331,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		_inputManager.addListener((ActionListener) this, ACTION_ATTACK, ACTION_PLACE);
 		_inputManager.addListener((AnalogListener) this, ACTION_NEXT_BLOCK, ACTION_PREV_BLOCK);
+		
+		// Hotbar direct-select keys (registered centrally by GameInputManager, just add listener here).
+		_inputManager.addListener((ActionListener) this, GameInputManager.HOTBAR_ACTIONS);
 	}
 	
 	/**
@@ -2526,6 +2531,22 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				if (isPressed)
 				{
 					_placePressed = true;
+				}
+				break;
+			}
+			default:
+			{
+				// Hotbar direct-select keys.
+				if (isPressed)
+				{
+					for (int i = 0; i < GameInputManager.HOTBAR_ACTIONS.length; i++)
+					{
+						if (name.equals(GameInputManager.HOTBAR_ACTIONS[i]))
+						{
+							_playerController.getInventory().selectHotbar(i);
+							break;
+						}
+					}
 				}
 				break;
 			}

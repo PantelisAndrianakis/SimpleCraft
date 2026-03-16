@@ -53,6 +53,24 @@ public class GameInputManager
 	public static final String PLACE_BLOCK = "place_block";
 	public static final String INVENTORY = "inventory";
 	
+	// Hotbar direct-select actions.
+	public static final String HOTBAR_1 = "hotbar_1";
+	public static final String HOTBAR_2 = "hotbar_2";
+	public static final String HOTBAR_3 = "hotbar_3";
+	public static final String HOTBAR_4 = "hotbar_4";
+	public static final String HOTBAR_5 = "hotbar_5";
+	public static final String HOTBAR_6 = "hotbar_6";
+	public static final String HOTBAR_7 = "hotbar_7";
+	public static final String HOTBAR_8 = "hotbar_8";
+	public static final String HOTBAR_9 = "hotbar_9";
+	
+	/** Ordered array of all hotbar action constants (index 0 = slot 0). */
+	public static final String[] HOTBAR_ACTIONS =
+	{
+		HOTBAR_1, HOTBAR_2, HOTBAR_3, HOTBAR_4, HOTBAR_5,
+		HOTBAR_6, HOTBAR_7, HOTBAR_8, HOTBAR_9
+	};
+	
 	// UI actions.
 	public static final String PAUSE = "pause";
 	public static final String SCREENSHOT = "screenshot";
@@ -78,6 +96,15 @@ public class GameInputManager
 		{SCREENSHOT, "Screenshot", "Actions"},
 		{PAUSE, "Pause / Menu", "Actions"},
 		{INVENTORY, "Inventory", "Actions"},
+		{HOTBAR_1, "Hotbar Slot 1", "Hotbar"},
+		{HOTBAR_2, "Hotbar Slot 2", "Hotbar"},
+		{HOTBAR_3, "Hotbar Slot 3", "Hotbar"},
+		{HOTBAR_4, "Hotbar Slot 4", "Hotbar"},
+		{HOTBAR_5, "Hotbar Slot 5", "Hotbar"},
+		{HOTBAR_6, "Hotbar Slot 6", "Hotbar"},
+		{HOTBAR_7, "Hotbar Slot 7", "Hotbar"},
+		{HOTBAR_8, "Hotbar Slot 8", "Hotbar"},
+		{HOTBAR_9, "Hotbar Slot 9", "Hotbar"},
 		// @formatter:on
 	};
 	
@@ -119,6 +146,15 @@ public class GameInputManager
 		defaults.put(INVENTORY, KeyInput.KEY_TAB);
 		defaults.put(PAUSE, KeyInput.KEY_ESCAPE);
 		defaults.put(SCREENSHOT, KeyInput.KEY_F2);
+		defaults.put(HOTBAR_1, KeyInput.KEY_1);
+		defaults.put(HOTBAR_2, KeyInput.KEY_2);
+		defaults.put(HOTBAR_3, KeyInput.KEY_3);
+		defaults.put(HOTBAR_4, KeyInput.KEY_4);
+		defaults.put(HOTBAR_5, KeyInput.KEY_5);
+		defaults.put(HOTBAR_6, KeyInput.KEY_6);
+		defaults.put(HOTBAR_7, KeyInput.KEY_7);
+		defaults.put(HOTBAR_8, KeyInput.KEY_8);
+		defaults.put(HOTBAR_9, KeyInput.KEY_9);
 		DEFAULT_KEY_CODES = Collections.unmodifiableMap(defaults);
 	}
 	
