@@ -20,7 +20,7 @@ import com.jme3.scene.shape.Quad;
  * When trees are felled or player-placed blocks lose support, the block data<br>
  * is set to AIR immediately (for game logic), but the visual mesh updates are<br>
  * staggered through this queue. Each block is revealed (mesh rebuilt) with a<br>
- * small delay, and a brief expanding/fading particle is spawned at its position.<br>
+ * small delay and a brief expanding/fading particle is spawned at its position.<br>
  * <br>
  * This creates a satisfying cascade effect instead of all blocks vanishing at once.
  * @author Pantelis Andrianakis
@@ -239,7 +239,7 @@ public class BlockDestructionQueue
 			
 			if (progress >= 1.0f)
 			{
-				// Effect finished — remove.
+				// Effect finished - remove.
 				_effectsNode.detachChild(effect._geometry);
 				effectIter.remove();
 				continue;

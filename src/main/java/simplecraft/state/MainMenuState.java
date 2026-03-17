@@ -23,7 +23,7 @@ import simplecraft.ui.QuestionManager;
 
 /**
  * Main menu state with title and navigation buttons.<br>
- * Provides Start Game, Options, and Exit functionality with SFX feedback.<br>
+ * Provides Start Game, Options and Exit functionality with SFX feedback.<br>
  * Supports keyboard navigation via WASD and arrow keys.
  * @author Pantelis Andrianakis
  * @since February 17th 2026
@@ -110,7 +110,7 @@ public class MainMenuState extends FadeableAppState
 		// --- Navigation ---
 		_navigation = new MenuNavigationManager();
 		
-		// Start Game button — transitions to World Select.
+		// Start Game button - transitions to World Select.
 		final Runnable startAction = () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);

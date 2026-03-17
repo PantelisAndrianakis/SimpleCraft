@@ -8,7 +8,7 @@ import com.jme3.scene.Spatial;
 
 /**
  * Procedural animation system for all enemy types.<br>
- * Drives limb rotations, body scaling, and positional offsets<br>
+ * Drives limb rotations, body scaling and positional offsets<br>
  * each frame based on the enemy type and movement state.<br>
  * <br>
  * Animation styles:<br>
@@ -94,10 +94,10 @@ public class EnemyAnimator
 	// Death animation constants.
 	// ------------------------------------------------------------------
 	
-	/** Duration of the topple phase — enemy falls sideways with spin (seconds). */
+	/** Duration of the topple phase - enemy falls sideways with spin (seconds). */
 	private static final float DEATH_TOPPLE_DURATION = 0.5f;
 	
-	/** Duration of the shrink phase — enemy scales down to nothing (seconds). */
+	/** Duration of the shrink phase - enemy scales down to nothing (seconds). */
 	private static final float DEATH_SHRINK_DURATION = 0.45f;
 	
 	/** Total death animation duration (topple + shrink). */
@@ -116,7 +116,7 @@ public class EnemyAnimator
 	private static final Quaternion TEMP_QUAT2 = new Quaternion();
 	
 	/**
-	 * Private constructor — utility class with only static methods.
+	 * Private constructor - utility class with only static methods.
 	 */
 	private EnemyAnimator()
 	{
@@ -177,7 +177,7 @@ public class EnemyAnimator
 			case SLIME:
 			{
 				animateSlime(enemy, time);
-				// Slime has no idle — the hop IS the idle.
+				// Slime has no idle - the hop IS the idle.
 				break;
 			}
 			case PIRANHA:
@@ -357,14 +357,14 @@ public class EnemyAnimator
 	}
 	
 	// ------------------------------------------------------------------
-	// Death animation (topple sideways with spin → shrink).
+	// Death animation (topple sideways with spin -> shrink).
 	// ------------------------------------------------------------------
 	
 	/**
 	 * Two-phase death animation:<br>
-	 * <b>Phase 1 — Topple + Spin:</b> The enemy falls sideways (Z-axis rotation)<br>
+	 * <b>Phase 1 - Topple + Spin:</b> The enemy falls sideways (Z-axis rotation)<br>
 	 * while spinning on the Y axis, using an ease-in curve for a natural gravity feel.<br>
-	 * <b>Phase 2 — Shrink:</b> The enemy smoothly scales down to nothing and disappears.<br>
+	 * <b>Phase 2 - Shrink:</b> The enemy smoothly scales down to nothing and disappears.<br>
 	 * When the animation completes, the enemy is marked as no longer alive<br>
 	 * so the spawn system can remove it from the scene.
 	 * @param enemy the dying enemy
@@ -415,7 +415,7 @@ public class EnemyAnimator
 		}
 		else
 		{
-			// Animation complete — mark for removal.
+			// Animation complete - mark for removal.
 			// Set stateTimer high so SpawnSystem's death-linger check passes immediately
 			// (the visual death has already played; no need to linger further).
 			root.setLocalScale(0.01f);

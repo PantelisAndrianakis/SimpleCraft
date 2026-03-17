@@ -13,7 +13,7 @@ import simplecraft.item.ItemTemplate;
  * Defines drop tables for each enemy type and rolls loot on death.<br>
  * <br>
  * Each enemy type has a set of independent drop entries, each with its own<br>
- * item ID, quantity range, and probability. Rolls are made independently<br>
+ * item ID, quantity range and probability. Rolls are made independently<br>
  * for each entry, so an enemy can drop multiple different items in a single death.<br>
  * <br>
  * The Random is seeded per kill from a combination of enemy position and a<br>
@@ -28,7 +28,7 @@ public class EnemyDropTable
 	private static long _killCounter = 0;
 	
 	/**
-	 * A single entry in a drop table: item ID, min/max count, and drop chance.
+	 * A single entry in a drop table: item ID, min/max count and drop chance.
 	 */
 	private static class DropEntry
 	{

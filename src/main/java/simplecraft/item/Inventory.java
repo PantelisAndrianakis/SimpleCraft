@@ -3,7 +3,7 @@ package simplecraft.item;
 /**
  * Player inventory with 36 slots: hotbar (0-8) and main inventory (9-35).<br>
  * Null slots are empty. Weapons and tools never stack (unique durability).<br>
- * Blocks, consumables, and materials stack up to their max stack size.
+ * Blocks, consumables and materials stack up to their max stack size.
  * @author Pantelis Andrianakis
  * @since March 13th 2026
  */
@@ -42,7 +42,7 @@ public class Inventory
 	
 	/**
 	 * Sets the ItemInstance at the given slot index directly.<br>
-	 * Pass null to clear the slot. Used for crafting output, drops, and UI manipulation.
+	 * Pass null to clear the slot. Used for crafting output, drops and UI manipulation.
 	 * @param index slot index (0-35)
 	 * @param stack the ItemInstance to place, or null to clear
 	 */
@@ -157,7 +157,7 @@ public class Inventory
 				}
 			}
 			
-			// Inventory is full — could not place all items.
+			// Inventory is full - could not place all items.
 			return false;
 		}
 		

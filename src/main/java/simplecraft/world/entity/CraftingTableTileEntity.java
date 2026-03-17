@@ -7,7 +7,7 @@ import simplecraft.world.World;
 
 /**
  * Tile entity for the Crafting Table block.<br>
- * The crafting table itself has no persistent state — it simply triggers the<br>
+ * The crafting table itself has no persistent state - it simply triggers the<br>
  * crafting UI when the player right-clicks it. Screen opening is handled by<br>
  * {@link simplecraft.player.BlockInteraction}, which detects this entity type<br>
  * and opens the {@link simplecraft.player.CraftingScreen}.<br>
@@ -38,7 +38,7 @@ public class CraftingTableTileEntity extends TileEntity
 	@Override
 	public String serialize()
 	{
-		// Reuse base serialization — no extra fields to save.
+		// Reuse base serialization - no extra fields to save.
 		return super.serialize();
 	}
 }

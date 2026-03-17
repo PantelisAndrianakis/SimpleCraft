@@ -477,7 +477,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// SMALL_OAK (40%) — compact rounded canopy.
+	// SMALL_OAK (40%) - compact rounded canopy.
 	// ========================================================
 	
 	/**
@@ -486,11 +486,11 @@ public class TreeGenerator
 	 * Total height: ~8-9 blocks.
 	 *
 	 * <pre>
-	 *     L           ← top: cross or single block
-	 *    LLL          ← upper: 3×3 minus corners
-	 *   LLLLL         ← middle: 5×5 minus corners, edges randomized
-	 *   LLWLL         ← lower: 5×5 minus corners, edges randomized
-	 *    LLL          ← bottom fringe: 3×3 minus corners
+	 *     L           <- top: cross or single block
+	 *    LLL          <- upper: 3×3 minus corners
+	 *   LLLLL         <- middle: 5×5 minus corners, edges randomized
+	 *   LLWLL         <- lower: 5×5 minus corners, edges randomized
+	 *    LLL          <- bottom fringe: 3×3 minus corners
 	 *     W
 	 *     W
 	 *     W
@@ -524,12 +524,12 @@ public class TreeGenerator
 		// Layer 3: upper - 3×3 minus corners.
 		placeRoundedLayer(region, x, trunkTop + 2, z, 1, random);
 		
-		// Layer 4: top — single block or cross (but keep it attached to the layer below).
+		// Layer 4: top - single block or cross (but keep it attached to the layer below).
 		placeTopLayer(region, x, trunkTop + 3, z, random);
 	}
 	
 	// ========================================================
-	// TALL_OAK (25%) — large rounded canopy.
+	// TALL_OAK (25%) - large rounded canopy.
 	// ========================================================
 	
 	/**
@@ -538,13 +538,13 @@ public class TreeGenerator
 	 * Total height: ~12-15 blocks.
 	 *
 	 * <pre>
-	 *     L           ← top cross
-	 *    LLL          ← upper: 3×3 rounded
-	 *   LLLLL         ← wide 5×5 rounded
-	 *   LLWLL         ← wide 5×5 rounded (trunk through center)
-	 *   LLWLL         ← wide 5×5 rounded
-	 *   LLWLL         ← wide 5×5 rounded
-	 *    LLL          ← bottom fringe: 3×3 rounded
+	 *     L           <- top cross
+	 *    LLL          <- upper: 3×3 rounded
+	 *   LLLLL         <- wide 5×5 rounded
+	 *   LLWLL         <- wide 5×5 rounded (trunk through center)
+	 *   LLWLL         <- wide 5×5 rounded
+	 *   LLWLL         <- wide 5×5 rounded
+	 *    LLL          <- bottom fringe: 3×3 rounded
 	 *     W
 	 *     W
 	 *     W
@@ -585,7 +585,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// BIRCH (20%) — narrow columnar canopy.
+	// BIRCH (20%) - narrow columnar canopy.
 	// ========================================================
 	
 	/**
@@ -594,11 +594,11 @@ public class TreeGenerator
 	 * Distinct narrow silhouette compared to oaks. Total height: ~10-12 blocks.
 	 *
 	 * <pre>
-	 *    L            ← top cross
-	 *   LLL           ← 3×3 rounded
-	 *   LWL           ← 3×3 rounded (trunk)
-	 *   LWL           ← 3×3 rounded (trunk)
-	 *   LLL           ← 3×3 rounded
+	 *    L            <- top cross
+	 *   LLL           <- 3×3 rounded
+	 *   LWL           <- 3×3 rounded (trunk)
+	 *   LWL           <- 3×3 rounded (trunk)
+	 *   LLL           <- 3×3 rounded
 	 *    W
 	 *    W
 	 *    W
@@ -636,7 +636,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// SHRUB (15%) — short but elevated canopy.
+	// SHRUB (15%) - short but elevated canopy.
 	// ========================================================
 	
 	/**
@@ -645,9 +645,9 @@ public class TreeGenerator
 	 * Total height: ~5-6 blocks.
 	 *
 	 * <pre>
-	 *    L            ← top cross
-	 *   LLL           ← 3×3 rounded
-	 *   LWL           ← 3×3 at trunk top
+	 *    L            <- top cross
+	 *   LLL           <- 3×3 rounded
+	 *   LWL           <- 3×3 at trunk top
 	 *    W
 	 *    W
 	 *    D
@@ -676,7 +676,7 @@ public class TreeGenerator
 	}
 	
 	// ========================================================
-	// SPRUCE (20%) — conical layered canopy.
+	// SPRUCE (20%) - conical layered canopy.
 	// ========================================================
 	
 	/**
@@ -686,15 +686,15 @@ public class TreeGenerator
 	 * Total height: ~13-17 blocks.
 	 *
 	 * <pre>
-	 *      L          ← spike top: single leaf (currently commented)
-	 *     LLL         ← tip: 3×3 rounded
-	 *      W          ← trunk gap
-	 *    LLLLL        ← mid section: 5×5 rounded
-	 *    LLWLL        ← mid section: 5×5 rounded
-	 *      W          ← trunk gap
-	 *    LLLLL        ← lower section: 5×5 rounded
-	 *    LLWLL        ← lower section: 5×5 rounded
-	 *    LLLLL        ← base section: 5×5 rounded
+	 *      L          <- spike top: single leaf (currently commented)
+	 *     LLL         <- tip: 3×3 rounded
+	 *      W          <- trunk gap
+	 *    LLLLL        <- mid section: 5×5 rounded
+	 *    LLWLL        <- mid section: 5×5 rounded
+	 *      W          <- trunk gap
+	 *    LLLLL        <- lower section: 5×5 rounded
+	 *    LLWLL        <- lower section: 5×5 rounded
+	 *    LLLLL        <- base section: 5×5 rounded
 	 *      W
 	 *      W
 	 *      W

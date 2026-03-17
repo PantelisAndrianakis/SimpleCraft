@@ -53,7 +53,7 @@ public class EnemyLighting
 	private static World _world;
 	
 	/**
-	 * Private constructor — utility class with only static methods.
+	 * Private constructor - utility class with only static methods.
 	 */
 	private EnemyLighting()
 	{

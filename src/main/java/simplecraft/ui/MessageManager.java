@@ -14,7 +14,7 @@ import simplecraft.SimpleCraft;
 
 /**
  * Displays temporary toast-style messages on screen.<br>
- * Used for validation feedback, warnings, and informational notifications.<br>
+ * Used for validation feedback, warnings and informational notifications.<br>
  * Messages auto-dismiss after a configurable duration.<br>
  * Only one message is shown at a time - showing a new message replaces the current one.<br>
  * Supports optional initial delay before the message appears.<br>

@@ -22,7 +22,7 @@ import simplecraft.world.Block;
 import simplecraft.world.World;
 
 /**
- * Campfire tile entity — serves as a respawn point when activated by the player.<br>
+ * Campfire tile entity - serves as a respawn point when activated by the player.<br>
  * <br>
  * All placed campfires are always lit (fire particles start immediately on placement).<br>
  * The currently active respawn campfire burns brighter with larger particles, while<br>
@@ -31,7 +31,7 @@ import simplecraft.world.World;
  * <b>Interaction:</b><br>
  * Right-clicking an inactive campfire shows a "Set respawn point here?" dialog.<br>
  * Right-clicking the already-active campfire shows a brief status message.<br>
- * Only one campfire can be the active respawn point at a time — activating a new<br>
+ * Only one campfire can be the active respawn point at a time - activating a new<br>
  * one automatically deactivates the previous one.<br>
  * <br>
  * <b>Block light:</b><br>
@@ -125,7 +125,7 @@ public class CampfireTileEntity extends TileEntity
 	{
 		if (_activated)
 		{
-			// Already the active respawn point — just show a status message.
+			// Already the active respawn point - just show a status message.
 			MessageManager.show("This is your respawn point");
 			return;
 		}
@@ -149,12 +149,12 @@ public class CampfireTileEntity extends TileEntity
 		// Show confirmation dialog using the shared QuestionManager.
 		QuestionManager.show("Set respawn point here?", () ->
 		{
-			// Yes — activate campfire and restore controls.
+			// Yes - activate campfire and restore controls.
 			activate(player, world);
 			cleanupDialog();
 		}, () ->
 		{
-			// No — just restore controls.
+			// No - just restore controls.
 			cleanupDialog();
 		});
 	}
@@ -228,7 +228,7 @@ public class CampfireTileEntity extends TileEntity
 			}
 			case MAPPING_BACK:
 			{
-				// Back acts as No — dismiss dialog and cleanup.
+				// Back acts as No - dismiss dialog and cleanup.
 				QuestionManager.dismiss();
 				cleanupDialog();
 				break;

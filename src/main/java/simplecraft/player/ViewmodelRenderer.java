@@ -33,12 +33,12 @@ import simplecraft.world.Block.Face;
  * Renders the held item in 3D space near the player's right hand.<br>
  * <br>
  * <b>Block items</b> render as a small 3D cube ({@link Box}), textured on all faces.<br>
- * <b>Tools, weapons, and fist</b> render as a flat sprite ({@link Quad}), same as how<br>
+ * <b>Tools, weapons and fist</b> render as a flat sprite ({@link Quad}), same as how<br>
  * billboard decorations (flowers, torches) are displayed in the world.<br>
  * <br>
  * Both geometries are children of a parent {@link Node} on {@code rootNode}.<br>
  * Each frame, the node is positioned using camera direction/left/up vectors.<br>
- * Only one geometry is visible at a time — the other is culled via CullHint.
+ * Only one geometry is visible at a time - the other is culled via CullHint.
  * @author Pantelis Andrianakis
  * @since March 14th 2026
  */
@@ -54,7 +54,7 @@ public class ViewmodelRenderer
 	/** How far to the right of center (sprites). */
 	private static final float RIGHT = 0.14f;
 	
-	/** How far to the right of center (blocks — further right than sprites). */
+	/** How far to the right of center (blocks - further right than sprites). */
 	private static final float BLOCK_RIGHT = 0.27f;
 	
 	/** How far below eye level. */
@@ -111,7 +111,7 @@ public class ViewmodelRenderer
 	/** 3D cube geometry for block items. */
 	private final Geometry _blockGeo;
 	
-	/** Flat quad geometry for tools, weapons, and fist. */
+	/** Flat quad geometry for tools, weapons and fist. */
 	private final Geometry _spriteGeo;
 	
 	private String _currentItemId = "";
@@ -152,19 +152,19 @@ public class ViewmodelRenderer
 		_baseRot.fromAngles(FastMath.DEG_TO_RAD * BASE_PITCH, FastMath.DEG_TO_RAD * BASE_YAW, FastMath.DEG_TO_RAD * BASE_ROLL);
 		_baseBlockRot.fromAngles(FastMath.DEG_TO_RAD * -15f, FastMath.DEG_TO_RAD * -10f, 0);
 		
-		// Parent node — positioned and rotated each frame.
+		// Parent node - positioned and rotated each frame.
 		_handNode = new Node("ViewmodelHand");
 		_handNode.setCullHint(Spatial.CullHint.Never);
 		rootNode.attachChild(_handNode);
 		
-		// Block geometry — small cube, hidden initially.
+		// Block geometry - small cube, hidden initially.
 		final Box box = new Box(BLOCK_HALF_SIZE, BLOCK_HALF_SIZE, BLOCK_HALF_SIZE);
 		_blockGeo = new Geometry("ViewmodelBlock", box);
 		_blockGeo.setCullHint(Spatial.CullHint.Always); // hidden
 		_blockGeo.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Translucent);
 		_handNode.attachChild(_blockGeo);
 		
-		// Sprite geometry — flat quad for tools/weapons/fist, visible initially.
+		// Sprite geometry - flat quad for tools/weapons/fist, visible initially.
 		// Quad is created in XY plane. FaceCullMode.Off renders both sides.
 		// We flip the UVs horizontally to correct mirroring (cheaper than rotating).
 		final Quad quad = new Quad(SPRITE_SIZE, SPRITE_SIZE);
@@ -303,7 +303,7 @@ public class ViewmodelRenderer
 		
 		_handNode.setLocalTranslation(_pos);
 		
-		// --- Rotation: camera * base tilt (no swing here — swing is on geometry) ---
+		// --- Rotation: camera * base tilt (no swing here - swing is on geometry) ---
 		final Quaternion baseRot = _showingBlock ? _baseBlockRot : _baseRot;
 		_worldRot.set(camera.getRotation());
 		_worldRot.multLocal(baseRot);
@@ -441,7 +441,7 @@ public class ViewmodelRenderer
 			mat.getAdditionalRenderState().setDepthTest(false);
 			mat.getAdditionalRenderState().setDepthWrite(false);
 			
-			// Alpha cutout for all items — blocks like leaves/glass have transparent pixels too.
+			// Alpha cutout for all items - blocks like leaves/glass have transparent pixels too.
 			mat.setFloat("AlphaDiscardThreshold", 0.5f);
 			
 			if (isSprite)
@@ -449,7 +449,7 @@ public class ViewmodelRenderer
 				// Flat sprite: no face culling (visible from both sides).
 				mat.getAdditionalRenderState().setFaceCullMode(RenderState.FaceCullMode.Off);
 			}
-			// Block cube: default depth — renders like any world block.
+			// Block cube: default depth - renders like any world block.
 			
 			System.out.println("ViewmodelRenderer: Loaded '" + filename + "'" + (isSprite ? " (sprite)" : " (block)") + ".");
 			return mat;

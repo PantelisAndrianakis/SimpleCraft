@@ -51,7 +51,7 @@ import simplecraft.world.entity.TorchTileEntity;
 import simplecraft.world.entity.WindowTileEntity;
 
 /**
- * Handles block interaction: raycasting, multi-hit breaking, placement, and selection.<br>
+ * Handles block interaction: raycasting, multi-hit breaking, placement and selection.<br>
  * <br>
  * Each frame, steps along the camera ray in 0.05-block increments up to 5 blocks.<br>
  * The first non-AIR, non-liquid block hit becomes the target. The position one step<br>
@@ -307,7 +307,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	// ========================================================
 	
 	/**
-	 * Registers mouse input mappings for attack, place, and block selection.
+	 * Registers mouse input mappings for attack, place and block selection.
 	 */
 	public void registerInput()
 	{
@@ -497,7 +497,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 			else if (_isBreaking)
 			{
-				// Same block, but check if the player switched tools — recalculate hits required.
+				// Same block, but check if the player switched tools - recalculate hits required.
 				final ItemInstance currentItem = _playerController.getInventory().getSelectedItem();
 				if (currentItem != _breakingWithItem)
 				{
@@ -511,17 +511,17 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 	}
 	
-	/** Edge threshold — outer 20% of a face redirects to the adjacent block. */
+	/** Edge threshold - outer 20% of a face redirects to the adjacent block. */
 	private static final float EDGE_THRESHOLD = 0.2f;
 	
-	/** When true, the crosshair is in the center of the face — target the block itself. */
+	/** When true, the crosshair is in the center of the face - target the block itself. */
 	private boolean _targetSelf;
 	
 	/**
 	 * Determines the interaction face using ray-AABB intersection and edge detection.<br>
 	 * Finds the exact hit point on the block face, then checks the 2D position:<br>
-	 * - Outer 20% on any edge → redirects to the adjacent face (placement mode)<br>
-	 * - Center 60% → targets the block itself (breaking mode, sets {@code _targetSelf})<br>
+	 * - Outer 20% on any edge -> redirects to the adjacent face (placement mode)<br>
+	 * - Center 60% -> targets the block itself (breaking mode, sets {@code _targetSelf})<br>
 	 * If the edge redirect leads to a solid block, falls back to targeting self.
 	 */
 	private Face determineFace(int bx, int by, int bz)
@@ -624,7 +624,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 		}
 		
-		// Center of face or edge redirect blocked → target the block itself.
+		// Center of face or edge redirect blocked -> target the block itself.
 		_targetSelf = true;
 		return entryFace;
 	}
@@ -694,7 +694,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		final boolean bLow = b < EDGE_THRESHOLD;
 		final boolean bHigh = b > 1 - EDGE_THRESHOLD;
 		
-		// Center — no edge redirect.
+		// Center - no edge redirect.
 		if (!aLow && !aHigh && !bLow && !bHigh)
 		{
 			return null;
@@ -703,7 +703,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		final Face faceA = aLow ? lowA : aHigh ? highA : null;
 		final Face faceB = bLow ? lowB : bHigh ? highB : null;
 		
-		// Corner — pick the axis closest to the edge.
+		// Corner - pick the axis closest to the edge.
 		if (faceA != null && faceB != null)
 		{
 			final float distA = aLow ? a : 1 - a;
@@ -794,7 +794,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Unbreakable block (WATER, BEDROCK).
 		if (!block.isBreakable())
 		{
-			// Still costs durability (wrong target = 2) — don't waste your tools on bedrock.
+			// Still costs durability (wrong target = 2) - don't waste your tools on bedrock.
 			final Inventory inventory = _playerController.getInventory();
 			final ItemInstance held = inventory.getSelectedItem();
 			if (held != null && held.hasDurability())
@@ -809,7 +809,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				}
 			}
 			_hitCooldownTimer = HIT_COOLDOWN;
-			System.out.println("Cannot break " + block.name() + " — unbreakable.");
+			System.out.println("Cannot break " + block.name() + " - unbreakable.");
 			return;
 		}
 		
@@ -839,7 +839,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			_viewmodelRenderer.triggerSwing();
 		}
 		
-		// Durability loss — correct tool costs 1, wrong tool/weapon costs 2.
+		// Durability loss - correct tool costs 1, wrong tool/weapon costs 2.
 		final int durabilityCost = getDurabilityCostPerHit(block, heldItem);
 		if (durabilityCost > 0 && heldItem != null && heldItem.hasDurability())
 		{
@@ -851,7 +851,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				MessageManager.show("Your " + toolName + " broke!");
 				System.out.println("Tool broke: " + toolName);
 				
-				// Tool broke mid-block-break — recalculate effective hits with bare hands.
+				// Tool broke mid-block-break - recalculate effective hits with bare hands.
 				final ItemInstance newHeld = inventory.getSelectedItem();
 				final int newRequired = getEffectiveHits(block, newHeld);
 				// Scale progress: keep the same ratio of completion.
@@ -919,7 +919,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 							// Drop the door item on the ground.
 							dropBlockItem(Block.DOOR_BOTTOM, _targetX, _targetY, _targetZ);
 							
-							System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] — both halves destroyed.");
+							System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] - both halves destroyed.");
 							_audioManager.playSfx(AudioManager.SFX_BLOCK_BREAK);
 							resetBreaking();
 							return;
@@ -1052,7 +1052,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return BLOCK_DAMAGE_WRONG_TOOL;
 		}
 		
-		// Blocks, consumables, materials — same as bare hands.
+		// Blocks, consumables, materials - same as bare hands.
 		return BLOCK_DAMAGE_BARE_HANDS;
 	}
 	
@@ -1087,8 +1087,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/**
 	 * Spawns a dropped item on the ground at the given block position.<br>
-	 * Handles special drops (STONE → stone_shard, IRON_ORE → iron_nugget, etc.),<br>
-	 * LEAVES 25% drop chance, and standard block-to-item drops.<br>
+	 * Handles special drops (STONE -> stone_shard, IRON_ORE -> iron_nugget, etc.),<br>
+	 * LEAVES 25% drop chance and standard block-to-item drops.<br>
 	 * If the DropManager is not set, falls back to adding directly to the inventory.
 	 * @param block the block that was broken
 	 * @param bx the world X of the broken block
@@ -1152,7 +1152,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 			else
 			{
-				System.out.println("WARNING: Inventory full — could not pick up " + dropItem.getDisplayName());
+				System.out.println("WARNING: Inventory full - could not pick up " + dropItem.getDisplayName());
 			}
 		}
 	}
@@ -1250,7 +1250,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				}
 				
 				door.destroyBothHalves(_world);
-				System.out.println("Door lost support at [" + nx + ", " + ny + ", " + nz + "] — both halves destroyed.");
+				System.out.println("Door lost support at [" + nx + ", " + ny + ", " + nz + "] - both halves destroyed.");
 				// destroyBothHalves already rebuilds, but mark for rebuild in case of batching.
 				needsRebuild = true;
 				continue;
@@ -1275,7 +1275,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			_world.markPlayerRemoved(nx, ny, nz);
 			needsRebuild = true;
 			
-			System.out.println("Tile entity lost support at [" + nx + ", " + ny + ", " + nz + "] — removed.");
+			System.out.println("Tile entity lost support at [" + nx + ", " + ny + ", " + nz + "] - removed.");
 		}
 		
 		if (needsRebuild)
@@ -1318,7 +1318,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return;
 		}
 		
-		// Check if targeting a tile entity block — interact instead of placing.
+		// Check if targeting a tile entity block - interact instead of placing.
 		final Block targetBlock = _world.getBlock(_targetX, _targetY, _targetZ);
 		if (targetBlock.isTileEntity())
 		{
@@ -1344,7 +1344,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				}
 				else
 				{
-					System.out.println("Interacted with " + targetBlock.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] — no tile entity registered.");
+					System.out.println("Interacted with " + targetBlock.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] - no tile entity registered.");
 				}
 			}
 			return;
@@ -1352,7 +1352,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		final Block selectedBlock = _playerController.getSelectedBlock();
 		
-		// Consumable use — right-click with a consumable item heals the player.
+		// Consumable use - right-click with a consumable item heals the player.
 		final Inventory inventory = _playerController.getInventory();
 		final ItemInstance selectedItem = inventory.getSelectedItem();
 		if (selectedItem != null && selectedItem.getTemplate().getType() == ItemType.CONSUMABLE)
@@ -1417,7 +1417,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 		}
 		
-		// Face-snap placement — blocks that attach to surfaces (torches, doors, etc.)
+		// Face-snap placement - blocks that attach to surfaces (torches, doors, etc.)
 		// bypass the 20% edge redirect and always use the raw entry face.
 		if (selectedBlock.isFaceSnap() && _hasTarget && targetBlock.isSolid())
 		{
@@ -1428,7 +1428,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			hasPlace = true;
 		}
 		
-		// Window direct placement — aiming through a hole with empty space behind.
+		// Window direct placement - aiming through a hole with empty space behind.
 		// The raycast detected a valid framed air block. Place the window directly there.
 		if (selectedBlock == Block.WINDOW && _windowDirectPlace)
 		{
@@ -1445,41 +1445,41 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return;
 		}
 		
-		// Torch placement — special rules.
+		// Torch placement - special rules.
 		if (selectedBlock == Block.TORCH)
 		{
 			if (!canPlaceTorch(placeX, placeY, placeZ))
 			{
-				System.out.println("Cannot place TORCH here — needs a solid surface.");
+				System.out.println("Cannot place TORCH here - needs a solid surface.");
 				return;
 			}
 		}
 		
-		// Campfire placement — must be on top of a solid block (floor only).
+		// Campfire placement - must be on top of a solid block (floor only).
 		if (selectedBlock == Block.CAMPFIRE)
 		{
 			if (!_world.getBlock(placeX, placeY - 1, placeZ).isSolid())
 			{
-				System.out.println("Cannot place CAMPFIRE here — needs a solid block below.");
+				System.out.println("Cannot place CAMPFIRE here - needs a solid block below.");
 				return;
 			}
 		}
 		
-		// Window placement — normal path (targeting a solid wall block).
+		// Window placement - normal path (targeting a solid wall block).
 		// Must target a solid block's side face (not top/bottom).
-		// All frame edges (top, bottom, and left or right of the panel) must be solid
+		// All frame edges (top, bottom and left or right of the panel) must be solid
 		// so the window sits in a proper wall opening, not dangling in open air.
 		if (selectedBlock == Block.WINDOW && !_windowDirectPlace)
 		{
 			if (_entryFace == Face.TOP || _entryFace == Face.BOTTOM)
 			{
-				System.out.println("Cannot place WINDOW on top/bottom faces — windows are vertical only.");
+				System.out.println("Cannot place WINDOW on top/bottom faces - windows are vertical only.");
 				return;
 			}
 			
 			if (!targetBlock.isSolid())
 			{
-				System.out.println("Cannot place WINDOW here — needs a solid wall to attach to.");
+				System.out.println("Cannot place WINDOW here - needs a solid wall to attach to.");
 				return;
 			}
 			
@@ -1493,27 +1493,27 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			
 			if (_entryFace == Face.NORTH || _entryFace == Face.SOUTH)
 			{
-				// Panel spans X axis — check EAST and WEST.
+				// Panel spans X axis - check EAST and WEST.
 				leftOk = isWindowFrameBlock(placeX - 1, placeY, placeZ);
 				rightOk = isWindowFrameBlock(placeX + 1, placeY, placeZ);
 			}
 			else
 			{
-				// Panel spans Z axis — check NORTH and SOUTH.
+				// Panel spans Z axis - check NORTH and SOUTH.
 				leftOk = isWindowFrameBlock(placeX, placeY, placeZ - 1);
 				rightOk = isWindowFrameBlock(placeX, placeY, placeZ + 1);
 			}
 			
-			// Fix: Require BOTH top and bottom to be solid, and at least ONE of left/right to be solid.
+			// Fix: Require BOTH top and bottom to be solid and at least ONE of left/right to be solid.
 			// This allows windows to be placed in corners or next to other windows.
 			if (!topOk || !bottomOk || (!leftOk && !rightOk))
 			{
-				System.out.println("Cannot place WINDOW here — needs solid blocks on frame edges.");
+				System.out.println("Cannot place WINDOW here - needs solid blocks on frame edges.");
 				return;
 			}
 		}
 		
-		// Door placement — must target a solid block face where two vertical AIR blocks exist.
+		// Door placement - must target a solid block face where two vertical AIR blocks exist.
 		// Places DOOR_BOTTOM at placeY and DOOR_TOP at placeY + 1.
 		// The block below the door must be solid for support.
 		if (selectedBlock == Block.DOOR_BOTTOM)
@@ -1531,7 +1531,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			final Block belowBlock = _world.getBlock(placeX, doorBottomY - 1, placeZ);
 			if (!belowBlock.isSolid())
 			{
-				System.out.println("Cannot place DOOR here — needs a solid block below.");
+				System.out.println("Cannot place DOOR here - needs a solid block below.");
 				return;
 			}
 			
@@ -1540,14 +1540,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			final Block upperBlock = _world.getBlock(placeX, doorBottomY + 1, placeZ);
 			if ((lowerBlock != Block.AIR && !lowerBlock.isDecoration()) || (upperBlock != Block.AIR && !upperBlock.isDecoration()))
 			{
-				System.out.println("Cannot place DOOR here — needs two vertical air blocks.");
+				System.out.println("Cannot place DOOR here - needs two vertical air blocks.");
 				return;
 			}
 			
 			// Check that both positions don't overlap the player.
 			if (overlapsPlayer(placeX, doorBottomY, placeZ) || overlapsPlayer(placeX, doorBottomY + 1, placeZ))
 			{
-				System.out.println("Cannot place DOOR — overlaps player.");
+				System.out.println("Cannot place DOOR - overlaps player.");
 				return;
 			}
 			
@@ -1555,12 +1555,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			placeY = doorBottomY;
 		}
 		
-		// Flower/grass placement — must be on top of GRASS or DIRT.
+		// Flower/grass placement - must be on top of GRASS or DIRT.
 		if (isSoilOnlyBlock(selectedBlock))
 		{
 			if (!canPlaceOnSoil(placeX, placeY, placeZ))
 			{
-				System.out.println("Cannot place " + selectedBlock.name() + " here — needs GRASS or DIRT below.");
+				System.out.println("Cannot place " + selectedBlock.name() + " here - needs GRASS or DIRT below.");
 				return;
 			}
 		}
@@ -1589,14 +1589,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Skip this check for decorations replaced in-place (they already sit on solid ground).
 		if (!targetBlock.isDecoration() && !hasAdjacentSolid(placeX, placeY, placeZ))
 		{
-			System.out.println("Cannot place block here — no solid support.");
+			System.out.println("Cannot place block here - no solid support.");
 			return;
 		}
 		
 		// Check that the block doesn't overlap the player AABB.
 		if (overlapsPlayer(placeX, placeY, placeZ))
 		{
-			System.out.println("Cannot place block — overlaps player.");
+			System.out.println("Cannot place block - overlaps player.");
 			return;
 		}
 		
@@ -1701,7 +1701,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						topEntity.onPlaced(_world);
 						manager.register(topEntity);
 						
-						// entity stays null — we already registered both halves directly.
+						// entity stays null - we already registered both halves directly.
 						break;
 					}
 					default:
@@ -1758,13 +1758,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		if (absX > absZ)
 		{
 			// Player looks more along X axis.
-			// Looking east (+X) → player sees WEST face → front faces WEST.
+			// Looking east (+X) -> player sees WEST face -> front faces WEST.
 			return dir.x > 0 ? Facing.WEST : Facing.EAST;
 		}
 		else
 		{
 			// Player looks more along Z axis.
-			// Looking north (+Z) → player sees SOUTH face → front faces SOUTH.
+			// Looking north (+Z) -> player sees SOUTH face -> front faces SOUTH.
 			return dir.z > 0 ? Facing.SOUTH : Facing.NORTH;
 		}
 	}
@@ -1850,7 +1850,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	 */
 	private Face determineTorchAttachment(int x, int y, int z, Face clickedFace)
 	{
-		// Prefer the face the player actually clicked — the support block is opposite
+		// Prefer the face the player actually clicked - the support block is opposite
 		// to the entry face direction. E.g. clicking the EAST face of a block places
 		// the torch one block to the east; the support block is to the WEST of the torch.
 		final Face preferred = oppositeFace(clickedFace);
@@ -1865,7 +1865,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return Face.BOTTOM;
 		}
 		
-		// Wall attachment — check sides.
+		// Wall attachment - check sides.
 		if (_world.getBlock(x + 1, y, z).isSolid())
 		{
 			return Face.EAST;
@@ -1940,7 +1940,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/**
 	 * Returns true if the air block at the given position has solid blocks on all<br>
-	 * frame edges (top, bottom, and one of the horizontal sides) for at least one<br>
+	 * frame edges (top, bottom and one of the horizontal sides) for at least one<br>
 	 * facing axis. Used by the raycast to detect valid window placement positions<br>
 	 * when the player aims through a hole in a wall with empty space behind it.
 	 */
@@ -1980,8 +1980,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/**
 	 * Determines the window facing direction from the frame geometry at the given position.<br>
-	 * If EAST + WEST neighbors are solid, the panel spans X → faces NORTH or SOUTH.<br>
-	 * If NORTH + SOUTH neighbors are solid, the panel spans Z → faces EAST or WEST.<br>
+	 * If EAST + WEST neighbors are solid, the panel spans X -> faces NORTH or SOUTH.<br>
+	 * If NORTH + SOUTH neighbors are solid, the panel spans Z -> faces EAST or WEST.<br>
 	 * Uses the camera direction to pick which way the front faces (toward the player).
 	 */
 	private Facing getWindowFrameFacing(int x, int y, int z)
@@ -2233,7 +2233,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						}
 						else
 						{
-							// Blocked above/below — show on target for breaking.
+							// Blocked above/below - show on target for breaking.
 							showX = _targetX;
 							showY = _targetY;
 							showZ = _targetZ;
@@ -2241,7 +2241,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					}
 					else
 					{
-						// Side face center — show on target for breaking.
+						// Side face center - show on target for breaking.
 						showX = _targetX;
 						showY = _targetY;
 						showZ = _targetZ;
@@ -2249,14 +2249,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				}
 				else if (targetBlock.isBreakable())
 				{
-					// Non-solid but breakable (leaves) — show on target for breaking.
+					// Non-solid but breakable (leaves) - show on target for breaking.
 					showX = _targetX;
 					showY = _targetY;
 					showZ = _targetZ;
 				}
 				else
 				{
-					// Non-solid, non-breakable — hide.
+					// Non-solid, non-breakable - hide.
 					if (_highlightVisible)
 					{
 						_highlightGeometry.setCullHint(Geometry.CullHint.Always);
@@ -2302,7 +2302,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 			else
 			{
-				// No valid placement — fall back to target.
+				// No valid placement - fall back to target.
 				showX = _targetX;
 				showY = _targetY;
 				showZ = _targetZ;

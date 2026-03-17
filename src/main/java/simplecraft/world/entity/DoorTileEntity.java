@@ -9,7 +9,7 @@ import simplecraft.world.World;
 /**
  * Tile entity for DOOR_BOTTOM and DOOR_TOP blocks.<br>
  * A door occupies two vertical block spaces linked by partner positions.<br>
- * Stores open/closed state, facing direction, and partner coordinates<br>
+ * Stores open/closed state, facing direction and partner coordinates<br>
  * for synchronized open/close of both halves.<br>
  * <br>
  * When opened, the FLAT_PANEL quad slides from center to one edge.<br>
@@ -125,7 +125,7 @@ public class DoorTileEntity extends TileEntity
 		}
 		
 		// Trigger mesh rebuild for both halves.
-		// Cannot use setBlockNoRebuild — the block types haven't changed (still DOOR_BOTTOM/TOP),
+		// Cannot use setBlockNoRebuild - the block types haven't changed (still DOOR_BOTTOM/TOP),
 		// so Region.setBlock skips the dirty flag. Force rebuild via markRegionDirtyAt.
 		world.markRegionDirtyAt(_position.x, _position.y, _position.z);
 		if (_partnerPos != null)
@@ -139,7 +139,7 @@ public class DoorTileEntity extends TileEntity
 	
 	/**
 	 * Destroys both halves of the door when one half is broken.<br>
-	 * Sets both positions to AIR, removes both tile entities, and triggers rebuild.<br>
+	 * Sets both positions to AIR, removes both tile entities and triggers rebuild.<br>
 	 * Called by the breaking system when either half reaches zero durability.
 	 * @param world the game world
 	 */
@@ -281,7 +281,7 @@ public class DoorTileEntity extends TileEntity
 	
 	/**
 	 * Serializes this door tile entity to a key=value string.<br>
-	 * Appends open, flippedOpen, isBottom, and partner position to the base serialization.
+	 * Appends open, flippedOpen, isBottom and partner position to the base serialization.
 	 * @return serialized string
 	 */
 	@Override

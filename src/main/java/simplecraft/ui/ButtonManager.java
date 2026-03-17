@@ -23,8 +23,8 @@ import simplecraft.SimpleCraft;
 
 /**
  * Utility class for creating styled UI buttons with 9-slice texture backgrounds.<br>
- * Supports normal, hover, and pressed visual states using TbtQuadBackgroundComponent.<br>
- * Provides three sizing modes: texture-based, fixed pixel, and screen percentage.<br>
+ * Supports normal, hover and pressed visual states using TbtQuadBackgroundComponent.<br>
+ * Provides three sizing modes: texture-based, fixed pixel and screen percentage.<br>
  * Font size automatically scales with button height for consistent visuals at any resolution.
  * @author Pantelis Andrianakis
  * @since February 18th 2026
@@ -130,7 +130,7 @@ public class ButtonManager
 		// Track last click time to prevent rapid repeated clicks.
 		final AtomicLong lastClickTime = new AtomicLong(0);
 		
-		// Add hover, press, and click handling through cursor listener.
+		// Add hover, press and click handling through cursor listener.
 		// Fresh TbtQuadBackgroundComponent instances are created each time because
 		// Lemur components cannot be reattached after being detached from a spatial.
 		CursorEventControl.addListenersToSpatial(button, new DefaultCursorListener()

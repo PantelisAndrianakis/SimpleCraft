@@ -9,7 +9,7 @@ import simplecraft.world.World;
  * The player bounding box is 0.6 wide (±0.3 from center) and 1.8 tall.<br>
  * Position represents the bottom-center (feet level) of the player.<br>
  * <br>
- * Movement is resolved one axis at a time (X → Z → Y) to prevent corner clipping.<br>
+ * Movement is resolved one axis at a time (X -> Z -> Y) to prevent corner clipping.<br>
  * Each axis move checks the resulting AABB against solid blocks and pushes back<br>
  * or triggers a step-up when a 1-block ledge is detected.<br>
  * <br>
@@ -21,7 +21,7 @@ import simplecraft.world.World;
  * Water detection checks blocks at feet and eye level for liquid blocks.<br>
  * <br>
  * When in water, normal gravity is replaced with buoyancy physics:<br>
- * reduced gravity, surface bobbing, swim-up/swim-down input, and velocity<br>
+ * reduced gravity, surface bobbing, swim-up/swim-down input and velocity<br>
  * dampening on water entry to break falls.
  * @author Pantelis Andrianakis
  * @since February 27th 2026
@@ -83,7 +83,7 @@ public class PlayerCollision
 	
 	/**
 	 * Result of a single collision resolution step.<br>
-	 * Contains ground state, water state, and fall distance on landing.
+	 * Contains ground state, water state and fall distance on landing.
 	 */
 	public static class CollisionResult
 	{
@@ -134,7 +134,7 @@ public class PlayerCollision
 	private final CollisionResult _result = new CollisionResult();
 	
 	// ========================================================
-	// Collision Resolution — Main Entry Point.
+	// Collision Resolution - Main Entry Point.
 	// ========================================================
 	
 	/**
@@ -151,7 +151,7 @@ public class PlayerCollision
 	 * @param tpf time per frame in seconds
 	 * @param swimUp true when the swim-up key (Space) is held
 	 * @param swimDown true when the swim-down key (Shift) is held
-	 * @return collision result with ground, water, and fall distance information
+	 * @return collision result with ground, water and fall distance information
 	 */
 	public CollisionResult resolveCollision(Vector3f position, Vector3f velocity, float deltaX, float deltaZ, World world, float tpf, boolean swimUp, boolean swimDown)
 	{
@@ -242,12 +242,12 @@ public class PlayerCollision
 		// --- Fall distance tracking ---
 		if (_wasOnGround && !_result._onGround)
 		{
-			// Just left the ground — record takeoff Y.
+			// Just left the ground - record takeoff Y.
 			_fallStartY = position.y;
 		}
 		else if (!_wasOnGround && _result._onGround)
 		{
-			// Just landed — calculate fall distance.
+			// Just landed - calculate fall distance.
 			if (!Float.isNaN(_fallStartY))
 			{
 				final float distance = _fallStartY - position.y;
@@ -287,7 +287,7 @@ public class PlayerCollision
 	private void resolveWaterVertical(Vector3f position, Vector3f velocity, World world, float tpf, boolean swimUp, boolean swimDown)
 	{
 		// Determine the water surface Y level.
-		// Walk upward from feet to find the first non-liquid block — that block's
+		// Walk upward from feet to find the first non-liquid block - that block's
 		// bottom face is the water surface.
 		final int checkX = (int) Math.floor(position.x);
 		final int checkZ = (int) Math.floor(position.z);
@@ -323,7 +323,7 @@ public class PlayerCollision
 		}
 		else
 		{
-			// No swim input — apply water gravity (slow sinking) with surface bobbing.
+			// No swim input - apply water gravity (slow sinking) with surface bobbing.
 			velocity.y -= WATER_GRAVITY * tpf;
 			velocity.y = Math.max(velocity.y, WATER_TERMINAL_VELOCITY);
 			
@@ -537,7 +537,7 @@ public class PlayerCollision
 		
 		if (velocity.y <= 0)
 		{
-			// Falling or stationary — check for ground from bottom up.
+			// Falling or stationary - check for ground from bottom up.
 			for (int by = minBY; by <= maxBY; by++)
 			{
 				for (int bx = minBX; bx <= maxBX; bx++)
@@ -561,7 +561,7 @@ public class PlayerCollision
 		}
 		else
 		{
-			// Rising — check for ceiling from top down.
+			// Rising - check for ceiling from top down.
 			for (int by = maxBY; by >= minBY; by--)
 			{
 				for (int bx = minBX; bx <= maxBX; bx++)

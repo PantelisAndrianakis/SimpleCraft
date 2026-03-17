@@ -222,7 +222,7 @@ public class GameStateManager
 				_stateManager.detach(playingState);
 			}
 			
-			// Reset enabled flag — setEnabled(false) was called when entering PAUSED, and detach does NOT reset it.
+			// Reset enabled flag - setEnabled(false) was called when entering PAUSED and detach does NOT reset it.
 			// Without this, re-attaching PLAYING later will not trigger onEnable() (and thus onEnterState()),
 			// resulting in an empty scene with only the sky background visible.
 			if (playingState != null)

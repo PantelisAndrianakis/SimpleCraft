@@ -15,9 +15,9 @@ import simplecraft.world.World;
  * Land enemies (Zombie, Skeleton, Wolf, Spider, Slime) patrol terrain and chase the player on land.<br>
  * Aquatic enemies (Piranha) swim freely within water bodies and attack submerged players.<br>
  * <br>
- * States: {@code IDLE → WANDER → CHASE → ATTACK}.<br>
+ * States: {@code IDLE -> WANDER -> CHASE -> ATTACK}.<br>
  * Land enemies avoid water. Piranhas never leave water.<br>
- * Each enemy stores its own AI state, timers, and target via fields on {@link Enemy}.
+ * Each enemy stores its own AI state, timers and target via fields on {@link Enemy}.
  * @author Pantelis Andrianakis
  * @since March 5th 2026
  */
@@ -52,13 +52,13 @@ public class EnemyAI
 	/** Wander movement uses half of the enemy's configured move speed. */
 	private static final float WANDER_SPEED_FACTOR = 0.5f;
 	
-	/** Wander timeout — if not arrived after this many seconds, return to IDLE (seconds). */
+	/** Wander timeout - if not arrived after this many seconds, return to IDLE (seconds). */
 	private static final float WANDER_TIMEOUT = 8.0f;
 	
-	/** Arrival threshold — distance to target at which the enemy considers it "reached" (blocks). */
+	/** Arrival threshold - distance to target at which the enemy considers it "reached" (blocks). */
 	private static final float ARRIVAL_THRESHOLD = 0.5f;
 	
-	/** Chase leash multiplier — lose interest when player exceeds detectionRange × this factor. */
+	/** Chase leash multiplier - lose interest when player exceeds detectionRange × this factor. */
 	private static final float CHASE_LEASH_MULTIPLIER = 1.5f;
 	
 	/** Small vertical offset to keep enemy model above the ground surface. */
@@ -116,7 +116,7 @@ public class EnemyAI
 	private static final Quaternion TEMP_QUAT = new Quaternion();
 	
 	/**
-	 * Private constructor — utility class with only static methods.
+	 * Private constructor - utility class with only static methods.
 	 */
 	private EnemyAI()
 	{
@@ -158,7 +158,7 @@ public class EnemyAI
 	// ==================================================================
 	
 	/**
-	 * Runs the land enemy state machine: IDLE → WANDER → CHASE → ATTACK.
+	 * Runs the land enemy state machine: IDLE -> WANDER -> CHASE -> ATTACK.
 	 */
 	private static void updateLand(Enemy enemy, Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
@@ -176,14 +176,14 @@ public class EnemyAI
 			{
 				enemy.setMoving(false);
 				
-				// Transition: player detected → CHASE (only if player is NOT in water).
+				// Transition: player detected -> CHASE (only if player is NOT in water).
 				if (!playerInWater && distToPlayer <= detectionRange)
 				{
 					enterChase(enemy);
 					break;
 				}
 				
-				// Transition: idle timer expired → WANDER.
+				// Transition: idle timer expired -> WANDER.
 				if (enemy.getStateTimer() >= enemy.getIdleDuration())
 				{
 					enterWander(enemy, world);
@@ -192,7 +192,7 @@ public class EnemyAI
 			}
 			case WANDER:
 			{
-				// Transition: player detected → CHASE (only if player is NOT in water).
+				// Transition: player detected -> CHASE (only if player is NOT in water).
 				if (!playerInWater && distToPlayer <= detectionRange)
 				{
 					enterChase(enemy);
@@ -210,14 +210,14 @@ public class EnemyAI
 				final boolean moved = moveLandToward(enemy, target, enemy.getMoveSpeed() * WANDER_SPEED_FACTOR, world, tpf);
 				enemy.setMoving(moved);
 				
-				// Transition: arrived at target → IDLE.
+				// Transition: arrived at target -> IDLE.
 				if (horizontalDistance(enemy.getPosition(), target) < ARRIVAL_THRESHOLD)
 				{
 					enterIdle(enemy);
 					break;
 				}
 				
-				// Transition: timeout → IDLE.
+				// Transition: timeout -> IDLE.
 				if (enemy.getStateTimer() >= WANDER_TIMEOUT)
 				{
 					enterIdle(enemy);
@@ -238,14 +238,14 @@ public class EnemyAI
 					break;
 				}
 				
-				// Transition: player out of leash range → IDLE.
+				// Transition: player out of leash range -> IDLE.
 				if (distToPlayer > detectionRange * CHASE_LEASH_MULTIPLIER)
 				{
 					enterIdle(enemy);
 					break;
 				}
 				
-				// Transition: within attack range → ATTACK.
+				// Transition: within attack range -> ATTACK.
 				// Only if the player is also within vertical reach (not standing on a pillar).
 				if (distToPlayer <= attackRange && verticalDist <= MAX_VERTICAL_ATTACK_REACH)
 				{
@@ -279,7 +279,7 @@ public class EnemyAI
 					}
 					else
 					{
-						// No path found — clear stale path so we fall back to direct.
+						// No path found - clear stale path so we fall back to direct.
 						enemy.clearPath();
 					}
 					enemy.setPathTimer(0);
@@ -306,13 +306,13 @@ public class EnemyAI
 					}
 					else if (!moved)
 					{
-						// Blocked on a waypoint — force immediate recalculation next frame.
+						// Blocked on a waypoint - force immediate recalculation next frame.
 						enemy.setPathTimer(PATH_RECALC_INTERVAL);
 					}
 				}
 				else
 				{
-					// No valid path — fall back to direct movement (best effort).
+					// No valid path - fall back to direct movement (best effort).
 					final boolean moved = moveLandToward(enemy, playerPos, enemy.getMoveSpeed(), world, tpf);
 					enemy.setMoving(moved);
 				}
@@ -351,7 +351,7 @@ public class EnemyAI
 			}
 		}
 		
-		// Per-frame ground snap — keeps enemies glued to terrain even when idle
+		// Per-frame ground snap - keeps enemies glued to terrain even when idle
 		// or when terrain changes beneath them.
 		snapToGround(enemy, world);
 	}
@@ -415,11 +415,11 @@ public class EnemyAI
 		final int bz = (int) Math.floor(newZ);
 		final int currentFootY = (int) Math.floor(pos.y);
 		
-		// Check if the destination is water — if so, don't move there.
+		// Check if the destination is water - if so, don't move there.
 		final int groundY = findGroundY(world, bx, bz, currentFootY);
 		if (groundY < 0)
 		{
-			// No valid ground found — stay put.
+			// No valid ground found - stay put.
 			return false;
 		}
 		
@@ -427,7 +427,7 @@ public class EnemyAI
 		final Block footBlock = world.getBlock(bx, groundY, bz);
 		if (footBlock.isLiquid())
 		{
-			// Water ahead — don't enter.
+			// Water ahead - don't enter.
 			return false;
 		}
 		
@@ -435,7 +435,7 @@ public class EnemyAI
 		final int heightDiff = groundY - currentFootY;
 		if (heightDiff > MAX_STEP_UP)
 		{
-			// Wall too high — can't climb.
+			// Wall too high - can't climb.
 			return false;
 		}
 		
@@ -513,14 +513,14 @@ public class EnemyAI
 				// Swim in small circles at current depth.
 				swimCircle(enemy, world, tpf);
 				
-				// Transition: player in water and in range → CHASE.
+				// Transition: player in water and in range -> CHASE.
 				if (playerInWater && distToPlayer <= detectionRange)
 				{
 					enterChase(enemy);
 					break;
 				}
 				
-				// Transition: after some time → WANDER (explore the water body).
+				// Transition: after some time -> WANDER (explore the water body).
 				if (enemy.getStateTimer() >= enemy.getIdleDuration())
 				{
 					enterAquaticWander(enemy, world);
@@ -531,7 +531,7 @@ public class EnemyAI
 			{
 				enemy.setMoving(true);
 				
-				// Transition: player in water and in range → CHASE.
+				// Transition: player in water and in range -> CHASE.
 				if (playerInWater && distToPlayer <= detectionRange)
 				{
 					enterChase(enemy);
@@ -548,14 +548,14 @@ public class EnemyAI
 				
 				moveAquaticToward(enemy, target, enemy.getMoveSpeed() * WANDER_SPEED_FACTOR, world, tpf);
 				
-				// Arrived → IDLE.
+				// Arrived -> IDLE.
 				if (enemy.getPosition().distance(target) < ARRIVAL_THRESHOLD)
 				{
 					enterAquaticIdle(enemy);
 					break;
 				}
 				
-				// Timeout → IDLE.
+				// Timeout -> IDLE.
 				if (enemy.getStateTimer() >= PIRANHA_WANDER_TIMEOUT)
 				{
 					enterAquaticIdle(enemy);
@@ -566,21 +566,21 @@ public class EnemyAI
 			{
 				enemy.setMoving(true);
 				
-				// Player left water → return to wander.
+				// Player left water -> return to wander.
 				if (!playerInWater)
 				{
 					enterAquaticWander(enemy, world);
 					break;
 				}
 				
-				// Player too far → return to wander.
+				// Player too far -> return to wander.
 				if (distToPlayer > detectionRange * CHASE_LEASH_MULTIPLIER)
 				{
 					enterAquaticWander(enemy, world);
 					break;
 				}
 				
-				// Within attack range → ATTACK.
+				// Within attack range -> ATTACK.
 				if (distToPlayer <= attackRange)
 				{
 					enterAttack(enemy);
@@ -598,14 +598,14 @@ public class EnemyAI
 				// Circle around the player while attacking.
 				faceTarget(enemy, playerPos);
 				
-				// Player left water → stop.
+				// Player left water -> stop.
 				if (!playerInWater)
 				{
 					enterAquaticWander(enemy, world);
 					break;
 				}
 				
-				// Player moved away → CHASE.
+				// Player moved away -> CHASE.
 				if (distToPlayer > attackRange * 1.5f)
 				{
 					enterChase(enemy);
@@ -656,7 +656,7 @@ public class EnemyAI
 		
 		if (!world.getBlock(bx, by, bz).isLiquid())
 		{
-			// Out of water — reverse direction by staying at current pos.
+			// Out of water - reverse direction by staying at current pos.
 			return;
 		}
 		
@@ -697,18 +697,18 @@ public class EnemyAI
 		float newY = pos.y + dy * step;
 		float newZ = pos.z + dz * step;
 		
-		// Clamp to water — if the next position is not water, don't move there.
+		// Clamp to water - if the next position is not water, don't move there.
 		final int bx = (int) Math.floor(newX);
 		final int by = (int) Math.floor(newY);
 		final int bz = (int) Math.floor(newZ);
 		
 		if (!world.getBlock(bx, by, bz).isLiquid())
 		{
-			// Can't go there — try just XZ movement at current Y.
+			// Can't go there - try just XZ movement at current Y.
 			final int byFallback = (int) Math.floor(pos.y);
 			if (!world.getBlock(bx, byFallback, bz).isLiquid())
 			{
-				// Still blocked — stay put.
+				// Still blocked - stay put.
 				return;
 			}
 			newY = pos.y;
@@ -778,7 +778,7 @@ public class EnemyAI
 			return;
 		}
 		
-		// Failed to find valid target — just idle.
+		// Failed to find valid target - just idle.
 		enterIdle(enemy);
 	}
 	
@@ -846,7 +846,7 @@ public class EnemyAI
 			}
 		}
 		
-		// Failed — circle in place.
+		// Failed - circle in place.
 		enterAquaticIdle(enemy);
 	}
 	

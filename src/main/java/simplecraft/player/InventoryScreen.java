@@ -288,7 +288,7 @@ public class InventoryScreen implements ActionListener
 			_slotFill[i].setLocalTranslation(_slotX[i], _slotY[i], Z_SLOT_FILL);
 			_screenNode.attachChild(_slotFill[i]);
 			
-			// Label text (W, P, A, S, +, etc.) — centered in slot.
+			// Label text (W, P, A, S, +, etc.) - centered in slot.
 			_slotLabel[i] = new BitmapText(_font);
 			_slotLabel[i].setText("");
 			_slotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
@@ -517,7 +517,7 @@ public class InventoryScreen implements ActionListener
 	// ========================================================
 	
 	/**
-	 * Updates hover detection, tooltip, and held item position each frame.
+	 * Updates hover detection, tooltip and held item position each frame.
 	 * @param tpf time per frame
 	 */
 	public void update(float tpf)
@@ -575,7 +575,7 @@ public class InventoryScreen implements ActionListener
 	{
 		if (stack == null || stack.isEmpty())
 		{
-			// Empty slot — clear any texture and show empty color.
+			// Empty slot - clear any texture and show empty color.
 			_slotFillMat[index].clearParam("ColorMap");
 			_slotFillMat[index].setColor("Color", COLOR_SLOT_EMPTY);
 			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
@@ -587,19 +587,19 @@ public class InventoryScreen implements ActionListener
 		
 		final ItemTemplate template = stack.getTemplate();
 		
-		// Try to resolve a sprite texture (drops → items → blocks paths).
+		// Try to resolve a sprite texture (drops -> items -> blocks paths).
 		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
 		
 		if (slotTexture != null)
 		{
-			// Textured slot — show the sprite, hide the type label letter.
+			// Textured slot - show the sprite, hide the type label letter.
 			_slotFillMat[index].setTexture("ColorMap", slotTexture);
 			_slotFillMat[index].setColor("Color", ColorRGBA.White);
 			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
 		}
 		else
 		{
-			// No sprite — use colored quad with type label.
+			// No sprite - use colored quad with type label.
 			_slotFillMat[index].clearParam("ColorMap");
 			final ColorRGBA fillColor = getItemColor(template);
 			_slotFillMat[index].setColor("Color", fillColor);
@@ -836,7 +836,7 @@ public class InventoryScreen implements ActionListener
 	{
 		if (slot < 0)
 		{
-			// Clicked outside grid — drop held stack into the world.
+			// Clicked outside grid - drop held stack into the world.
 			if (_heldStack != null)
 			{
 				dropItemIntoWorld(_heldStack);
@@ -1021,13 +1021,13 @@ public class InventoryScreen implements ActionListener
 		}
 		else
 		{
-			// Looking straight up/down — drop at player position.
+			// Looking straight up/down - drop at player position.
 			dropX = playerPos.x;
 			dropZ = playerPos.z;
 		}
 		
 		// Find ground level below the drop position.
-		// Start one block above feet level — handles 1-block step-ups in terrain
+		// Start one block above feet level - handles 1-block step-ups in terrain
 		// ahead while staying below ceilings and roofs.
 		final int bx = (int) Math.floor(dropX);
 		final int bz = (int) Math.floor(dropZ);

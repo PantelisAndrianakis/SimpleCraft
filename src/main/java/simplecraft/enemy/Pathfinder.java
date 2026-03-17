@@ -64,7 +64,7 @@ public class Pathfinder
 	};
 	
 	/**
-	 * Private constructor — utility class.
+	 * Private constructor - utility class.
 	 */
 	private Pathfinder()
 	{
@@ -142,7 +142,7 @@ public class Pathfinder
 				final int nx = current._x + DIRECTIONS[d][0];
 				final int nz = current._z + DIRECTIONS[d][1];
 				
-				// Range check — don't search too far from start.
+				// Range check - don't search too far from start.
 				final int distFromStart = Math.max(Math.abs(nx - startX), Math.abs(nz - startZ));
 				if (distFromStart > maxRange)
 				{
@@ -187,7 +187,7 @@ public class Pathfinder
 					continue;
 				}
 				
-				// Water check — land enemies avoid water.
+				// Water check - land enemies avoid water.
 				final Block footBlock = world.getBlock(nx, neighborGroundY, nz);
 				if (footBlock.isLiquid())
 				{
@@ -227,7 +227,7 @@ public class Pathfinder
 			}
 		}
 		
-		// No path found within budget — return partial path to closest explored node.
+		// No path found within budget - return partial path to closest explored node.
 		return findClosestPartialPath(allNodes, goalX, goalZ);
 	}
 	

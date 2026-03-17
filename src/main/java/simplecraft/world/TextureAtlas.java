@@ -105,7 +105,7 @@ public class TextureAtlas
 				}
 				catch (IOException e)
 				{
-					System.out.println("WARNING: Failed to read block texture: " + filename + " — " + e.getMessage());
+					System.out.println("WARNING: Failed to read block texture: " + filename + " - " + e.getMessage());
 				}
 			}
 			else
@@ -157,7 +157,7 @@ public class TextureAtlas
 			
 			// Build Unshaded material with atlas texture and vertex color support.
 			// VertexColor = true tells jME3 to multiply per-vertex colors with the texture.
-			// This allows sky light brightness to be baked into the mesh — no scene lights needed.
+			// This allows sky light brightness to be baked into the mesh - no scene lights needed.
 			_sharedMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 			_sharedMaterial.setTexture("ColorMap", texture);
 			_sharedMaterial.setBoolean("VertexColor", true);
@@ -210,7 +210,7 @@ public class TextureAtlas
 	{
 		if (_atlasImage == null)
 		{
-			System.out.println("WARNING: Cannot save debug atlas — atlas not built yet.");
+			System.out.println("WARNING: Cannot save debug atlas - atlas not built yet.");
 			return;
 		}
 		

@@ -21,7 +21,7 @@ import simplecraft.world.Region;
 import simplecraft.world.World;
 
 /**
- * First-person player controller with gravity, AABB collision, and step-up.<br>
+ * First-person player controller with gravity, AABB collision and step-up.<br>
  * Handles mouse look and WASD movement relative to camera facing direction.<br>
  * Horizontal movement uses yaw-only forward/right vectors so the player always<br>
  * moves on the horizontal plane regardless of where the camera is looking.<br>
@@ -62,7 +62,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Interval between footstep sounds while moving on ground (seconds). */
 	private static final float FOOTSTEP_INTERVAL = 0.45f;
 	
-	/** Footstep timer — counts up while moving on ground, resets on each sound. */
+	/** Footstep timer - counts up while moving on ground, resets on each sound. */
 	private float _footstepTimer;
 	
 	/** World position of the player (feet level). */
@@ -80,7 +80,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Movement speed in blocks per second. */
 	private float _moveSpeed = 4.3f;
 	
-	/** Mouse sensitivity — degrees per pixel of mouse movement. */
+	/** Mouse sensitivity - degrees per pixel of mouse movement. */
 	private float _mouseSensitivity = 0.2f;
 	
 	// Movement flags set by key press/release.
@@ -148,16 +148,16 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Whether the drowning log has been printed this submersion (avoids log spam). */
 	private boolean _drowningLogged;
 	
-	/** Spawn protection — ignores fall damage until the player touches ground for the first time. */
+	/** Spawn protection - ignores fall damage until the player touches ground for the first time. */
 	private boolean _spawnProtection = true;
 	
 	/** Description of the damage source that last killed the player. */
 	private String _deathCause = "";
 	
-	/** Initial spawn point — always the world origin spawn position. This NEVER changes once set. */
+	/** Initial spawn point - always the world origin spawn position. This NEVER changes once set. */
 	private final Vector3f _initialSpawn = new Vector3f();
 	
-	/** Campfire respawn point — set when the player activates a campfire. Null if no campfire active. */
+	/** Campfire respawn point - set when the player activates a campfire. Null if no campfire active. */
 	private Vector3f _campfireSpawn;
 	
 	/** Flag set when damage is taken this frame (for external flash triggers). */
@@ -203,7 +203,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		
 		// Reduce near clip so geometry at the player's collision boundary (0.3 blocks
 		// from walls) is never clipped. setFrustumPerspective rebuilds the full
-		// projection matrix cleanly — earlier attempts using setFrustumNear alone
+		// projection matrix cleanly - earlier attempts using setFrustumNear alone
 		// caused distortion because they only modified one frustum parameter.
 		final float aspect = (float) _camera.getWidth() / _camera.getHeight();
 		_camera.setFrustumPerspective(45f, aspect, 0.1f, 1000f);
@@ -304,7 +304,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	}
 	
 	/**
-	 * Update player movement, collision, and camera each frame.
+	 * Update player movement, collision and camera each frame.
 	 * @param tpf time per frame in seconds
 	 */
 	public void update(float tpf)
@@ -400,7 +400,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		{
 			if (_inWater && !_headSubmerged)
 			{
-				// At water surface — jump out of water.
+				// At water surface - jump out of water.
 				_velocity.y = 8f;
 				waterSurfaceJump = true;
 			}
@@ -418,7 +418,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		
 		// Resolve collision. Pass swim input flags so the collision system can
 		// handle swim-up (Space) and swim-down (Shift) when in water.
-		// Don't pass swimUp when doing a surface jump — let the jump impulse work.
+		// Don't pass swimUp when doing a surface jump - let the jump impulse work.
 		final boolean swimUp = _inWater && _moveUp && !waterSurfaceJump;
 		final boolean swimDown = _inWater && _moveDown;
 		final CollisionResult result = _collision.resolveCollision(_position, _velocity, deltaX, deltaZ, _world, tpf, swimUp, swimDown);
@@ -444,7 +444,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		{
 			if (_inWater)
 			{
-				// Water breaks the fall — no damage.
+				// Water breaks the fall - no damage.
 				System.out.println("Water saved you! Fall distance: " + String.format("%.1f", fallDistance) + " blocks.");
 			}
 			else
@@ -463,7 +463,7 @@ public class PlayerController implements ActionListener, AnalogListener
 			{
 				_air = 0;
 				
-				// Drowning damage — continuous while suffocating.
+				// Drowning damage - continuous while suffocating.
 				takeDamage(DROWNING_DAMAGE_PER_SECOND * tpf, "Drowned");
 				
 				if (!_drowningLogged)
@@ -475,7 +475,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 		else
 		{
-			// Head above water — restore air 3× faster than it drains.
+			// Head above water - restore air 3× faster than it drains.
 			if (_air < _maxAir)
 			{
 				_air += tpf * AIR_RESTORE_MULTIPLIER;
@@ -639,7 +639,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		return _healedThisFrame;
 	}
 	
-	// ========== ActionListener — movement key flags ==========
+	// ========== ActionListener - movement key flags ==========
 	
 	@Override
 	public void onAction(String name, boolean isPressed, float tpf)
@@ -679,7 +679,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 	}
 	
-	// ========== AnalogListener — mouse look ==========
+	// ========== AnalogListener - mouse look ==========
 	
 	@Override
 	public void onAnalog(String name, float value, float tpf)
@@ -911,7 +911,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/**
 	 * Sets the campfire respawn point when the player activates a campfire.<br>
-	 * Uses the player's current standing position — where you click the campfire<br>
+	 * Uses the player's current standing position - where you click the campfire<br>
 	 * is where you respawn, not on top of the campfire block itself.
 	 */
 	public void setRespawnCampfire()
@@ -932,7 +932,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	/**
 	 * Sets the campfire respawn point directly from a saved world position.<br>
 	 * Unlike {@link #setRespawnCampfire()}, this does NOT capture the player's<br>
-	 * current position — the vector is used as-is (it was already saved).
+	 * current position - the vector is used as-is (it was already saved).
 	 * @param spawnPos the exact respawn position (feet level)
 	 */
 	public void setCampfireSpawnDirect(Vector3f spawnPos)
@@ -942,7 +942,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	}
 	
 	/**
-	 * Returns the active respawn point — campfire if set, otherwise initial spawn.<br>
+	 * Returns the active respawn point - campfire if set, otherwise initial spawn.<br>
 	 * This is the position the player teleports to on death.
 	 * @return the active respawn position (always non-null)
 	 */

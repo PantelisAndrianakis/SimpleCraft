@@ -27,11 +27,11 @@ import simplecraft.world.TextureAtlas;
  * <br>
  * <b>Visual modes (checked in priority order):</b><br>
  * <ol>
- * <li><b>Mini textured cube</b> — if the item is a BLOCK type and an atlas material is available,<br>
+ * <li><b>Mini textured cube</b> - if the item is a BLOCK type and an atlas material is available,<br>
  * renders as a small 0.3-block cube with the block's actual per-face atlas textures.</li>
- * <li><b>Billboard sprite</b> — if a texture exists at {@code Images/drops/<item_id>.png}<br>
+ * <li><b>Billboard sprite</b> - if a texture exists at {@code Images/drops/<item_id>.png}<br>
  * or {@code Images/items/<item_id>.png}, renders as a camera-facing quad (0.4 blocks).</li>
- * <li><b>Colored cube</b> — fallback: a small solid-color cube (0.3 blocks) tinted per item type.</li>
+ * <li><b>Colored cube</b> - fallback: a small solid-color cube (0.3 blocks) tinted per item type.</li>
  * </ol>
  * Mini-cube and colored-cube drops spin slowly around the Y axis. Billboard drops face the<br>
  * camera via {@link BillboardControl} and do not spin. All modes bob up and down via a sine wave.<br>
@@ -124,7 +124,7 @@ public class DroppedItem
 	
 	/**
 	 * Creates a new dropped item at the given world position.<br>
-	 * Chooses the best visual mode: mini textured cube (blocks) → billboard sprite → colored cube.
+	 * Chooses the best visual mode: mini textured cube (blocks) -> billboard sprite -> colored cube.
 	 * @param instance the item stack to drop
 	 * @param position the world position (ground level at the drop origin)
 	 * @param assetManager the asset manager for creating materials and loading textures
@@ -464,7 +464,7 @@ public class DroppedItem
 		_node.setLocalTranslation(_position.x, _position.y + BASE_Y_OFFSET + bobOffset, _position.z);
 		
 		// Non-billboard drops spin slowly around the Y axis.
-		// Billboard drops skip this — BillboardControl handles their orientation.
+		// Billboard drops skip this - BillboardControl handles their orientation.
 		if (!_isBillboard)
 		{
 			final float angle = _animTimer * SPIN_SPEED;

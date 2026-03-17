@@ -21,7 +21,7 @@ import simplecraft.world.Block;
  * Uses jME3 {@link ParticleEmitter} in burst mode: particles are emitted once<br>
  * via {@code emitAllParticles()}, then the emitter is auto-removed after all<br>
  * particles have died. A maximum of {@value #MAX_ACTIVE_EMITTERS} emitters can<br>
- * be active simultaneously — the oldest is removed if the limit is exceeded.<br>
+ * be active simultaneously - the oldest is removed if the limit is exceeded.<br>
  * <br>
  * <b>Block break particles:</b> 8–12 small colored quads fly outward with gravity.<br>
  * Color is derived from the block type via {@link Block#getParticleColor()}.<br>
@@ -272,7 +272,7 @@ public class ParticleManager
 	 */
 	private void addEmitter(ParticleEmitter emitter, float maxLifetime)
 	{
-		// Enforce limit — remove oldest emitter if at capacity.
+		// Enforce limit - remove oldest emitter if at capacity.
 		while (_activeEmitters.size() >= MAX_ACTIVE_EMITTERS)
 		{
 			final EmitterEntry oldest = _activeEmitters.remove(0);

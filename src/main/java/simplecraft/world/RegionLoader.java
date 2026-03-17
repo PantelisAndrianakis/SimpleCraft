@@ -12,7 +12,7 @@ import simplecraft.world.RegionMeshBuilder.RegionMeshData;
 
 /**
  * Generates regions and builds mesh data on background threads.<br>
- * Terrain generation, tree placement, and vertex array building all run off-thread.<br>
+ * Terrain generation, tree placement and vertex array building all run off-thread.<br>
  * Completed results are placed in a concurrent queue for the main thread to poll.<br>
  * The main thread only needs to create jME3 Mesh objects and attach geometry (fast).<br>
  * <br>
@@ -159,7 +159,7 @@ public class RegionLoader
 	/**
 	 * Submits a region for background generation and mesh building if not already pending.<br>
 	 * The background thread performs terrain generation, tree placement, applies any saved<br>
-	 * region data, and then builds vertex arrays. The completed result appears in<br>
+	 * region data and then builds vertex arrays. The completed result appears in<br>
 	 * {@link #pollReady()} once finished.
 	 * @param regionX the region X coordinate
 	 * @param regionZ the region Z coordinate
@@ -217,7 +217,7 @@ public class RegionLoader
 			final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
 			
 			// Check if all cardinal neighbors were available during the build.
-			// If yes, boundary faces are correct — mark clean so no remesh is needed.
+			// If yes, boundary faces are correct - mark clean so no remesh is needed.
 			// If no, leave dirty (Region constructor sets _meshDirty = true).
 			final boolean allNeighborsCached = _regionCache.containsKey(regionKey(regionX - 1, regionZ)) && _regionCache.containsKey(regionKey(regionX + 1, regionZ)) && _regionCache.containsKey(regionKey(regionX, regionZ - 1)) && _regionCache.containsKey(regionKey(regionX, regionZ + 1));
 			if (allNeighborsCached)
@@ -233,12 +233,12 @@ public class RegionLoader
 	
 	/**
 	 * Submits a remesh request for an existing region.<br>
-	 * Unlike load, this does not regenerate terrain — it only rebuilds the mesh<br>
+	 * Unlike load, this does not regenerate terrain - it only rebuilds the mesh<br>
 	 * using the existing block data. Cross-region neighbor lookups use the internal<br>
 	 * region cache (ConcurrentHashMap) for thread-safe access.<br>
 	 * <br>
 	 * Checks the region's dirty flag and skips rebuild if mesh is already clean.<br>
-	 * The dirty flag is NOT cleared here — the main thread clears it when the result is polled.
+	 * The dirty flag is NOT cleared here - the main thread clears it when the result is polled.
 	 * @param regionX the region X coordinate
 	 * @param regionZ the region Z coordinate
 	 * @return true if the request was submitted, false if already pending or mesh is clean
@@ -251,7 +251,7 @@ public class RegionLoader
 		final Region region = _regionCache.get(key);
 		if (region == null)
 		{
-			// Region not in cache — cannot remesh.
+			// Region not in cache - cannot remesh.
 			return false;
 		}
 		
@@ -282,7 +282,7 @@ public class RegionLoader
 			// Build mesh vertex arrays using thread-safe cache for cross-region lookups.
 			final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
 			
-			// Do NOT mark clean here — main thread marks clean when the result is polled.
+			// Do NOT mark clean here - main thread marks clean when the result is polled.
 			// This avoids a race where background markMeshClean overwrites a main-thread markMeshDirty.
 			_readyQueue.add(new ReadyRegion(region, meshData, false, versionAtSubmit));
 		});

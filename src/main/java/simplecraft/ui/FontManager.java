@@ -28,7 +28,7 @@ import com.jme3.util.BufferUtils;
  * Uses Java2D to render glyphs into a texture atlas, eliminating blurriness caused by scaling up low-resolution bitmap fonts.<br>
  * <br>
  * Supports both TrueType (.ttf) and OpenType (.otf) font files loaded via the jME3 AssetManager.<br>
- * Fonts are cached by asset path (or system name), style, and size combination.
+ * Fonts are cached by asset path (or system name), style and size combination.
  * @author Pantelis Andrianakis
  * @since February 17th 2026
  */

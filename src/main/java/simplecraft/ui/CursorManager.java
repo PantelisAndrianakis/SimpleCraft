@@ -17,7 +17,7 @@ import com.jme3.cursors.plugins.JmeCursor;
 import com.jme3.input.InputManager;
 
 /**
- * Utility class for loading, caching, and applying custom mouse cursors.<br>
+ * Utility class for loading, caching and applying custom mouse cursors.<br>
  * Cursors are loaded once on first use and cached for fast switching.
  * @author Pantelis Andrianakis
  * @since February 18th 2026
@@ -144,7 +144,7 @@ public class CursorManager
 	}
 	
 	/**
-	 * Loads a cursor image from disk, resizes it, and creates a {@link JmeCursor}.
+	 * Loads a cursor image from disk, resizes it and creates a {@link JmeCursor}.
 	 * @param type the {@link CursorType} to load
 	 * @return the created {@link JmeCursor}, or {@code null} on failure
 	 */

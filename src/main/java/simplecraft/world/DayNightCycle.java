@@ -5,7 +5,7 @@ import com.jme3.math.FastMath;
 
 /**
  * Manages the day/night cycle including time progression, sky brightness,<br>
- * sky color tinting, and viewport background color.<br>
+ * sky color tinting and viewport background color.<br>
  * <br>
  * Time is represented as a float from 0.0 (midnight) to 1.0:<br>
  * 0.0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset.<br>
@@ -18,7 +18,7 @@ import com.jme3.math.FastMath;
  * atmospheric effects (slight blue tint at night, neutral white at noon).<br>
  * <br>
  * The viewport background color smoothly transitions through day blue,<br>
- * sunset orange-pink, night dark blue-black, and sunrise warm tones.<br>
+ * sunset orange-pink, night dark blue-black and sunrise warm tones.<br>
  * <br>
  * A full cycle takes {@link #DAY_LENGTH_SECONDS} real-time seconds (default 1200 = 20 minutes).
  * @author Pantelis Andrianakis
@@ -254,7 +254,7 @@ public class DayNightCycle
 		updateSkyTint();
 		updateSkyColor();
 		
-		// Detect day/night phase change — start a gradual terrain transition.
+		// Detect day/night phase change - start a gradual terrain transition.
 		_phaseChanged = false;
 		if (isNight() != _wasNight)
 		{
@@ -411,7 +411,7 @@ public class DayNightCycle
 		
 		if (_terrainTransitionElapsed >= TERRAIN_TRANSITION_DURATION)
 		{
-			// Transition complete — snap to exact target.
+			// Transition complete - snap to exact target.
 			_terrainBrightness = _terrainBrightnessTarget;
 			_terrainTint.set(_terrainTintTarget);
 			_terrainTransitioning = false;

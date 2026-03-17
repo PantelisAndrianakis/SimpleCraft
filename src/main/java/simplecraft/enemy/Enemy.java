@@ -19,12 +19,12 @@ import simplecraft.world.World;
 /**
  * Base class for all enemies.<br>
  * Holds the visual model (a hierarchy of Nodes and Geometries built from box primitives),<br>
- * combat stats, positional data, and AI state. The model is assembled by {@link EnemyFactory}.<br>
+ * combat stats, positional data and AI state. The model is assembled by {@link EnemyFactory}.<br>
  * Each frame, {@link EnemyAI} drives behavior and {@link EnemyAnimator} drives procedural animations.<br>
  * <br>
  * <b>Player combat:</b> {@link #takeDamage(float)} reduces health and triggers a 0.1-second white hit flash<br>
- * across all geometry materials. When health reaches zero the enemy dies — {@code isAlive()} returns false,<br>
- * the state timer resets for death-linger tracking in {@link simplecraft.enemy.SpawnSystem}, and the model<br>
+ * across all geometry materials. When health reaches zero the enemy dies - {@code isAlive()} returns false,<br>
+ * the state timer resets for death-linger tracking in {@link simplecraft.enemy.SpawnSystem} and the model<br>
  * scales down to zero over the linger duration via {@link EnemyAnimator}.
  * @author Pantelis Andrianakis
  * @since March 4th 2026
@@ -361,13 +361,13 @@ public class Enemy
 		// Update visual effects (hit flash fade-out).
 		updateVisuals(tpf);
 		
-		// AI drives state transitions, movement, and facing.
+		// AI drives state transitions, movement and facing.
 		EnemyAI.update(this, playerPos, playerInWater, world, tpf);
 		
 		// Animator drives limb rotations and visual effects.
 		EnemyAnimator.update(this, tpf, _isMoving);
 		
-		// Ambient sounds — only while alive and within range of the player.
+		// Ambient sounds - only while alive and within range of the player.
 		if (_alive && !_dying)
 		{
 			updateAmbientSound(playerPos, audioManager, tpf);

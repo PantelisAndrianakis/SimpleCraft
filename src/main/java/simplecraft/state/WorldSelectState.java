@@ -41,7 +41,7 @@ import simplecraft.ui.QuestionManager;
 import simplecraft.world.WorldInfo;
 
 /**
- * World selection screen where players create, select, and delete worlds.<br>
+ * World selection screen where players create, select and delete worlds.<br>
  * Displays a paginated list of existing worlds (3 per page) sorted by last played date.<br>
  * Uses {@link FontManager#SYMBOL_ARROW_LEFT} and {@link FontManager#SYMBOL_ARROW_RIGHT}<br>
  * for page navigation when more than 3 worlds exist.<br>
@@ -369,7 +369,7 @@ public class WorldSelectState extends FadeableAppState
 	}
 	
 	/**
-	 * Create a single world entry panel with name, seed/date info, and Play + X buttons.
+	 * Create a single world entry panel with name, seed/date info and Play + X buttons.
 	 * @param world The world info
 	 * @return The entry container
 	 */
@@ -407,7 +407,7 @@ public class WorldSelectState extends FadeableAppState
 		nameFlexSpacer.setBackground(null);
 		nameRow.addChild(nameFlexSpacer, 0, 1);
 		
-		// Delete symbol "■" (column 2) — gray, turns red on hover.
+		// Delete symbol "■" (column 2) - gray, turns red on hover.
 		final Label deleteSymbol = new Label(FontManager.SYMBOL_SQUARE + " ");
 		deleteSymbol.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 12));
 		deleteSymbol.setFontSize(12);
@@ -775,7 +775,7 @@ public class WorldSelectState extends FadeableAppState
 		nameLabel.setColor(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f));
 		_dialogContainer.addChild(nameLabel);
 		
-		// World Name text field — visible background so it reads as an input box.
+		// World Name text field - visible background so it reads as an input box.
 		_nameField = new TextField("New World");
 		_nameField.setPreferredSize(new Vector3f(dialogWidth - 40, 28, 0));
 		_nameField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 16));
@@ -794,7 +794,7 @@ public class WorldSelectState extends FadeableAppState
 		seedLabel.setColor(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f));
 		_dialogContainer.addChild(seedLabel);
 		
-		// Seed text field — visible background.
+		// Seed text field - visible background.
 		_seedField = new TextField("");
 		_seedField.setPreferredSize(new Vector3f(dialogWidth - 40, 28, 0));
 		_seedField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 16));

@@ -8,7 +8,7 @@ import simplecraft.world.World;
 
 /**
  * Placeholder tile entity for blocks that are tile entities but not yet functional.<br>
- * Used for CHEST, CRAFTING_TABLE, and FURNACE until their full behavior is wired.<br>
+ * Used for CHEST, CRAFTING_TABLE and FURNACE until their full behavior is wired.<br>
  * Right-clicking shows a "Not yet functional" message.
  * @author Pantelis Andrianakis
  * @since March 8th 2026
@@ -31,7 +31,7 @@ public class PlaceholderTileEntity extends TileEntity
 		final String rawName = _blockType.name().replace('_', ' ').toLowerCase();
 		final String displayName = Character.toUpperCase(rawName.charAt(0)) + rawName.substring(1);
 		MessageManager.show(displayName + " is not yet functional");
-		System.out.println("Interacted with " + _blockType.name() + " at [" + _position.x + ", " + _position.y + ", " + _position.z + "] — not yet functional.");
+		System.out.println("Interacted with " + _blockType.name() + " at [" + _position.x + ", " + _position.y + ", " + _position.z + "] - not yet functional.");
 	}
 	
 	@Override

@@ -18,7 +18,7 @@ import simplecraft.ui.QuestionManager;
 /**
  * Centralized keyboard/gamepad navigation for all menu states.<br>
  * Manages a flat list of {@link NavigationSlot} entries with focus tracking,<br>
- * QuestionManager delegation, and a configurable back action.<br>
+ * QuestionManager delegation and a configurable back action.<br>
  * <br>
  * Supports three slot types via static factories:<br>
  * - {@link #buttonSlot(Panel, Runnable)} for ButtonManager-styled menu buttons<br>
@@ -163,7 +163,7 @@ public class MenuNavigationManager
 	
 	/**
 	 * Create a fully custom slot with explicit callbacks for all actions.<br>
-	 * Used for tab rows, bottom button rows, and other special navigation zones.
+	 * Used for tab rows, bottom button rows and other special navigation zones.
 	 * @param onFocus Called when slot gains focus, or null
 	 * @param onUnfocus Called when slot loses focus, or null
 	 * @param onLeft Called on left input, or null
@@ -359,7 +359,7 @@ public class MenuNavigationManager
 	
 	/**
 	 * Register the navigation ActionListener on the GameInputManager.<br>
-	 * Listens for UI_UP, UI_DOWN, UI_LEFT, UI_RIGHT, UI_CONFIRM, and PAUSE.<br>
+	 * Listens for UI_UP, UI_DOWN, UI_LEFT, UI_RIGHT, UI_CONFIRM and PAUSE.<br>
 	 * Uses tracked listener registration so the PAUSE binding survives rebinding.
 	 */
 	public void register()

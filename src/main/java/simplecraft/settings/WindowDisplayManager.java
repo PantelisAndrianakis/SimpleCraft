@@ -19,7 +19,7 @@ public class WindowDisplayManager
 {
 	/**
 	 * Apply borderless windowed fullscreen.<br>
-	 * Strips window decoration, sets always-on-top, and covers the monitor.<br>
+	 * Strips window decoration, sets always-on-top and covers the monitor.<br>
 	 * Enqueues the change on the render thread for safe execution.
 	 */
 	public static void applyBorderlessFullscreen()
@@ -60,7 +60,7 @@ public class WindowDisplayManager
 	
 	/**
 	 * Apply windowed mode at the specified resolution.<br>
-	 * Restores window decoration, disables always-on-top, and centers the window.<br>
+	 * Restores window decoration, disables always-on-top and centers the window.<br>
 	 * Enqueues the change on the render thread for safe execution.
 	 * @param width the desired window width
 	 * @param height the desired window height

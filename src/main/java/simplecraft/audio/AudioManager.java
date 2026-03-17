@@ -18,41 +18,41 @@ import com.jme3.math.Vector3f;
  * <br>
  * Supports suspending tracks into a map (fade to zero, then pause). When a<br>
  * suspended track is requested again it is unpaused at the exact position<br>
- * instead of being reloaded — no seeking required. This allows any number<br>
+ * instead of being reloaded - no seeking required. This allows any number<br>
  * of tracks to be paused and resumed independently (e.g. surface music<br>
- * while underwater, and water music while on the surface).
+ * while underwater and water music while on the surface).
  * @author Pantelis Andrianakis
  * @since February 16th 2026
  */
 public class AudioManager
 {
-	// Public SFX paths — UI.
+	// Public SFX paths - UI.
 	public static final String UI_CLICK_SFX_PATH = "sounds/ui/click.ogg";
 	
-	// Public SFX paths — player footsteps.
+	// Public SFX paths - player footsteps.
 	public static final String SFX_STEP_GRASS = "sounds/player/step_grass.ogg";
 	public static final String SFX_STEP_DIRT = "sounds/player/step_dirt.ogg";
 	public static final String SFX_STEP_STONE = "sounds/player/step_stone.ogg";
 	public static final String SFX_STEP_SAND = "sounds/player/step_sand.ogg";
 	public static final String SFX_STEP_WOOD = "sounds/player/step_wood.ogg";
 	
-	// Public SFX paths — player combat.
+	// Public SFX paths - player combat.
 	public static final String SFX_PLAYER_HURT = "sounds/player/player_hurt.ogg";
 	public static final String SFX_PLAYER_DEATH = "sounds/player/player_death.ogg";
 	
-	// Public SFX paths — block interaction.
+	// Public SFX paths - block interaction.
 	public static final String SFX_BLOCK_HIT = "sounds/blocks/block_hit.ogg";
 	public static final String SFX_BLOCK_BREAK = "sounds/blocks/block_break.ogg";
 	public static final String SFX_BLOCK_PLACE = "sounds/blocks/block_place.ogg";
 	
-	// Public SFX paths — enemy ambient.
+	// Public SFX paths - enemy ambient.
 	public static final String SFX_ZOMBIE_GROAN = "sounds/enemies/zombie_groan.ogg";
 	public static final String SFX_SKELETON_RATTLE = "sounds/enemies/skeleton_rattle.ogg";
 	public static final String SFX_WOLF_GROWL = "sounds/enemies/wolf_growl.ogg";
 	public static final String SFX_SPIDER_HISS = "sounds/enemies/spider_hiss.ogg";
 	public static final String SFX_SLIME_SQUELCH = "sounds/enemies/slime_squelch.ogg";
 	
-	// Public SFX paths — enemy combat.
+	// Public SFX paths - enemy combat.
 	public static final String SFX_ENEMY_HIT = "sounds/enemies/enemy_hit.ogg";
 	public static final String SFX_ENEMY_DEATH = "sounds/enemies/enemy_death.ogg";
 	
@@ -77,7 +77,7 @@ public class AudioManager
 	
 	/**
 	 * When true, the fading-out track will be paused instead of stopped when<br>
-	 * the crossfade completes, and stored in the suspended tracks map.
+	 * the crossfade completes and stored in the suspended tracks map.
 	 */
 	private boolean _pauseOnFadeOut;
 	
@@ -102,7 +102,7 @@ public class AudioManager
 	/**
 	 * Map of tracks that have been suspended (faded to zero then paused).<br>
 	 * Keyed by asset path. When a track is requested via {@link #crossfadeWithSuspend},<br>
-	 * the map is checked first — if the track exists here it is unpaused at the<br>
+	 * the map is checked first - if the track exists here it is unpaused at the<br>
 	 * exact position instead of being reloaded from disk.
 	 */
 	private final Map<String, AudioNode> _suspendedTracks = new HashMap<>();
@@ -127,12 +127,12 @@ public class AudioManager
 	 * <br>
 	 * Without this, starting a new crossfade while one is still running would overwrite<br>
 	 * the fade state fields ({@code _fadingOutMusic}, {@code _suspendingPath}, etc.),<br>
-	 * causing the old fading-out track to be abandoned — never paused, never stopped,<br>
+	 * causing the old fading-out track to be abandoned - never paused, never stopped,<br>
 	 * just leaked. That track would then be missing from the suspended map on the next<br>
 	 * resume attempt, forcing a fresh load (position reset).<br>
 	 * <br>
 	 * The outgoing track is paused (if suspending) or stopped immediately.<br>
-	 * The incoming track is left at whatever volume it has reached — the new<br>
+	 * The incoming track is left at whatever volume it has reached - the new<br>
 	 * crossfade will capture that as its starting volume for a smooth handoff.
 	 */
 	private void stopActiveCrossfade()
@@ -160,7 +160,7 @@ public class AudioManager
 			_fadingOutMusic = null;
 		}
 		
-		// Leave the incoming track at its current volume — the next crossfade
+		// Leave the incoming track at its current volume - the next crossfade
 		// will pick it up from there via _fadeOutStartVolume for a smooth transition.
 		_fadingInMusic = null;
 		
@@ -574,7 +574,7 @@ public class AudioManager
 				{
 					if (_pauseOnFadeOut)
 					{
-						// Pause instead of stop — store in suspended map for later resume.
+						// Pause instead of stop - store in suspended map for later resume.
 						_fadingOutMusic.pause();
 						if (_suspendingPath != null)
 						{

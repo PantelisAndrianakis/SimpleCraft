@@ -3,7 +3,7 @@ package simplecraft.item;
 /**
  * An instance of an item with quantity and per-instance durability.<br>
  * Weapons and tools each have unique durability and never stack.<br>
- * Blocks, consumables, and materials stack up to their max stack size.
+ * Blocks, consumables and materials stack up to their max stack size.
  * @author Pantelis Andrianakis
  * @since March 13th 2026
  */
@@ -60,7 +60,7 @@ public class ItemInstance
 	
 	/**
 	 * Returns true if this stack can merge with another.<br>
-	 * Requirements: same item, neither is full, and both are non-durability items.<br>
+	 * Requirements: same item, neither is full and both are non-durability items.<br>
 	 * Weapons and tools with durability NEVER stack because each has unique wear.
 	 * @param other the other stack to check
 	 * @return true if the stacks can be combined
@@ -82,7 +82,7 @@ public class ItemInstance
 			return false;
 		}
 		
-		// Durability items (weapons/tools) never stack — each has unique wear.
+		// Durability items (weapons/tools) never stack - each has unique wear.
 		if (hasDurability() || other.hasDurability())
 		{
 			return false;
@@ -144,7 +144,7 @@ public class ItemInstance
 	}
 	
 	/**
-	 * Creates a deep copy of this stack with the same item, count, and durability.
+	 * Creates a deep copy of this stack with the same item, count and durability.
 	 * @return a new ItemInstance with identical state
 	 */
 	public ItemInstance copy()

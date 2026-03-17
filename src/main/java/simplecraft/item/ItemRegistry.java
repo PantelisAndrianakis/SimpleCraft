@@ -50,28 +50,28 @@ public class ItemRegistry
 		BLOCK_TO_ITEM.put(Block.DOOR_TOP, "door");
 		
 		// ========================================================
-		// Weapons (Swords — no tool affinity, for combat).
+		// Weapons (Swords - no tool affinity, for combat).
 		// ========================================================
 		register(ItemTemplate.weapon("wood_sword", "Wood Sword", 4.0f, 0.5f, 60));
 		register(ItemTemplate.weapon("stone_sword", "Stone Sword", 5.0f, 0.45f, 132));
 		register(ItemTemplate.weapon("iron_sword", "Iron Sword", 7.0f, 0.4f, 250));
 		
 		// ========================================================
-		// Tools — Pickaxes (for STONE, IRON_ORE).
+		// Tools - Pickaxes (for STONE, IRON_ORE).
 		// ========================================================
 		register(ItemTemplate.tool("wood_pickaxe", "Wood Pickaxe", ToolType.PICKAXE, 2.0f, 0.5f, 60));
 		register(ItemTemplate.tool("stone_pickaxe", "Stone Pickaxe", ToolType.PICKAXE, 2.5f, 0.45f, 132));
 		register(ItemTemplate.tool("iron_pickaxe", "Iron Pickaxe", ToolType.PICKAXE, 3.0f, 0.4f, 250));
 		
 		// ========================================================
-		// Tools — Axes (for WOOD, LEAVES, BERRY_BUSH).
+		// Tools - Axes (for WOOD, LEAVES, BERRY_BUSH).
 		// ========================================================
 		register(ItemTemplate.tool("wood_axe", "Wood Axe", ToolType.AXE, 3.0f, 0.6f, 60));
 		register(ItemTemplate.tool("stone_axe", "Stone Axe", ToolType.AXE, 4.0f, 0.55f, 132));
 		register(ItemTemplate.tool("iron_axe", "Iron Axe", ToolType.AXE, 5.0f, 0.5f, 250));
 		
 		// ========================================================
-		// Tools — Shovels (for DIRT, GRASS, SAND).
+		// Tools - Shovels (for DIRT, GRASS, SAND).
 		// ========================================================
 		register(ItemTemplate.tool("wood_shovel", "Wood Shovel", ToolType.SHOVEL, 1.5f, 0.5f, 60));
 		register(ItemTemplate.tool("stone_shovel", "Stone Shovel", ToolType.SHOVEL, 2.0f, 0.45f, 132));
@@ -155,7 +155,7 @@ public class ItemRegistry
 	{
 		switch (block)
 		{
-			// Special drops — different from the block itself.
+			// Special drops - different from the block itself.
 			case BERRY_BUSH:
 			{
 				return "berries";

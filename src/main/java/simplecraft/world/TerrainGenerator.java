@@ -6,9 +6,9 @@ import simplecraft.util.OpenSimplex2;
 
 /**
  * Generates terrain for regions using 2D noise for heightmaps and 3D noise for ore veins.<br>
- * Produces varied terrain with broad hills, medium ridges, and sharp local ledges,<br>
+ * Produces varied terrain with broad hills, medium ridges and sharp local ledges,<br>
  * along with grass, dirt, stone layers, water-filled valleys,<br>
- * iron ore clusters, berry bushes, tall grass, and flowers.
+ * iron ore clusters, berry bushes, tall grass and flowers.
  * @author Pantelis Andrianakis
  * @since February 23rd 2026
  */
@@ -48,7 +48,7 @@ public class TerrainGenerator
 	
 	/**
 	 * Generates terrain for the given region using the world seed.<br>
-	 * Fills terrain layers, scatters iron ore, and places surface decorations.
+	 * Fills terrain layers, scatters iron ore and places surface decorations.
 	 * @param region the region to populate
 	 * @param seed the world seed from WorldInfo
 	 */
@@ -113,7 +113,7 @@ public class TerrainGenerator
 	// ========================================================
 	
 	/**
-	 * Fills each column with bedrock, stone, dirt, grass/sand, water, and air layers.
+	 * Fills each column with bedrock, stone, dirt, grass/sand, water and air layers.
 	 */
 	private static void fillTerrain(Region region, int[][] heights)
 	{
@@ -216,7 +216,7 @@ public class TerrainGenerator
 	// ========================================================
 	
 	/**
-	 * Places berry bushes, tall grass, and flowers on grass surface blocks.<br>
+	 * Places berry bushes, tall grass and flowers on grass surface blocks.<br>
 	 * Uses seeded random per column for deterministic placement.<br>
 	 * Priority: berry bush (0.05%) > tall grass (10%) > flowers (1%).
 	 */

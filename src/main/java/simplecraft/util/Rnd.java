@@ -8,7 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * <br>
  * <b>When to use Rnd:</b> Any runtime randomness that does not need to be reproducible,<br>
  * such as AI behavior (wander direction, idle timers, attack variance), visual effects<br>
- * (camera shake, particle spread), and gameplay variation (loot rolls, hit chances).<br>
+ * (camera shake, particle spread) and gameplay variation (loot rolls, hit chances).<br>
  * <br>
  * <b>When NOT to use Rnd:</b> World generation or spawn point placement that must produce<br>
  * identical results from the same seed across sessions. For those cases use a dedicated<br>

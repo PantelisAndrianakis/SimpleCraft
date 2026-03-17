@@ -27,7 +27,7 @@ import simplecraft.enemy.Enemy.EnemyType;
  * Each enemy type has a distinct silhouette built from Box geometries<br>
  * organized into a Node hierarchy for future skeletal animation (pivot-based rotation).<br>
  * <br>
- * Body parts are built as: {@code Box → Geometry → child of pivot Node}.<br>
+ * Body parts are built as: {@code Box -> Geometry -> child of pivot Node}.<br>
  * The pivot Node sits at the joint (shoulder, hip) so rotating the Node<br>
  * swings the limb naturally. The Geometry is offset downward inside the Node.<br>
  * <br>
@@ -183,7 +183,7 @@ public class EnemyFactory
 	
 	/**
 	 * Creates an opaque Unshaded material with flat color only (no texture).<br>
-	 * Used for eyes, teeth, and other small detail parts that should stay crisp.
+	 * Used for eyes, teeth and other small detail parts that should stay crisp.
 	 */
 	private static Material makeFlatMat(AssetManager assetManager, ColorRGBA color)
 	{
@@ -206,7 +206,7 @@ public class EnemyFactory
 	}
 	
 	/**
-	 * Creates a box Geometry with the given half-extents, material, and local translation.
+	 * Creates a box Geometry with the given half-extents, material and local translation.
 	 */
 	private static Geometry makeBox(String name, float halfX, float halfY, float halfZ, Material mat, float tx, float ty, float tz)
 	{
@@ -250,7 +250,7 @@ public class EnemyFactory
 	
 	/**
 	 * Builds a zombie model with visible neck, bare green skin torso,<br>
-	 * brown pants, red eyes, and white teeth.
+	 * brown pants, red eyes and white teeth.
 	 */
 	private static void buildZombie(Enemy enemy, AssetManager assetManager)
 	{
@@ -329,8 +329,8 @@ public class EnemyFactory
 	// ========================================================
 	
 	/**
-	 * Builds a skeleton model — thin bone-colored humanoid with a subtle neck,<br>
-	 * brown pants from waist down, red eye sockets, ribs, and prominent teeth.
+	 * Builds a skeleton model - thin bone-colored humanoid with a subtle neck,<br>
+	 * brown pants from waist down, red eye sockets, ribs and prominent teeth.
 	 */
 	private static void buildSkeleton(Enemy enemy, AssetManager assetManager)
 	{
@@ -348,7 +348,7 @@ public class EnemyFactory
 		final Material jointMat = makeNoiseMat(assetManager, darken(bone, 0.8f));
 		
 		// Body: shorter so pants visible at waist.
-		// HalfY=0.3, center at Y=1.2 → bottom at Y=0.9, top at Y=1.5.
+		// HalfY=0.3, center at Y=1.2 -> bottom at Y=0.9, top at Y=1.5.
 		final Node bodyNode = makePivotPart("Body", makeBox("BodyBox", 0.2f, 0.3f, 0.125f, greyBoneMat, 0, 0, 0), 0, 1.2f, 0);
 		root.attachChild(bodyNode);
 		enemy.setBody(bodyNode);
@@ -386,8 +386,8 @@ public class EnemyFactory
 		headNode.attachChild(makeBox("Tooth4", 0.02f, 0.025f, 0.01f, toothMat, 0.035f, ty, tz));
 		headNode.attachChild(makeBox("Tooth5", 0.02f, 0.025f, 0.01f, toothMat, 0.08f, ty, tz));
 		
-		// Brown waistband — fills gap between torso bottom (Y=0.9) and leg top (Y=0.75).
-		// HalfY=0.12 centered at Y=0.83 → from Y=0.71 to Y=0.95.
+		// Brown waistband - fills gap between torso bottom (Y=0.9) and leg top (Y=0.75).
+		// HalfY=0.12 centered at Y=0.83 -> from Y=0.71 to Y=0.95.
 		root.attachChild(makeBox("Waistband", 0.21f, 0.12f, 0.13f, pantsMat, 0, 0.83f, 0));
 		
 		// Legs: bone-colored with short brown pants covering belly and upper thigh.
@@ -395,8 +395,8 @@ public class EnemyFactory
 		root.attachChild(leftLeg);
 		enemy.setLeftLeg(leftLeg);
 		
-		// Short pants — covers from above hip (into belly) to mid-thigh.
-		// Centered at Y=-0.05 with halfY=0.15 → covers +0.10 (belly overlap) to -0.20.
+		// Short pants - covers from above hip (into belly) to mid-thigh.
+		// Centered at Y=-0.05 with halfY=0.15 -> covers +0.10 (belly overlap) to -0.20.
 		leftLeg.attachChild(makeBox("LPants", 0.085f, 0.15f, 0.085f, pantsMat, 0, -0.05f, 0));
 		
 		final Node rightLeg = makePivotPart("RightLeg", makeBox("RightLegBox", 0.075f, 0.375f, 0.075f, boneMat, 0, -0.375f, 0), 0.125f, 0.75f, 0);
@@ -429,7 +429,7 @@ public class EnemyFactory
 	
 	/**
 	 * Builds a grey wolf model with pointed ears, snout, short Doberman-style tail,<br>
-	 * lighter belly, and darker back stripe. Red glowing eyes.
+	 * lighter belly and darker back stripe. Red glowing eyes.
 	 */
 	private static void buildWolf(Enemy enemy, AssetManager assetManager)
 	{
@@ -471,7 +471,7 @@ public class EnemyFactory
 		
 		headNode.attachChild(makeBox("Mouth", 0.07f, 0.015f, 0.005f, noseMat, 0, -0.11f, -0.43f));
 		
-		// Canine teeth — two white fangs hanging below the snout.
+		// Canine teeth - two white fangs hanging below the snout.
 		final Material toothMat = makeFlatMat(assetManager, TOOTH_WHITE);
 		headNode.attachChild(makeBox("LeftCanine", 0.015f, 0.03f, 0.015f, toothMat, -0.05f, -0.14f, -0.38f));
 		headNode.attachChild(makeBox("RightCanine", 0.015f, 0.03f, 0.015f, toothMat, 0.05f, -0.14f, -0.38f));
@@ -512,8 +512,8 @@ public class EnemyFactory
 	// ========================================================
 	
 	/**
-	 * Builds a spider model — dark blue-black body with a visibly large abdomen,<br>
-	 * 8 thinner legs spread wide, red eyes, and fangs.
+	 * Builds a spider model - dark blue-black body with a visibly large abdomen,<br>
+	 * 8 thinner legs spread wide, red eyes and fangs.
 	 */
 	private static void buildSpider(Enemy enemy, AssetManager assetManager)
 	{
@@ -540,10 +540,10 @@ public class EnemyFactory
 		root.attachChild(makeBox("AbdStripe2", 0.12f, 0.006f, 0.07f, stripeMat, 0, 0.71f, 0.52f));
 		root.attachChild(makeBox("AbdStripe3", 0.08f, 0.006f, 0.05f, stripeMat, 0, 0.71f, 0.62f));
 		
-		// Head plate — darker front.
+		// Head plate - darker front.
 		bodyNode.attachChild(makeBox("HeadPlate", 0.16f, 0.1f, 0.06f, stripeMat, 0, 0.02f, -0.2f));
 		
-		// Eyes — well forward.
+		// Eyes - well forward.
 		bodyNode.attachChild(makeBox("LeftEyeL", 0.04f, 0.035f, 0.03f, eyeMat, -0.08f, 0.09f, -0.28f));
 		bodyNode.attachChild(makeBox("RightEyeL", 0.04f, 0.035f, 0.03f, eyeMat, 0.08f, 0.09f, -0.28f));
 		bodyNode.attachChild(makeBox("LeftEyeS", 0.02f, 0.02f, 0.025f, eyeMat, -0.15f, 0.07f, -0.26f));
@@ -553,7 +553,7 @@ public class EnemyFactory
 		bodyNode.attachChild(makeBox("LeftFang", 0.02f, 0.06f, 0.02f, fangMat, -0.05f, -0.1f, -0.28f));
 		bodyNode.attachChild(makeBox("RightFang", 0.02f, 0.06f, 0.02f, fangMat, 0.05f, -0.1f, -0.28f));
 		
-		// 8 legs — thinner (0.03 half-extent), shorter (0.25 half-extent), 65° spread.
+		// 8 legs - thinner (0.03 half-extent), shorter (0.25 half-extent), 65° spread.
 		// Legs attach to the cephalothorax, not the abdomen.
 		final float[] zOffsets =
 		{
@@ -590,8 +590,8 @@ public class EnemyFactory
 	// ========================================================
 	
 	/**
-	 * Builds a slime model — semi-transparent green cube with red eyes,<br>
-	 * darker core nucleus, and a mouth slit.
+	 * Builds a slime model - semi-transparent green cube with red eyes,<br>
+	 * darker core nucleus and a mouth slit.
 	 */
 	private static void buildSlime(Enemy enemy, AssetManager assetManager)
 	{
@@ -621,8 +621,8 @@ public class EnemyFactory
 	// ========================================================
 	
 	/**
-	 * Builds a piranha model — small fish with separate individual teeth,<br>
-	 * red eyes, fins, and belly coloring. The only aquatic enemy.
+	 * Builds a piranha model - small fish with separate individual teeth,<br>
+	 * red eyes, fins and belly coloring. The only aquatic enemy.
 	 */
 	private static void buildPiranha(Enemy enemy, AssetManager assetManager)
 	{
@@ -645,17 +645,17 @@ public class EnemyFactory
 		root.attachChild(bodyNode);
 		enemy.setBody(bodyNode);
 		
-		// Belly patch — overlaps into body bottom, thicker to be visible.
+		// Belly patch - overlaps into body bottom, thicker to be visible.
 		bodyNode.attachChild(makeBox("Belly", 0.12f, 0.015f, 0.2f, bellyMat, 0, -0.1f, 0));
-		// Back patch — overlaps into body top, thicker to be visible.
+		// Back patch - overlaps into body top, thicker to be visible.
 		bodyNode.attachChild(makeBox("Back", 0.1f, 0.015f, 0.2f, backMat, 0, 0.1f, 0));
-		// Dorsal fin — overlaps into body top (body top at Y=0.1 local).
+		// Dorsal fin - overlaps into body top (body top at Y=0.1 local).
 		bodyNode.attachChild(makeBox("DorsalFin", 0.01f, 0.06f, 0.08f, finMat, 0, 0.13f, -0.02f));
-		// Side fins — overlap into body sides (body side at X=±0.15 local).
+		// Side fins - overlap into body sides (body side at X=±0.15 local).
 		bodyNode.attachChild(makeBox("LeftFin", 0.005f, 0.03f, 0.06f, finMat, -0.14f, -0.04f, -0.05f));
 		bodyNode.attachChild(makeBox("RightFin", 0.005f, 0.03f, 0.06f, finMat, 0.14f, -0.04f, -0.05f));
 		
-		// Head — back face touches body front (body front at Z=-0.25, head halfZ=0.075, so center at -0.325).
+		// Head - back face touches body front (body front at Z=-0.25, head halfZ=0.075, so center at -0.325).
 		final Node headNode = makePivotPart("Head", makeBox("HeadBox", 0.125f, 0.09f, 0.075f, headMat, 0, 0, 0), 0, 0.1f, -0.325f);
 		root.attachChild(headNode);
 		enemy.setHead(headNode);
@@ -663,17 +663,17 @@ public class EnemyFactory
 		headNode.attachChild(makeBox("LeftEye", 0.025f, 0.03f, 0.025f, eyeMat, -0.135f, 0.02f, 0));
 		headNode.attachChild(makeBox("RightEye", 0.025f, 0.03f, 0.025f, eyeMat, 0.135f, 0.02f, 0));
 		
-		// Jaw — longer, offset down clearly from head to avoid z-fighting.
+		// Jaw - longer, offset down clearly from head to avoid z-fighting.
 		final Material jawMat = makeNoiseMat(assetManager, new ColorRGBA(0.25f, 0.25f, 0.28f, 1.0f));
 		headNode.attachChild(makeBox("LowerJaw", 0.11f, 0.025f, 0.1f, jawMat, 0, -0.115f, -0.03f));
 		
-		// Two teeth on lower jaw — left and right fangs pointing up.
+		// Two teeth on lower jaw - left and right fangs pointing up.
 		final float ttz = -0.13f;
 		headNode.attachChild(makeBox("LeftFang", 0.015f, 0.03f, 0.01f, toothMat, -0.06f, -0.09f, ttz));
 		headNode.attachChild(makeBox("RightFang", 0.015f, 0.03f, 0.01f, toothMat, 0.06f, -0.09f, ttz));
 		
 		// Tail fin.
-		// Tail fin — overlaps into body back (body back at Z=0.25 local).
+		// Tail fin - overlaps into body back (body back at Z=0.25 local).
 		bodyNode.attachChild(makeBox("TailFin", 0.01f, 0.075f, 0.1f, finMat, 0, 0, 0.30f));
 	}
 	
@@ -682,7 +682,7 @@ public class EnemyFactory
 	// ========================================================
 	
 	/**
-	 * Builds a player model — light brown skin, brown hair, green eyes,<br>
+	 * Builds a player model - light brown skin, brown hair, green eyes,<br>
 	 * iron helmet, iron armor on torso, iron pants, iron boots.<br>
 	 * Same proportions as zombie (neck, longer arms).
 	 */
@@ -708,7 +708,7 @@ public class EnemyFactory
 		final Material ironLightMat = makeNoiseMat(assetManager, ironLight);
 		final Material eyeMat = makeFlatMat(assetManager, eye);
 		
-		// Iron armor torso — same size as zombie torso, shorter to show waistband.
+		// Iron armor torso - same size as zombie torso, shorter to show waistband.
 		final Node bodyNode = makePivotPart("Body", makeBox("BodyBox", 0.3f, 0.33f, 0.18f, ironMat, 0, 0, 0), 0, 1.27f, 0);
 		root.attachChild(bodyNode);
 		enemy.setBody(bodyNode);
@@ -716,7 +716,7 @@ public class EnemyFactory
 		// Armor chest plate detail on front.
 		bodyNode.attachChild(makeBox("ChestPlate", 0.22f, 0.2f, 0.005f, ironDarkMat, 0, 0.05f, -0.20f));
 		
-		// Iron waistband — fills gap between torso and legs.
+		// Iron waistband - fills gap between torso and legs.
 		root.attachChild(makeBox("Waistband", 0.29f, 0.1f, 0.16f, ironDarkMat, 0, 0.88f, 0));
 		
 		// Neck: use flat material.
@@ -727,29 +727,29 @@ public class EnemyFactory
 		root.attachChild(headNode);
 		enemy.setHead(headNode);
 		
-		// Brown hair — thin strips. (keep hair noisy).
+		// Brown hair - thin strips. (keep hair noisy).
 		headNode.attachChild(makeBox("HairBack", 0.19f, 0.10f, 0.02f, hairMat, 0, 0.25f, 0.21f));
-		// Side strips: center Z=0.05, halfZ=0.18 → Z=-0.13 to Z=0.23 (overlaps back at Z=0.21).
+		// Side strips: center Z=0.05, halfZ=0.18 -> Z=-0.13 to Z=0.23 (overlaps back at Z=0.21).
 		headNode.attachChild(makeBox("HairLeft", 0.02f, 0.06f, 0.18f, hairMat, -0.21f, 0.28f, 0.05f));
 		headNode.attachChild(makeBox("HairRight", 0.02f, 0.06f, 0.18f, hairMat, 0.21f, 0.28f, 0.05f));
 		
-		// Iron helmet — open-face cap sitting on top half of head.
+		// Iron helmet - open-face cap sitting on top half of head.
 		// Only covers forehead and above, leaving eyes/nose/mouth visible.
-		// Top cap: center Y=0.44, halfY=0.08 → Y=0.36 to Y=0.52.
+		// Top cap: center Y=0.44, halfY=0.08 -> Y=0.36 to Y=0.52.
 		headNode.attachChild(makeBox("HelmetCap", 0.23f, 0.08f, 0.23f, ironMat, 0, 0.44f, 0));
-		// Forehead band: thicker. Center Y=0.34, halfY=0.06 → Y=0.28 to Y=0.40.
+		// Forehead band: thicker. Center Y=0.34, halfY=0.06 -> Y=0.28 to Y=0.40.
 		headNode.attachChild(makeBox("HelmetBand", 0.24f, 0.06f, 0.24f, ironLightMat, 0, 0.34f, 0));
-		// Nose guard — hangs down from the band center.
+		// Nose guard - hangs down from the band center.
 		headNode.attachChild(makeBox("NoseGuard", 0.02f, 0.10f, 0.025f, ironDarkMat, 0, 0.27f, -0.24f));
 		
-		// Eyes — white sclera with green iris dot.
+		// Eyes - white sclera with green iris dot.
 		final Material whiteEyeMat = makeFlatMat(assetManager, new ColorRGBA(0.92f, 0.92f, 0.92f, 1.0f));
 		headNode.attachChild(makeBox("LeftEyeWhite", 0.035f, 0.03f, 0.015f, whiteEyeMat, -0.07f, 0.24f, -0.215f));
 		headNode.attachChild(makeBox("RightEyeWhite", 0.035f, 0.03f, 0.015f, whiteEyeMat, 0.07f, 0.24f, -0.215f));
 		headNode.attachChild(makeBox("LeftIris", 0.018f, 0.018f, 0.005f, eyeMat, -0.07f, 0.24f, -0.235f));
 		headNode.attachChild(makeBox("RightIris", 0.018f, 0.018f, 0.005f, eyeMat, 0.07f, 0.24f, -0.235f));
 		
-		// Nose — use flat dark skin.
+		// Nose - use flat dark skin.
 		headNode.attachChild(makeBox("Nose", 0.02f, 0.025f, 0.02f, skinDarkFlatMat, 0, 0.17f, -0.22f));
 		
 		// Mouth.

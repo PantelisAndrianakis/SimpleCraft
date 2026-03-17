@@ -19,14 +19,14 @@ public class CraftingRecipe
 	/** How many items this recipe produces per craft. */
 	private final int _outputCount;
 	
-	/** Required ingredients: item ID → quantity needed. Unmodifiable. */
+	/** Required ingredients: item ID -> quantity needed. Unmodifiable. */
 	private final Map<String, Integer> _ingredients;
 	
 	/**
 	 * Creates a new crafting recipe.
 	 * @param outputItemId the item ID this recipe produces
 	 * @param outputCount how many items per craft
-	 * @param ingredients item ID → required count
+	 * @param ingredients item ID -> required count
 	 */
 	public CraftingRecipe(String outputItemId, int outputCount, Map<String, Integer> ingredients)
 	{
@@ -105,7 +105,7 @@ public class CraftingRecipe
 	}
 	
 	/**
-	 * Returns the unmodifiable ingredient map (item ID → required count).
+	 * Returns the unmodifiable ingredient map (item ID -> required count).
 	 */
 	public Map<String, Integer> getIngredients()
 	{

@@ -157,15 +157,15 @@ public class World
 	{
 		_seed = seed;
 		
-		// Opaque material — used as-is for solid blocks.
+		// Opaque material - used as-is for solid blocks.
 		_opaqueMaterial = sharedMaterial;
 		
-		// Transparent material — shared by all transparent geometry (water, leaves).
+		// Transparent material - shared by all transparent geometry (water, leaves).
 		_transparentMaterial = sharedMaterial.clone();
 		_transparentMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
 		_transparentMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		
-		// Billboard material — shared by all billboard geometry (flowers, torches).
+		// Billboard material - shared by all billboard geometry (flowers, torches).
 		_billboardMaterial = sharedMaterial.clone();
 		_billboardMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
 		
@@ -245,7 +245,7 @@ public class World
 			_desiredRegions = getDesiredRegions(camRegionX, camRegionZ, renderDistance);
 			final Set<Long> loaded = new HashSet<>(_regions.keySet());
 			
-			// --- Unload (immediate — removing geometry is cheap) ---
+			// --- Unload (immediate - removing geometry is cheap) ---
 			final Set<Long> toUnload = new HashSet<>(loaded);
 			toUnload.removeAll(_desiredRegions);
 			
@@ -319,7 +319,7 @@ public class World
 		submitRemeshRequests();
 		
 		// -------------------------------------------------------
-		// Phase 3: Poll completed regions, create meshes, and attach (every frame).
+		// Phase 3: Poll completed regions, create meshes and attach (every frame).
 		// -------------------------------------------------------
 		int attachedCount = 0;
 		final Set<Long> newlyLoaded = new HashSet<>();
@@ -338,7 +338,7 @@ public class World
 			
 			if (_regions.containsKey(key))
 			{
-				// Skip stale async results — region was already rebuilt synchronously
+				// Skip stale async results - region was already rebuilt synchronously
 				// (e.g. by setBlockImmediate or rebuildDirtyRegionsImmediate).
 				final Region loadedRegion = _regions.get(key);
 				if (!loadedRegion.isMeshDirty())
@@ -357,18 +357,18 @@ public class World
 					continue;
 				}
 				
-				// Remesh result for an already-loaded region — swap geometry.
+				// Remesh result for an already-loaded region - swap geometry.
 				detachRegionGeometry(key);
 				attachRegionGeometryFromData(region, ready.getMeshData());
 				
-				// Mark clean on main thread (safe — no race with background markMeshDirty).
+				// Mark clean on main thread (safe - no race with background markMeshDirty).
 				region.markMeshClean();
 			}
 			else
 			{
-				// New region — add to map and attach.
+				// New region - add to map and attach.
 				// Saved data (if any) was already applied by RegionLoader before mesh building,
-				// so the mesh is correct from the start — no flicker.
+				// so the mesh is correct from the start - no flicker.
 				_regions.put(key, region);
 				
 				// If saved data was applied on the background thread, update the cache reference
@@ -702,7 +702,7 @@ public class World
 	 * Returns true if the block at the given world coordinates prevents player movement.<br>
 	 * Blocks movement for solid blocks (standard collision) and for closed FLAT_PANEL<br>
 	 * blocks (windows and doors). Open windows and doors allow passage.<br>
-	 * Returns false for AIR, liquids, decorations, and open panels.
+	 * Returns false for AIR, liquids, decorations and open panels.
 	 * @param worldX world X coordinate
 	 * @param worldY world Y coordinate
 	 * @param worldZ world Z coordinate
@@ -724,7 +724,7 @@ public class World
 			final TileEntity te = _tileEntityManager.get(worldX, worldY, worldZ);
 			if (te == null)
 			{
-				// No tile entity registered — treat as blocking (safety).
+				// No tile entity registered - treat as blocking (safety).
 				return true;
 			}
 			
@@ -738,7 +738,7 @@ public class World
 				return !((DoorTileEntity) te).isOpen();
 			}
 			
-			// Unknown FLAT_PANEL tile entity — block by default.
+			// Unknown FLAT_PANEL tile entity - block by default.
 			return true;
 		}
 		
@@ -756,7 +756,7 @@ public class World
 	 */
 	public float getSkyLight(int worldX, int worldY, int worldZ)
 	{
-		// Out of vertical bounds — treat as open sky.
+		// Out of vertical bounds - treat as open sky.
 		if (worldY < 0 || worldY >= Region.SIZE_Y)
 		{
 			return 1.0f;
@@ -863,10 +863,10 @@ public class World
 		attachGeometries(region, meshResult);
 		region.markMeshClean();
 		
-		// Cancel any pending async remesh — this sync rebuild supersedes it.
+		// Cancel any pending async remesh - this sync rebuild supersedes it.
 		_regionLoader.cancelPending(key);
 		
-		// Remove from async pending set — already rebuilt.
+		// Remove from async pending set - already rebuilt.
 		synchronized (_pendingRemesh)
 		{
 			_pendingRemesh.remove(key);
@@ -979,7 +979,7 @@ public class World
 	/**
 	 * Sets the block at the given world coordinates silently (no dirty flag, no rebuild).<br>
 	 * The block data is updated immediately for game logic correctness (collision, etc.)<br>
-	 * but the visual mesh is NOT rebuilt — the old geometry remains until the region is<br>
+	 * but the visual mesh is NOT rebuilt - the old geometry remains until the region is<br>
 	 * explicitly marked dirty and rebuilt later.<br>
 	 * Used by the destruction queue to decouple data changes from visual updates.
 	 */
@@ -1250,7 +1250,7 @@ public class World
 	 * Called once after tile entity deserialization during world load to ensure<br>
 	 * FLAT_PANEL blocks (doors, windows) have correct geometry. These blocks<br>
 	 * require TileEntityManager data (facing direction, open/closed state) that<br>
-	 * is unavailable during initial background mesh building — the TileEntityManager<br>
+	 * is unavailable during initial background mesh building - the TileEntityManager<br>
 	 * is populated only after regions are already attached to the scene graph.
 	 */
 	public void rebuildAllLoadedRegions()
@@ -1463,7 +1463,7 @@ public class World
 			
 			if (currentLight > 0 && currentLight <= expectedLight)
 			{
-				// This block was lit by the removed source — clear it.
+				// This block was lit by the removed source - clear it.
 				region.setBlockLight(lx, y, lz, 0);
 				region.markMeshDirty();
 				_regionLoader.updateRegionCache(region);
@@ -1487,7 +1487,7 @@ public class World
 			}
 			else if (currentLight > expectedLight)
 			{
-				// This block has brighter light from another source — re-propagate from here.
+				// This block has brighter light from another source - re-propagate from here.
 				repropQueue.add(new int[]
 				{
 					x,
@@ -1590,7 +1590,7 @@ public class World
 	/**
 	 * Scans all loaded regions for light-emitting blocks and re-propagates their light.<br>
 	 * Called after loading a saved world to restore block light data, which is not persisted<br>
-	 * (only block types and tile entities are saved — light is derived from block placement).<br>
+	 * (only block types and tile entities are saved - light is derived from block placement).<br>
 	 * <br>
 	 * Uses {@link Block#getLightLevel()} to identify emitters and their intensity.<br>
 	 * Dirty regions are rebuilt once after all lights have been propagated.
@@ -1706,7 +1706,7 @@ public class World
 	 * Sets saved region data to be applied as regions load.<br>
 	 * Called during world initialization when loading a previously saved world.<br>
 	 * Each entry maps a packed region key to its saved block/player data.
-	 * @param savedData the map of region key → saved data, or null to clear
+	 * @param savedData the map of region key -> saved data, or null to clear
 	 */
 	public void setSavedRegionData(ConcurrentHashMap<Long, SavedRegionData> savedData)
 	{
@@ -1731,7 +1731,7 @@ public class World
 	private static final int UNDERGROUND_DEPTH_THRESHOLD = 4;
 	
 	/**
-	 * Returns whether the player is underground — at least {@value #UNDERGROUND_DEPTH_THRESHOLD}<br>
+	 * Returns whether the player is underground - at least {@value #UNDERGROUND_DEPTH_THRESHOLD}<br>
 	 * blocks below the nearest non-player-placed DIRT or GRASS block.<br>
 	 * <br>
 	 * Searches a 3D area around the player (±{@value #UNDERGROUND_SEARCH_RADIUS_XZ} XZ,<br>
@@ -1781,7 +1781,7 @@ public class World
 		
 		if (closestDirtY < 0)
 		{
-			return false; // No natural dirt found nearby — surface or void.
+			return false; // No natural dirt found nearby - surface or void.
 		}
 		
 		return worldY <= (closestDirtY - UNDERGROUND_DEPTH_THRESHOLD);

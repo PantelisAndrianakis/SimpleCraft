@@ -18,7 +18,7 @@ import simplecraft.world.entity.WindowTileEntity;
 
 /**
  * Static utility class that builds jME3 Mesh objects from region block data.<br>
- * Generates three separate meshes per region: opaque, transparent, and billboard.<br>
+ * Generates three separate meshes per region: opaque, transparent and billboard.<br>
  * Includes per-vertex color data for sky-light-based lighting with directional face shading.<br>
  * Supports directional block placement: oriented tile entities (CHEST, FURNACE) have<br>
  * their front texture rotated to match the stored facing direction.<br>
@@ -50,16 +50,16 @@ public class RegionMeshBuilder
 	// @formatter:off
 	private static final float[] FACE_SHADE =
 	{
-		1.0f, // TOP    — direct overhead sunlight.
-		0.5f, // BOTTOM — in shadow underneath.
-		0.8f, // NORTH  — slight side shadow.
-		0.8f, // SOUTH  — slight side shadow.
-		0.6f, // EAST   — darker side (sun from southwest).
-		0.9f  // WEST   — brighter side (facing sun).
+		1.0f, // TOP    - direct overhead sunlight.
+		0.5f, // BOTTOM - in shadow underneath.
+		0.8f, // NORTH  - slight side shadow.
+		0.8f, // SOUTH  - slight side shadow.
+		0.6f, // EAST   - darker side (sun from southwest).
+		0.9f  // WEST   - brighter side (facing sun).
 	};
 	// @formatter:on
 	
-	/** Billboard shade factor — uniform brightness, no directional bias on thin cross quads. */
+	/** Billboard shade factor - uniform brightness, no directional bias on thin cross quads. */
 	private static final float BILLBOARD_SHADE = 0.6f;
 	
 	/** Minimum vertex brightness. Zero allows total darkness underground. */
@@ -403,7 +403,7 @@ public class RegionMeshBuilder
 	
 	private RegionMeshBuilder()
 	{
-		// Static utility class — do not instantiate.
+		// Static utility class - do not instantiate.
 	}
 	
 	// ========================================================
@@ -445,7 +445,7 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Builds three separate meshes from the region's block data.<br>
-	 * Backward-compatible overload — no tile entity orientation support.
+	 * Backward-compatible overload - no tile entity orientation support.
 	 */
 	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess)
 	{
@@ -473,7 +473,7 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Builds raw vertex arrays from the region's block data (background-thread safe).<br>
-	 * Backward-compatible overload — no tile entity orientation support.
+	 * Backward-compatible overload - no tile entity orientation support.
 	 */
 	public static RegionMeshData buildRegionMeshData(Region region, WorldBlockAccess worldAccess)
 	{
@@ -642,7 +642,7 @@ public class RegionMeshBuilder
 								break;
 							}
 							
-							// Billboards sit in air/transparent space — use their own position's light.
+							// Billboards sit in air/transparent space - use their own position's light.
 							final float skyLight = region.getSkyLight(x, y, z) * _cycleBrightness;
 							final float blockLight = region.getBlockLight(x, y, z) / 15.0f;
 							final float skyB = skyLight * BILLBOARD_SHADE;
@@ -686,7 +686,7 @@ public class RegionMeshBuilder
 										flipSide = dte.isFlippedOpen();
 									}
 									
-									// Flat panels sit in air/transparent space — use their own position's light.
+									// Flat panels sit in air/transparent space - use their own position's light.
 									final float skyLight = region.getSkyLight(x, y, z) * _cycleBrightness;
 									final float blockLight = region.getBlockLight(x, y, z) / 15.0f;
 									final float skyB = skyLight * BILLBOARD_SHADE;
@@ -725,7 +725,7 @@ public class RegionMeshBuilder
 	 * {@link Block#getAtlasIndex(Face)} assumes NORTH = front. When the block faces a different<br>
 	 * direction, the physical face that should display the front texture is not NORTH.<br>
 	 * This method translates: "I'm rendering the physical SOUTH face of a block facing SOUTH"<br>
-	 * → "ask getAtlasIndex(NORTH) to get the front texture."<br>
+	 * -> "ask getAtlasIndex(NORTH) to get the front texture."<br>
 	 * <br>
 	 * TOP and BOTTOM faces are not affected by horizontal rotation.
 	 * @param physicalFace the actual world face being rendered
@@ -852,32 +852,32 @@ public class RegionMeshBuilder
 		final int ny = y + offset[1];
 		final int nz = z + offset[2];
 		
-		// Above the region — open sky.
+		// Above the region - open sky.
 		if (ny >= Region.SIZE_Y)
 		{
 			return 1.0f;
 		}
 		
-		// Below the region — fully underground.
+		// Below the region - fully underground.
 		if (ny < 0)
 		{
 			return 0.05f;
 		}
 		
-		// Within region bounds — use the neighbor's column sky light.
+		// Within region bounds - use the neighbor's column sky light.
 		if (nx >= 0 && nx < Region.SIZE_XZ && nz >= 0 && nz < Region.SIZE_XZ)
 		{
 			return region.getSkyLight(nx, ny, nz);
 		}
 		
-		// Cross-region boundary — fall back to block's own sky light.
+		// Cross-region boundary - fall back to block's own sky light.
 		// Minor seam at region edges, but avoids needing cross-region sky light access.
 		return region.getSkyLight(x, y, z);
 	}
 	
 	/**
 	 * Returns the block light (artificial light) at the neighbor position for a given face.<br>
-	 * Parallel to {@link #getNeighborSkyLight} — samples the air space the face looks at.<br>
+	 * Parallel to {@link #getNeighborSkyLight} - samples the air space the face looks at.<br>
 	 * Returns the block's own block light for cross-region boundaries (minor seam).
 	 * @return block light level normalized to [0.0, 1.0]
 	 */
@@ -898,7 +898,7 @@ public class RegionMeshBuilder
 			return region.getBlockLight(nx, ny, nz) / 15.0f;
 		}
 		
-		// Cross-region boundary — fall back to block's own block light.
+		// Cross-region boundary - fall back to block's own block light.
 		return region.getBlockLight(x, y, z) / 15.0f;
 	}
 	
@@ -1024,12 +1024,12 @@ public class RegionMeshBuilder
 		// Write 4 vertices.
 		for (int v = 0; v < 4; v++)
 		{
-			// Position — use flattened array.
+			// Position - use flattened array.
 			positions[vPtr + v * 3] = facePos[v * 3] + bx;
 			positions[vPtr + v * 3 + 1] = facePos[v * 3 + 1] + by;
 			positions[vPtr + v * 3 + 2] = facePos[v * 3 + 2] + bz;
 			
-			// Normal — use flattened array.
+			// Normal - use flattened array.
 			normals[vPtr + v * 3] = faceNorm[v * 3];
 			normals[vPtr + v * 3 + 1] = faceNorm[v * 3 + 1];
 			normals[vPtr + v * 3 + 2] = faceNorm[v * 3 + 2];
@@ -1040,7 +1040,7 @@ public class RegionMeshBuilder
 			texCoords[uvPtr + v * 2] = uvBounds[0] + unitU * (uvBounds[2] - uvBounds[0]);
 			texCoords[uvPtr + v * 2 + 1] = uvBounds[1] + unitV * (uvBounds[3] - uvBounds[1]);
 			
-			// Vertex color (RGBA) — pre-blended sky/block light with warm tint.
+			// Vertex color (RGBA) - pre-blended sky/block light with warm tint.
 			colors[cPtr + v * 4] = r; // R
 			colors[cPtr + v * 4 + 1] = g; // G
 			colors[cPtr + v * 4 + 2] = b; // B
@@ -1098,7 +1098,7 @@ public class RegionMeshBuilder
 			normals[vPtr + v * 3 + 1] = 0;
 			normals[vPtr + v * 3 + 2] = nz;
 			
-			// Vertex color — pre-blended sky/block light with warm tint.
+			// Vertex color - pre-blended sky/block light with warm tint.
 			colors[cPtr + v * 4] = r; // R
 			colors[cPtr + v * 4 + 1] = g; // G
 			colors[cPtr + v * 4 + 2] = b; // B
@@ -1134,7 +1134,7 @@ public class RegionMeshBuilder
 	/**
 	 * Writes a single flat panel quad (4 vertices, 6 indices) into the billboard mesh arrays.<br>
 	 * The panel is a full-block-sized quad whose position and orientation depend on the<br>
-	 * tile entity's facing, open, and flippedOpen state.<br>
+	 * tile entity's facing, open and flippedOpen state.<br>
 	 * <br>
 	 * <b>Closed:</b> Panel sits centered in the block, perpendicular to the facing direction.<br>
 	 * <b>Open:</b> Panel swings 90° to the right (from the player's perspective looking at the<br>
@@ -1408,7 +1408,7 @@ public class RegionMeshBuilder
 	}
 	
 	// ========================================================
-	// Face Visibility — CUBE_SOLID.
+	// Face Visibility - CUBE_SOLID.
 	// ========================================================
 	
 	/**
@@ -1435,7 +1435,7 @@ public class RegionMeshBuilder
 			}
 			else
 			{
-				// No world access or out of vertical bounds — treat as air.
+				// No world access or out of vertical bounds - treat as air.
 				return true;
 			}
 		}
@@ -1449,7 +1449,7 @@ public class RegionMeshBuilder
 	}
 	
 	// ========================================================
-	// Face Visibility — CUBE_TRANSPARENT.
+	// Face Visibility - CUBE_TRANSPARENT.
 	// ========================================================
 	
 	/**
@@ -1499,7 +1499,7 @@ public class RegionMeshBuilder
 			}
 			else
 			{
-				// No world access or out of vertical bounds — treat as air.
+				// No world access or out of vertical bounds - treat as air.
 				return true;
 			}
 		}
@@ -1510,7 +1510,7 @@ public class RegionMeshBuilder
 		
 		if (block.isLiquid())
 		{
-			// Water only renders faces adjacent to air — clean pool surface.
+			// Water only renders faces adjacent to air - clean pool surface.
 			return neighbor == Block.AIR;
 		}
 		
@@ -1527,7 +1527,7 @@ public class RegionMeshBuilder
 			return POSITIVE_FACE[face.ordinal()];
 		}
 		
-		// Adjacent to air or other non-solid — always render.
+		// Adjacent to air or other non-solid - always render.
 		return true;
 	}
 	
@@ -1597,7 +1597,7 @@ public class RegionMeshBuilder
 			texCoords.add(FACE_UVS[v * 2]);
 			texCoords.add(FACE_UVS[v * 2 + 1]);
 			
-			// Vertex color — full white for test cube.
+			// Vertex color - full white for test cube.
 			colors.add(1.0f); // R
 			colors.add(1.0f); // G
 			colors.add(1.0f); // B

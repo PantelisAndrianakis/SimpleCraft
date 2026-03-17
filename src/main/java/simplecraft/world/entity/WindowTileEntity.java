@@ -92,12 +92,12 @@ public class WindowTileEntity extends TileEntity
 		}
 		else
 		{
-			// Closing resets the flip — panel returns to the center of the block.
+			// Closing resets the flip - panel returns to the center of the block.
 			_flippedOpen = false;
 		}
 		
 		// Trigger mesh rebuild so the FLAT_PANEL quad updates its position.
-		// Cannot use setBlockImmediate — the block type hasn't changed (still WINDOW),
+		// Cannot use setBlockImmediate - the block type hasn't changed (still WINDOW),
 		// so Region.setBlock skips the dirty flag. Force rebuild via markRegionDirtyAt.
 		world.markRegionDirtyAt(_position.x, _position.y, _position.z);
 		world.rebuildDirtyRegionsImmediate();

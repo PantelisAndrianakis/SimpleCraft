@@ -44,7 +44,7 @@ import simplecraft.world.entity.TileEntityManager;
  * Each modified region stores its full block data, player-placed positions,<br>
  * and player-removed positions.<br>
  * <br>
- * Error handling: never crashes on disk errors — logs and skips.
+ * Error handling: never crashes on disk errors - logs and skips.
  * @author Pantelis Andrianakis
  * @since March 9th 2026
  */
@@ -98,7 +98,7 @@ public class SaveManager
 	
 	/**
 	 * Container for saved player data loaded from player.dat.<br>
-	 * Holds player position, health, selected block, time of day, and respawn points.
+	 * Holds player position, health, selected block, time of day and respawn points.
 	 */
 	public static class PlayerSaveData
 	{
@@ -200,7 +200,7 @@ public class SaveManager
 		final WorldInfo activeWorld = SimpleCraft.getInstance().getActiveWorld();
 		if (activeWorld == null)
 		{
-			System.err.println("SaveManager: No active world — cannot save.");
+			System.err.println("SaveManager: No active world - cannot save.");
 			return;
 		}
 		
@@ -426,7 +426,7 @@ public class SaveManager
 	
 	/**
 	 * Loads modified region data from world.dat (GZip compressed) in the active world's directory.<br>
-	 * Returns a map of packed region key → SavedRegionData.
+	 * Returns a map of packed region key -> SavedRegionData.
 	 * @return the loaded region data map, or null if no save exists or read fails
 	 */
 	public static ConcurrentHashMap<Long, SavedRegionData> loadWorldData()

@@ -4,7 +4,7 @@ import simplecraft.world.DayNightCycle;
 
 /**
  * Orchestrates music transitions based on game state: day/night phase, player<br>
- * submersion, and underground depth. Delegates all playback to {@link AudioManager}.<br>
+ * submersion and underground depth. Delegates all playback to {@link AudioManager}.<br>
  * <br>
  * Priority (highest first): water > underground > night > day.<br>
  * <br>
@@ -132,7 +132,7 @@ public class MusicManager
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Updates music state based on submersion, underground depth, and day/night phase.<br>
+	 * Updates music state based on submersion, underground depth and day/night phase.<br>
 	 * Must be called every frame during gameplay.<br>
 	 * <br>
 	 * Music priority: water > underground > night > day.<br>
@@ -194,7 +194,7 @@ public class MusicManager
 		
 		if (_timeInWater >= WATER_ENTER_DELAY && !_wasSubmerged)
 		{
-			// Entering water — suspend whatever surface track is playing.
+			// Entering water - suspend whatever surface track is playing.
 			_audioManager.crossfadeWithSuspend(WATER_MUSIC_PATH, WATER_CROSSFADE_DURATION);
 			_wasSubmerged = true;
 			_wasNight = nightNow;
@@ -206,7 +206,7 @@ public class MusicManager
 		
 		if (_timeSinceWater >= WATER_EXIT_DELAY && _wasSubmerged)
 		{
-			// Exiting water — resume the correct surface track.
+			// Exiting water - resume the correct surface track.
 			final String surfaceTrack = isEffectiveNight ? NIGHT_MUSIC_PATH : DAY_MUSIC_PATH;
 			_audioManager.crossfadeWithSuspend(surfaceTrack, WATER_CROSSFADE_DURATION);
 			_wasSubmerged = false;
@@ -242,12 +242,12 @@ public class MusicManager
 		
 		if (wasEffectiveNight != isEffectiveNight)
 		{
-			// The effective music phase changed — need a transition.
+			// The effective music phase changed - need a transition.
 			final boolean undergroundChanged = newUnderground != _undergroundActive;
 			
 			if (undergroundChanged)
 			{
-				// Underground enter/exit caused the change — use suspend/resume
+				// Underground enter/exit caused the change - use suspend/resume
 				// so the surface track continues from where it left off.
 				final String track = isEffectiveNight ? NIGHT_MUSIC_PATH : DAY_MUSIC_PATH;
 				_audioManager.crossfadeWithSuspend(track, UNDERGROUND_CROSSFADE_DURATION);
@@ -255,7 +255,7 @@ public class MusicManager
 			}
 			else if (!_musicTransitioned)
 			{
-				// Pure day/night boundary on the surface — fresh start.
+				// Pure day/night boundary on the surface - fresh start.
 				final String track = isEffectiveNight ? NIGHT_MUSIC_PATH : DAY_MUSIC_PATH;
 				_audioManager.crossfadeTo(track, MUSIC_CROSSFADE_DURATION);
 				System.out.println("MusicManager: Transitioning to " + (isEffectiveNight ? "night" : "day") + " music.");
@@ -268,7 +268,7 @@ public class MusicManager
 		}
 		
 		// ===============================================================
-		// No effective change — clean up stale state if needed.
+		// No effective change - clean up stale state if needed.
 		// ===============================================================
 		
 		// Individual states may have changed without affecting the effective phase.
@@ -277,7 +277,7 @@ public class MusicManager
 		if (_undergroundActive && !_wasNight && nightNow)
 		{
 			// Was underground-day (day track suspended), night arrived.
-			// The suspended day track is stale — clear it.
+			// The suspended day track is stale - clear it.
 			_audioManager.clearSuspended(DAY_MUSIC_PATH);
 			System.out.println("MusicManager: Night arrived while underground, cleared stale day track.");
 		}

@@ -64,13 +64,13 @@ import simplecraft.world.entity.TileEntityManager;
  * <br>
  * On first entry a black loading screen is shown while the world generates terrain<br>
  * around the spawn position. Once terrain is available the player is placed on the<br>
- * highest solid block, the loading screen is removed, and gameplay begins.<br>
+ * highest solid block, the loading screen is removed and gameplay begins.<br>
  * <br>
  * The {@code _paused} flag prevents the world from being torn down and rebuilt<br>
- * during the pause overlay transition (disable → re-enable cycle).<br>
+ * during the pause overlay transition (disable -> re-enable cycle).<br>
  * <br>
  * Lighting is fully baked into vertex colors (sky light + directional face shading).<br>
- * No scene lights (DirectionalLight, AmbientLight) are needed — materials use Unshaded.j3md.<br>
+ * No scene lights (DirectionalLight, AmbientLight) are needed - materials use Unshaded.j3md.<br>
  * The {@link DayNightCycle} modulates sky brightness and tint, which are applied to<br>
  * vertex colors during region mesh rebuilds. Viewport background color and fog color<br>
  * are updated every frame to match the current sky state.<br>
@@ -102,19 +102,19 @@ public class PlayingState extends FadeableAppState
 	private InventoryScreen _inventoryScreen;
 	private CraftingScreen _craftingScreen;
 	
-	/** Manages automatic enemy spawning, despawning, and updates. */
+	/** Manages automatic enemy spawning, despawning and updates. */
 	private SpawnSystem _spawnSystem;
 	
-	/** Manages enemy → player damage, player → enemy attacks, screen flashes, and death healing drops. */
+	/** Manages enemy -> player damage, player -> enemy attacks, screen flashes and death healing drops. */
 	private CombatSystem _combatSystem;
 	
 	/** Manages dropped items in the world (enemy death drops, pickup, despawn). */
 	private DropManager _dropManager;
 	
-	/** Manages the day/night cycle — sky brightness, tint, and viewport color. */
+	/** Manages the day/night cycle - sky brightness, tint and viewport color. */
 	private DayNightCycle _dayNightCycle;
 	
-	/** Orchestrates music transitions based on day/night phase, underground, and player submersion. */
+	/** Orchestrates music transitions based on day/night phase, underground and player submersion. */
 	private MusicManager _musicManager;
 	
 	/** Manages particle effects for block breaking and combat damage. */
@@ -363,7 +363,7 @@ public class PlayingState extends FadeableAppState
 		// Record the time we entered this state (for pause debouncing).
 		_lastEnterTime = System.currentTimeMillis();
 		
-		// Returning from pause — world is still alive, just restore controls.
+		// Returning from pause - world is still alive, just restore controls.
 		if (_world != null && !_pendingSpawn)
 		{
 			// Reset paused flag so a subsequent onExitState (e.g. Return to Main Menu) does full teardown.
@@ -380,7 +380,7 @@ public class PlayingState extends FadeableAppState
 			return;
 		}
 		
-		// First entry — full world setup.
+		// First entry - full world setup.
 		
 		// Get the active world from the application.
 		_activeWorld = app.getActiveWorld();
@@ -406,7 +406,7 @@ public class PlayingState extends FadeableAppState
 		// Set black background during loading (sky color applied after loading completes).
 		app.getViewPort().setBackgroundColor(ColorRGBA.Black);
 		
-		// No scene lights needed — lighting is fully baked into vertex colors via Unshaded materials.
+		// No scene lights needed - lighting is fully baked into vertex colors via Unshaded materials.
 		// Sky light + directional face shading is computed per-vertex in RegionMeshBuilder.
 		
 		// Check for existing save data before creating the day/night cycle.
@@ -462,11 +462,11 @@ public class PlayingState extends FadeableAppState
 		// Attach world node to the scene.
 		app.getRootNode().attachChild(_world.getWorldNode());
 		
-		// Disable the default fly camera — PlayerController handles all camera work.
+		// Disable the default fly camera - PlayerController handles all camera work.
 		app.getFlyByCamera().setEnabled(false);
 		app.getFlyByCamera().setDragToRotate(true);
 		
-		// Begin pending spawn — world needs to generate terrain before we can place the player.
+		// Begin pending spawn - world needs to generate terrain before we can place the player.
 		_pendingSpawn = true;
 		_spawnWaitFrames = 0;
 		_spawnTargetX = _playerSaveData != null ? (int) _playerSaveData.getPosX() : SPAWN_X;
@@ -525,7 +525,7 @@ public class PlayingState extends FadeableAppState
 			{
 				if (!areSpawnRegionsReady(_spawnTargetX, _spawnTargetZ))
 				{
-					// Terrain found but surrounding regions still loading — keep waiting.
+					// Terrain found but surrounding regions still loading - keep waiting.
 					return;
 				}
 			}
@@ -596,7 +596,7 @@ public class PlayingState extends FadeableAppState
 			else
 			{
 				// Still update camera position so it doesn't glitch.
-				// Player update handles camera — when a screen is open, input is unregistered
+				// Player update handles camera - when a screen is open, input is unregistered
 				// so no movement occurs, but we still need to call update for camera positioning.
 				_playerController.update(tpf);
 				
@@ -625,7 +625,7 @@ public class PlayingState extends FadeableAppState
 				}
 			}
 			
-			// Update viewmodel (held item sprite — swap, swing, bob).
+			// Update viewmodel (held item sprite - swap, swing, bob).
 			if (_viewmodelRenderer != null)
 			{
 				_viewmodelRenderer.update(SimpleCraft.getInstance().getCamera(), _playerController.getInventory(), _playerController.isMoving() && _playerController.isOnGround(), tpf);
@@ -635,7 +635,7 @@ public class PlayingState extends FadeableAppState
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			_world.update(_playerController.getPosition(), renderDistance);
 			
-			// --- Player → Enemy attack priority ---
+			// --- Player -> Enemy attack priority ---
 			// Check enemies FIRST on left-click. If the crosshair is on an enemy,
 			// suppress block interaction's attack so we don't mine blocks behind enemies.
 			// Skip combat when a screen is open.
@@ -650,7 +650,7 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			// Trigger viewmodel swing on any left-click (air, block, or enemy).
-			// triggerSwing() is idempotent — only starts if not already swinging.
+			// triggerSwing() is idempotent - only starts if not already swinging.
 			if (_viewmodelRenderer != null && _blockInteraction != null && _blockInteraction.isAttackHeld() && !_playerDead && !screenOpen)
 			{
 				_viewmodelRenderer.triggerSwing();
@@ -699,7 +699,7 @@ public class PlayingState extends FadeableAppState
 			// --- Death detection and respawn ---
 			if (_playerController.isDead() && !_playerDead)
 			{
-				// Player just died — show death screen.
+				// Player just died - show death screen.
 				_playerDead = true;
 				
 				// Close inventory if open.
@@ -803,7 +803,7 @@ public class PlayingState extends FadeableAppState
 		_spawnScanFromY = hasCampfire ? (int) respawnPoint.y : 255;
 		_spawnFallbackY = hasCampfire ? (int) respawnPoint.y : SPAWN_FALLBACK_Y;
 		
-		// Hide death screen, clean up HUD, and show loading screen.
+		// Hide death screen, clean up HUD and show loading screen.
 		if (_playerHUD != null)
 		{
 			_playerHUD.hideDeathScreen();
@@ -815,11 +815,11 @@ public class PlayingState extends FadeableAppState
 		// Hide cursor during loading.
 		app.getInputManager().setCursorVisible(false);
 		
-		// Enter pending spawn — the existing loop will tick the world and call finalizeSpawn.
+		// Enter pending spawn - the existing loop will tick the world and call finalizeSpawn.
 		_pendingSpawn = true;
 		_spawnWaitFrames = 0;
 		
-		System.out.println("Respawn initiated — waiting for terrain at [" + _spawnTargetX + ", " + _spawnTargetZ + "]...");
+		System.out.println("Respawn initiated - waiting for terrain at [" + _spawnTargetX + ", " + _spawnTargetZ + "]...");
 	}
 	
 	/**
@@ -866,7 +866,7 @@ public class PlayingState extends FadeableAppState
 			_blockInteraction.unregisterInput();
 		}
 		
-		// If pausing, keep the world alive — only disable controls above.
+		// If pausing, keep the world alive - only disable controls above.
 		if (_paused)
 		{
 			// Clean up HUD during pause so it doesn't overlap the pause menu.
@@ -874,7 +874,7 @@ public class PlayingState extends FadeableAppState
 			return;
 		}
 		
-		// Full exit (returning to main menu) — save and tear down everything.
+		// Full exit (returning to main menu) - save and tear down everything.
 		if (_world != null && _playerController != null && _dayNightCycle != null)
 		{
 			SaveManager.save(_world, _playerController, _dayNightCycle);
@@ -1003,8 +1003,8 @@ public class PlayingState extends FadeableAppState
 	
 	/**
 	 * Called once terrain is available at the spawn position and nearby regions are loaded.<br>
-	 * On initial entry: creates the player controller, block interaction, and HUD.<br>
-	 * On respawn: places the player, re-registers input, and recreates the HUD.<br>
+	 * On initial entry: creates the player controller, block interaction and HUD.<br>
+	 * On respawn: places the player, re-registers input and recreates the HUD.<br>
 	 * In both cases, removes the loading screen and begins gameplay.
 	 * @param spawnY the Y coordinate to place the player (feet level)
 	 */
@@ -1014,7 +1014,7 @@ public class PlayingState extends FadeableAppState
 		
 		_pendingSpawn = false;
 		
-		// --- Respawn path: player controller already exists (death → respawn). ---
+		// --- Respawn path: player controller already exists (death -> respawn). ---
 		if (_playerController != null)
 		{
 			// Place the player at the confirmed terrain position.
@@ -1055,7 +1055,7 @@ public class PlayingState extends FadeableAppState
 		// Restore player state from save data if available.
 		if (_playerSaveData != null)
 		{
-			// Use saved position (the spawnY from terrain scan is a fallback — saved position is authoritative).
+			// Use saved position (the spawnY from terrain scan is a fallback - saved position is authoritative).
 			_playerController.setPosition(_playerSaveData.getPosX(), _playerSaveData.getPosY(), _playerSaveData.getPosZ());
 			_playerController.setHealth(_playerSaveData.getHealth());
 			
@@ -1072,7 +1072,7 @@ public class PlayingState extends FadeableAppState
 		}
 		else
 		{
-			// New world — use default spawn position.
+			// New world - use default spawn position.
 			_playerController.setPosition(SPAWN_X, spawnY, SPAWN_Z);
 			_playerController.setInitialSpawn(SPAWN_X, spawnY, SPAWN_Z);
 		}
@@ -1103,7 +1103,7 @@ public class PlayingState extends FadeableAppState
 		}
 		
 		// Re-propagate block light for all light-emitting blocks (torches, campfires).
-		// Block light data is not persisted — only block types and tile entities are saved.
+		// Block light data is not persisted - only block types and tile entities are saved.
 		// This restores the lighting state so torches and campfires illuminate their surroundings.
 		_world.repropagateAllBlockLights();
 		
@@ -1113,7 +1113,7 @@ public class PlayingState extends FadeableAppState
 		// initial background mesh building when the TileEntityManager was still empty.
 		_world.rebuildAllLoadedRegions();
 		
-		// Clear save data references — no longer needed.
+		// Clear save data references - no longer needed.
 		_playerSaveData = null;
 		_tileEntitySaveData = null;
 		
@@ -1128,7 +1128,7 @@ public class PlayingState extends FadeableAppState
 		_spawnSystem.setDayNightCycle(_dayNightCycle);
 		_spawnSystem.setAudioManager(app.getAudioManager());
 		
-		// Initialize the combat system (screen flashes, enemy → player damage, player → enemy attacks).
+		// Initialize the combat system (screen flashes, enemy -> player damage, player -> enemy attacks).
 		_combatSystem = new CombatSystem(app.getAudioManager());
 		
 		// Initialize the drop manager (enemy death drops, pickup, despawn).
@@ -1189,7 +1189,7 @@ public class PlayingState extends FadeableAppState
 	// ========================================================
 	
 	/**
-	 * Creates the player HUD, inventory screen, crafting screen, and links them to the block interaction handler.
+	 * Creates the player HUD, inventory screen, crafting screen and links them to the block interaction handler.
 	 */
 	private void createHUD()
 	{
@@ -1218,7 +1218,7 @@ public class PlayingState extends FadeableAppState
 	}
 	
 	/**
-	 * Removes the player HUD, inventory screen, and crafting screen.
+	 * Removes the player HUD, inventory screen and crafting screen.
 	 */
 	private void cleanupHUD()
 	{
@@ -1248,7 +1248,7 @@ public class PlayingState extends FadeableAppState
 	/**
 	 * Destroys the world and all associated resources.<br>
 	 * Called when truly leaving the game session (not when pausing).<br>
-	 * No scene lights to remove — lighting is baked into vertex colors.
+	 * No scene lights to remove - lighting is baked into vertex colors.
 	 */
 	public void destroyWorld()
 	{

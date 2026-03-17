@@ -24,11 +24,11 @@ import simplecraft.world.Block;
 
 /**
  * In-game heads-up display showing health, air, hotbar, crosshair,<br>
- * block-breaking progress, and the death/respawn screen.<br>
+ * block-breaking progress and the death/respawn screen.<br>
  * <br>
  * All elements are attached to the application's GUI node (screen-space overlay).<br>
  * Call {@link #update(float, float, float, float, boolean, int, int, boolean, boolean)} each frame<br>
- * with current player state, and {@link #cleanup()} when leaving the playing state.<br>
+ * with current player state and {@link #cleanup()} when leaving the playing state.<br>
  * <br>
  * <b>Crosshair:</b> Small "+" at screen center, white with slight transparency.<br>
  * <b>Health bar:</b> Top-left, red fill proportional to health. Dark background.<br>
@@ -36,7 +36,7 @@ import simplecraft.world.Block;
  * over 0.5 seconds. Flashes red when air drops below 3 seconds.<br>
  * <b>Hotbar:</b> 9 rectangular slots horizontally centered at screen bottom.<br>
  * Each slot shows a colored square for the item type, optional label letter,<br>
- * stack count (if > 1), and durability bar for weapons/tools.<br>
+ * stack count (if > 1) and durability bar for weapons/tools.<br>
  * Selected slot has a bright highlight border.<br>
  * <b>Break progress:</b> Small bar below crosshair showing "BlockName 3/8" while breaking.<br>
  * <b>Death screen:</b> Translucent dark overlay with "You Died" text, death cause,<br>
@@ -389,7 +389,7 @@ public class PlayerHUD
 			_hudNode.attachChild(_hotbarDurBar[i]);
 		}
 		
-		// Selection highlight — bright border quad drawn behind the selected slot.
+		// Selection highlight - bright border quad drawn behind the selected slot.
 		final float hlSize = _hotbarSlotSize + HOTBAR_BG_PADDING * 2 + 2;
 		_hotbarHighlightMat = createColorMaterial(COLOR_HOTBAR_HIGHLIGHT, app);
 		_hotbarHighlight = createQuadWithMaterial("HotbarHighlight", hlSize, hlSize, _hotbarHighlightMat);
@@ -447,7 +447,7 @@ public class PlayerHUD
 		overlay.setLocalTranslation(0, 0, 20);
 		_deathScreenNode.attachChild(overlay);
 		
-		// "You Died" title — large font.
+		// "You Died" title - large font.
 		final int titleSize = Math.max(24, (int) (_screenHeight * 0.06f));
 		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, titleSize);
 		
@@ -471,7 +471,7 @@ public class PlayerHUD
 		_deathTitle.setLocalTranslation(titleX, titleY, 21);
 		_deathTitleShadow.setLocalTranslation(titleX + 2, titleY - 2, 20.5f);
 		
-		// Death cause text — smaller font below title.
+		// Death cause text - smaller font below title.
 		final int causeSize = Math.max(14, (int) (_screenHeight * 0.025f));
 		final BitmapFont causeFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, causeSize);
 		
@@ -487,7 +487,7 @@ public class PlayerHUD
 		_deathCauseText.setColor(COLOR_DEATH_CAUSE);
 		_deathScreenNode.attachChild(_deathCauseText);
 		
-		// "Click to Respawn" prompt — below cause text.
+		// "Click to Respawn" prompt - below cause text.
 		_deathPromptShadow = new BitmapText(causeFont);
 		_deathPromptShadow.setText("Click to Respawn");
 		_deathPromptShadow.setSize(causeSize);
@@ -723,7 +723,7 @@ public class PlayerHUD
 	{
 		if (stack == null || stack.isEmpty())
 		{
-			// Empty slot — clear any texture and show empty color.
+			// Empty slot - clear any texture and show empty color.
 			_hotbarFillMat[index].clearParam("ColorMap");
 			_hotbarFillMat[index].setColor("Color", COLOR_HOTBAR_EMPTY);
 			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
@@ -735,19 +735,19 @@ public class PlayerHUD
 		
 		final ItemTemplate template = stack.getTemplate();
 		
-		// Try to resolve a sprite texture (drops → items → blocks paths).
+		// Try to resolve a sprite texture (drops -> items -> blocks paths).
 		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
 		
 		if (slotTexture != null)
 		{
-			// Textured slot — show the sprite, hide the type label letter.
+			// Textured slot - show the sprite, hide the type label letter.
 			_hotbarFillMat[index].setTexture("ColorMap", slotTexture);
 			_hotbarFillMat[index].setColor("Color", ColorRGBA.White);
 			_hotbarLabel[index].setCullHint(BitmapText.CullHint.Always);
 		}
 		else
 		{
-			// No sprite — use colored quad with type label.
+			// No sprite - use colored quad with type label.
 			_hotbarFillMat[index].clearParam("ColorMap");
 			final ColorRGBA fillColor = InventoryScreen.getItemColor(template);
 			_hotbarFillMat[index].setColor("Color", fillColor);
@@ -838,7 +838,7 @@ public class PlayerHUD
 			_breakNode.setCullHint(Node.CullHint.Never);
 		}
 		
-		// Scale fill (inverted — full bar = full durability, shrinks as hits land).
+		// Scale fill (inverted - full bar = full durability, shrinks as hits land).
 		final float ratio = Math.max(0, 1.0f - (float) hitsDelivered / hitsRequired);
 		_breakFill.setLocalScale(ratio, 1, 1);
 		

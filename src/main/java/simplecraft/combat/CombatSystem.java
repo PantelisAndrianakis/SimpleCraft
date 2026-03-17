@@ -29,15 +29,15 @@ import simplecraft.world.World;
 /**
  * Manages all combat interactions between the player and enemies.<br>
  * <br>
- * <b>Player → Enemy damage:</b> {@link #tryPlayerAttack(Camera, List, World, PlayerController)} raycasts from the camera<br>
+ * <b>Player -> Enemy damage:</b> {@link #tryPlayerAttack(Camera, List, World, PlayerController)} raycasts from the camera<br>
  * with a 3-block reach and a generous 0.5-block hit cylinder around each enemy's center mass.<br>
  * The closest hit enemy takes damage based on the held weapon/tool (bare hands: 3.0).<br>
  * Attack cooldown varies by weapon speed. Durability is consumed per hit.<br>
  * Hit and death feedback is handled by {@link Enemy#takeDamage(float)} (white flash, scale-down).<br>
  * <br>
- * <b>Enemy → Player damage:</b> Scans all enemies in ATTACK state each frame. When an enemy's attack cooldown fires and the player is within attack range, damage is dealt via {@link PlayerController#takeDamage(float, String)}.<br>
+ * <b>Enemy -> Player damage:</b> Scans all enemies in ATTACK state each frame. When an enemy's attack cooldown fires and the player is within attack range, damage is dealt via {@link PlayerController#takeDamage(float, String)}.<br>
  * <br>
- * <b>Screen flash:</b> Full-screen colored quad on the GUI node that fades out over 0.3 seconds. Red (alpha 0.3) for damage, green (alpha 0.2) for healing. Reused across all damage/healing sources — any new flash restarts the timer.<br>
+ * <b>Screen flash:</b> Full-screen colored quad on the GUI node that fades out over 0.3 seconds. Red (alpha 0.3) for damage, green (alpha 0.2) for healing. Reused across all damage/healing sources - any new flash restarts the timer.<br>
  * <br>
  * <b>Enemy death drops:</b> When an enemy dies, its drop table is rolled via {@link EnemyDropTable}<br>
  * and resulting items are spawned as world drops via the {@link DropManager}.
@@ -240,7 +240,7 @@ public class CombatSystem
 	}
 	
 	// ------------------------------------------------------------------
-	// Player → Enemy attack.
+	// Player -> Enemy attack.
 	// ------------------------------------------------------------------
 	
 	/**
@@ -256,7 +256,7 @@ public class CombatSystem
 	 * @param camera the player's camera (ray origin and direction)
 	 * @param enemies the list of currently active enemies
 	 * @param world the game world for solid block line-of-sight checks
-	 * @param playerController the player controller for attack damage, speed, and inventory
+	 * @param playerController the player controller for attack damage, speed and inventory
 	 * @return true if an enemy was hit, false if the attack missed or is on cooldown
 	 */
 	public boolean tryPlayerAttack(Camera camera, List<Enemy> enemies, World world, PlayerController playerController)
@@ -314,7 +314,7 @@ public class CombatSystem
 			// Project onto ray direction to find closest point on ray.
 			final float dot = _toEnemy.dot(_rayDir);
 			
-			// Behind the camera or beyond attack range — skip.
+			// Behind the camera or beyond attack range - skip.
 			if (dot < 0 || dot > PLAYER_ATTACK_RANGE)
 			{
 				continue;
@@ -341,13 +341,13 @@ public class CombatSystem
 		{
 			// Line-of-sight check: step along the ray and verify no solid block
 			// is between the camera and the enemy. This prevents hitting enemies
-			// through walls, floors, and other solid geometry.
+			// through walls, floors and other solid geometry.
 			if (isBlockedByTerrain(closestDist, world))
 			{
 				return false;
 			}
 			
-			// Enemy is in the crosshair with clear line of sight — always suppress block breaking.
+			// Enemy is in the crosshair with clear line of sight - always suppress block breaking.
 			// Only deal damage when the cooldown has expired.
 			if (_playerAttackTimer <= 0)
 			{
@@ -363,7 +363,7 @@ public class CombatSystem
 					_viewmodelRenderer.triggerSwing();
 				}
 				
-				// Durability loss — every successful attack costs 1 durability.
+				// Durability loss - every successful attack costs 1 durability.
 				final Inventory inventory = playerController.getInventory();
 				final ItemInstance held = inventory.getSelectedItem();
 				if (held != null && held.hasDurability())
@@ -603,7 +603,7 @@ public class CombatSystem
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Formats an enemy type enum into a display name (e.g. ZOMBIE → "Zombie").
+	 * Formats an enemy type enum into a display name (e.g. ZOMBIE -> "Zombie").
 	 */
 	private static String formatEnemyName(EnemyType type)
 	{

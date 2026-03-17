@@ -10,7 +10,7 @@ import java.util.Set;
 import com.jme3.math.ColorRGBA;
 
 /**
- * Defines all block types with their rendering, gameplay, and atlas properties.<br>
+ * Defines all block types with their rendering, gameplay and atlas properties.<br>
  * Texture filenames are defined per block. Atlas indices are resolved dynamically by {@link TextureAtlas} during atlas building.
  * @author Pantelis Andrianakis
  * @since February 21st 2026

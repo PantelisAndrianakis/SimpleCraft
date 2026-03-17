@@ -11,20 +11,20 @@ import simplecraft.world.World;
 /**
  * Base class for blocks that carry extra data and behavior beyond the block grid.<br>
  * Subclasses (campfire, torch, furnace, chest, window, door, etc.) override hooks for interaction,<br>
- * placement, removal, and per-frame updates.<br>
+ * placement, removal and per-frame updates.<br>
  * <br>
  * Each tile entity stores its world block position, block type, attachment face,<br>
  * and an optional visual node for particle effects or other scene attachments.<br>
- * The visual node is managed by {@link TileEntityManager} — it is attached to<br>
+ * The visual node is managed by {@link TileEntityManager} - it is attached to<br>
  * the scene on registration and detached on removal.<br>
  * <br>
  * The {@code attachedFace} field records which face of the neighboring solid block<br>
  * this tile entity is attached to. This is relevant for directional blocks such as<br>
- * torches, doors, windows, and trapdoors. Blocks without directional placement<br>
+ * torches, doors, windows and trapdoors. Blocks without directional placement<br>
  * (e.g. campfire, chest) default to {@link Face#BOTTOM}.<br>
  * <br>
  * The {@code facing} field records which cardinal direction the block's front face<br>
- * points toward. Used by CHEST, FURNACE, WINDOW, and DOOR so the front texture<br>
+ * points toward. Used by CHEST, FURNACE, WINDOW and DOOR so the front texture<br>
  * or panel orientation renders correctly based on where the player stood when placing.<br>
  * Defaults to {@link Facing#NORTH} for backward compatibility with older saves.
  * @author Pantelis Andrianakis
@@ -39,7 +39,7 @@ public abstract class TileEntity
 	/**
 	 * Cardinal direction a block's front face points toward.<br>
 	 * NORTH = front texture on the Z+ face (default).<br>
-	 * Used by CHEST, FURNACE, CRAFTING_TABLE, WINDOW, and DOOR for directional placement.
+	 * Used by CHEST, FURNACE, CRAFTING_TABLE, WINDOW and DOOR for directional placement.
 	 */
 	public enum Facing
 	{
@@ -161,7 +161,7 @@ public abstract class TileEntity
 	
 	/**
 	 * Serializes this tile entity to a key=value string for saving.<br>
-	 * Base implementation writes type, position, attached face, and facing direction.<br>
+	 * Base implementation writes type, position, attached face and facing direction.<br>
 	 * Subclasses append extra fields.
 	 * @return serialized string representation
 	 */

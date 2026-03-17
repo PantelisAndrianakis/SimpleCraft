@@ -25,9 +25,9 @@ import simplecraft.world.Block.Face;
  * <br>
  * <b>Lookup order:</b>
  * <ol>
- * <li>{@code assets/images/drops/<item_id>.png} — dedicated drop/icon override</li>
- * <li>{@code assets/images/items/<item_id>.png} — general item sprite (weapons, tools, consumables)</li>
- * <li>{@code assets/images/blocks/<block_texture>.png} — block's own texture (for BLOCK type items)</li>
+ * <li>{@code assets/images/drops/<item_id>.png} - dedicated drop/icon override</li>
+ * <li>{@code assets/images/items/<item_id>.png} - general item sprite (weapons, tools, consumables)</li>
+ * <li>{@code assets/images/blocks/<block_texture>.png} - block's own texture (for BLOCK type items)</li>
  * </ol>
  * If none exist, the caller falls back to colored quads/cubes as a final fallback.<br>
  * <br>

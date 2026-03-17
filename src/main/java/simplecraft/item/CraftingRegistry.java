@@ -11,8 +11,8 @@ import java.util.Map;
  * Call {@link #registerDefaults()} once at startup (after {@link ItemRegistry#registerDefaults()}).<br>
  * <br>
  * Recipes are stored in insertion order so the crafting UI displays them in a<br>
- * logical progression: basic materials → wood tools → stone tools → iron tools<br>
- * → consumables → utility blocks.
+ * logical progression: basic materials -> wood tools -> stone tools -> iron tools<br>
+ * -> consumables -> utility blocks.
  * @author Pantelis Andrianakis
  * @since March 17th 2026
  */

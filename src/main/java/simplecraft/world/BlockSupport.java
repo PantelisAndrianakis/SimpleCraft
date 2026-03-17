@@ -34,7 +34,7 @@ public class BlockSupport
 	
 	/**
 	 * Support neighbor offsets: DOWN, NORTH, SOUTH, EAST, WEST.<br>
-	 * UP does not count as support — hanging blocks fall.
+	 * UP does not count as support - hanging blocks fall.
 	 */
 	// @formatter:off
 	private static final int[][] SUPPORT_OFFSETS =
@@ -172,12 +172,12 @@ public class BlockSupport
 			
 			if (result._grounded)
 			{
-				// Entire group is grounded — mark all as confirmed.
+				// Entire group is grounded - mark all as confirmed.
 				confirmedGrounded.addAll(result._group);
 			}
 			else
 			{
-				// No natural support — collapse the entire group.
+				// No natural support - collapse the entire group.
 				for (long key : result._group)
 				{
 					if (totalCollapsed >= MAX_COLLAPSE)
@@ -328,7 +328,7 @@ public class BlockSupport
 				final Block neighbor = world.getBlock(nx, ny, nz);
 				if (neighbor.isSolid() && !world.isPlayerPlaced(nx, ny, nz))
 				{
-					// Found natural support — entire group is grounded.
+					// Found natural support - entire group is grounded.
 					return new FloodResult(group, true);
 				}
 				
@@ -360,7 +360,7 @@ public class BlockSupport
 			}
 		}
 		
-		// Exhausted search without finding natural support — not grounded.
+		// Exhausted search without finding natural support - not grounded.
 		return new FloodResult(group, false);
 	}
 	

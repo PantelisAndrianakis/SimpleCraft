@@ -571,7 +571,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 	// ========================================================
 	
 	/**
-	 * Per-frame update. Currently a no-op — recipe colors refresh on craft events.
+	 * Per-frame update. Currently a no-op - recipe colors refresh on craft events.
 	 * @param tpf time per frame in seconds
 	 */
 	public void update(float tpf)
@@ -698,7 +698,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 				continue;
 			}
 			
-			// Hit a button — try to craft.
+			// Hit a button - try to craft.
 			if (row.recipe.canCraft(inventory))
 			{
 				if (row.recipe.craft(inventory))

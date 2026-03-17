@@ -39,7 +39,7 @@ import simplecraft.world.World;
  * (or shorter {@link #RESPAWN_COOLDOWN_NIGHT} at night) before it can produce a new enemy.<br>
  * <br>
  * At night, spawn rates increase: the activation range widens, the maximum active enemy<br>
- * cap is raised, and the spawn table shifts to favor skeletons and spiders.<br>
+ * cap is raised and the spawn table shifts to favor skeletons and spiders.<br>
  * <br>
  * Spawn point data is cached per-region and discarded when the region unloads.
  * @author Pantelis Andrianakis
@@ -135,7 +135,7 @@ public class SpawnSystem
 	/** Peak overshoot scale during the bounce phase. */
 	private static final float SPAWN_OVERSHOOT = 1.15f;
 	
-	/** Fraction of animation used for scale-up (0 → overshoot). Rest is settle (overshoot → 1.0). */
+	/** Fraction of animation used for scale-up (0 -> overshoot). Rest is settle (overshoot -> 1.0). */
 	private static final float SPAWN_RISE_FRACTION = 0.7f;
 	
 	// ------------------------------------------------------------------
@@ -409,7 +409,7 @@ public class SpawnSystem
 	
 	/**
 	 * Per-frame update. Manages region tracking, spawn point activation/deactivation,<br>
-	 * death handling, respawn timers, and enemy AI updates.
+	 * death handling, respawn timers and enemy AI updates.
 	 * @param playerPos the player's current world position
 	 * @param playerInWater true if the player's feet are in water
 	 * @param world the game world for block queries and region checks
@@ -555,7 +555,7 @@ public class SpawnSystem
 			}
 		}
 		
-		// Check for water — if found, this becomes a piranha spawn.
+		// Check for water - if found, this becomes a piranha spawn.
 		final int waterY = findWaterY(world, bx, bz);
 		if (waterY >= 0)
 		{
@@ -607,7 +607,7 @@ public class SpawnSystem
 	
 	/**
 	 * Iterates all tracked spawn points and handles activation, deactivation,<br>
-	 * death cleanup, respawn timers, and per-frame enemy updates.
+	 * death cleanup, respawn timers and per-frame enemy updates.
 	 */
 	private void processSpawnPoints(Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
@@ -694,7 +694,7 @@ public class SpawnSystem
 				}
 				else
 				{
-					// --- No active enemy — check if we should spawn one ---
+					// --- No active enemy - check if we should spawn one ---
 					
 					// Tick respawn cooldown.
 					if (point.respawnTimer > 0)
@@ -776,7 +776,7 @@ public class SpawnSystem
 			_enemyNode.detachChild(point.activeEnemy.getNode());
 			point.activeEnemy = null;
 			_activeCount--;
-			// No cooldown on despawn — point is immediately available when player returns.
+			// No cooldown on despawn - point is immediately available when player returns.
 		}
 	}
 	
@@ -785,8 +785,8 @@ public class SpawnSystem
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Two-phase smooth-step scale animation: fast rise (0 → overshoot),<br>
-	 * then settle (overshoot → 1.0) for an elastic, organic feel.
+	 * Two-phase smooth-step scale animation: fast rise (0 -> overshoot),<br>
+	 * then settle (overshoot -> 1.0) for an elastic, organic feel.
 	 */
 	private static void updateSpawnAnimation(Enemy enemy, float tpf)
 	{
@@ -797,7 +797,7 @@ public class SpawnSystem
 		
 		if (timer >= SPAWN_ANIM_DURATION)
 		{
-			// Animation complete — finalize at full scale and activate AI.
+			// Animation complete - finalize at full scale and activate AI.
 			scale = 1.0f;
 			enemy.setSpawning(false);
 		}
@@ -861,7 +861,7 @@ public class SpawnSystem
 	 * <br>
 	 * Starting from the spawn position, BFS expands outward on the XZ plane at foot and head<br>
 	 * level. A cell is passable if neither foot nor head height contains a solid or flat panel<br>
-	 * block (so walls, doors, and windows all count as barriers).<br>
+	 * block (so walls, doors and windows all count as barriers).<br>
 	 * <br>
 	 * If the fill reaches {@link #ENCLOSURE_CHECK_RADIUS} blocks from the start, the area is<br>
 	 * open and the method returns false immediately. If the fill terminates without escaping<br>
@@ -914,7 +914,7 @@ public class SpawnSystem
 				final int dz = nz - startZ;
 				if ((dx * dx + dz * dz) >= radiusSq)
 				{
-					return false; // Open area — flood fill escaped.
+					return false; // Open area - flood fill escaped.
 				}
 				
 				// Check if passable at foot and head level.
@@ -926,7 +926,7 @@ public class SpawnSystem
 				
 				if (!footBlocked && !headBlocked)
 				{
-					// Passable — continue flood fill.
+					// Passable - continue flood fill.
 					queue.add(new int[]
 					{
 						nx,
@@ -935,7 +935,7 @@ public class SpawnSystem
 				}
 				else
 				{
-					// Blocked — check if the wall is player-placed.
+					// Blocked - check if the wall is player-placed.
 					if (world.isPlayerPlaced(nx, startY, nz) || world.isPlayerPlaced(nx, startY + 1, nz))
 					{
 						hitPlayerBlock = true;
@@ -944,7 +944,7 @@ public class SpawnSystem
 			}
 		}
 		
-		// BFS terminated without escaping — enclosed only if player blocks formed the barrier.
+		// BFS terminated without escaping - enclosed only if player blocks formed the barrier.
 		// Natural caves (no player blocks on boundary) are not considered enclosed.
 		return hitPlayerBlock;
 	}

@@ -50,7 +50,7 @@ import simplecraft.ui.FontManager;
 import simplecraft.ui.QuestionManager;
 
 /**
- * Options state with three tabs: Display, Audio, and Keybindings.<br>
+ * Options state with three tabs: Display, Audio and Keybindings.<br>
  * All volume changes are applied in real-time. Display settings apply immediately via context restart.<br>
  * Accessible from both Main Menu and Pause Menu; Back returns to the previous state.
  * @author Pantelis Andrianakis
@@ -776,7 +776,7 @@ public class OptionsState extends FadeableAppState
 	}
 	
 	/**
-	 * Build the Keybindings sub-tab contents: Movement, Actions, and Mouse.<br>
+	 * Build the Keybindings sub-tab contents: Movement, Actions and Mouse.<br>
 	 * Rebindable rows show a clickable button that enters listening mode for key reassignment.<br>
 	 * Fixed mouse rows are read-only and displayed in a muted color.
 	 */
@@ -1478,7 +1478,7 @@ public class OptionsState extends FadeableAppState
 	}
 	
 	/**
-	 * Style a slider's sub-components with custom font, symbols, and click SFX.
+	 * Style a slider's sub-components with custom font, symbols and click SFX.
 	 * @param slider The Lemur slider to style
 	 */
 	private void styleSliderComponents(Slider slider)
@@ -1503,7 +1503,7 @@ public class OptionsState extends FadeableAppState
 	}
 	
 	/**
-	 * Create a horizontal row containing a label, slider, and value display.
+	 * Create a horizontal row containing a label, slider and value display.
 	 * @param app The application instance
 	 * @param nameLabel Pre-created name label for the row
 	 * @param slider The Lemur Slider control
@@ -1570,7 +1570,7 @@ public class OptionsState extends FadeableAppState
 	 * Create the resolution selector row with left/right arrow buttons.
 	 * @param app The application instance
 	 * @param nameLabel Pre-created name label for the row
-	 * @return A configured Container with label, arrows, and value display
+	 * @return A configured Container with label, arrows and value display
 	 */
 	private Container createResolutionRow(SimpleCraft app, Label nameLabel)
 	{
@@ -1784,7 +1784,7 @@ public class OptionsState extends FadeableAppState
 	}
 	
 	/**
-	 * Assemble the flat focus list from the tab slot, active content slots, and bottom slot.
+	 * Assemble the flat focus list from the tab slot, active content slots and bottom slot.
 	 */
 	private void rebuildFocusList()
 	{

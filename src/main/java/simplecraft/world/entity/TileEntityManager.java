@@ -23,7 +23,7 @@ import simplecraft.world.entity.TileEntity.Facing;
  */
 public class TileEntityManager
 {
-	/** Map of packed position → tile entity. */
+	/** Map of packed position -> tile entity. */
 	private final Map<Long, TileEntity> _entities = new ConcurrentHashMap<>();
 	
 	/** Scene node that holds all tile entity visual nodes (particles, etc.). */

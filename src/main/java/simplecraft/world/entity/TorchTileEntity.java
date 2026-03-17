@@ -25,7 +25,7 @@ import simplecraft.world.TextureAtlas;
 import simplecraft.world.World;
 
 /**
- * Torch tile entity — emits warm block light and a small flame particle effect.<br>
+ * Torch tile entity - emits warm block light and a small flame particle effect.<br>
  * <br>
  * Renders its own cross-billboard mesh rather than relying on the region mesh builder,<br>
  * because wall-mounted torches need a ~25° tilt that the mesh builder cannot provide<br>
@@ -34,12 +34,12 @@ import simplecraft.world.World;
  * <br>
  * Torches can be placed on the floor (on top of a solid block) or on a wall<br>
  * (adjacent to a solid block face). The inherited {@code _attachedFace} field records<br>
- * which face of the neighboring solid block the torch is attached to — this is used<br>
+ * which face of the neighboring solid block the torch is attached to - this is used<br>
  * by the block support system to remove the torch if the supporting block is broken.<br>
  * <br>
- * <b>Floor torch:</b> {@code attachedFace = BOTTOM} — resting on the block below.<br>
+ * <b>Floor torch:</b> {@code attachedFace = BOTTOM} - resting on the block below.<br>
  * Flame particles are centered on top of the torch.<br>
- * <b>Wall torch:</b> {@code attachedFace = NORTH/SOUTH/EAST/WEST} — attached to<br>
+ * <b>Wall torch:</b> {@code attachedFace = NORTH/SOUTH/EAST/WEST} - attached to<br>
  * the side of an adjacent solid block. The entire torch tilts ~25° toward the wall<br>
  * and the flame follows naturally as a child of the tilted node.<br>
  * <br>
@@ -116,7 +116,7 @@ public class TorchTileEntity extends TileEntity
 		_visualNode = new Node("Torch_" + _position.x + "_" + _position.y + "_" + _position.z);
 		_visualNode.setLocalTranslation(_position.x, _position.y, _position.z);
 		
-		// Pivot node at the center-base of the block — rotation happens here.
+		// Pivot node at the center-base of the block - rotation happens here.
 		// This ensures the torch tilts around its base, not around the block corner.
 		final Node pivotNode = new Node("TorchPivot");
 		pivotNode.setLocalTranslation(0.5f, 0, 0.5f);
@@ -161,7 +161,7 @@ public class TorchTileEntity extends TileEntity
 	@Override
 	public void onInteract(PlayerController player, World world)
 	{
-		// Torches have no interaction — do nothing.
+		// Torches have no interaction - do nothing.
 	}
 	
 	// ========================================================
@@ -170,7 +170,7 @@ public class TorchTileEntity extends TileEntity
 	
 	/**
 	 * Applies rotation and position offset to the pivot node for wall-mounted torches.<br>
-	 * The torch tilts ~25° away from the wall (top leans into open space), and shifts<br>
+	 * The torch tilts ~25° away from the wall (top leans into open space) and shifts<br>
 	 * slightly toward the wall so the base appears to rest against the block surface.
 	 * @param pivotNode the pivot node to rotate and offset
 	 */
@@ -182,25 +182,25 @@ public class TorchTileEntity extends TileEntity
 		
 		switch (_attachedFace)
 		{
-			case NORTH: // Wall at +Z — tilt top toward -Z (lean away from wall).
+			case NORTH: // Wall at +Z - tilt top toward -Z (lean away from wall).
 			{
 				tilt = new Quaternion().fromAngleAxis(-WALL_TILT_ANGLE, Vector3f.UNIT_X);
 				offsetZ = WALL_SHIFT;
 				break;
 			}
-			case SOUTH: // Wall at -Z — tilt top toward +Z.
+			case SOUTH: // Wall at -Z - tilt top toward +Z.
 			{
 				tilt = new Quaternion().fromAngleAxis(WALL_TILT_ANGLE, Vector3f.UNIT_X);
 				offsetZ = -WALL_SHIFT;
 				break;
 			}
-			case EAST: // Wall at +X — tilt top toward -X.
+			case EAST: // Wall at +X - tilt top toward -X.
 			{
 				tilt = new Quaternion().fromAngleAxis(WALL_TILT_ANGLE, Vector3f.UNIT_Z);
 				offsetX = WALL_SHIFT;
 				break;
 			}
-			case WEST: // Wall at -X — tilt top toward +X.
+			case WEST: // Wall at -X - tilt top toward +X.
 			{
 				tilt = new Quaternion().fromAngleAxis(-WALL_TILT_ANGLE, Vector3f.UNIT_Z);
 				offsetX = -WALL_SHIFT;
@@ -255,17 +255,17 @@ public class TorchTileEntity extends TileEntity
 		};
 		// @formatter:on
 		
-		// Normals — perpendicular to each quad face.
+		// Normals - perpendicular to each quad face.
 		final float n = 0.7071f; // 1/sqrt(2)
 		// @formatter:off
 		final float[] normals =
 		{
-			// Quad A normal: perpendicular to diagonal (lo,lo)→(hi,hi) = (-n, 0, n).
+			// Quad A normal: perpendicular to diagonal (lo,lo)->(hi,hi) = (-n, 0, n).
 			-n, 0, n,
 			-n, 0, n,
 			-n, 0, n,
 			-n, 0, n,
-			// Quad B normal: perpendicular to diagonal (hi,lo)→(lo,hi) = (n, 0, n).
+			// Quad B normal: perpendicular to diagonal (hi,lo)->(lo,hi) = (n, 0, n).
 			n, 0, n,
 			n, 0, n,
 			n, 0, n,
@@ -298,13 +298,13 @@ public class TorchTileEntity extends TileEntity
 		};
 		// @formatter:on
 		
-		// Vertex colors — warm self-illumination (torch is always lit).
+		// Vertex colors - warm self-illumination (torch is always lit).
 		final float[] colors = new float[8 * 4]; // 8 verts × RGBA
 		for (int i = 0; i < 8; i++)
 		{
-			colors[i * 4] = SELF_LIGHT * 1.0f; // R — warm
-			colors[i * 4 + 1] = SELF_LIGHT * 0.85f; // G — warm
-			colors[i * 4 + 2] = SELF_LIGHT * 0.55f; // B — warm
+			colors[i * 4] = SELF_LIGHT * 1.0f; // R - warm
+			colors[i * 4 + 1] = SELF_LIGHT * 0.85f; // G - warm
+			colors[i * 4 + 2] = SELF_LIGHT * 0.55f; // B - warm
 			colors[i * 4 + 3] = 1.0f; // A
 		}
 		
@@ -362,7 +362,7 @@ public class TorchTileEntity extends TileEntity
 	
 	/**
 	 * Creates a small flame particle emitter for the torch tip.<br>
-	 * Similar to campfire but much smaller — a flicker rather than a fire.
+	 * Similar to campfire but much smaller - a flicker rather than a fire.
 	 */
 	private void createFlameEmitter()
 	{
@@ -411,7 +411,7 @@ public class TorchTileEntity extends TileEntity
 	// ========================================================
 	
 	/**
-	 * Torch serialization uses the base class only — attachedFace is already<br>
+	 * Torch serialization uses the base class only - attachedFace is already<br>
 	 * included by {@link TileEntity#serialize()}.
 	 */
 	@Override

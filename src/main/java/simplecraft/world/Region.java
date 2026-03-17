@@ -222,7 +222,7 @@ public class Region
 	
 	/**
 	 * Overwrites the entire block data from a flat byte array.<br>
-	 * Layout must match {@link #getRawBlockData()} — x slowest, z fastest.<br>
+	 * Layout must match {@link #getRawBlockData()} - x slowest, z fastest.<br>
 	 * Automatically marks mesh and sky light as dirty.<br>
 	 * Used for deserialization (load system).
 	 * @param flat a byte array of length {@link #RAW_DATA_SIZE}
@@ -401,7 +401,7 @@ public class Region
 		}
 	}
 	
-	/** Light level under a leaf canopy — soft dappled shade. */
+	/** Light level under a leaf canopy - soft dappled shade. */
 	private static final float LEAF_SHADOW_LIGHT = 0.55f;
 	
 	/**
@@ -415,7 +415,7 @@ public class Region
 	 * minimum {@value #SKY_LIGHT_MINIMUM}. Horizontal spread from nearby open columns<br>
 	 * creates gradual falloff into tunnels instead of abrupt cutoffs.<br>
 	 * <br>
-	 * Does NOT check bounds — caller must ensure valid coordinates.
+	 * Does NOT check bounds - caller must ensure valid coordinates.
 	 * @param x local X coordinate (0..15)
 	 * @param y local Y coordinate (0..127)
 	 * @param z local Z coordinate (0..15)

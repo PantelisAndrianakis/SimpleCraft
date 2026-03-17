@@ -185,7 +185,7 @@ public class WorldInfo
 				writer.newLine();
 			}
 			
-			System.out.println("Saved world info: " + info.getName() + " → " + infoFile);
+			System.out.println("Saved world info: " + info.getName() + " -> " + infoFile);
 		}
 		catch (IOException e)
 		{
@@ -356,7 +356,7 @@ public class WorldInfo
 	
 	/**
 	 * Sanitize a world name for use as a directory name.<br>
-	 * Replaces spaces with underscores, strips unsafe characters, and converts to lowercase.
+	 * Replaces spaces with underscores, strips unsafe characters and converts to lowercase.
 	 * @param name The display name
 	 * @return The sanitized directory name
 	 */

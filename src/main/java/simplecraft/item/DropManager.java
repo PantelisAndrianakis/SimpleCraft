@@ -18,12 +18,12 @@ import simplecraft.audio.AudioManager;
  * a block was broken or an enemy died. Block items render as mini textured cubes<br>
  * using the atlas material; other items use billboard sprites or colored cubes.<br>
  * Each frame, the manager updates animations, checks player proximity<br>
- * for pickup, and removes expired drops.<br>
+ * for pickup and removes expired drops.<br>
  * <br>
  * A maximum of {@link #MAX_ACTIVE_DROPS} drops can exist simultaneously. When the<br>
  * limit is reached, the oldest drop is removed to make room for a new one.<br>
  * <br>
- * Pickup range is {@link #PICKUP_RANGE} blocks — when the player walks within<br>
+ * Pickup range is {@link #PICKUP_RANGE} blocks - when the player walks within<br>
  * this distance, the drop is automatically added to the player's inventory.<br>
  * If the inventory is full, the drop remains on the ground.
  * @author Pantelis Andrianakis
@@ -89,7 +89,7 @@ public class DropManager
 			return;
 		}
 		
-		// Enforce maximum active drops — remove the oldest if at capacity.
+		// Enforce maximum active drops - remove the oldest if at capacity.
 		while (_drops.size() >= MAX_ACTIVE_DROPS)
 		{
 			final DroppedItem oldest = _drops.remove(0);
@@ -104,7 +104,7 @@ public class DropManager
 	}
 	
 	/**
-	 * Per-frame update. Animates drops, checks pickup range, and removes expired drops.
+	 * Per-frame update. Animates drops, checks pickup range and removes expired drops.
 	 * @param playerPos the player's current world position
 	 * @param inventory the player's inventory for pickup attempts
 	 * @param tpf time per frame in seconds

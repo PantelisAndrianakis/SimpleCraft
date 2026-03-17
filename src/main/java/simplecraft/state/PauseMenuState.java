@@ -20,8 +20,8 @@ import simplecraft.ui.QuestionManager;
 
 /**
  * Pause menu overlay rendered on top of PlayingState.<br>
- * Background with centered title, logo, and buttons.<br>
- * Provides Resume, Options, and Quit to Menu with keyboard navigation.<br>
+ * Background with centered title, logo and buttons.<br>
+ * Provides Resume, Options and Quit to Menu with keyboard navigation.<br>
  * Pressing Escape (UI_BACK) resumes the game.
  * @author Pantelis Andrianakis
  * @since February 19th 2026
@@ -103,7 +103,7 @@ public class PauseMenuState extends FadeableAppState
 	// ========== GUI CONSTRUCTION ==========
 	
 	/**
-	 * Build the pause menu background, title, logo, and buttons.
+	 * Build the pause menu background, title, logo and buttons.
 	 */
 	private void buildGui()
 	{

@@ -411,7 +411,7 @@ public class GameInputManager
 	/**
 	 * Sets up screenshot functionality using jME3's ScreenshotAppState.
 	 * <p>
-	 * Creates the screenshot directory in the user's Pictures/SimpleCraft folder (path is OS-appropriate), attaches the ScreenshotAppState with numbering disabled, and registers F2 as the screenshot key.
+	 * Creates the screenshot directory in the user's Pictures/SimpleCraft folder (path is OS-appropriate), attaches the ScreenshotAppState with numbering disabled and registers F2 as the screenshot key.
 	 * <p>
 	 * Screenshots are saved with timestamps in the format: Screenshot_YYYY-MM-DD_HH-mm-ss.png
 	 */
@@ -441,7 +441,7 @@ public class GameInputManager
 		// Ensure directory exists.
 		new File(picturesPath).mkdirs();
 		
-		// Disable ScreenshotAppState's built-in key capture and numbering — we handle it manually.
+		// Disable ScreenshotAppState's built-in key capture and numbering - we handle it manually.
 		final ScreenshotAppState screenshotState = new ScreenshotAppState(picturesPath);
 		screenshotState.setIsNumbered(false);
 		stateManager.attach(screenshotState);
