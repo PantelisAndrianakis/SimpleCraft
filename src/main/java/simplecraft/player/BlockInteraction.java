@@ -9,8 +9,6 @@ import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.AnalogListener;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
-
-import simplecraft.input.GameInputManager;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -26,6 +24,7 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.effects.ParticleManager;
+import simplecraft.input.GameInputManager;
 import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
@@ -42,6 +41,7 @@ import simplecraft.world.BlockSupport;
 import simplecraft.world.TreeFeller;
 import simplecraft.world.World;
 import simplecraft.world.entity.CampfireTileEntity;
+import simplecraft.world.entity.CraftingTableTileEntity;
 import simplecraft.world.entity.DoorTileEntity;
 import simplecraft.world.entity.PlaceholderTileEntity;
 import simplecraft.world.entity.TileEntity;
@@ -211,6 +211,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/** Drop manager for spawning world drops when blocks are broken. */
 	private DropManager _dropManager;
+	
+	/** Crafting screen opened when interacting with a crafting table. */
+	private CraftingScreen _craftingScreen;
 	
 	// Camera shake.
 	private float _shakeTimer;
@@ -1327,6 +1330,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				{
 					entity.onInteract(_playerController, _world);
 					
+					// Open crafting UI when interacting with a crafting table.
+					if (entity instanceof CraftingTableTileEntity && _craftingScreen != null)
+					{
+						_craftingScreen.open();
+					}
+					
 					// Play a thud on door open/close and window flip.
 					if (entity instanceof DoorTileEntity || entity instanceof WindowTileEntity)
 					{
@@ -1626,12 +1635,18 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						break;
 					}
 					case CHEST:
-					case CRAFTING_TABLE:
 					case FURNACE:
 					{
 						final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, selectedBlock);
 						placeholder.setFacing(getPlayerFacing());
 						entity = placeholder;
+						break;
+					}
+					case CRAFTING_TABLE:
+					{
+						final CraftingTableTileEntity craftingTable = new CraftingTableTileEntity(pos);
+						craftingTable.setFacing(getPlayerFacing());
+						entity = craftingTable;
 						break;
 					}
 					case WINDOW:
@@ -2719,5 +2734,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setDropManager(DropManager dropManager)
 	{
 		_dropManager = dropManager;
+	}
+	
+	/**
+	 * Sets the crafting screen to open when interacting with a crafting table.
+	 * @param craftingScreen the crafting screen instance
+	 */
+	public void setCraftingScreen(CraftingScreen craftingScreen)
+	{
+		_craftingScreen = craftingScreen;
 	}
 }

@@ -33,6 +33,7 @@ import simplecraft.input.GameInputManager;
 import simplecraft.item.DropManager;
 import simplecraft.item.ItemTextureResolver;
 import simplecraft.player.BlockInteraction;
+import simplecraft.player.CraftingScreen;
 import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
@@ -99,6 +100,7 @@ public class PlayingState extends FadeableAppState
 	private BlockInteraction _blockInteraction;
 	private PlayerHUD _playerHUD;
 	private InventoryScreen _inventoryScreen;
+	private CraftingScreen _craftingScreen;
 	
 	/** Manages automatic enemy spawning, despawning, and updates. */
 	private SpawnSystem _spawnSystem;
@@ -263,6 +265,13 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
+			// If crafting screen is open, close it instead of opening pause.
+			if (_craftingScreen != null && _craftingScreen.isOpen())
+			{
+				_craftingScreen.close();
+				return;
+			}
+			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
 			{
@@ -308,8 +317,17 @@ public class PlayingState extends FadeableAppState
 				}
 				else
 				{
+					// Close crafting screen if open before opening inventory.
+					if (_craftingScreen != null && _craftingScreen.isOpen())
+					{
+						_craftingScreen.close();
+					}
 					_inventoryScreen.open();
 				}
+			}
+			else if (_craftingScreen != null && _craftingScreen.isOpen())
+			{
+				_craftingScreen.close();
 			}
 		};
 		
@@ -565,23 +583,32 @@ public class PlayingState extends FadeableAppState
 				_musicManager.update(tpf, _playerController.isInWater(), underground);
 			}
 			
-			// Determine if inventory is open (skip player movement and block interaction when open).
+			// Determine if inventory or crafting screen is open (skip player movement and block interaction when open).
 			final boolean inventoryOpen = _inventoryScreen != null && _inventoryScreen.isOpen();
+			final boolean craftingOpen = _craftingScreen != null && _craftingScreen.isOpen();
+			final boolean screenOpen = inventoryOpen || craftingOpen;
 			
-			// Update player movement and camera (skip when inventory is open).
-			if (!inventoryOpen)
+			// Update player movement and camera (skip when a screen is open).
+			if (!screenOpen)
 			{
 				_playerController.update(tpf);
 			}
 			else
 			{
 				// Still update camera position so it doesn't glitch.
-				// Player update handles camera — when inventory is open, input is unregistered
+				// Player update handles camera — when a screen is open, input is unregistered
 				// so no movement occurs, but we still need to call update for camera positioning.
 				_playerController.update(tpf);
 				
-				// Update inventory screen.
-				_inventoryScreen.update(tpf);
+				// Update the active screen.
+				if (inventoryOpen)
+				{
+					_inventoryScreen.update(tpf);
+				}
+				if (craftingOpen)
+				{
+					_craftingScreen.update(tpf);
+				}
 			}
 			
 			// Check for fall damage / drowning screen flashes.
@@ -611,9 +638,9 @@ public class PlayingState extends FadeableAppState
 			// --- Player → Enemy attack priority ---
 			// Check enemies FIRST on left-click. If the crosshair is on an enemy,
 			// suppress block interaction's attack so we don't mine blocks behind enemies.
-			// Skip combat when inventory is open.
+			// Skip combat when a screen is open.
 			boolean suppressBlockAttack = false;
-			if (_combatSystem != null && _spawnSystem != null && !_playerDead && !inventoryOpen)
+			if (_combatSystem != null && _spawnSystem != null && !_playerDead && !screenOpen)
 			{
 				if (_blockInteraction != null && _blockInteraction.isAttackHeld())
 				{
@@ -624,14 +651,14 @@ public class PlayingState extends FadeableAppState
 			
 			// Trigger viewmodel swing on any left-click (air, block, or enemy).
 			// triggerSwing() is idempotent — only starts if not already swinging.
-			if (_viewmodelRenderer != null && _blockInteraction != null && _blockInteraction.isAttackHeld() && !_playerDead && !inventoryOpen)
+			if (_viewmodelRenderer != null && _blockInteraction != null && _blockInteraction.isAttackHeld() && !_playerDead && !screenOpen)
 			{
 				_viewmodelRenderer.triggerSwing();
 			}
 			
 			// Update block interaction (raycasting, breaking, placing).
-			// Skip when inventory is open.
-			if (_blockInteraction != null && !_playerDead && !inventoryOpen)
+			// Skip when a screen is open.
+			if (_blockInteraction != null && !_playerDead && !screenOpen)
 			{
 				_blockInteraction.setAttackSuppressed(suppressBlockAttack);
 				_blockInteraction.setShowHighlight(app.getSettingsManager().isShowHighlight());
@@ -679,6 +706,11 @@ public class PlayingState extends FadeableAppState
 				if (_inventoryScreen != null && _inventoryScreen.isOpen())
 				{
 					_inventoryScreen.close();
+				}
+				// Close crafting screen if open.
+				if (_craftingScreen != null && _craftingScreen.isOpen())
+				{
+					_craftingScreen.close();
 				}
 				
 				// Dismiss any open question dialog (e.g. campfire respawn prompt).
@@ -813,6 +845,11 @@ public class PlayingState extends FadeableAppState
 		if (_inventoryScreen != null && _inventoryScreen.isOpen())
 		{
 			_inventoryScreen.close();
+		}
+		// Close crafting screen if open.
+		if (_craftingScreen != null && _craftingScreen.isOpen())
+		{
+			_craftingScreen.close();
 		}
 		
 		// Dismiss any open question dialog (e.g. campfire respawn prompt).
@@ -1152,7 +1189,7 @@ public class PlayingState extends FadeableAppState
 	// ========================================================
 	
 	/**
-	 * Creates the player HUD, inventory screen, and links them to the block interaction handler.
+	 * Creates the player HUD, inventory screen, crafting screen, and links them to the block interaction handler.
 	 */
 	private void createHUD()
 	{
@@ -1170,13 +1207,27 @@ public class PlayingState extends FadeableAppState
 		{
 			_inventoryScreen.setWorld(_world);
 		}
+		
+		// Create crafting screen (hidden initially, opened by right-clicking a Crafting Table).
+		final SimpleCraft app = SimpleCraft.getInstance();
+		_craftingScreen = new CraftingScreen(_playerController, _blockInteraction, app.getAudioManager());
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.setCraftingScreen(_craftingScreen);
+		}
 	}
 	
 	/**
-	 * Removes the player HUD and inventory screen.
+	 * Removes the player HUD, inventory screen, and crafting screen.
 	 */
 	private void cleanupHUD()
 	{
+		if (_craftingScreen != null)
+		{
+			_craftingScreen.cleanup();
+			_craftingScreen = null;
+		}
+		
 		if (_inventoryScreen != null)
 		{
 			_inventoryScreen.cleanup();

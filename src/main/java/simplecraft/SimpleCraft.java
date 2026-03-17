@@ -11,6 +11,7 @@ import com.simsilica.lemur.GuiGlobals;
 
 import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
+import simplecraft.item.CraftingRegistry;
 import simplecraft.item.ItemRegistry;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
@@ -129,6 +130,9 @@ public class SimpleCraft extends SimpleApplication
 		
 		// Register all items in the item catalog.
 		ItemRegistry.registerDefaults();
+		
+		// Register all crafting recipes.
+		CraftingRegistry.registerDefaults();
 		
 		// Switch to initial splash state.
 		_gameStateManager.switchTo(GameState.INTRO);

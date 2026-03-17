@@ -90,6 +90,7 @@ public class ItemRegistry
 		register(ItemTemplate.material("wood_plank", "Wood Plank"));
 		register(ItemTemplate.material("stone_shard", "Stone Shard"));
 		register(ItemTemplate.material("iron_nugget", "Iron Nugget"));
+		register(ItemTemplate.material("coal", "Coal"));
 		
 		System.out.println("ItemRegistry: Registered " + ITEMS.size() + " items.");
 	}

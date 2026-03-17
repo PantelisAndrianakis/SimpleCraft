@@ -21,6 +21,7 @@ import simplecraft.input.GameInputManager;
 import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
+import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemTextureResolver;
 import simplecraft.ui.FontManager;
@@ -888,12 +889,34 @@ public class InventoryScreen implements ActionListener
 	}
 	
 	/**
-	 * Right-click: place a single item from held stack.
+	 * Right-click: place a single item from held stack, or quick-craft when not holding anything.<br>
+	 * Quick-craft: right-clicking a Wood block item with 4+ wood in inventory consumes 4 wood<br>
+	 * and creates a Crafting Table (early-game convenience before you have a Crafting Table).
 	 */
 	private void handleRightClick(int slot)
 	{
-		if (slot < 0 || _heldStack == null)
+		if (slot < 0)
 		{
+			return;
+		}
+		
+		// Quick-craft: right-click with empty hand on a wood item.
+		if (_heldStack == null)
+		{
+			final ItemInstance target = _inventory.getSlot(slot);
+			if (target != null && !target.isEmpty() && "wood".equals(target.getTemplate().getId()))
+			{
+				if (_inventory.hasItem("wood", 4))
+				{
+					_inventory.removeItem("wood", 4);
+					final ItemTemplate craftingTable = ItemRegistry.get("crafting_table");
+					if (craftingTable != null)
+					{
+						_inventory.addItem(new ItemInstance(craftingTable, 1));
+						System.out.println("Quick-crafted: Crafting Table (4× Wood)");
+					}
+				}
+			}
 			return;
 		}
 		

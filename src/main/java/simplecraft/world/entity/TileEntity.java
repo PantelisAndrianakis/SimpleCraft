@@ -313,12 +313,17 @@ public abstract class TileEntity
 				return torch;
 			}
 			case "CHEST":
-			case "CRAFTING_TABLE":
 			case "FURNACE":
 			{
 				final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, Block.valueOf(type));
 				placeholder.setFacing(facingDir);
 				return placeholder;
+			}
+			case "CRAFTING_TABLE":
+			{
+				final CraftingTableTileEntity craftingTable = new CraftingTableTileEntity(pos);
+				craftingTable.setFacing(facingDir);
+				return craftingTable;
 			}
 			case "WINDOW":
 			{
