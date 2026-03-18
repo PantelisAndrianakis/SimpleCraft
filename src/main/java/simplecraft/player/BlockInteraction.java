@@ -36,11 +36,13 @@ import simplecraft.util.Rnd;
 import simplecraft.util.Vector3i;
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
+import simplecraft.world.Block.ToolType;
 import simplecraft.world.BlockDestructionQueue;
 import simplecraft.world.BlockSupport;
 import simplecraft.world.TreeFeller;
 import simplecraft.world.World;
 import simplecraft.world.entity.CampfireTileEntity;
+import simplecraft.world.entity.ChestTileEntity;
 import simplecraft.world.entity.CraftingTableTileEntity;
 import simplecraft.world.entity.DoorTileEntity;
 import simplecraft.world.entity.PlaceholderTileEntity;
@@ -214,6 +216,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/** Crafting screen opened when interacting with a crafting table. */
 	private CraftingScreen _craftingScreen;
+	
+	/** Chest screen opened when interacting with a chest. */
+	private ChestScreen _chestScreen;
 	
 	// Camera shake.
 	private float _shakeTimer;
@@ -926,6 +931,20 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						}
 						
 						// Non-door tile entities: standard removal.
+						
+						// Chest: drop all stored contents before removal.
+						if (entity instanceof ChestTileEntity)
+						{
+							final ChestTileEntity chest = (ChestTileEntity) entity;
+							chest.dropContents(_dropManager);
+							
+							// Close the chest screen if this chest is currently being viewed.
+							if (_chestScreen != null && _chestScreen.isOpen())
+							{
+								_chestScreen.close();
+							}
+						}
+						
 						manager.remove(_targetX, _targetY, _targetZ);
 						entity.onRemoved(_world);
 						
@@ -1038,8 +1057,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		if (type == ItemType.TOOL)
 		{
-			final Block.ToolType bestTool = block.getBestTool();
-			if (bestTool != Block.ToolType.NONE && template.getToolType() == bestTool)
+			final ToolType bestTool = block.getBestTool();
+			if (bestTool != ToolType.NONE && template.getToolType() == bestTool)
 			{
 				return BLOCK_DAMAGE_CORRECT_TOOL;
 			}
@@ -1074,8 +1093,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Correct tool: 1 durability per hit.
 		if (template.hasTool())
 		{
-			final Block.ToolType bestTool = block.getBestTool();
-			if (bestTool != Block.ToolType.NONE && template.getToolType() == bestTool)
+			final ToolType bestTool = block.getBestTool();
+			if (bestTool != ToolType.NONE && template.getToolType() == bestTool)
 			{
 				return DURABILITY_COST_CORRECT;
 			}
@@ -1268,6 +1287,19 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 			
 			// Standard tile entity removal: call onRemoved, remove from manager, set block to AIR.
+			
+			// Chest: drop all stored contents before removal.
+			if (te instanceof ChestTileEntity)
+			{
+				final ChestTileEntity chest = (ChestTileEntity) te;
+				chest.dropContents(_dropManager);
+				
+				if (_chestScreen != null && _chestScreen.isOpen())
+				{
+					_chestScreen.close();
+				}
+			}
+			
 			te.onRemoved(_world);
 			manager.remove(nx, ny, nz);
 			_world.setBlockNoRebuild(nx, ny, nz, Block.AIR);
@@ -1334,6 +1366,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					if (entity instanceof CraftingTableTileEntity && _craftingScreen != null)
 					{
 						_craftingScreen.open();
+					}
+					
+					// Open chest UI when interacting with a chest.
+					if (entity instanceof ChestTileEntity && _chestScreen != null)
+					{
+						_chestScreen.open((ChestTileEntity) entity);
 					}
 					
 					// Play a thud on door open/close and window flip.
@@ -1635,6 +1673,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						break;
 					}
 					case CHEST:
+					{
+						final ChestTileEntity chest = new ChestTileEntity(pos);
+						chest.setFacing(getPlayerFacing());
+						entity = chest;
+						break;
+					}
 					case FURNACE:
 					{
 						final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, selectedBlock);
@@ -2743,5 +2787,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setCraftingScreen(CraftingScreen craftingScreen)
 	{
 		_craftingScreen = craftingScreen;
+	}
+	
+	/**
+	 * Sets the chest screen to open when interacting with a chest.
+	 * @param chestScreen the chest screen instance
+	 */
+	public void setChestScreen(ChestScreen chestScreen)
+	{
+		_chestScreen = chestScreen;
 	}
 }

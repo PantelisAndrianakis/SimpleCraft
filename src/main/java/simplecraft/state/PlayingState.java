@@ -33,6 +33,7 @@ import simplecraft.input.GameInputManager;
 import simplecraft.item.DropManager;
 import simplecraft.item.ItemTextureResolver;
 import simplecraft.player.BlockInteraction;
+import simplecraft.player.ChestScreen;
 import simplecraft.player.CraftingScreen;
 import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
@@ -101,6 +102,7 @@ public class PlayingState extends FadeableAppState
 	private PlayerHUD _playerHUD;
 	private InventoryScreen _inventoryScreen;
 	private CraftingScreen _craftingScreen;
+	private ChestScreen _chestScreen;
 	
 	/** Manages automatic enemy spawning, despawning and updates. */
 	private SpawnSystem _spawnSystem;
@@ -272,6 +274,13 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
+			// If chest screen is open, close it instead of opening pause.
+			if (_chestScreen != null && _chestScreen.isOpen())
+			{
+				_chestScreen.close();
+				return;
+			}
+			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
 			{
@@ -322,12 +331,21 @@ public class PlayingState extends FadeableAppState
 					{
 						_craftingScreen.close();
 					}
+					// Close chest screen if open before opening inventory.
+					if (_chestScreen != null && _chestScreen.isOpen())
+					{
+						_chestScreen.close();
+					}
 					_inventoryScreen.open();
 				}
 			}
 			else if (_craftingScreen != null && _craftingScreen.isOpen())
 			{
 				_craftingScreen.close();
+			}
+			else if (_chestScreen != null && _chestScreen.isOpen())
+			{
+				_chestScreen.close();
 			}
 		};
 		
@@ -586,7 +604,8 @@ public class PlayingState extends FadeableAppState
 			// Determine if inventory or crafting screen is open (skip player movement and block interaction when open).
 			final boolean inventoryOpen = _inventoryScreen != null && _inventoryScreen.isOpen();
 			final boolean craftingOpen = _craftingScreen != null && _craftingScreen.isOpen();
-			final boolean screenOpen = inventoryOpen || craftingOpen;
+			final boolean chestOpen = _chestScreen != null && _chestScreen.isOpen();
+			final boolean screenOpen = inventoryOpen || craftingOpen || chestOpen;
 			
 			// Update player movement and camera (skip when a screen is open).
 			if (!screenOpen)
@@ -608,6 +627,10 @@ public class PlayingState extends FadeableAppState
 				if (craftingOpen)
 				{
 					_craftingScreen.update(tpf);
+				}
+				if (chestOpen)
+				{
+					_chestScreen.update(tpf);
 				}
 			}
 			
@@ -711,6 +734,11 @@ public class PlayingState extends FadeableAppState
 				if (_craftingScreen != null && _craftingScreen.isOpen())
 				{
 					_craftingScreen.close();
+				}
+				// Close chest screen if open.
+				if (_chestScreen != null && _chestScreen.isOpen())
+				{
+					_chestScreen.close();
 				}
 				
 				// Dismiss any open question dialog (e.g. campfire respawn prompt).
@@ -850,6 +878,11 @@ public class PlayingState extends FadeableAppState
 		if (_craftingScreen != null && _craftingScreen.isOpen())
 		{
 			_craftingScreen.close();
+		}
+		// Close chest screen if open.
+		if (_chestScreen != null && _chestScreen.isOpen())
+		{
+			_chestScreen.close();
 		}
 		
 		// Dismiss any open question dialog (e.g. campfire respawn prompt).
@@ -1148,6 +1181,13 @@ public class PlayingState extends FadeableAppState
 			_inventoryScreen.setWorld(_world);
 		}
 		
+		// Wire drop manager and world to chest screen for item discards.
+		if (_chestScreen != null)
+		{
+			_chestScreen.setDropManager(_dropManager);
+			_chestScreen.setWorld(_world);
+		}
+		
 		// Initialize the particle manager for block break and combat effects.
 		_particleManager = new ParticleManager(app.getAssetManager());
 		app.getRootNode().attachChild(_particleManager.getNode());
@@ -1215,6 +1255,21 @@ public class PlayingState extends FadeableAppState
 		{
 			_blockInteraction.setCraftingScreen(_craftingScreen);
 		}
+		
+		// Create chest screen (hidden initially, opened by right-clicking a Chest).
+		_chestScreen = new ChestScreen(_playerController, _blockInteraction);
+		if (_dropManager != null)
+		{
+			_chestScreen.setDropManager(_dropManager);
+		}
+		if (_world != null)
+		{
+			_chestScreen.setWorld(_world);
+		}
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.setChestScreen(_chestScreen);
+		}
 	}
 	
 	/**
@@ -1226,6 +1281,12 @@ public class PlayingState extends FadeableAppState
 		{
 			_craftingScreen.cleanup();
 			_craftingScreen = null;
+		}
+		
+		if (_chestScreen != null)
+		{
+			_chestScreen.cleanup();
+			_chestScreen = null;
 		}
 		
 		if (_inventoryScreen != null)

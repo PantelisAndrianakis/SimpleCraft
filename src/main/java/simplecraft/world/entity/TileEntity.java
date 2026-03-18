@@ -313,6 +313,12 @@ public abstract class TileEntity
 				return torch;
 			}
 			case "CHEST":
+			{
+				final ChestTileEntity chest = new ChestTileEntity(pos);
+				chest.setFacing(facingDir);
+				chest.deserializeContents(data);
+				return chest;
+			}
 			case "FURNACE":
 			{
 				final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, Block.valueOf(type));

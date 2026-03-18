@@ -1,0 +1,1249 @@
+package simplecraft.player;
+
+import java.awt.Font;
+
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
+import com.jme3.input.InputManager;
+import com.jme3.input.controls.ActionListener;
+import com.jme3.material.Material;
+import com.jme3.material.RenderState.BlendMode;
+import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector2f;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import com.jme3.scene.shape.Quad;
+
+import simplecraft.SimpleCraft;
+import simplecraft.input.GameInputManager;
+import simplecraft.item.DropManager;
+import simplecraft.item.Inventory;
+import simplecraft.item.ItemInstance;
+import simplecraft.item.ItemTemplate;
+import simplecraft.item.ItemTextureResolver;
+import simplecraft.ui.FontManager;
+import simplecraft.world.World;
+import simplecraft.world.entity.ChestTileEntity;
+
+/**
+ * Chest UI opened by right-clicking a placed Chest block.<br>
+ * Displays 27 chest storage slots (3×9) above the player's 36 inventory slots.<br>
+ * <br>
+ * <b>Layout (top to bottom):</b><br>
+ * Title "Chest" -> 3×9 chest grid -> separator -> 3×9 main inventory -> 1×9 hotbar.<br>
+ * <br>
+ * <b>Interaction:</b><br>
+ * Left-click a slot to pick up the stack. Left-click another slot to place/swap/merge.<br>
+ * Works across the chest ↔ inventory boundary.<br>
+ * Right-click while holding a stack to place a single item.<br>
+ * Shift-click: quick-transfer entire stack to the other inventory<br>
+ * (chest -> player or player -> chest), filling matching stacks first, then first empty slot.<br>
+ * Click outside the grid while holding to discard the stack.<br>
+ * <br>
+ * Changes are immediate - closing the screen does not undo any transfers.<br>
+ * Close with Escape or Tab. While open, the cursor is visible and player<br>
+ * movement/look is disabled.
+ * @author Pantelis Andrianakis
+ * @since March 18th 2026
+ */
+public class ChestScreen implements ActionListener
+{
+	// ========================================================
+	// Layout Constants.
+	// ========================================================
+	
+	/** Number of columns in both grids. */
+	private static final int GRID_COLS = 9;
+	
+	/** Number of rows in the chest grid. */
+	private static final int CHEST_ROWS = 3;
+	
+	/** Number of rows in the player main inventory grid. */
+	private static final int PLAYER_MAIN_ROWS = 3;
+	
+	/** Pixel gap between slot groups (chest-to-player, main-to-hotbar). */
+	private static final float SECTION_GAP = 10f;
+	
+	/** Pixel gap between individual slots. */
+	private static final float SLOT_SPACING = 3f;
+	
+	/** Background padding around the slot fill quad. */
+	private static final float SLOT_PADDING = 2f;
+	
+	/** Total displayed slots: 27 chest + 36 player. */
+	private static final int TOTAL_DISPLAY_SLOTS = ChestTileEntity.CHEST_SLOTS + Inventory.TOTAL_SLOTS;
+	
+	// Z-depths.
+	private static final float Z_OVERLAY = 10f;
+	private static final float Z_SLOT_BG = 11f;
+	private static final float Z_SLOT_FILL = 11.5f;
+	private static final float Z_TEXT = 12f;
+	private static final float Z_DURABILITY = 12f;
+	private static final float Z_HIGHLIGHT = 10.8f;
+	private static final float Z_HELD = 15f;
+	private static final float Z_TOOLTIP = 16f;
+	private static final float Z_SEPARATOR = 11f;
+	
+	// ========================================================
+	// Colors.
+	// ========================================================
+	
+	private static final ColorRGBA COLOR_OVERLAY = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.65f);
+	private static final ColorRGBA COLOR_SLOT_BG = new ColorRGBA(0.15f, 0.15f, 0.15f, 0.85f);
+	private static final ColorRGBA COLOR_SLOT_EMPTY = new ColorRGBA(0.25f, 0.25f, 0.25f, 0.6f);
+	private static final ColorRGBA COLOR_HOTBAR_LABEL = new ColorRGBA(0.5f, 0.5f, 0.5f, 0.4f);
+	private static final ColorRGBA COLOR_HOVER = new ColorRGBA(1.0f, 1.0f, 1.0f, 0.15f);
+	private static final ColorRGBA COLOR_TEXT = new ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
+	private static final ColorRGBA COLOR_TEXT_SHADOW = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.8f);
+	private static final ColorRGBA COLOR_TOOLTIP_BG = new ColorRGBA(0.1f, 0.1f, 0.1f, 0.9f);
+	private static final ColorRGBA COLOR_DURABILITY_GREEN = new ColorRGBA(0.2f, 0.85f, 0.2f, 1.0f);
+	private static final ColorRGBA COLOR_DURABILITY_YELLOW = new ColorRGBA(0.9f, 0.85f, 0.2f, 1.0f);
+	private static final ColorRGBA COLOR_DURABILITY_RED = new ColorRGBA(0.9f, 0.2f, 0.2f, 1.0f);
+	private static final ColorRGBA COLOR_SEPARATOR = new ColorRGBA(0.4f, 0.4f, 0.4f, 0.5f);
+	
+	// ========================================================
+	// Fields.
+	// ========================================================
+	
+	private final Inventory _inventory;
+	private final PlayerController _playerController;
+	private final BlockInteraction _blockInteraction;
+	
+	/** Drop manager for spawning world drops when items are discarded. */
+	private DropManager _dropManager;
+	
+	/** World reference for ground-level lookups when dropping items. */
+	private World _world;
+	
+	private final Node _guiNode;
+	private final Node _screenNode;
+	private final InputManager _inputManager;
+	private final BitmapFont _font;
+	private final BitmapFont _tooltipFont;
+	private final int _screenWidth;
+	private final int _screenHeight;
+	
+	/** Computed slot size in pixels (proportional to screen height). */
+	private final float _slotSize;
+	
+	/** Whether the chest screen is currently visible. */
+	private boolean _open;
+	
+	/** The chest tile entity currently being viewed. Null when closed. */
+	private ChestTileEntity _activeChest;
+	
+	// Per-slot geometry and text (indices 0-26 = chest, 27-62 = player).
+	private final Geometry[] _slotBg = new Geometry[TOTAL_DISPLAY_SLOTS];
+	private final Geometry[] _slotFill = new Geometry[TOTAL_DISPLAY_SLOTS];
+	private final Material[] _slotFillMat = new Material[TOTAL_DISPLAY_SLOTS];
+	private final BitmapText[] _slotLabel = new BitmapText[TOTAL_DISPLAY_SLOTS];
+	private final BitmapText[] _slotCount = new BitmapText[TOTAL_DISPLAY_SLOTS];
+	private final BitmapText[] _slotCountShadow = new BitmapText[TOTAL_DISPLAY_SLOTS];
+	private final Geometry[] _slotDurBar = new Geometry[TOTAL_DISPLAY_SLOTS];
+	private final Material[] _slotDurMat = new Material[TOTAL_DISPLAY_SLOTS];
+	
+	/** Hotbar numbers (1-9) shown faintly in the player hotbar slots. */
+	private final BitmapText[] _hotbarNumbers = new BitmapText[Inventory.HOTBAR_SLOTS];
+	
+	/** Screen-space X origin of each display slot. */
+	private final float[] _slotX = new float[TOTAL_DISPLAY_SLOTS];
+	
+	/** Screen-space Y origin of each display slot. */
+	private final float[] _slotY = new float[TOTAL_DISPLAY_SLOTS];
+	
+	// Hover highlight.
+	private Geometry _hoverHighlight;
+	private int _hoveredSlot = -1;
+	
+	// Tooltip.
+	private Geometry _tooltipBg;
+	private BitmapText _tooltipText;
+	private BitmapText _tooltipTextShadow;
+	
+	// Held item (being moved by cursor).
+	private ItemInstance _heldStack;
+	private Geometry _heldQuad;
+	private Material _heldQuadMat;
+	private BitmapText _heldLabel;
+	private BitmapText _heldCount;
+	private BitmapText _heldCountShadow;
+	
+	/** Title text. */
+	private BitmapText _titleText;
+	private BitmapText _titleTextShadow;
+	
+	// ========================================================
+	// Constructor.
+	// ========================================================
+	
+	/**
+	 * Creates the chest screen (hidden initially).
+	 * @param playerController the player controller
+	 * @param blockInteraction the block interaction handler
+	 */
+	public ChestScreen(PlayerController playerController, BlockInteraction blockInteraction)
+	{
+		_playerController = playerController;
+		_blockInteraction = blockInteraction;
+		_inventory = playerController.getInventory();
+		
+		final SimpleCraft app = SimpleCraft.getInstance();
+		_guiNode = app.getGuiNode();
+		_inputManager = app.getInputManager();
+		_screenWidth = app.getCamera().getWidth();
+		_screenHeight = app.getCamera().getHeight();
+		
+		// Slot size proportional to screen height.
+		_slotSize = Math.max(36f, _screenHeight * 0.05f);
+		
+		// Fonts.
+		final int fontSize = Math.max(10, (int) (_screenHeight * 0.016f));
+		_font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, fontSize);
+		
+		final int tooltipSize = Math.max(12, (int) (_screenHeight * 0.018f));
+		_tooltipFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, tooltipSize);
+		
+		// Build all UI elements.
+		_screenNode = new Node("ChestScreen");
+		
+		buildOverlay(app);
+		computeSlotPositions();
+		buildSlots(app);
+		buildSeparator(app);
+		buildHoverHighlight(app);
+		buildTooltip(app);
+		buildHeldItem(app);
+		buildTitle(app);
+		
+		// Hidden initially.
+		_screenNode.setCullHint(Node.CullHint.Always);
+		_guiNode.attachChild(_screenNode);
+	}
+	
+	// ========================================================
+	// Build Methods.
+	// ========================================================
+	
+	private void buildOverlay(SimpleCraft app)
+	{
+		final Quad overlayQuad = new Quad(_screenWidth, _screenHeight);
+		final Geometry overlay = new Geometry("ChestOverlay", overlayQuad);
+		final Material mat = createColorMaterial(COLOR_OVERLAY, app);
+		overlay.setMaterial(mat);
+		overlay.setQueueBucket(Bucket.Gui);
+		overlay.setLocalTranslation(0, 0, Z_OVERLAY);
+		_screenNode.attachChild(overlay);
+	}
+	
+	/**
+	 * Computes screen-space positions for all 63 display slots.<br>
+	 * Layout (bottom to top): hotbar -> gap -> main inventory (3 rows) -> gap -> chest (3 rows).<br>
+	 * Display slot indices: 0-26 = chest, 27-35 = player hotbar, 36-62 = player main.
+	 */
+	private void computeSlotPositions()
+	{
+		final float totalGridWidth = GRID_COLS * _slotSize + (GRID_COLS - 1) * SLOT_SPACING;
+		
+		// Total height: chest(3 rows) + gap + player main(3 rows) + gap + hotbar(1 row).
+		final float totalGridHeight = (CHEST_ROWS + PLAYER_MAIN_ROWS + 1) * _slotSize + (CHEST_ROWS + PLAYER_MAIN_ROWS) * SLOT_SPACING + SECTION_GAP * 2;
+		
+		final float gridStartX = (_screenWidth - totalGridWidth) / 2f;
+		final float gridStartY = (_screenHeight - totalGridHeight) / 2f;
+		
+		// Player hotbar (display slots 27-35): bottom row.
+		final float hotbarY = gridStartY;
+		for (int col = 0; col < GRID_COLS; col++)
+		{
+			final int di = ChestTileEntity.CHEST_SLOTS + col; // 27 + col
+			_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
+			_slotY[di] = hotbarY;
+		}
+		
+		// Player main inventory (display slots 36-62): 3 rows above hotbar with gap.
+		final float playerMainStartY = hotbarY + _slotSize + SLOT_SPACING + SECTION_GAP;
+		for (int row = 0; row < PLAYER_MAIN_ROWS; row++)
+		{
+			for (int col = 0; col < GRID_COLS; col++)
+			{
+				final int playerSlotIndex = 9 + row * GRID_COLS + col; // player slots 9-35
+				final int di = ChestTileEntity.CHEST_SLOTS + playerSlotIndex; // display index
+				_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
+				// Row 0 of main = bottom (slots 9-17), row 2 = top (slots 27-35).
+				_slotY[di] = playerMainStartY + (2 - row) * (_slotSize + SLOT_SPACING);
+			}
+		}
+		
+		// Chest slots (display slots 0-26): 3 rows above player main with gap.
+		final float chestStartY = playerMainStartY + PLAYER_MAIN_ROWS * (_slotSize + SLOT_SPACING) + SECTION_GAP;
+		for (int row = 0; row < CHEST_ROWS; row++)
+		{
+			for (int col = 0; col < GRID_COLS; col++)
+			{
+				final int di = row * GRID_COLS + col; // 0-26
+				_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
+				// Row 0 = bottom of chest section, row 2 = top.
+				_slotY[di] = chestStartY + (2 - row) * (_slotSize + SLOT_SPACING);
+			}
+		}
+	}
+	
+	private void buildSlots(SimpleCraft app)
+	{
+		for (int i = 0; i < TOTAL_DISPLAY_SLOTS; i++)
+		{
+			// Background quad.
+			final float bgSize = _slotSize + SLOT_PADDING * 2;
+			_slotBg[i] = createQuad("ChSlotBg" + i, bgSize, bgSize, COLOR_SLOT_BG, app);
+			_slotBg[i].setLocalTranslation(_slotX[i] - SLOT_PADDING, _slotY[i] - SLOT_PADDING, Z_SLOT_BG);
+			_screenNode.attachChild(_slotBg[i]);
+			
+			// Fill quad.
+			_slotFillMat[i] = createColorMaterial(COLOR_SLOT_EMPTY, app);
+			_slotFill[i] = createQuadWithMaterial("ChSlotFill" + i, _slotSize, _slotSize, _slotFillMat[i]);
+			_slotFill[i].setLocalTranslation(_slotX[i], _slotY[i], Z_SLOT_FILL);
+			_screenNode.attachChild(_slotFill[i]);
+			
+			// Label text.
+			_slotLabel[i] = new BitmapText(_font);
+			_slotLabel[i].setText("");
+			_slotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+			_slotLabel[i].setColor(COLOR_TEXT.clone());
+			_slotLabel[i].setLocalTranslation(_slotX[i], _slotY[i] + _slotSize, Z_TEXT);
+			_slotLabel[i].setCullHint(BitmapText.CullHint.Always);
+			_screenNode.attachChild(_slotLabel[i]);
+			
+			// Count text + shadow.
+			_slotCountShadow[i] = new BitmapText(_font);
+			_slotCountShadow[i].setText("");
+			_slotCountShadow[i].setSize(_font.getCharSet().getRenderedSize());
+			_slotCountShadow[i].setColor(COLOR_TEXT_SHADOW.clone());
+			_slotCountShadow[i].setCullHint(BitmapText.CullHint.Always);
+			_screenNode.attachChild(_slotCountShadow[i]);
+			
+			_slotCount[i] = new BitmapText(_font);
+			_slotCount[i].setText("");
+			_slotCount[i].setSize(_font.getCharSet().getRenderedSize());
+			_slotCount[i].setColor(COLOR_TEXT.clone());
+			_slotCount[i].setCullHint(BitmapText.CullHint.Always);
+			_screenNode.attachChild(_slotCount[i]);
+			
+			// Durability bar.
+			_slotDurMat[i] = createColorMaterial(COLOR_DURABILITY_GREEN, app);
+			_slotDurBar[i] = createQuadWithMaterial("ChDur" + i, _slotSize, 3f, _slotDurMat[i]);
+			_slotDurBar[i].setLocalTranslation(_slotX[i], _slotY[i], Z_DURABILITY);
+			_slotDurBar[i].setCullHint(Geometry.CullHint.Always);
+			_screenNode.attachChild(_slotDurBar[i]);
+			
+			// Hotbar slot numbers for player hotbar slots (display indices 27-35).
+			if (i >= ChestTileEntity.CHEST_SLOTS && i < ChestTileEntity.CHEST_SLOTS + Inventory.HOTBAR_SLOTS)
+			{
+				final int hotbarIndex = i - ChestTileEntity.CHEST_SLOTS;
+				_hotbarNumbers[hotbarIndex] = new BitmapText(_font);
+				_hotbarNumbers[hotbarIndex].setText(String.valueOf(hotbarIndex + 1));
+				_hotbarNumbers[hotbarIndex].setSize(_font.getCharSet().getRenderedSize() * 0.8f);
+				_hotbarNumbers[hotbarIndex].setColor(COLOR_HOTBAR_LABEL.clone());
+				final float numX = _slotX[i] + 2;
+				final float numY = _slotY[i] + _slotSize - 2;
+				_hotbarNumbers[hotbarIndex].setLocalTranslation(numX, numY, Z_TEXT);
+				_screenNode.attachChild(_hotbarNumbers[hotbarIndex]);
+			}
+		}
+	}
+	
+	/**
+	 * Builds a visual separator line between the chest and player inventory sections.
+	 */
+	private void buildSeparator(SimpleCraft app)
+	{
+		final float totalGridWidth = GRID_COLS * _slotSize + (GRID_COLS - 1) * SLOT_SPACING;
+		final float gridStartX = (_screenWidth - totalGridWidth) / 2f;
+		
+		// The separator goes between chest bottom row and player main top row.
+		// Chest bottom row (row 2) starts at display slot 18 (2 * 9).
+		// Player main top row starts at display slot 36 (27 + 9).
+		final float chestBottomY = _slotY[18]; // Bottom-most chest row.
+		final float playerTopY = _slotY[ChestTileEntity.CHEST_SLOTS + 9]; // Top-most player main row.
+		
+		// Separator midway between bottom of chest slots and top of player main.
+		final float sepY = (chestBottomY + playerTopY + _slotSize) / 2f;
+		
+		final Material sepMat = createColorMaterial(COLOR_SEPARATOR, app);
+		final Geometry separator = createQuadWithMaterial("ChSeparator", totalGridWidth, 2f, sepMat);
+		separator.setLocalTranslation(gridStartX, sepY, Z_SEPARATOR);
+		_screenNode.attachChild(separator);
+	}
+	
+	private void buildHoverHighlight(SimpleCraft app)
+	{
+		final Material mat = createColorMaterial(COLOR_HOVER, app);
+		_hoverHighlight = createQuadWithMaterial("ChHover", _slotSize, _slotSize, mat);
+		_hoverHighlight.setLocalTranslation(0, 0, Z_HIGHLIGHT);
+		_hoverHighlight.setCullHint(Geometry.CullHint.Always);
+		_screenNode.attachChild(_hoverHighlight);
+	}
+	
+	private void buildTooltip(SimpleCraft app)
+	{
+		final Material bgMat = createColorMaterial(COLOR_TOOLTIP_BG, app);
+		_tooltipBg = createQuadWithMaterial("ChTooltipBg", 100, 24, bgMat);
+		_tooltipBg.setLocalTranslation(0, 0, Z_TOOLTIP - 0.1f);
+		_tooltipBg.setCullHint(Geometry.CullHint.Always);
+		_screenNode.attachChild(_tooltipBg);
+		
+		_tooltipTextShadow = new BitmapText(_tooltipFont);
+		_tooltipTextShadow.setText("");
+		_tooltipTextShadow.setSize(_tooltipFont.getCharSet().getRenderedSize());
+		_tooltipTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_tooltipTextShadow.setCullHint(BitmapText.CullHint.Always);
+		_screenNode.attachChild(_tooltipTextShadow);
+		
+		_tooltipText = new BitmapText(_tooltipFont);
+		_tooltipText.setText("");
+		_tooltipText.setSize(_tooltipFont.getCharSet().getRenderedSize());
+		_tooltipText.setColor(COLOR_TEXT.clone());
+		_tooltipText.setCullHint(BitmapText.CullHint.Always);
+		_screenNode.attachChild(_tooltipText);
+	}
+	
+	private void buildHeldItem(SimpleCraft app)
+	{
+		_heldQuadMat = createColorMaterial(COLOR_SLOT_EMPTY, app);
+		_heldQuad = createQuadWithMaterial("ChHeld", _slotSize * 0.8f, _slotSize * 0.8f, _heldQuadMat);
+		_heldQuad.setLocalTranslation(0, 0, Z_HELD);
+		_heldQuad.setCullHint(Geometry.CullHint.Always);
+		_screenNode.attachChild(_heldQuad);
+		
+		_heldLabel = new BitmapText(_font);
+		_heldLabel.setText("");
+		_heldLabel.setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+		_heldLabel.setColor(COLOR_TEXT.clone());
+		_heldLabel.setCullHint(BitmapText.CullHint.Always);
+		_screenNode.attachChild(_heldLabel);
+		
+		_heldCountShadow = new BitmapText(_font);
+		_heldCountShadow.setText("");
+		_heldCountShadow.setSize(_font.getCharSet().getRenderedSize());
+		_heldCountShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
+		_screenNode.attachChild(_heldCountShadow);
+		
+		_heldCount = new BitmapText(_font);
+		_heldCount.setText("");
+		_heldCount.setSize(_font.getCharSet().getRenderedSize());
+		_heldCount.setColor(COLOR_TEXT.clone());
+		_heldCount.setCullHint(BitmapText.CullHint.Always);
+		_screenNode.attachChild(_heldCount);
+	}
+	
+	private void buildTitle(SimpleCraft app)
+	{
+		final int titleSize = Math.max(14, (int) (_screenHeight * 0.022f));
+		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, titleSize);
+		
+		_titleTextShadow = new BitmapText(titleFont);
+		_titleTextShadow.setText("Chest");
+		_titleTextShadow.setSize(titleSize);
+		_titleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_screenNode.attachChild(_titleTextShadow);
+		
+		_titleText = new BitmapText(titleFont);
+		_titleText.setText("Chest");
+		_titleText.setSize(titleSize);
+		_titleText.setColor(COLOR_TEXT.clone());
+		_screenNode.attachChild(_titleText);
+		
+		// Position above the top chest row.
+		final float titleWidth = _titleText.getLineWidth();
+		final float titleX = (_screenWidth - titleWidth) / 2f;
+		// Top chest row is row 0 (display slots 0-8), which has the highest Y.
+		final float topChestSlotY = _slotY[0];
+		final float titleY = topChestSlotY + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 8;
+		_titleText.setLocalTranslation(titleX, titleY, Z_TEXT);
+		_titleTextShadow.setLocalTranslation(titleX + 1, titleY - 1, Z_TEXT - 0.1f);
+	}
+	
+	// ========================================================
+	// Open / Close.
+	// ========================================================
+	
+	/**
+	 * Opens the chest screen for the given chest tile entity.
+	 * @param chest the chest to display and edit
+	 */
+	public void open(ChestTileEntity chest)
+	{
+		if (_open)
+		{
+			return;
+		}
+		
+		_open = true;
+		_activeChest = chest;
+		_heldStack = null;
+		_hoveredSlot = -1;
+		
+		// Show screen.
+		_screenNode.setCullHint(Node.CullHint.Never);
+		
+		// Disable player movement and look.
+		_playerController.unregisterInput();
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.unregisterInput();
+		}
+		
+		// Show cursor.
+		_inputManager.setCursorVisible(true);
+		
+		// Register click listeners.
+		_inputManager.addListener(this, GameInputManager.ATTACK, GameInputManager.PLACE_BLOCK);
+		
+		// Force full slot refresh.
+		refreshAllSlots();
+		
+		System.out.println("ChestScreen: Opened chest at " + chest.getPosition());
+	}
+	
+	/**
+	 * Closes the chest screen, hiding the cursor and restoring player controls.
+	 */
+	public void close()
+	{
+		if (!_open)
+		{
+			return;
+		}
+		
+		_open = false;
+		
+		// If holding a stack, return it to inventory (or drop into world if full).
+		if (_heldStack != null)
+		{
+			if (!_inventory.addItem(_heldStack))
+			{
+				dropItemIntoWorld(_heldStack);
+			}
+			_heldStack = null;
+		}
+		
+		_activeChest = null;
+		
+		// Hide screen.
+		_screenNode.setCullHint(Node.CullHint.Always);
+		
+		// Hide held item visuals.
+		_heldQuad.setCullHint(Geometry.CullHint.Always);
+		_heldLabel.setCullHint(BitmapText.CullHint.Always);
+		_heldCount.setCullHint(BitmapText.CullHint.Always);
+		_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
+		
+		// Remove click listeners.
+		_inputManager.removeListener(this);
+		
+		// Re-enable player controls.
+		_playerController.registerInput();
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.registerInput();
+		}
+		
+		// Hide cursor.
+		_inputManager.setCursorVisible(false);
+		
+		System.out.println("ChestScreen: Closed.");
+	}
+	
+	/**
+	 * Returns true if the chest screen is currently open.
+	 */
+	public boolean isOpen()
+	{
+		return _open;
+	}
+	
+	// ========================================================
+	// Update.
+	// ========================================================
+	
+	/**
+	 * Updates hover detection, tooltip and held item position each frame.
+	 * @param tpf time per frame
+	 */
+	public void update(float tpf)
+	{
+		if (!_open || _activeChest == null)
+		{
+			return;
+		}
+		
+		// Refresh slot visuals.
+		refreshAllSlots();
+		
+		// Get cursor position.
+		final Vector2f cursor = _inputManager.getCursorPosition();
+		final float cx = cursor.x;
+		final float cy = cursor.y;
+		
+		// Determine hovered slot.
+		_hoveredSlot = getSlotAtPosition(cx, cy);
+		
+		// Update hover highlight.
+		if (_hoveredSlot >= 0)
+		{
+			_hoverHighlight.setLocalTranslation(_slotX[_hoveredSlot], _slotY[_hoveredSlot], Z_HIGHLIGHT);
+			_hoverHighlight.setCullHint(Geometry.CullHint.Never);
+		}
+		else
+		{
+			_hoverHighlight.setCullHint(Geometry.CullHint.Always);
+		}
+		
+		// Update tooltip.
+		updateTooltip(cx, cy);
+		
+		// Update held item position at cursor.
+		updateHeldItemVisual(cx, cy);
+	}
+	
+	/**
+	 * Refreshes the visual state of all display slots.
+	 */
+	private void refreshAllSlots()
+	{
+		// Chest slots (display 0-26).
+		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
+		{
+			final ItemInstance stack = _activeChest.getSlot(i);
+			updateSlotVisual(i, stack);
+		}
+		
+		// Player slots (display 27-62 maps to inventory 0-35).
+		for (int i = 0; i < Inventory.TOTAL_SLOTS; i++)
+		{
+			final ItemInstance stack = _inventory.getSlot(i);
+			updateSlotVisual(ChestTileEntity.CHEST_SLOTS + i, stack);
+		}
+	}
+	
+	/**
+	 * Updates the visual representation of a single display slot.
+	 */
+	private void updateSlotVisual(int index, ItemInstance stack)
+	{
+		if (stack == null || stack.isEmpty())
+		{
+			_slotFillMat[index].clearParam("ColorMap");
+			_slotFillMat[index].setColor("Color", COLOR_SLOT_EMPTY);
+			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
+			_slotCount[index].setCullHint(BitmapText.CullHint.Always);
+			_slotCountShadow[index].setCullHint(BitmapText.CullHint.Always);
+			_slotDurBar[index].setCullHint(Geometry.CullHint.Always);
+			return;
+		}
+		
+		final ItemTemplate template = stack.getTemplate();
+		
+		// Try to resolve a sprite texture.
+		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
+		
+		if (slotTexture != null)
+		{
+			_slotFillMat[index].setTexture("ColorMap", slotTexture);
+			_slotFillMat[index].setColor("Color", ColorRGBA.White);
+			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
+		}
+		else
+		{
+			_slotFillMat[index].clearParam("ColorMap");
+			final ColorRGBA fillColor = InventoryScreen.getItemColor(template);
+			_slotFillMat[index].setColor("Color", fillColor);
+			
+			final String label = InventoryScreen.getItemLabel(template);
+			if (label != null && !label.isEmpty())
+			{
+				_slotLabel[index].setText(label);
+				final float labelWidth = _slotLabel[index].getLineWidth();
+				final float labelHeight = _slotLabel[index].getLineHeight();
+				final float labelX = _slotX[index] + (_slotSize - labelWidth) / 2f;
+				final float labelY = _slotY[index] + (_slotSize + labelHeight) / 2f;
+				_slotLabel[index].setLocalTranslation(labelX, labelY, Z_TEXT);
+				_slotLabel[index].setCullHint(BitmapText.CullHint.Never);
+			}
+			else
+			{
+				_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
+			}
+		}
+		
+		// Count.
+		if (stack.getCount() > 1)
+		{
+			final String countStr = String.valueOf(stack.getCount());
+			_slotCount[index].setText(countStr);
+			_slotCountShadow[index].setText(countStr);
+			
+			final float countWidth = _slotCount[index].getLineWidth();
+			final float countX = _slotX[index] + _slotSize - countWidth - 2;
+			final float countY = _slotY[index] + _slotCount[index].getLineHeight() + 1;
+			_slotCount[index].setLocalTranslation(countX, countY, Z_TEXT);
+			_slotCountShadow[index].setLocalTranslation(countX + 1, countY - 1, Z_TEXT - 0.1f);
+			_slotCount[index].setCullHint(BitmapText.CullHint.Never);
+			_slotCountShadow[index].setCullHint(BitmapText.CullHint.Never);
+		}
+		else
+		{
+			_slotCount[index].setCullHint(BitmapText.CullHint.Always);
+			_slotCountShadow[index].setCullHint(BitmapText.CullHint.Always);
+		}
+		
+		// Durability bar.
+		if (stack.hasDurability())
+		{
+			final float percent = stack.getDurabilityPercent();
+			_slotDurBar[index].setLocalScale(percent, 1, 1);
+			
+			if (percent > 0.6f)
+			{
+				_slotDurMat[index].setColor("Color", COLOR_DURABILITY_GREEN);
+			}
+			else if (percent > 0.3f)
+			{
+				_slotDurMat[index].setColor("Color", COLOR_DURABILITY_YELLOW);
+			}
+			else
+			{
+				_slotDurMat[index].setColor("Color", COLOR_DURABILITY_RED);
+			}
+			
+			_slotDurBar[index].setCullHint(Geometry.CullHint.Never);
+		}
+		else
+		{
+			_slotDurBar[index].setCullHint(Geometry.CullHint.Always);
+		}
+	}
+	
+	private void updateTooltip(float cx, float cy)
+	{
+		if (_hoveredSlot < 0)
+		{
+			_tooltipBg.setCullHint(Geometry.CullHint.Always);
+			_tooltipText.setCullHint(BitmapText.CullHint.Always);
+			_tooltipTextShadow.setCullHint(BitmapText.CullHint.Always);
+			return;
+		}
+		
+		final ItemInstance stack = getItemAtDisplaySlot(_hoveredSlot);
+		if (stack == null || stack.isEmpty())
+		{
+			_tooltipBg.setCullHint(Geometry.CullHint.Always);
+			_tooltipText.setCullHint(BitmapText.CullHint.Always);
+			_tooltipTextShadow.setCullHint(BitmapText.CullHint.Always);
+			return;
+		}
+		
+		String text = stack.getTemplate().getDisplayName();
+		if (stack.hasDurability())
+		{
+			text += " [" + stack.getDurability() + "/" + stack.getTemplate().getMaxDurability() + "]";
+		}
+		
+		_tooltipText.setText(text);
+		_tooltipTextShadow.setText(text);
+		
+		final float tipWidth = _tooltipText.getLineWidth();
+		final float tipHeight = _tooltipText.getLineHeight();
+		final float padding = 6f;
+		
+		float tipX = cx + 14;
+		float tipY = cy + tipHeight + padding + 4;
+		
+		if (tipX + tipWidth + padding * 2 > _screenWidth)
+		{
+			tipX = cx - tipWidth - padding * 2 - 4;
+		}
+		if (tipY > _screenHeight)
+		{
+			tipY = _screenHeight - 4;
+		}
+		
+		final float bgW = tipWidth + padding * 2;
+		final float bgH = tipHeight + padding;
+		_tooltipBg.setMesh(new Quad(bgW, bgH));
+		_tooltipBg.setLocalTranslation(tipX - padding, tipY - tipHeight - padding / 2f, Z_TOOLTIP - 0.1f);
+		_tooltipBg.setCullHint(Geometry.CullHint.Never);
+		
+		_tooltipText.setLocalTranslation(tipX, tipY, Z_TOOLTIP);
+		_tooltipTextShadow.setLocalTranslation(tipX + 1, tipY - 1, Z_TOOLTIP - 0.05f);
+		_tooltipText.setCullHint(BitmapText.CullHint.Never);
+		_tooltipTextShadow.setCullHint(BitmapText.CullHint.Never);
+	}
+	
+	private void updateHeldItemVisual(float cx, float cy)
+	{
+		if (_heldStack == null || _heldStack.isEmpty())
+		{
+			_heldQuad.setCullHint(Geometry.CullHint.Always);
+			_heldLabel.setCullHint(BitmapText.CullHint.Always);
+			_heldCount.setCullHint(BitmapText.CullHint.Always);
+			_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
+			return;
+		}
+		
+		final float heldSize = _slotSize * 0.8f;
+		final float heldX = cx - heldSize / 2f;
+		final float heldY = cy - heldSize / 2f;
+		
+		final com.jme3.texture.Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
+		
+		if (heldTexture != null)
+		{
+			_heldQuadMat.setTexture("ColorMap", heldTexture);
+			_heldQuadMat.setColor("Color", ColorRGBA.White);
+			_heldLabel.setCullHint(BitmapText.CullHint.Always);
+		}
+		else
+		{
+			_heldQuadMat.clearParam("ColorMap");
+			final ColorRGBA color = InventoryScreen.getItemColor(_heldStack.getTemplate());
+			_heldQuadMat.setColor("Color", color);
+			
+			final String label = InventoryScreen.getItemLabel(_heldStack.getTemplate());
+			if (label != null && !label.isEmpty())
+			{
+				_heldLabel.setText(label);
+				final float labelWidth = _heldLabel.getLineWidth();
+				final float labelHeight = _heldLabel.getLineHeight();
+				_heldLabel.setLocalTranslation(heldX + (heldSize - labelWidth) / 2f, heldY + (heldSize + labelHeight) / 2f, Z_HELD + 0.1f);
+				_heldLabel.setCullHint(BitmapText.CullHint.Never);
+			}
+			else
+			{
+				_heldLabel.setCullHint(BitmapText.CullHint.Always);
+			}
+		}
+		
+		_heldQuad.setLocalTranslation(heldX, heldY, Z_HELD);
+		_heldQuad.setCullHint(Geometry.CullHint.Never);
+		
+		if (_heldStack.getCount() > 1)
+		{
+			final String countStr = String.valueOf(_heldStack.getCount());
+			_heldCount.setText(countStr);
+			_heldCountShadow.setText(countStr);
+			
+			final float countWidth = _heldCount.getLineWidth();
+			_heldCount.setLocalTranslation(heldX + heldSize - countWidth - 1, heldY + _heldCount.getLineHeight() + 1, Z_HELD + 0.1f);
+			_heldCountShadow.setLocalTranslation(heldX + heldSize - countWidth, heldY + _heldCount.getLineHeight(), Z_HELD + 0.05f);
+			_heldCount.setCullHint(BitmapText.CullHint.Never);
+			_heldCountShadow.setCullHint(BitmapText.CullHint.Never);
+		}
+		else
+		{
+			_heldCount.setCullHint(BitmapText.CullHint.Always);
+			_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
+		}
+	}
+	
+	// ========================================================
+	// Input Handling.
+	// ========================================================
+	
+	@Override
+	public void onAction(String name, boolean isPressed, float tpf)
+	{
+		if (!_open || !isPressed)
+		{
+			return;
+		}
+		
+		final Vector2f cursor = _inputManager.getCursorPosition();
+		final int slot = getSlotAtPosition(cursor.x, cursor.y);
+		
+		if (GameInputManager.ATTACK.equals(name))
+		{
+			// Shift-click detection: check if shift is currently held via input manager.
+			// jME3 InputManager doesn't expose raw key state easily, so we detect shift
+			// by checking if the mapping is pressed. As a simpler approach, we use
+			// the keyboard directly via LWJGL.
+			final boolean shiftHeld = org.lwjgl.glfw.GLFW.glfwGetKey(org.lwjgl.glfw.GLFW.glfwGetCurrentContext(), org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS || org.lwjgl.glfw.GLFW.glfwGetKey(org.lwjgl.glfw.GLFW.glfwGetCurrentContext(), org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+			
+			if (shiftHeld && slot >= 0 && _heldStack == null)
+			{
+				handleShiftClick(slot);
+			}
+			else
+			{
+				handleLeftClick(slot);
+			}
+		}
+		else if (GameInputManager.PLACE_BLOCK.equals(name))
+		{
+			handleRightClick(slot);
+		}
+	}
+	
+	/**
+	 * Left-click: pick up, place, swap, or merge stacks.
+	 */
+	private void handleLeftClick(int slot)
+	{
+		if (slot < 0)
+		{
+			// Clicked outside grid - drop held stack into the world.
+			if (_heldStack != null)
+			{
+				dropItemIntoWorld(_heldStack);
+				_heldStack = null;
+			}
+			return;
+		}
+		
+		if (_heldStack == null)
+		{
+			// Pick up stack from slot.
+			final ItemInstance target = getItemAtDisplaySlot(slot);
+			if (target != null && !target.isEmpty())
+			{
+				_heldStack = target;
+				setItemAtDisplaySlot(slot, null);
+			}
+		}
+		else
+		{
+			final ItemInstance target = getItemAtDisplaySlot(slot);
+			
+			if (target == null || target.isEmpty())
+			{
+				// Place held stack in empty slot.
+				setItemAtDisplaySlot(slot, _heldStack);
+				_heldStack = null;
+			}
+			else if (target.canStackWith(_heldStack))
+			{
+				// Merge: add held count to target.
+				final int overflow = target.add(_heldStack.getCount());
+				if (overflow <= 0)
+				{
+					_heldStack = null;
+				}
+				else
+				{
+					_heldStack = new ItemInstance(_heldStack.getTemplate(), overflow);
+				}
+			}
+			else
+			{
+				// Swap: exchange held and slot contents.
+				setItemAtDisplaySlot(slot, _heldStack);
+				_heldStack = target;
+			}
+		}
+	}
+	
+	/**
+	 * Right-click: place a single item from held stack.
+	 */
+	private void handleRightClick(int slot)
+	{
+		if (slot < 0 || _heldStack == null)
+		{
+			return;
+		}
+		
+		final ItemInstance target = getItemAtDisplaySlot(slot);
+		
+		if (target == null || target.isEmpty())
+		{
+			// Place one item in empty slot.
+			setItemAtDisplaySlot(slot, new ItemInstance(_heldStack.getTemplate(), 1));
+			_heldStack.remove(1);
+			if (_heldStack.isEmpty())
+			{
+				_heldStack = null;
+			}
+		}
+		else if (target.getTemplate() == _heldStack.getTemplate() && !target.isFull() && !target.hasDurability())
+		{
+			// Add one item to matching stack.
+			target.add(1);
+			_heldStack.remove(1);
+			if (_heldStack.isEmpty())
+			{
+				_heldStack = null;
+			}
+		}
+	}
+	
+	/**
+	 * Shift-click: quick-transfer entire stack to the opposite inventory.<br>
+	 * Chest slot -> player inventory, player slot -> chest inventory.<br>
+	 * Fills matching stacks first, then first empty slot.
+	 */
+	private void handleShiftClick(int displaySlot)
+	{
+		final ItemInstance stack = getItemAtDisplaySlot(displaySlot);
+		if (stack == null || stack.isEmpty())
+		{
+			return;
+		}
+		
+		final boolean isChestSlot = displaySlot < ChestTileEntity.CHEST_SLOTS;
+		
+		if (isChestSlot)
+		{
+			// Transfer from chest to player inventory.
+			if (_inventory.addItem(stack))
+			{
+				_activeChest.setSlot(displaySlot, null);
+			}
+		}
+		else
+		{
+			// Transfer from player inventory to chest.
+			final int playerSlot = displaySlot - ChestTileEntity.CHEST_SLOTS;
+			if (addToChest(stack))
+			{
+				_inventory.setSlot(playerSlot, null);
+			}
+		}
+	}
+	
+	/**
+	 * Attempts to add an ItemInstance to the chest.<br>
+	 * First tries to merge with existing matching stacks, then fills the first empty slot.
+	 * @param stack the ItemInstance to add
+	 * @return true if all items were placed, false if chest is full
+	 */
+	private boolean addToChest(ItemInstance stack)
+	{
+		if (stack == null || stack.isEmpty())
+		{
+			return true;
+		}
+		
+		int remaining = stack.getCount();
+		
+		// Phase 1: Merge with existing matching stacks.
+		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
+		{
+			if (remaining <= 0)
+			{
+				return true;
+			}
+			
+			final ItemInstance existing = _activeChest.getSlot(i);
+			if (existing != null && existing.canStackWith(stack))
+			{
+				remaining = existing.add(remaining);
+			}
+		}
+		
+		// Phase 2: Fill first empty slot.
+		if (remaining > 0)
+		{
+			for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
+			{
+				if (_activeChest.getSlot(i) == null)
+				{
+					_activeChest.setSlot(i, new ItemInstance(stack.getTemplate(), remaining));
+					return true;
+				}
+			}
+			
+			// Chest is full.
+			return false;
+		}
+		
+		return true;
+	}
+	
+	// ========================================================
+	// Slot Mapping.
+	// ========================================================
+	
+	/**
+	 * Returns the item at the given display slot index.<br>
+	 * Display slots 0-26 -> chest contents, 27-62 -> player inventory 0-35.
+	 */
+	private ItemInstance getItemAtDisplaySlot(int displaySlot)
+	{
+		if (displaySlot < 0)
+		{
+			return null;
+		}
+		
+		if (displaySlot < ChestTileEntity.CHEST_SLOTS)
+		{
+			return _activeChest.getSlot(displaySlot);
+		}
+		
+		final int playerSlot = displaySlot - ChestTileEntity.CHEST_SLOTS;
+		if (playerSlot >= 0 && playerSlot < Inventory.TOTAL_SLOTS)
+		{
+			return _inventory.getSlot(playerSlot);
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Sets the item at the given display slot index.
+	 */
+	private void setItemAtDisplaySlot(int displaySlot, ItemInstance stack)
+	{
+		if (displaySlot < 0)
+		{
+			return;
+		}
+		
+		if (displaySlot < ChestTileEntity.CHEST_SLOTS)
+		{
+			_activeChest.setSlot(displaySlot, stack);
+			return;
+		}
+		
+		final int playerSlot = displaySlot - ChestTileEntity.CHEST_SLOTS;
+		if (playerSlot >= 0 && playerSlot < Inventory.TOTAL_SLOTS)
+		{
+			_inventory.setSlot(playerSlot, stack);
+		}
+	}
+	
+	// ========================================================
+	// Slot Hit Detection.
+	// ========================================================
+	
+	/**
+	 * Returns the display slot index at the given screen position, or -1 if outside.
+	 */
+	private int getSlotAtPosition(float x, float y)
+	{
+		for (int i = 0; i < TOTAL_DISPLAY_SLOTS; i++)
+		{
+			if (x >= _slotX[i] && x < _slotX[i] + _slotSize && y >= _slotY[i] && y < _slotY[i] + _slotSize)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+	
+	// ========================================================
+	// World Drop Support.
+	// ========================================================
+	
+	/**
+	 * Sets the drop manager for spawning world drops when items are discarded.
+	 */
+	public void setDropManager(DropManager dropManager)
+	{
+		_dropManager = dropManager;
+	}
+	
+	/**
+	 * Sets the world reference for ground-level lookups when dropping items.
+	 */
+	public void setWorld(World world)
+	{
+		_world = world;
+	}
+	
+	/**
+	 * Drops an item stack into the world slightly in front of the player.
+	 */
+	private void dropItemIntoWorld(ItemInstance stack)
+	{
+		if (stack == null || stack.isEmpty())
+		{
+			return;
+		}
+		
+		if (_dropManager == null)
+		{
+			System.out.println("ChestScreen: Discarded (no DropManager): " + stack);
+			return;
+		}
+		
+		final Vector3f playerPos = _playerController.getPosition();
+		final Vector3f camDir = SimpleCraft.getInstance().getCamera().getDirection();
+		
+		final float hLength = (float) Math.sqrt(camDir.x * camDir.x + camDir.z * camDir.z);
+		final float forwardDist = 2.5f;
+		float dropX;
+		float dropZ;
+		if (hLength > 0.001f)
+		{
+			dropX = playerPos.x + (camDir.x / hLength) * forwardDist;
+			dropZ = playerPos.z + (camDir.z / hLength) * forwardDist;
+		}
+		else
+		{
+			dropX = playerPos.x;
+			dropZ = playerPos.z;
+		}
+		
+		final int bx = (int) Math.floor(dropX);
+		final int bz = (int) Math.floor(dropZ);
+		int groundY = (int) Math.ceil(playerPos.y);
+		if (_world != null)
+		{
+			final int startY = (int) Math.ceil(playerPos.y) + 1;
+			for (int y = startY; y >= 0; y--)
+			{
+				if (_world.getBlock(bx, y, bz).isSolid())
+				{
+					groundY = y + 1;
+					break;
+				}
+			}
+		}
+		
+		_dropManager.spawnDrop(new Vector3f(dropX, groundY, dropZ), stack);
+	}
+	
+	// ========================================================
+	// Cleanup.
+	// ========================================================
+	
+	/**
+	 * Removes all chest screen elements from the GUI node.
+	 */
+	public void cleanup()
+	{
+		if (_open)
+		{
+			close();
+		}
+		_guiNode.detachChild(_screenNode);
+	}
+	
+	// ========================================================
+	// Geometry Helpers.
+	// ========================================================
+	
+	private Geometry createQuad(String name, float width, float height, ColorRGBA color, SimpleCraft app)
+	{
+		final Material mat = createColorMaterial(color, app);
+		return createQuadWithMaterial(name, width, height, mat);
+	}
+	
+	private Geometry createQuadWithMaterial(String name, float width, float height, Material mat)
+	{
+		final Quad quad = new Quad(width, height);
+		final Geometry geom = new Geometry(name, quad);
+		geom.setMaterial(mat);
+		geom.setQueueBucket(Bucket.Gui);
+		return geom;
+	}
+	
+	private Material createColorMaterial(ColorRGBA color, SimpleCraft app)
+	{
+		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		mat.setColor("Color", color.clone());
+		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		return mat;
+	}
+}
