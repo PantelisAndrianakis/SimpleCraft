@@ -56,7 +56,7 @@ public class InventoryScreen implements ActionListener
 	private static final int GRID_ROWS = 4;
 	
 	/** Pixel gap between hotbar row and main inventory rows. */
-	private static final float HOTBAR_GAP = 8f;
+	private static final float HOTBAR_GAP = 30f;
 	
 	/** Pixel gap between individual slots. */
 	private static final float SLOT_SPACING = 3f;
@@ -173,6 +173,10 @@ public class InventoryScreen implements ActionListener
 	/** Title text at top of inventory grid. */
 	private BitmapText _titleText;
 	private BitmapText _titleTextShadow;
+	
+	/** Action Bar label above the hotbar row. */
+	private BitmapText _actionBarText;
+	private BitmapText _actionBarTextShadow;
 	
 	/** Reusable color to avoid allocation each frame. */
 	// private final ColorRGBA _tempColor = new ColorRGBA();
@@ -401,6 +405,27 @@ public class InventoryScreen implements ActionListener
 		final int titleSize = Math.max(14, (int) (_screenHeight * 0.022f));
 		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, titleSize);
 		
+		// "Action Bar" label above the hotbar row.
+		_actionBarTextShadow = new BitmapText(titleFont);
+		_actionBarTextShadow.setText("Action Bar");
+		_actionBarTextShadow.setSize(titleSize);
+		_actionBarTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_screenNode.attachChild(_actionBarTextShadow);
+		
+		_actionBarText = new BitmapText(titleFont);
+		_actionBarText.setText("Action Bar");
+		_actionBarText.setSize(titleSize);
+		_actionBarText.setColor(COLOR_TEXT.clone());
+		_screenNode.attachChild(_actionBarText);
+		
+		// Position above the hotbar row.
+		final float abWidth = _actionBarText.getLineWidth();
+		final float abX = (_screenWidth - abWidth) / 2f;
+		final float abY = _slotY[0] + _slotSize + SLOT_PADDING + _actionBarText.getLineHeight() + 2;
+		_actionBarText.setLocalTranslation(abX, abY, Z_TEXT);
+		_actionBarTextShadow.setLocalTranslation(abX + 1, abY - 1, Z_TEXT - 0.1f);
+		
+		// "Inventory" label above the main inventory rows.
 		_titleTextShadow = new BitmapText(titleFont);
 		_titleTextShadow.setText("Inventory");
 		_titleTextShadow.setSize(titleSize);
@@ -413,10 +438,11 @@ public class InventoryScreen implements ActionListener
 		_titleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_titleText);
 		
-		// Position above the hotbar row.
+		// Position in the gap between hotbar and main inventory (above the top main row).
 		final float titleWidth = _titleText.getLineWidth();
 		final float titleX = (_screenWidth - titleWidth) / 2f;
-		final float titleY = _slotY[0] + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 8;
+		// _slotY[9] is the Y of the top row of the main inventory (slots 9-17).
+		final float titleY = _slotY[9] + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 2;
 		_titleText.setLocalTranslation(titleX, titleY, Z_TEXT);
 		_titleTextShadow.setLocalTranslation(titleX + 1, titleY - 1, Z_TEXT - 0.1f);
 	}

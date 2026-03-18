@@ -32,7 +32,7 @@ import simplecraft.world.entity.ChestTileEntity;
  * Displays 27 chest storage slots (3×9) above the player's 36 inventory slots.<br>
  * <br>
  * <b>Layout (top to bottom):</b><br>
- * Title "Chest" -> 3×9 chest grid -> separator -> 3×9 main inventory -> 1×9 hotbar.<br>
+ * Title "Chest" -> 3×9 chest grid -> 3×9 main inventory -> 1×9 hotbar.<br>
  * <br>
  * <b>Interaction:</b><br>
  * Left-click a slot to pick up the stack. Left-click another slot to place/swap/merge.<br>
@@ -64,7 +64,7 @@ public class ChestScreen implements ActionListener
 	private static final int PLAYER_MAIN_ROWS = 3;
 	
 	/** Pixel gap between slot groups (chest-to-player, main-to-hotbar). */
-	private static final float SECTION_GAP = 10f;
+	private static final float SECTION_GAP = 30f;
 	
 	/** Pixel gap between individual slots. */
 	private static final float SLOT_SPACING = 3f;
@@ -84,7 +84,6 @@ public class ChestScreen implements ActionListener
 	private static final float Z_HIGHLIGHT = 10.8f;
 	private static final float Z_HELD = 15f;
 	private static final float Z_TOOLTIP = 16f;
-	private static final float Z_SEPARATOR = 11f;
 	
 	// ========================================================
 	// Colors.
@@ -101,7 +100,6 @@ public class ChestScreen implements ActionListener
 	private static final ColorRGBA COLOR_DURABILITY_GREEN = new ColorRGBA(0.2f, 0.85f, 0.2f, 1.0f);
 	private static final ColorRGBA COLOR_DURABILITY_YELLOW = new ColorRGBA(0.9f, 0.85f, 0.2f, 1.0f);
 	private static final ColorRGBA COLOR_DURABILITY_RED = new ColorRGBA(0.9f, 0.2f, 0.2f, 1.0f);
-	private static final ColorRGBA COLOR_SEPARATOR = new ColorRGBA(0.4f, 0.4f, 0.4f, 0.5f);
 	
 	// ========================================================
 	// Fields.
@@ -174,6 +172,14 @@ public class ChestScreen implements ActionListener
 	private BitmapText _titleText;
 	private BitmapText _titleTextShadow;
 	
+	/** "Inventory" label above the player main inventory section. */
+	private BitmapText _inventoryLabel;
+	private BitmapText _inventoryLabelShadow;
+	
+	/** "Action Bar" label above the player hotbar section. */
+	private BitmapText _actionBarLabel;
+	private BitmapText _actionBarLabelShadow;
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -211,7 +217,6 @@ public class ChestScreen implements ActionListener
 		buildOverlay(app);
 		computeSlotPositions();
 		buildSlots(app);
-		buildSeparator(app);
 		buildHoverHighlight(app);
 		buildTooltip(app);
 		buildHeldItem(app);
@@ -352,29 +357,6 @@ public class ChestScreen implements ActionListener
 		}
 	}
 	
-	/**
-	 * Builds a visual separator line between the chest and player inventory sections.
-	 */
-	private void buildSeparator(SimpleCraft app)
-	{
-		final float totalGridWidth = GRID_COLS * _slotSize + (GRID_COLS - 1) * SLOT_SPACING;
-		final float gridStartX = (_screenWidth - totalGridWidth) / 2f;
-		
-		// The separator goes between chest bottom row and player main top row.
-		// Chest bottom row (row 2) starts at display slot 18 (2 * 9).
-		// Player main top row starts at display slot 36 (27 + 9).
-		final float chestBottomY = _slotY[18]; // Bottom-most chest row.
-		final float playerTopY = _slotY[ChestTileEntity.CHEST_SLOTS + 9]; // Top-most player main row.
-		
-		// Separator midway between bottom of chest slots and top of player main.
-		final float sepY = (chestBottomY + playerTopY + _slotSize) / 2f;
-		
-		final Material sepMat = createColorMaterial(COLOR_SEPARATOR, app);
-		final Geometry separator = createQuadWithMaterial("ChSeparator", totalGridWidth, 2f, sepMat);
-		separator.setLocalTranslation(gridStartX, sepY, Z_SEPARATOR);
-		_screenNode.attachChild(separator);
-	}
-	
 	private void buildHoverHighlight(SimpleCraft app)
 	{
 		final Material mat = createColorMaterial(COLOR_HOVER, app);
@@ -442,6 +424,7 @@ public class ChestScreen implements ActionListener
 		final int titleSize = Math.max(14, (int) (_screenHeight * 0.022f));
 		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, titleSize);
 		
+		// "Chest" title above the chest slot section.
 		_titleTextShadow = new BitmapText(titleFont);
 		_titleTextShadow.setText("Chest");
 		_titleTextShadow.setSize(titleSize);
@@ -459,9 +442,51 @@ public class ChestScreen implements ActionListener
 		final float titleX = (_screenWidth - titleWidth) / 2f;
 		// Top chest row is row 0 (display slots 0-8), which has the highest Y.
 		final float topChestSlotY = _slotY[0];
-		final float titleY = topChestSlotY + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 8;
+		final float titleY = topChestSlotY + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 2;
 		_titleText.setLocalTranslation(titleX, titleY, Z_TEXT);
 		_titleTextShadow.setLocalTranslation(titleX + 1, titleY - 1, Z_TEXT - 0.1f);
+		
+		// "Inventory" label above the player main inventory section.
+		_inventoryLabelShadow = new BitmapText(titleFont);
+		_inventoryLabelShadow.setText("Inventory");
+		_inventoryLabelShadow.setSize(titleSize);
+		_inventoryLabelShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_screenNode.attachChild(_inventoryLabelShadow);
+		
+		_inventoryLabel = new BitmapText(titleFont);
+		_inventoryLabel.setText("Inventory");
+		_inventoryLabel.setSize(titleSize);
+		_inventoryLabel.setColor(COLOR_TEXT.clone());
+		_screenNode.attachChild(_inventoryLabel);
+		
+		// Position above the top player main inventory row (display slot for player slot 9).
+		final float invWidth = _inventoryLabel.getLineWidth();
+		final float invX = (_screenWidth - invWidth) / 2f;
+		final float topPlayerMainY = _slotY[ChestTileEntity.CHEST_SLOTS + 9];
+		final float invY = topPlayerMainY + _slotSize + SLOT_PADDING + _inventoryLabel.getLineHeight() + 2;
+		_inventoryLabel.setLocalTranslation(invX, invY, Z_TEXT);
+		_inventoryLabelShadow.setLocalTranslation(invX + 1, invY - 1, Z_TEXT - 0.1f);
+		
+		// "Action Bar" label above the player hotbar section.
+		_actionBarLabelShadow = new BitmapText(titleFont);
+		_actionBarLabelShadow.setText("Action Bar");
+		_actionBarLabelShadow.setSize(titleSize);
+		_actionBarLabelShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_screenNode.attachChild(_actionBarLabelShadow);
+		
+		_actionBarLabel = new BitmapText(titleFont);
+		_actionBarLabel.setText("Action Bar");
+		_actionBarLabel.setSize(titleSize);
+		_actionBarLabel.setColor(COLOR_TEXT.clone());
+		_screenNode.attachChild(_actionBarLabel);
+		
+		// Position above the hotbar row (display slot 27 = player slot 0).
+		final float abWidth = _actionBarLabel.getLineWidth();
+		final float abX = (_screenWidth - abWidth) / 2f;
+		final float hotbarTopY = _slotY[ChestTileEntity.CHEST_SLOTS]; // display slot 27 = player hotbar slot 0
+		final float abY = hotbarTopY + _slotSize + SLOT_PADDING + _actionBarLabel.getLineHeight() + 2;
+		_actionBarLabel.setLocalTranslation(abX, abY, Z_TEXT);
+		_actionBarLabelShadow.setLocalTranslation(abX + 1, abY - 1, Z_TEXT - 0.1f);
 	}
 	
 	// ========================================================
