@@ -25,8 +25,8 @@ import com.jme3.texture.Texture;
 
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
-import simplecraft.item.CraftingRecipe;
 import simplecraft.item.CraftingRegistry;
+import simplecraft.item.CraftingRegistry.CraftingRecipe;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;

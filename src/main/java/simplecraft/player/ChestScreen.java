@@ -15,6 +15,7 @@ import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Texture;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
@@ -671,7 +672,7 @@ public class ChestScreen implements ActionListener
 		final ItemTemplate template = stack.getTemplate();
 		
 		// Try to resolve a sprite texture.
-		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
+		final Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
 		
 		if (slotTexture != null)
 		{
@@ -821,7 +822,7 @@ public class ChestScreen implements ActionListener
 		final float heldX = cx - heldSize / 2f;
 		final float heldY = cy - heldSize / 2f;
 		
-		final com.jme3.texture.Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
+		final Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
 		
 		if (heldTexture != null)
 		{

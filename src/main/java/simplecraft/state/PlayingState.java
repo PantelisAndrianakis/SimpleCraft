@@ -35,6 +35,7 @@ import simplecraft.item.ItemTextureResolver;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.ChestScreen;
 import simplecraft.player.CraftingScreen;
+import simplecraft.player.FurnaceScreen;
 import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
@@ -103,6 +104,7 @@ public class PlayingState extends FadeableAppState
 	private InventoryScreen _inventoryScreen;
 	private CraftingScreen _craftingScreen;
 	private ChestScreen _chestScreen;
+	private FurnaceScreen _furnaceScreen;
 	
 	/** Manages automatic enemy spawning, despawning and updates. */
 	private SpawnSystem _spawnSystem;
@@ -281,6 +283,13 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
+			// If furnace screen is open, close it instead of opening pause.
+			if (_furnaceScreen != null && _furnaceScreen.isOpen())
+			{
+				_furnaceScreen.close();
+				return;
+			}
+			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
 			{
@@ -336,6 +345,11 @@ public class PlayingState extends FadeableAppState
 					{
 						_chestScreen.close();
 					}
+					// Close furnace screen if open before opening inventory.
+					if (_furnaceScreen != null && _furnaceScreen.isOpen())
+					{
+						_furnaceScreen.close();
+					}
 					_inventoryScreen.open();
 				}
 			}
@@ -346,6 +360,10 @@ public class PlayingState extends FadeableAppState
 			else if (_chestScreen != null && _chestScreen.isOpen())
 			{
 				_chestScreen.close();
+			}
+			else if (_furnaceScreen != null && _furnaceScreen.isOpen())
+			{
+				_furnaceScreen.close();
 			}
 		};
 		
@@ -605,7 +623,8 @@ public class PlayingState extends FadeableAppState
 			final boolean inventoryOpen = _inventoryScreen != null && _inventoryScreen.isOpen();
 			final boolean craftingOpen = _craftingScreen != null && _craftingScreen.isOpen();
 			final boolean chestOpen = _chestScreen != null && _chestScreen.isOpen();
-			final boolean screenOpen = inventoryOpen || craftingOpen || chestOpen;
+			final boolean furnaceOpen = _furnaceScreen != null && _furnaceScreen.isOpen();
+			final boolean screenOpen = inventoryOpen || craftingOpen || chestOpen || furnaceOpen;
 			
 			// Update player movement and camera (skip when a screen is open).
 			if (!screenOpen)
@@ -631,6 +650,10 @@ public class PlayingState extends FadeableAppState
 				if (chestOpen)
 				{
 					_chestScreen.update(tpf);
+				}
+				if (furnaceOpen)
+				{
+					_furnaceScreen.update(tpf);
 				}
 			}
 			
@@ -739,6 +762,11 @@ public class PlayingState extends FadeableAppState
 				if (_chestScreen != null && _chestScreen.isOpen())
 				{
 					_chestScreen.close();
+				}
+				// Close furnace screen if open.
+				if (_furnaceScreen != null && _furnaceScreen.isOpen())
+				{
+					_furnaceScreen.close();
 				}
 				
 				// Dismiss any open question dialog (e.g. campfire respawn prompt).
@@ -883,6 +911,11 @@ public class PlayingState extends FadeableAppState
 		if (_chestScreen != null && _chestScreen.isOpen())
 		{
 			_chestScreen.close();
+		}
+		// Close furnace screen if open.
+		if (_furnaceScreen != null && _furnaceScreen.isOpen())
+		{
+			_furnaceScreen.close();
 		}
 		
 		// Dismiss any open question dialog (e.g. campfire respawn prompt).
@@ -1188,6 +1221,12 @@ public class PlayingState extends FadeableAppState
 			_chestScreen.setWorld(_world);
 		}
 		
+		// Wire drop manager and world to furnace screen for item discards.
+		if (_furnaceScreen != null)
+		{
+			_furnaceScreen.setDropManager(_dropManager);
+		}
+		
 		// Initialize the particle manager for block break and combat effects.
 		_particleManager = new ParticleManager(app.getAssetManager());
 		app.getRootNode().attachChild(_particleManager.getNode());
@@ -1270,6 +1309,17 @@ public class PlayingState extends FadeableAppState
 		{
 			_blockInteraction.setChestScreen(_chestScreen);
 		}
+		
+		// Create furnace screen (hidden initially, opened by right-clicking a Furnace).
+		_furnaceScreen = new FurnaceScreen(_playerController, _blockInteraction);
+		if (_dropManager != null)
+		{
+			_furnaceScreen.setDropManager(_dropManager);
+		}
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.setFurnaceScreen(_furnaceScreen);
+		}
 	}
 	
 	/**
@@ -1287,6 +1337,12 @@ public class PlayingState extends FadeableAppState
 		{
 			_chestScreen.cleanup();
 			_chestScreen = null;
+		}
+		
+		if (_furnaceScreen != null)
+		{
+			_furnaceScreen.cleanup();
+			_furnaceScreen = null;
 		}
 		
 		if (_inventoryScreen != null)

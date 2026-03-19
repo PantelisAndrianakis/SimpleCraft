@@ -43,6 +43,7 @@ public class ItemRegistry
 		registerBlockItem(ItemTemplate.block("chest", "Chest", Block.CHEST), Block.CHEST);
 		registerBlockItem(ItemTemplate.block("crafting_table", "Crafting Table", Block.CRAFTING_TABLE), Block.CRAFTING_TABLE);
 		registerBlockItem(ItemTemplate.block("furnace", "Furnace", Block.FURNACE), Block.FURNACE);
+		registerBlockItem(ItemTemplate.block("iron_ore", "Iron Ore", Block.IRON_ORE), Block.IRON_ORE);
 		registerBlockItem(ItemTemplate.block("glass", "Glass", Block.GLASS), Block.GLASS);
 		registerBlockItem(ItemTemplate.block("window", "Window", Block.WINDOW), Block.WINDOW);
 		registerBlockItem(ItemTemplate.block("door", "Door", Block.DOOR_BOTTOM), Block.DOOR_BOTTOM);
@@ -89,8 +90,8 @@ public class ItemRegistry
 		// ========================================================
 		register(ItemTemplate.material("wood_plank", "Wood Plank"));
 		register(ItemTemplate.material("stone_shard", "Stone Shard"));
-		register(ItemTemplate.material("iron_nugget", "Iron Nugget"));
-		register(ItemTemplate.material("coal", "Coal"));
+		register(ItemTemplate.material("iron_ingot", "Iron Ingot"));
+		register(ItemTemplate.material("charcoal", "Charcoal"));
 		
 		System.out.println("ItemRegistry: Registered " + ITEMS.size() + " items.");
 	}
@@ -145,7 +146,7 @@ public class ItemRegistry
 	/**
 	 * Returns the item ID that a block drops when broken.<br>
 	 * Some blocks drop different items than their block form:<br>
-	 * STONE -> "stone_shard", IRON_ORE -> "iron_nugget", BERRY_BUSH -> "berries", GRASS -> "dirt".<br>
+	 * BERRY_BUSH -> "berries", GRASS -> "dirt".<br>
 	 * LEAVES have a 25% chance to drop "leaves", 75% nothing (caller handles randomness).<br>
 	 * Returns null if the block drops nothing (AIR, WATER, BEDROCK, TALL_GRASS, SEAWEED, etc).
 	 * @param block the block that was broken

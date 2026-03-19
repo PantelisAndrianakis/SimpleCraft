@@ -12,12 +12,13 @@ import com.jme3.asset.plugins.FileLocator;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 
+import simplecraft.player.ViewmodelRenderer;
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
 
 /**
  * Resolves the best available texture for an item by checking multiple filesystem paths<br>
- * in priority order. Uses the same {@link FileLocator} approach as {@link simplecraft.player.ViewmodelRenderer}<br>
+ * in priority order. Uses the same {@link FileLocator} approach as {@link ViewmodelRenderer}<br>
  * to load textures from the {@code assets/images/} directory tree.<br>
  * <br>
  * Used by {@link DroppedItem} for world drop visuals, by the inventory screen for slot icons,<br>
@@ -136,7 +137,7 @@ public class ItemTextureResolver
 	 * Attempts to load a texture from the filesystem using {@link FileLocator}.<br>
 	 * Checks {@link File#exists()} first, then registers the directory and loads<br>
 	 * with a {@link TextureKey}. Uses nearest-neighbor filtering for pixel art.<br>
-	 * This matches the proven loading approach used by {@link simplecraft.player.ViewmodelRenderer}.
+	 * This matches the proven loading approach used by {@link ViewmodelRenderer}.
 	 * @param assetManager the jME3 asset manager
 	 * @param directory the filesystem directory (e.g. "assets/images/items/")
 	 * @param filename the texture filename (e.g. "stone_pickaxe.png")

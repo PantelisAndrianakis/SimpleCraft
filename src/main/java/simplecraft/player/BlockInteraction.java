@@ -45,7 +45,7 @@ import simplecraft.world.entity.CampfireTileEntity;
 import simplecraft.world.entity.ChestTileEntity;
 import simplecraft.world.entity.CraftingTableTileEntity;
 import simplecraft.world.entity.DoorTileEntity;
-import simplecraft.world.entity.PlaceholderTileEntity;
+import simplecraft.world.entity.FurnaceTileEntity;
 import simplecraft.world.entity.TileEntity;
 import simplecraft.world.entity.TileEntity.Facing;
 import simplecraft.world.entity.TileEntityManager;
@@ -219,6 +219,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/** Chest screen opened when interacting with a chest. */
 	private ChestScreen _chestScreen;
+	
+	/** Furnace screen opened when interacting with a furnace. */
+	private FurnaceScreen _furnaceScreen;
 	
 	// Camera shake.
 	private float _shakeTimer;
@@ -945,6 +948,19 @@ public class BlockInteraction implements ActionListener, AnalogListener
 							}
 						}
 						
+						// Furnace: drop all stored contents before removal.
+						if (entity instanceof FurnaceTileEntity)
+						{
+							final FurnaceTileEntity furnace = (FurnaceTileEntity) entity;
+							furnace.dropContents(_dropManager);
+							
+							// Close the furnace screen if this furnace is currently being viewed.
+							if (_furnaceScreen != null && _furnaceScreen.isOpen())
+							{
+								_furnaceScreen.close();
+							}
+						}
+						
 						manager.remove(_targetX, _targetY, _targetZ);
 						entity.onRemoved(_world);
 						
@@ -1106,7 +1122,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/**
 	 * Spawns a dropped item on the ground at the given block position.<br>
-	 * Handles special drops (STONE -> stone_shard, IRON_ORE -> iron_nugget, etc.),<br>
+	 * Handles special drops (STONE -> stone_shard, etc.),<br>
 	 * LEAVES 25% drop chance and standard block-to-item drops.<br>
 	 * If the DropManager is not set, falls back to adding directly to the inventory.
 	 * @param block the block that was broken
@@ -1300,6 +1316,18 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				}
 			}
 			
+			// Furnace: drop all stored contents before removal.
+			if (te instanceof FurnaceTileEntity)
+			{
+				final FurnaceTileEntity furnace = (FurnaceTileEntity) te;
+				furnace.dropContents(_dropManager);
+				
+				if (_furnaceScreen != null && _furnaceScreen.isOpen())
+				{
+					_furnaceScreen.close();
+				}
+			}
+			
 			te.onRemoved(_world);
 			manager.remove(nx, ny, nz);
 			_world.setBlockNoRebuild(nx, ny, nz, Block.AIR);
@@ -1372,6 +1400,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					if (entity instanceof ChestTileEntity && _chestScreen != null)
 					{
 						_chestScreen.open((ChestTileEntity) entity);
+					}
+					
+					// Open furnace UI when interacting with a furnace.
+					if (entity instanceof FurnaceTileEntity && _furnaceScreen != null)
+					{
+						_furnaceScreen.open((FurnaceTileEntity) entity);
 					}
 					
 					// Play a thud on door open/close and window flip.
@@ -1681,9 +1715,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					}
 					case FURNACE:
 					{
-						final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, selectedBlock);
-						placeholder.setFacing(getPlayerFacing());
-						entity = placeholder;
+						final FurnaceTileEntity furnace = new FurnaceTileEntity(pos);
+						furnace.setFacing(getPlayerFacing());
+						entity = furnace;
 						break;
 					}
 					case CRAFTING_TABLE:
@@ -2796,5 +2830,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setChestScreen(ChestScreen chestScreen)
 	{
 		_chestScreen = chestScreen;
+	}
+	
+	/**
+	 * Sets the furnace screen to open when interacting with a furnace.
+	 * @param furnaceScreen the furnace screen instance
+	 */
+	public void setFurnaceScreen(FurnaceScreen furnaceScreen)
+	{
+		_furnaceScreen = furnaceScreen;
 	}
 }

@@ -321,9 +321,10 @@ public abstract class TileEntity
 			}
 			case "FURNACE":
 			{
-				final PlaceholderTileEntity placeholder = new PlaceholderTileEntity(pos, Block.valueOf(type));
-				placeholder.setFacing(facingDir);
-				return placeholder;
+				final FurnaceTileEntity furnace = new FurnaceTileEntity(pos);
+				furnace.setFacing(facingDir);
+				furnace.deserializeContents(data);
+				return furnace;
 			}
 			case "CRAFTING_TABLE":
 			{
