@@ -5,7 +5,9 @@ import java.awt.Font;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.InputManager;
+import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -39,8 +41,11 @@ import simplecraft.world.entity.ChestTileEntity;
  * Left-click a slot to pick up the stack. Left-click another slot to place/swap/merge.<br>
  * Works across the chest ↔ inventory boundary.<br>
  * Right-click while holding a stack to place a single item.<br>
- * Shift-click: quick-transfer entire stack to the other inventory<br>
- * (chest -> player or player -> chest), filling matching stacks first, then first empty slot.<br>
+ * Shift+left‑click while holding nothing on a non‑empty slot -> transfer the entire stack<br>
+ * to the opposite inventory (chest -> player or player -> chest), filling matching stacks<br>
+ * first, then the first empty slot.<br>
+ * Shift+right‑click -> split a stack (pick up half from a slot, or place half of the held<br>
+ * stack into an empty slot).<br>
  * Click outside the grid while holding to discard the stack.<br>
  * <br>
  * Changes are immediate - closing the screen does not undo any transfers.<br>
@@ -180,6 +185,16 @@ public class ChestScreen implements ActionListener
 	/** "Action Bar" label above the player hotbar section. */
 	private BitmapText _actionBarLabel;
 	private BitmapText _actionBarLabelShadow;
+	
+	/** Shift tracking. */
+	private boolean _shiftDown;
+	private final ActionListener _shiftListener = (name, isPressed, tpf) ->
+	{
+		if (name.equals("SHIFT_LEFT") || name.equals("SHIFT_RIGHT"))
+		{
+			_shiftDown = isPressed;
+		}
+	};
 	
 	// ========================================================
 	// Constructor.
@@ -509,6 +524,7 @@ public class ChestScreen implements ActionListener
 		_activeChest = chest;
 		_heldStack = null;
 		_hoveredSlot = -1;
+		_shiftDown = false;
 		
 		// Show screen.
 		_screenNode.setCullHint(Node.CullHint.Never);
@@ -525,6 +541,11 @@ public class ChestScreen implements ActionListener
 		
 		// Register click listeners.
 		_inputManager.addListener(this, GameInputManager.ATTACK, GameInputManager.PLACE_BLOCK);
+		
+		// Register shift key listeners for shift-click transfer and splitting.
+		_inputManager.addMapping("SHIFT_LEFT", new KeyTrigger(KeyInput.KEY_LSHIFT));
+		_inputManager.addMapping("SHIFT_RIGHT", new KeyTrigger(KeyInput.KEY_RSHIFT));
+		_inputManager.addListener(_shiftListener, "SHIFT_LEFT", "SHIFT_RIGHT");
 		
 		// Force full slot refresh.
 		refreshAllSlots();
@@ -565,8 +586,11 @@ public class ChestScreen implements ActionListener
 		_heldCount.setCullHint(BitmapText.CullHint.Always);
 		_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
 		
-		// Remove click listeners.
+		// Remove click listeners and shift listeners.
 		_inputManager.removeListener(this);
+		_inputManager.removeListener(_shiftListener);
+		_inputManager.deleteMapping("SHIFT_LEFT");
+		_inputManager.deleteMapping("SHIFT_RIGHT");
 		
 		// Re-enable player controls.
 		_playerController.registerInput();
@@ -890,31 +914,19 @@ public class ChestScreen implements ActionListener
 		
 		if (GameInputManager.ATTACK.equals(name))
 		{
-			// Shift-click detection: check if shift is currently held via input manager.
-			// jME3 InputManager doesn't expose raw key state easily, so we detect shift
-			// by checking if the mapping is pressed. As a simpler approach, we use
-			// the keyboard directly via LWJGL.
-			final boolean shiftHeld = org.lwjgl.glfw.GLFW.glfwGetKey(org.lwjgl.glfw.GLFW.glfwGetCurrentContext(), org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS || org.lwjgl.glfw.GLFW.glfwGetKey(org.lwjgl.glfw.GLFW.glfwGetCurrentContext(), org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-			
-			if (shiftHeld && slot >= 0 && _heldStack == null)
-			{
-				handleShiftClick(slot);
-			}
-			else
-			{
-				handleLeftClick(slot);
-			}
+			handleLeftClick(slot, _shiftDown);
 		}
 		else if (GameInputManager.PLACE_BLOCK.equals(name))
 		{
-			handleRightClick(slot);
+			handleRightClick(slot, _shiftDown);
 		}
 	}
 	
 	/**
-	 * Left-click: pick up, place, swap, or merge stacks.
+	 * Left-click: pick up, place, swap, or merge stacks.<br>
+	 * If shift is held and no stack is being carried, transfers the entire stack to the opposite inventory (chest ↔ player).
 	 */
-	private void handleLeftClick(int slot)
+	private void handleLeftClick(int slot, boolean shiftDown)
 	{
 		if (slot < 0)
 		{
@@ -927,6 +939,14 @@ public class ChestScreen implements ActionListener
 			return;
 		}
 		
+		if (shiftDown && _heldStack == null)
+		{
+			// Shift-click transfer (only when not holding anything).
+			transferStack(slot);
+			return;
+		}
+		
+		// Normal left-click behavior.
 		if (_heldStack == null)
 		{
 			// Pick up stack from slot.
@@ -970,11 +990,69 @@ public class ChestScreen implements ActionListener
 	}
 	
 	/**
-	 * Right-click: place a single item from held stack.
+	 * Right-click: place a single item from held stack.<br>
+	 * If shift is held, performs splitting (pick up half or place half into empty slot).
 	 */
-	private void handleRightClick(int slot)
+	private void handleRightClick(int slot, boolean shiftDown)
 	{
-		if (slot < 0 || _heldStack == null)
+		if (slot < 0)
+		{
+			return;
+		}
+		
+		if (shiftDown)
+		{
+			// Shift+right-click: splitting behavior.
+			if (_heldStack == null)
+			{
+				// Pick up half from slot
+				final ItemInstance target = getItemAtDisplaySlot(slot);
+				if (target != null && !target.isEmpty())
+				{
+					final int total = target.getCount();
+					final int take = (total + 1) / 2; // ceil half.
+					final int leave = total - take;
+					if (leave > 0)
+					{
+						target.setCount(leave);
+						_heldStack = new ItemInstance(target.getTemplate(), take);
+					}
+					else
+					{
+						// Take whole stack (when total == 1).
+						_heldStack = target;
+						setItemAtDisplaySlot(slot, null);
+					}
+				}
+			}
+			else
+			{
+				// Place half into empty slot.
+				final ItemInstance target = getItemAtDisplaySlot(slot);
+				if (target == null || target.isEmpty())
+				{
+					final int total = _heldStack.getCount();
+					final int put = (total + 1) / 2;
+					final int keep = total - put;
+					if (keep > 0)
+					{
+						_heldStack.setCount(keep);
+						setItemAtDisplaySlot(slot, new ItemInstance(_heldStack.getTemplate(), put));
+					}
+					else
+					{
+						// Put whole stack (when total == 1).
+						setItemAtDisplaySlot(slot, _heldStack);
+						_heldStack = null;
+					}
+				}
+				// If slot is not empty, do nothing for shift-click (could be extended later).
+			}
+			return;
+		}
+		
+		// Original non-shift logic: place one item from held stack.
+		if (_heldStack == null)
 		{
 			return;
 		}
@@ -1004,11 +1082,10 @@ public class ChestScreen implements ActionListener
 	}
 	
 	/**
-	 * Shift-click: quick-transfer entire stack to the opposite inventory.<br>
-	 * Chest slot -> player inventory, player slot -> chest inventory.<br>
-	 * Fills matching stacks first, then first empty slot.
+	 * Transfers the entire stack from the given display slot to the opposite inventory.<br>
+	 * Chest slot -> player inventory, player slot -> chest.
 	 */
-	private void handleShiftClick(int displaySlot)
+	private void transferStack(int displaySlot)
 	{
 		final ItemInstance stack = getItemAtDisplaySlot(displaySlot);
 		if (stack == null || stack.isEmpty())
@@ -1029,9 +1106,9 @@ public class ChestScreen implements ActionListener
 		else
 		{
 			// Transfer from player inventory to chest.
-			final int playerSlot = displaySlot - ChestTileEntity.CHEST_SLOTS;
 			if (addToChest(stack))
 			{
+				final int playerSlot = displaySlot - ChestTileEntity.CHEST_SLOTS;
 				_inventory.setSlot(playerSlot, null);
 			}
 		}

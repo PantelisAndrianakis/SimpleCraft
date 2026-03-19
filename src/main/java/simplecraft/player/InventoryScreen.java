@@ -5,7 +5,9 @@ import java.awt.Font;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.InputManager;
+import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -178,8 +180,15 @@ public class InventoryScreen implements ActionListener
 	private BitmapText _actionBarText;
 	private BitmapText _actionBarTextShadow;
 	
-	/** Reusable color to avoid allocation each frame. */
-	// private final ColorRGBA _tempColor = new ColorRGBA();
+	/** Shift tracking. */
+	private boolean _shiftDown;
+	private final ActionListener _shiftListener = (name, isPressed, tpf) ->
+	{
+		if (name.equals("SHIFT_LEFT") || name.equals("SHIFT_RIGHT"))
+		{
+			_shiftDown = isPressed;
+		}
+	};
 	
 	// ========================================================
 	// Constructor.
@@ -464,6 +473,7 @@ public class InventoryScreen implements ActionListener
 		_open = true;
 		_heldStack = null;
 		_hoveredSlot = -1;
+		_shiftDown = false;
 		
 		// Show screen.
 		_screenNode.setCullHint(Node.CullHint.Never);
@@ -480,6 +490,11 @@ public class InventoryScreen implements ActionListener
 		
 		// Register click listeners.
 		_inputManager.addListener(this, GameInputManager.ATTACK, GameInputManager.PLACE_BLOCK);
+		
+		// Register shift key listeners for split-stack detection.
+		_inputManager.addMapping("SHIFT_LEFT", new KeyTrigger(KeyInput.KEY_LSHIFT));
+		_inputManager.addMapping("SHIFT_RIGHT", new KeyTrigger(KeyInput.KEY_RSHIFT));
+		_inputManager.addListener(_shiftListener, "SHIFT_LEFT", "SHIFT_RIGHT");
 		
 		// Force full slot refresh.
 		refreshAllSlots();
@@ -516,8 +531,11 @@ public class InventoryScreen implements ActionListener
 		_heldCount.setCullHint(BitmapText.CullHint.Always);
 		_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
 		
-		// Remove click listeners.
+		// Remove click listeners and shift listeners.
 		_inputManager.removeListener(this);
+		_inputManager.removeListener(_shiftListener);
+		_inputManager.deleteMapping("SHIFT_LEFT");
+		_inputManager.deleteMapping("SHIFT_RIGHT");
 		
 		// Re-enable player controls.
 		_playerController.registerInput();
@@ -847,7 +865,7 @@ public class InventoryScreen implements ActionListener
 		
 		if (GameInputManager.ATTACK.equals(name))
 		{
-			handleLeftClick(slot);
+			handleLeftClick(slot, _shiftDown);
 		}
 		else if (GameInputManager.PLACE_BLOCK.equals(name))
 		{
@@ -856,9 +874,10 @@ public class InventoryScreen implements ActionListener
 	}
 	
 	/**
-	 * Left-click: pick up, place, swap, or merge stacks.
+	 * Left-click: pick up, place, swap, or merge stacks.<br>
+	 * If shift is held, performs splitting instead.
 	 */
-	private void handleLeftClick(int slot)
+	private void handleLeftClick(int slot, boolean shiftDown)
 	{
 		if (slot < 0)
 		{
@@ -871,6 +890,58 @@ public class InventoryScreen implements ActionListener
 			return;
 		}
 		
+		if (shiftDown)
+		{
+			// Shift-click: splitting behavior.
+			if (_heldStack == null)
+			{
+				// Pick up half from slot.
+				final ItemInstance target = _inventory.getSlot(slot);
+				if (target != null && !target.isEmpty())
+				{
+					final int total = target.getCount();
+					final int take = (total + 1) / 2; // ceil half
+					final int leave = total - take;
+					if (leave > 0)
+					{
+						target.setCount(leave);
+						_heldStack = new ItemInstance(target.getTemplate(), take);
+					}
+					else
+					{
+						// Take whole stack (when total == 1).
+						_heldStack = target;
+						_inventory.setSlot(slot, null);
+					}
+				}
+			}
+			else
+			{
+				// Place half into empty slot.
+				final ItemInstance target = _inventory.getSlot(slot);
+				if (target == null || target.isEmpty())
+				{
+					final int total = _heldStack.getCount();
+					final int put = (total + 1) / 2;
+					final int keep = total - put;
+					if (keep > 0)
+					{
+						_heldStack.setCount(keep);
+						_inventory.setSlot(slot, new ItemInstance(_heldStack.getTemplate(), put));
+					}
+					else
+					{
+						// Put whole stack (when total == 1).
+						_inventory.setSlot(slot, _heldStack);
+						_heldStack = null;
+					}
+				}
+				// If slot is not empty, do nothing for shift-click (could be extended later).
+			}
+			return;
+		}
+		
+		// Original non-shift logic.
 		if (_heldStack == null)
 		{
 			// Pick up stack from slot.

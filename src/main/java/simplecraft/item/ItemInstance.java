@@ -128,6 +128,26 @@ public class ItemInstance
 	}
 	
 	/**
+	 * Directly sets the stack count.<br>
+	 * <b>Use with caution:</b> intended for split/merge operations where the count is already validated to be within bounds.<br>
+	 * The count is automatically clamped between 0 and the item's max stack size.
+	 * @param count new stack size
+	 */
+	public void setCount(int count)
+	{
+		if (count < 0)
+		{
+			count = 0;
+		}
+		final int max = _template.getMaxStackSize();
+		if (count > max)
+		{
+			count = max;
+		}
+		_count = count;
+	}
+	
+	/**
 	 * Returns true if this stack is empty (count <= 0).
 	 */
 	public boolean isEmpty()
@@ -210,6 +230,7 @@ public class ItemInstance
 		{
 			return _template.getDisplayName() + " x" + _count + " [" + _durability + "/" + _template.getMaxDurability() + "]";
 		}
+		
 		return _template.getDisplayName() + " x" + _count;
 	}
 }

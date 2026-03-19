@@ -5,8 +5,10 @@ import java.awt.Font;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.InputManager;
+import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
@@ -164,6 +166,16 @@ public class FurnaceScreen implements ActionListener
 	/** Drop manager for spawning world drops. */
 	private DropManager _dropManager;
 	
+	/** Shift tracking. */
+	private boolean _shiftDown;
+	private final ActionListener _shiftListener = (name, isPressed, tpf) ->
+	{
+		if (name.equals("SHIFT_LEFT") || name.equals("SHIFT_RIGHT"))
+		{
+			_shiftDown = isPressed;
+		}
+	};
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -198,6 +210,7 @@ public class FurnaceScreen implements ActionListener
 		_furnace.setActiveScreen(this);
 		_open = true;
 		_cursorItem = null;
+		_shiftDown = false;
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
@@ -217,6 +230,11 @@ public class FurnaceScreen implements ActionListener
 		// Register click listener.
 		registerInput(app.getInputManager());
 		
+		// Register shift key listeners for split-stack detection.
+		app.getInputManager().addMapping("SHIFT_LEFT", new KeyTrigger(KeyInput.KEY_LSHIFT));
+		app.getInputManager().addMapping("SHIFT_RIGHT", new KeyTrigger(KeyInput.KEY_RSHIFT));
+		app.getInputManager().addListener(_shiftListener, "SHIFT_LEFT", "SHIFT_RIGHT");
+		
 		System.out.println("FurnaceScreen: Opened.");
 	}
 	
@@ -233,9 +251,15 @@ public class FurnaceScreen implements ActionListener
 		_open = false;
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final InputManager inputManager = app.getInputManager();
 		
 		// Unregister click listener.
-		unregisterInput(app.getInputManager());
+		unregisterInput(inputManager);
+		
+		// Remove shift listeners.
+		inputManager.removeListener(_shiftListener);
+		inputManager.deleteMapping("SHIFT_LEFT");
+		inputManager.deleteMapping("SHIFT_RIGHT");
 		
 		// Return cursor item to player inventory or drop it.
 		if (_cursorItem != null && !_cursorItem.isEmpty())
@@ -278,7 +302,7 @@ public class FurnaceScreen implements ActionListener
 		_blockInteraction.registerInput();
 		
 		// Hide cursor.
-		app.getInputManager().setCursorVisible(false);
+		inputManager.setCursorVisible(false);
 		
 		System.out.println("FurnaceScreen: Closed.");
 	}
@@ -700,21 +724,21 @@ public class FurnaceScreen implements ActionListener
 		// Check furnace input slot.
 		if (isInsideSlot(mx, my, _inputSlotX, _inputSlotY))
 		{
-			handleInputSlotClick();
+			handleInputSlotClick(_shiftDown);
 			return;
 		}
 		
 		// Check furnace fuel slot.
 		if (isInsideSlot(mx, my, _fuelSlotX, _fuelSlotY))
 		{
-			handleFuelSlotClick();
+			handleFuelSlotClick(_shiftDown);
 			return;
 		}
 		
 		// Check furnace output slot.
 		if (isInsideSlot(mx, my, _outputSlotX, _outputSlotY))
 		{
-			handleOutputSlotClick();
+			handleOutputSlotClick(_shiftDown);
 			return;
 		}
 		
@@ -723,7 +747,7 @@ public class FurnaceScreen implements ActionListener
 		{
 			if (isInsideSlot(mx, my, _invSlotX[i], _invSlotY[i]))
 			{
-				handleInventorySlotClick(i);
+				handleInventorySlotClick(i, _shiftDown);
 				return;
 			}
 		}
@@ -741,10 +765,64 @@ public class FurnaceScreen implements ActionListener
 	 * Handles click on the input slot.<br>
 	 * Only accepts items that have a valid smelting recipe.
 	 */
-	private void handleInputSlotClick()
+	private void handleInputSlotClick(boolean shiftDown)
 	{
 		final ItemInstance slotItem = _furnace.getInputSlot();
 		
+		if (shiftDown)
+		{
+			// Shift-click splitting
+			if (_cursorItem == null || _cursorItem.isEmpty())
+			{
+				// Pick up half from input slot
+				if (slotItem != null && !slotItem.isEmpty())
+				{
+					int total = slotItem.getCount();
+					int take = (total + 1) / 2;
+					int leave = total - take;
+					if (leave > 0)
+					{
+						slotItem.setCount(leave);
+						_cursorItem = new ItemInstance(slotItem.getTemplate(), take);
+					}
+					else
+					{
+						_cursorItem = slotItem;
+						_furnace.setInputSlot(null);
+					}
+				}
+			}
+			else
+			{
+				// Place half into empty input slot
+				if (slotItem == null || slotItem.isEmpty())
+				{
+					// Check if cursor item is smeltable
+					if (!SmeltingRegistry.isSmeltable(_cursorItem.getTemplate().getId()))
+					{
+						System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not smeltable.");
+						return;
+					}
+					int total = _cursorItem.getCount();
+					int put = (total + 1) / 2;
+					int keep = total - put;
+					if (keep > 0)
+					{
+						_cursorItem.setCount(keep);
+						_furnace.setInputSlot(new ItemInstance(_cursorItem.getTemplate(), put));
+					}
+					else
+					{
+						_furnace.setInputSlot(_cursorItem);
+						_cursorItem = null;
+					}
+				}
+				// If slot is not empty, do nothing for shift
+			}
+			return;
+		}
+		
+		// Original non-shift logic
 		if (_cursorItem == null || _cursorItem.isEmpty())
 		{
 			// Pick up from slot.
@@ -795,10 +873,63 @@ public class FurnaceScreen implements ActionListener
 	 * Handles click on the fuel slot.<br>
 	 * Only accepts items that have a positive burn time.
 	 */
-	private void handleFuelSlotClick()
+	private void handleFuelSlotClick(boolean shiftDown)
 	{
 		final ItemInstance slotItem = _furnace.getFuelSlot();
 		
+		if (shiftDown)
+		{
+			// Shift-click splitting
+			if (_cursorItem == null || _cursorItem.isEmpty())
+			{
+				// Pick up half from fuel slot
+				if (slotItem != null && !slotItem.isEmpty())
+				{
+					int total = slotItem.getCount();
+					int take = (total + 1) / 2;
+					int leave = total - take;
+					if (leave > 0)
+					{
+						slotItem.setCount(leave);
+						_cursorItem = new ItemInstance(slotItem.getTemplate(), take);
+					}
+					else
+					{
+						_cursorItem = slotItem;
+						_furnace.setFuelSlot(null);
+					}
+				}
+			}
+			else
+			{
+				// Place half into empty fuel slot
+				if (slotItem == null || slotItem.isEmpty())
+				{
+					// Check if cursor item is fuel
+					if (!SmeltingRegistry.isFuel(_cursorItem.getTemplate().getId()))
+					{
+						System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not a valid fuel.");
+						return;
+					}
+					int total = _cursorItem.getCount();
+					int put = (total + 1) / 2;
+					int keep = total - put;
+					if (keep > 0)
+					{
+						_cursorItem.setCount(keep);
+						_furnace.setFuelSlot(new ItemInstance(_cursorItem.getTemplate(), put));
+					}
+					else
+					{
+						_furnace.setFuelSlot(_cursorItem);
+						_cursorItem = null;
+					}
+				}
+			}
+			return;
+		}
+		
+		// Original non-shift logic
 		if (_cursorItem == null || _cursorItem.isEmpty())
 		{
 			// Pick up from slot.
@@ -849,7 +980,7 @@ public class FurnaceScreen implements ActionListener
 	 * Handles click on the output slot.<br>
 	 * Can only take items, not place them.
 	 */
-	private void handleOutputSlotClick()
+	private void handleOutputSlotClick(boolean shiftDown)
 	{
 		final ItemInstance slotItem = _furnace.getOutputSlot();
 		
@@ -858,6 +989,30 @@ public class FurnaceScreen implements ActionListener
 			return;
 		}
 		
+		if (shiftDown)
+		{
+			// Shift-click: take half from output
+			if (_cursorItem == null || _cursorItem.isEmpty())
+			{
+				int total = slotItem.getCount();
+				int take = (total + 1) / 2;
+				int leave = total - take;
+				if (leave > 0)
+				{
+					slotItem.setCount(leave);
+					_cursorItem = new ItemInstance(slotItem.getTemplate(), take);
+				}
+				else
+				{
+					_cursorItem = slotItem;
+					_furnace.setOutputSlot(null);
+				}
+			}
+			// If cursor has item, do nothing (can't place into output)
+			return;
+		}
+		
+		// Original non-shift logic
 		if (_cursorItem == null || _cursorItem.isEmpty())
 		{
 			// Take entire output stack.
@@ -884,11 +1039,59 @@ public class FurnaceScreen implements ActionListener
 	 * Handles click on a player inventory slot.<br>
 	 * Picks up, places, or swaps items between cursor and inventory.
 	 */
-	private void handleInventorySlotClick(int slotIndex)
+	private void handleInventorySlotClick(int slotIndex, boolean shiftDown)
 	{
 		final Inventory inv = _playerController.getInventory();
 		final ItemInstance slotItem = inv.getSlot(slotIndex);
 		
+		if (shiftDown)
+		{
+			// Shift-click splitting
+			if (_cursorItem == null || _cursorItem.isEmpty())
+			{
+				// Pick up half from inventory slot
+				if (slotItem != null && !slotItem.isEmpty())
+				{
+					int total = slotItem.getCount();
+					int take = (total + 1) / 2;
+					int leave = total - take;
+					if (leave > 0)
+					{
+						slotItem.setCount(leave);
+						_cursorItem = new ItemInstance(slotItem.getTemplate(), take);
+					}
+					else
+					{
+						_cursorItem = slotItem;
+						inv.setSlot(slotIndex, null);
+					}
+				}
+			}
+			else
+			{
+				// Place half into empty inventory slot
+				if (slotItem == null || slotItem.isEmpty())
+				{
+					int total = _cursorItem.getCount();
+					int put = (total + 1) / 2;
+					int keep = total - put;
+					if (keep > 0)
+					{
+						_cursorItem.setCount(keep);
+						inv.setSlot(slotIndex, new ItemInstance(_cursorItem.getTemplate(), put));
+					}
+					else
+					{
+						inv.setSlot(slotIndex, _cursorItem);
+						_cursorItem = null;
+					}
+				}
+				// If slot is not empty, do nothing for shift
+			}
+			return;
+		}
+		
+		// Original non-shift logic
 		if (_cursorItem == null || _cursorItem.isEmpty())
 		{
 			// Pick up from inventory.
