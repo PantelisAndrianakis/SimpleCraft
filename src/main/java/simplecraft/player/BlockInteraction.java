@@ -223,6 +223,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	/** Furnace screen opened when interacting with a furnace. */
 	private FurnaceScreen _furnaceScreen;
 	
+	/** Inventory screen reference for screen-open detection. */
+	private InventoryScreen _inventoryScreen;
+	
 	// Camera shake.
 	private float _shakeTimer;
 	private final Vector3f _shakeOffset = new Vector3f();
@@ -2270,6 +2273,17 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return;
 		}
 		
+		// Hide highlight when any UI screen is open.
+		if (isAnyScreenOpen())
+		{
+			if (_highlightVisible)
+			{
+				_highlightGeometry.setCullHint(Geometry.CullHint.Always);
+				_highlightVisible = false;
+			}
+			return;
+		}
+		
 		// Only show highlight when a placeable block is equipped.
 		final Block selectedBlock = _playerController.getSelectedBlock();
 		if (_hasTarget && selectedBlock != null && selectedBlock != Block.AIR)
@@ -2839,5 +2853,43 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setFurnaceScreen(FurnaceScreen furnaceScreen)
 	{
 		_furnaceScreen = furnaceScreen;
+	}
+	
+	/**
+	 * Sets the inventory screen for screen-open detection.
+	 * @param inventoryScreen the inventory screen instance
+	 */
+	public void setInventoryScreen(InventoryScreen inventoryScreen)
+	{
+		_inventoryScreen = inventoryScreen;
+	}
+	
+	/**
+	 * Returns true if any UI screen (inventory, crafting, chest, furnace) is currently open.<br>
+	 * Used to hide the crosshair and block highlight while a screen is displayed.
+	 */
+	public boolean isAnyScreenOpen()
+	{
+		if (_inventoryScreen != null && _inventoryScreen.isOpen())
+		{
+			return true;
+		}
+		
+		if (_craftingScreen != null && _craftingScreen.isOpen())
+		{
+			return true;
+		}
+		
+		if (_chestScreen != null && _chestScreen.isOpen())
+		{
+			return true;
+		}
+		
+		if (_furnaceScreen != null && _furnaceScreen.isOpen())
+		{
+			return true;
+		}
+		
+		return false;
 	}
 }

@@ -1,6 +1,7 @@
 package simplecraft.player;
 
 import java.awt.Font;
+import java.util.Map;
 
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
@@ -65,6 +66,24 @@ public class FurnaceScreen implements ActionListener
 	
 	/** Icon padding inside a slot. */
 	private static final float ICON_PAD = (SLOT_SIZE - ICON_SIZE) / 2;
+	
+	/** Furnace slot visual size in pixels (doubled for prominence). */
+	private static final float FURNACE_SLOT_SIZE = 96;
+	
+	/** Furnace icon size inside a furnace slot. */
+	private static final float FURNACE_ICON_SIZE = 80;
+	
+	/** Furnace icon padding inside a furnace slot. */
+	private static final float FURNACE_ICON_PAD = (FURNACE_SLOT_SIZE - FURNACE_ICON_SIZE) / 2;
+	
+	/** Recipe panel icon size. */
+	private static final float RECIPE_ICON_SIZE = 32;
+	
+	/** Recipe row height. */
+	private static final float RECIPE_ROW_HEIGHT = 40;
+	
+	/** Recipe panel left margin from screen edge. */
+	private static final float RECIPE_PANEL_MARGIN = 20;
 	
 	/** Gap between slots. */
 	private static final float SLOT_GAP = 8;
@@ -470,9 +489,9 @@ public class FurnaceScreen implements ActionListener
 		overlay.setLocalTranslation(0, 0, Z_OVERLAY);
 		_rootNode.attachChild(overlay);
 		
-		// Layout calculations.
-		final float panelW = SLOT_SIZE * 5 + SLOT_GAP * 4;
-		final float panelX = (screenW - panelW) / 2;
+		// Layout calculations - furnace slots use doubled sizes.
+		final float furnacePanelW = FURNACE_SLOT_SIZE * 3 + SLOT_GAP * 2;
+		final float furnacePanelX = (screenW - furnacePanelW) / 2;
 		final float furnaceY = screenH * 0.6f;
 		
 		// Title.
@@ -480,58 +499,63 @@ public class FurnaceScreen implements ActionListener
 		titleText.setSize(titleFont.getCharSet().getRenderedSize());
 		titleText.setText("Furnace");
 		titleText.setColor(ColorRGBA.White);
-		titleText.setLocalTranslation(panelX + panelW / 2 - titleText.getLineWidth() / 2, furnaceY + SLOT_SIZE + 40, Z_TITLE);
+		titleText.setLocalTranslation(furnacePanelX + furnacePanelW / 2 - titleText.getLineWidth() / 2, furnaceY + FURNACE_SLOT_SIZE + 40, Z_TITLE);
 		_rootNode.attachChild(titleText);
 		
-		// Input slot (top center of furnace area).
-		_inputSlotX = panelX + SLOT_SIZE + SLOT_GAP;
+		// Input slot (top-left of furnace area, doubled size).
+		_inputSlotX = furnacePanelX;
 		_inputSlotY = furnaceY;
-		createSlotBg("InputSlotBg", _inputSlotX, _inputSlotY);
+		createFurnaceSlotBg("InputSlotBg", _inputSlotX, _inputSlotY);
 		_inputIconMat = createIconMaterial(app);
-		_inputIcon = createIconGeometry("InputIcon", _inputIconMat, _inputSlotX + ICON_PAD, _inputSlotY + ICON_PAD);
-		_inputCountLabel = createCountLabel(font, _inputSlotX, _inputSlotY);
+		_inputIcon = createFurnaceIconGeometry("InputIcon", _inputIconMat, _inputSlotX + FURNACE_ICON_PAD, _inputSlotY + FURNACE_ICON_PAD);
+		_inputCountLabel = createFurnaceCountLabel(font, _inputSlotX, _inputSlotY);
 		
-		// Fuel slot (below input).
-		_fuelSlotX = panelX + SLOT_SIZE + SLOT_GAP;
-		_fuelSlotY = furnaceY - SLOT_SIZE - SLOT_GAP * 2;
-		createSlotBg("FuelSlotBg", _fuelSlotX, _fuelSlotY);
+		// Fuel slot (below input, doubled size).
+		_fuelSlotX = furnacePanelX;
+		_fuelSlotY = furnaceY - FURNACE_SLOT_SIZE - SLOT_GAP * 2;
+		createFurnaceSlotBg("FuelSlotBg", _fuelSlotX, _fuelSlotY);
 		_fuelIconMat = createIconMaterial(app);
-		_fuelIcon = createIconGeometry("FuelIcon", _fuelIconMat, _fuelSlotX + ICON_PAD, _fuelSlotY + ICON_PAD);
-		_fuelCountLabel = createCountLabel(font, _fuelSlotX, _fuelSlotY);
+		_fuelIcon = createFurnaceIconGeometry("FuelIcon", _fuelIconMat, _fuelSlotX + FURNACE_ICON_PAD, _fuelSlotY + FURNACE_ICON_PAD);
+		_fuelCountLabel = createFurnaceCountLabel(font, _fuelSlotX, _fuelSlotY);
 		
-		// Output slot (right side).
-		_outputSlotX = panelX + SLOT_SIZE * 3 + SLOT_GAP * 3;
-		_outputSlotY = furnaceY - (SLOT_SIZE + SLOT_GAP * 2) / 2;
-		createSlotBg("OutputSlotBg", _outputSlotX, _outputSlotY);
+		// Output slot (right side, vertically centered between input and fuel, doubled size).
+		_outputSlotX = furnacePanelX + FURNACE_SLOT_SIZE * 2 + SLOT_GAP * 2;
+		_outputSlotY = furnaceY - (FURNACE_SLOT_SIZE + SLOT_GAP * 2) / 2;
+		createFurnaceSlotBg("OutputSlotBg", _outputSlotX, _outputSlotY);
 		_outputIconMat = createIconMaterial(app);
-		_outputIcon = createIconGeometry("OutputIcon", _outputIconMat, _outputSlotX + ICON_PAD, _outputSlotY + ICON_PAD);
-		_outputCountLabel = createCountLabel(font, _outputSlotX, _outputSlotY);
+		_outputIcon = createFurnaceIconGeometry("OutputIcon", _outputIconMat, _outputSlotX + FURNACE_ICON_PAD, _outputSlotY + FURNACE_ICON_PAD);
+		_outputCountLabel = createFurnaceCountLabel(font, _outputSlotX, _outputSlotY);
 		
-		// Arrow indicator (between input/output).
-		final float arrowX = panelX + SLOT_SIZE * 2 + SLOT_GAP * 2;
-		final float arrowY = _outputSlotY + SLOT_SIZE / 2 - 8;
-		final Geometry arrowBg = createQuad("ArrowBg", SLOT_SIZE, 16, new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f));
+		// Arrow indicator (between input/output, scaled for doubled slots).
+		final float arrowX = furnacePanelX + FURNACE_SLOT_SIZE + SLOT_GAP;
+		final float arrowY = _outputSlotY + FURNACE_SLOT_SIZE / 2 - 12;
+		final Geometry arrowBg = createQuad("ArrowBg", FURNACE_SLOT_SIZE, 24, new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f));
 		arrowBg.setLocalTranslation(arrowX, arrowY, Z_PROGRESS);
 		_rootNode.attachChild(arrowBg);
-		_arrowFill = createQuad("ArrowFill", SLOT_SIZE, 16, new ColorRGBA(0.2f, 0.8f, 0.2f, 0.8f));
+		_arrowFill = createQuad("ArrowFill", FURNACE_SLOT_SIZE, 24, new ColorRGBA(0.2f, 0.8f, 0.2f, 0.8f));
 		_arrowFill.setLocalTranslation(arrowX, arrowY, Z_PROGRESS_FILL);
 		_rootNode.attachChild(_arrowFill);
 		
-		// Flame indicator (between input and fuel).
-		final float flameX = _inputSlotX + SLOT_SIZE / 2 - 8;
+		// Flame indicator (between input and fuel, scaled for doubled slots).
+		final float flameX = _inputSlotX + FURNACE_SLOT_SIZE / 2 - 12;
 		final float flameY = furnaceY - SLOT_GAP - 2;
 		final float flameHeight = SLOT_GAP * 2;
-		final Geometry flameBg = createQuad("FlameBg", 16, flameHeight, new ColorRGBA(0.3f, 0.2f, 0.1f, 0.6f));
+		final Geometry flameBg = createQuad("FlameBg", 24, flameHeight, new ColorRGBA(0.3f, 0.2f, 0.1f, 0.6f));
 		flameBg.setLocalTranslation(flameX, flameY - flameHeight, Z_PROGRESS);
 		_rootNode.attachChild(flameBg);
-		_flameFill = createQuad("FlameFill", 16, flameHeight, new ColorRGBA(1.0f, 0.5f, 0.0f, 0.9f));
+		_flameFill = createQuad("FlameFill", 24, flameHeight, new ColorRGBA(1.0f, 0.5f, 0.0f, 0.9f));
 		_flameFill.setLocalTranslation(flameX, flameY - flameHeight, Z_PROGRESS_FILL);
 		_rootNode.attachChild(_flameFill);
 		
-		// Slot indicator labels.
-		createFieldLabel(font, "Input", _inputSlotX, _inputSlotY + SLOT_SIZE + 16);
-		createFieldLabel(font, "Fuel", _fuelSlotX, _fuelSlotY + SLOT_SIZE + 16);
-		createFieldLabel(font, "Output", _outputSlotX, _outputSlotY + SLOT_SIZE + 16);
+		// Slot indicator labels (positioned above each furnace slot).
+		createFieldLabel(font, "Input", _inputSlotX, _inputSlotY + FURNACE_SLOT_SIZE + 16);
+		createFieldLabel(font, "Fuel", _fuelSlotX, _fuelSlotY + FURNACE_SLOT_SIZE + 16);
+		createFieldLabel(font, "Output", _outputSlotX, _outputSlotY + FURNACE_SLOT_SIZE + 16);
+		
+		// ========================================================
+		// Recipe Info Panel (left edge of screen).
+		// ========================================================
+		buildRecipePanel(app, font, furnaceY);
 		
 		// Player inventory grid.
 		final float invStartX = (screenW - (INV_COLS * (SLOT_SIZE + SLOT_GAP) - SLOT_GAP)) / 2;
@@ -699,6 +723,253 @@ public class FurnaceScreen implements ActionListener
 		return geom;
 	}
 	
+	/**
+	 * Creates a furnace-sized slot background quad (doubled size) and attaches it to the root node.
+	 */
+	private void createFurnaceSlotBg(String name, float x, float y)
+	{
+		final Geometry bg = createQuad(name, FURNACE_SLOT_SIZE, FURNACE_SLOT_SIZE, new ColorRGBA(0.2f, 0.2f, 0.2f, SLOT_BG_ALPHA));
+		bg.setLocalTranslation(x, y, Z_SLOT_BG);
+		_rootNode.attachChild(bg);
+	}
+	
+	/**
+	 * Creates a furnace-sized icon geometry (doubled size), initially hidden.
+	 */
+	private Geometry createFurnaceIconGeometry(String name, Material mat, float x, float y)
+	{
+		final Quad quad = new Quad(FURNACE_ICON_SIZE, FURNACE_ICON_SIZE);
+		final Geometry geom = new Geometry(name, quad);
+		geom.setMaterial(mat);
+		geom.setQueueBucket(Bucket.Gui);
+		geom.setLocalTranslation(x, y, Z_ICON);
+		geom.setCullHint(Geometry.CullHint.Always);
+		_rootNode.attachChild(geom);
+		return geom;
+	}
+	
+	/**
+	 * Creates a count label positioned at the bottom-right of a furnace-sized slot.
+	 */
+	private BitmapText createFurnaceCountLabel(BitmapFont font, float slotX, float slotY)
+	{
+		final BitmapText label = new BitmapText(font);
+		label.setSize(font.getCharSet().getRenderedSize());
+		label.setColor(ColorRGBA.White);
+		label.setLocalTranslation(slotX + FURNACE_SLOT_SIZE - 24, slotY + 18, Z_LABEL);
+		_rootNode.attachChild(label);
+		return label;
+	}
+	
+	/**
+	 * Returns true if the mouse position is inside a furnace-sized slot.
+	 */
+	private boolean isInsideFurnaceSlot(float mx, float my, float slotX, float slotY)
+	{
+		return mx >= slotX && mx <= slotX + FURNACE_SLOT_SIZE && my >= slotY && my <= slotY + FURNACE_SLOT_SIZE;
+	}
+	
+	/**
+	 * Builds the smelting recipe and fuel info panel pinned to the left edge of the screen.<br>
+	 * Each recipe row shows: [input icon] input name -> [output icon] output name (Xs).<br>
+	 * Below the recipes, a fuel section shows: [fuel icon] fuel name (Xs burn).<br>
+	 * Text labels ensure readability even when item textures are missing.
+	 */
+	private void buildRecipePanel(SimpleCraft app, BitmapFont font, float furnaceY)
+	{
+		// Panel pinned to left edge of screen.
+		final float panelX = RECIPE_PANEL_MARGIN;
+		final float iconSlotSize = RECIPE_ICON_SIZE + 4;
+		float currentY = furnaceY + FURNACE_SLOT_SIZE;
+		
+		// ========================================================
+		// Recipes Section.
+		// ========================================================
+		final Map<ItemTemplate, SmeltingRegistry.SmeltResult> recipes = SmeltingRegistry.getRecipeMap();
+		if (recipes != null && !recipes.isEmpty())
+		{
+			// "Recipes" title.
+			final BitmapText recipeTitleText = new BitmapText(font);
+			recipeTitleText.setSize(font.getCharSet().getRenderedSize());
+			recipeTitleText.setText("Recipes");
+			recipeTitleText.setColor(new ColorRGBA(0.9f, 0.7f, 0.3f, 1.0f));
+			recipeTitleText.setLocalTranslation(panelX, currentY + 12, Z_TITLE);
+			_rootNode.attachChild(recipeTitleText);
+			currentY -= 8; // Gap below title before first row.
+			
+			// Recipe rows.
+			int rowIndex = 0;
+			for (Map.Entry<ItemTemplate, SmeltingRegistry.SmeltResult> entry : recipes.entrySet())
+			{
+				final ItemTemplate input = entry.getKey();
+				final ItemTemplate output = entry.getValue().getOutput();
+				final float smeltTime = entry.getValue().getSmeltTime();
+				currentY -= RECIPE_ROW_HEIGHT;
+				float cursorX = panelX;
+				
+				// Input icon background.
+				final Geometry inputBg = createQuad("RecipeInputBg" + rowIndex, iconSlotSize, iconSlotSize, new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
+				inputBg.setLocalTranslation(cursorX, currentY, Z_SLOT_BG);
+				_rootNode.attachChild(inputBg);
+				
+				// Input icon.
+				final Texture inputTex = ItemTextureResolver.resolve(app.getAssetManager(), input);
+				if (inputTex != null)
+				{
+					final Material inputMat = createIconMaterial(app);
+					inputMat.setTexture("ColorMap", inputTex);
+					final Quad inputQuad = new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE);
+					final Geometry inputGeom = new Geometry("RecipeInputIcon" + rowIndex, inputQuad);
+					inputGeom.setMaterial(inputMat);
+					inputGeom.setQueueBucket(Bucket.Gui);
+					inputGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
+					_rootNode.attachChild(inputGeom);
+				}
+				cursorX += iconSlotSize + 4;
+				
+				// Input name text.
+				final BitmapText inputLabel = new BitmapText(font);
+				inputLabel.setSize(font.getCharSet().getRenderedSize());
+				inputLabel.setText(input.getDisplayName());
+				inputLabel.setColor(new ColorRGBA(0.8f, 0.8f, 0.8f, 1.0f));
+				inputLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
+				_rootNode.attachChild(inputLabel);
+				cursorX += inputLabel.getLineWidth() + 8;
+				
+				// Arrow ">".
+				final BitmapText arrowLabel = new BitmapText(font);
+				arrowLabel.setSize(font.getCharSet().getRenderedSize());
+				arrowLabel.setText(">");
+				arrowLabel.setColor(new ColorRGBA(0.6f, 0.6f, 0.6f, 1.0f));
+				arrowLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
+				_rootNode.attachChild(arrowLabel);
+				cursorX += arrowLabel.getLineWidth() + 8;
+				
+				// Output icon background.
+				final Geometry outputBg = createQuad("RecipeOutputBg" + rowIndex, iconSlotSize, iconSlotSize, new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
+				outputBg.setLocalTranslation(cursorX, currentY, Z_SLOT_BG);
+				_rootNode.attachChild(outputBg);
+				
+				// Output icon.
+				final Texture outputTex = ItemTextureResolver.resolve(app.getAssetManager(), output);
+				if (outputTex != null)
+				{
+					final Material outputMat = createIconMaterial(app);
+					outputMat.setTexture("ColorMap", outputTex);
+					final Quad outputQuad = new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE);
+					final Geometry outputGeom = new Geometry("RecipeOutputIcon" + rowIndex, outputQuad);
+					outputGeom.setMaterial(outputMat);
+					outputGeom.setQueueBucket(Bucket.Gui);
+					outputGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
+					_rootNode.attachChild(outputGeom);
+				}
+				cursorX += iconSlotSize + 4;
+				
+				// Output name text.
+				final BitmapText outputLabel = new BitmapText(font);
+				outputLabel.setSize(font.getCharSet().getRenderedSize());
+				outputLabel.setText(output.getDisplayName());
+				outputLabel.setColor(new ColorRGBA(0.7f, 1.0f, 0.7f, 1.0f));
+				outputLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
+				_rootNode.attachChild(outputLabel);
+				cursorX += outputLabel.getLineWidth() + 8;
+				
+				// Smelt duration text.
+				final String timeStr = "(" + formatSeconds(smeltTime) + ")";
+				final BitmapText timeLabel = new BitmapText(font);
+				timeLabel.setSize(font.getCharSet().getRenderedSize());
+				timeLabel.setText(timeStr);
+				timeLabel.setColor(new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f));
+				timeLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
+				_rootNode.attachChild(timeLabel);
+				
+				rowIndex++;
+			}
+		}
+		
+		// ========================================================
+		// Fuels Section.
+		// ========================================================
+		final Map<ItemTemplate, Float> fuels = SmeltingRegistry.getFuelMap();
+		if (fuels != null && !fuels.isEmpty())
+		{
+			// Gap between sections.
+			currentY -= RECIPE_ROW_HEIGHT / 2;
+			
+			// "Fuels" title.
+			final BitmapText fuelTitleText = new BitmapText(font);
+			fuelTitleText.setSize(font.getCharSet().getRenderedSize());
+			fuelTitleText.setText("Fuels");
+			fuelTitleText.setColor(new ColorRGBA(0.9f, 0.5f, 0.2f, 1.0f));
+			fuelTitleText.setLocalTranslation(panelX, currentY, Z_TITLE);
+			_rootNode.attachChild(fuelTitleText);
+			currentY -= RECIPE_ROW_HEIGHT / 2;
+			
+			// Fuel rows.
+			int fuelIndex = 0;
+			for (Map.Entry<ItemTemplate, Float> entry : fuels.entrySet())
+			{
+				final ItemTemplate fuel = entry.getKey();
+				final float burnTime = entry.getValue();
+				currentY -= RECIPE_ROW_HEIGHT;
+				float cursorX = panelX;
+				
+				// Fuel icon background.
+				final Geometry fuelBg = createQuad("FuelInfoBg" + fuelIndex, iconSlotSize, iconSlotSize, new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
+				fuelBg.setLocalTranslation(cursorX, currentY, Z_SLOT_BG);
+				_rootNode.attachChild(fuelBg);
+				
+				// Fuel icon.
+				final Texture fuelTex = ItemTextureResolver.resolve(app.getAssetManager(), fuel);
+				if (fuelTex != null)
+				{
+					final Material fuelMat = createIconMaterial(app);
+					fuelMat.setTexture("ColorMap", fuelTex);
+					final Quad fuelQuad = new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE);
+					final Geometry fuelGeom = new Geometry("FuelInfoIcon" + fuelIndex, fuelQuad);
+					fuelGeom.setMaterial(fuelMat);
+					fuelGeom.setQueueBucket(Bucket.Gui);
+					fuelGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
+					_rootNode.attachChild(fuelGeom);
+				}
+				cursorX += iconSlotSize + 4;
+				
+				// Fuel name text.
+				final BitmapText fuelLabel = new BitmapText(font);
+				fuelLabel.setSize(font.getCharSet().getRenderedSize());
+				fuelLabel.setText(fuel.getDisplayName());
+				fuelLabel.setColor(new ColorRGBA(0.8f, 0.8f, 0.8f, 1.0f));
+				fuelLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
+				_rootNode.attachChild(fuelLabel);
+				cursorX += fuelLabel.getLineWidth() + 8;
+				
+				// Burn duration text.
+				final String burnStr = "(" + formatSeconds(burnTime) + " burn)";
+				final BitmapText burnLabel = new BitmapText(font);
+				burnLabel.setSize(font.getCharSet().getRenderedSize());
+				burnLabel.setText(burnStr);
+				burnLabel.setColor(new ColorRGBA(1.0f, 0.6f, 0.2f, 1.0f));
+				burnLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
+				_rootNode.attachChild(burnLabel);
+				
+				fuelIndex++;
+			}
+		}
+	}
+	
+	/**
+	 * Formats a time in seconds to a human-readable string.<br>
+	 * Shows whole seconds when exact (e.g. "10s"), one decimal otherwise (e.g. "5.5s").
+	 */
+	private String formatSeconds(float seconds)
+	{
+		if (seconds == (int) seconds)
+		{
+			return (int) seconds + "s";
+		}
+		return String.format("%.1fs", seconds);
+	}
+	
 	// ========================================================
 	// Click Handling.
 	// ========================================================
@@ -722,21 +993,21 @@ public class FurnaceScreen implements ActionListener
 		final float my = cursor.y;
 		
 		// Check furnace input slot.
-		if (isInsideSlot(mx, my, _inputSlotX, _inputSlotY))
+		if (isInsideFurnaceSlot(mx, my, _inputSlotX, _inputSlotY))
 		{
 			handleInputSlotClick(_shiftDown);
 			return;
 		}
 		
 		// Check furnace fuel slot.
-		if (isInsideSlot(mx, my, _fuelSlotX, _fuelSlotY))
+		if (isInsideFurnaceSlot(mx, my, _fuelSlotX, _fuelSlotY))
 		{
 			handleFuelSlotClick(_shiftDown);
 			return;
 		}
 		
 		// Check furnace output slot.
-		if (isInsideSlot(mx, my, _outputSlotX, _outputSlotY))
+		if (isInsideFurnaceSlot(mx, my, _outputSlotX, _outputSlotY))
 		{
 			handleOutputSlotClick(_shiftDown);
 			return;

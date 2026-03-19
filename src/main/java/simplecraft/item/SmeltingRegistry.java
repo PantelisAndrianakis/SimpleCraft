@@ -1,6 +1,9 @@
 package simplecraft.item;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -77,7 +80,7 @@ public class SmeltingRegistry
 		// ========================================================
 		registerFuel("wood", 10.0f);
 		registerFuel("wood_plank", 8.0f);
-		registerFuel("charcoal", 20.0f);
+		registerFuel("charcoal", 60.0f);
 		registerFuel("leaves", 3.0f);
 		
 		System.out.println("SmeltingRegistry: Registered " + SMELT_RECIPES.size() + " recipes, " + FUEL_BURN_TIMES.size() + " fuels.");
@@ -157,5 +160,59 @@ public class SmeltingRegistry
 	public static boolean isFuel(String itemId)
 	{
 		return FUEL_BURN_TIMES.containsKey(itemId) && FUEL_BURN_TIMES.get(itemId) > 0;
+	}
+	
+	/**
+	 * Returns a map of input item template -> smelting result for all registered recipes.<br>
+	 * Used by the furnace screen to display recipe info icons, names and durations.<br>
+	 * Entries are sorted by smelt time (shortest first) for consistent display order.
+	 * @return input-to-SmeltResult recipe mappings, sorted by smelt time ascending
+	 */
+	public static Map<ItemTemplate, SmeltResult> getRecipeMap()
+	{
+		final List<Map.Entry<ItemTemplate, SmeltResult>> entries = new ArrayList<>();
+		for (Map.Entry<String, SmeltResult> entry : SMELT_RECIPES.entrySet())
+		{
+			final ItemTemplate input = ItemRegistry.get(entry.getKey());
+			if (input != null)
+			{
+				entries.add(Map.entry(input, entry.getValue()));
+			}
+		}
+		entries.sort((a, b) -> Float.compare(a.getValue().getSmeltTime(), b.getValue().getSmeltTime()));
+		
+		final Map<ItemTemplate, SmeltResult> result = new LinkedHashMap<>();
+		for (Map.Entry<ItemTemplate, SmeltResult> entry : entries)
+		{
+			result.put(entry.getKey(), entry.getValue());
+		}
+		return result;
+	}
+	
+	/**
+	 * Returns a map of fuel item template -> burn duration in seconds.<br>
+	 * Used by the furnace screen to display fuel info.<br>
+	 * Entries are sorted by burn time (shortest first) for consistent display order.
+	 * @return fuel-to-burn-time mappings, sorted by burn time ascending
+	 */
+	public static Map<ItemTemplate, Float> getFuelMap()
+	{
+		final List<Map.Entry<ItemTemplate, Float>> entries = new ArrayList<>();
+		for (Map.Entry<String, Float> entry : FUEL_BURN_TIMES.entrySet())
+		{
+			final ItemTemplate fuel = ItemRegistry.get(entry.getKey());
+			if (fuel != null)
+			{
+				entries.add(Map.entry(fuel, entry.getValue()));
+			}
+		}
+		entries.sort((a, b) -> Float.compare(a.getValue(), b.getValue()));
+		
+		final Map<ItemTemplate, Float> result = new LinkedHashMap<>();
+		for (Map.Entry<ItemTemplate, Float> entry : entries)
+		{
+			result.put(entry.getKey(), entry.getValue());
+		}
+		return result;
 	}
 }
