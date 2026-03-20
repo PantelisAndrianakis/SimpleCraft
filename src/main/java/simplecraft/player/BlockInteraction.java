@@ -1374,8 +1374,37 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	/**
 	 * Handles block placement at the placement position.
 	 */
+	/**
+	 * Attempts to use the currently selected consumable item.<br>
+	 * Heals the player and consumes one from the stack regardless of current health<br>
+	 * (the item is consumed even if health is already full - "overheal" is allowed).<br>
+	 * Called on right-click and on hotbar key press (1-9).
+	 * @return true if a consumable was used (caller should skip further input handling)
+	 */
+	private boolean tryUseConsumable()
+	{
+		final Inventory inventory = _playerController.getInventory();
+		final ItemInstance selectedItem = inventory.getSelectedItem();
+		if (selectedItem == null || selectedItem.getTemplate().getType() != ItemType.CONSUMABLE)
+		{
+			return false;
+		}
+		
+		final float healAmount = selectedItem.getTemplate().getHealAmount();
+		_playerController.heal(healAmount);
+		inventory.consumeSelectedItem();
+		System.out.println("Used " + selectedItem.getTemplate().getDisplayName() + "! +" + String.format("%.1f", healAmount) + " HP (Health: " + String.format("%.1f", _playerController.getHealth()) + "/" + String.format("%.0f", _playerController.getMaxHealth()) + ")");
+		return true;
+	}
+	
 	private void handlePlace()
 	{
+		// Consumable use - works even without a block target (looking at sky, etc.).
+		if (tryUseConsumable())
+		{
+			return;
+		}
+		
 		if (!_hasTarget)
 		{
 			return;
@@ -1426,25 +1455,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		final Block selectedBlock = _playerController.getSelectedBlock();
-		
-		// Consumable use - right-click with a consumable item heals the player.
-		final Inventory inventory = _playerController.getInventory();
-		final ItemInstance selectedItem = inventory.getSelectedItem();
-		if (selectedItem != null && selectedItem.getTemplate().getType() == ItemType.CONSUMABLE)
-		{
-			if (_playerController.getHealth() < _playerController.getMaxHealth())
-			{
-				final float healAmount = selectedItem.getTemplate().getHealAmount();
-				_playerController.heal(healAmount);
-				inventory.consumeSelectedItem();
-				System.out.println("Used " + selectedItem.getTemplate().getDisplayName() + "! +" + String.format("%.1f", healAmount) + " HP (Health: " + String.format("%.1f", _playerController.getHealth()) + "/" + String.format("%.0f", _playerController.getMaxHealth()) + ")");
-			}
-			else
-			{
-				System.out.println("Health is already full.");
-			}
-			return;
-		}
 		
 		if (selectedBlock == null || selectedBlock == Block.AIR)
 		{
@@ -1815,7 +1825,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		// Consume one item from inventory for the placed block.
-		inventory.consumeSelectedItem();
+		_playerController.getInventory().consumeSelectedItem();
 		
 		System.out.println("Placed " + selectedBlock.name() + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
 		_audioManager.playSfx(AudioManager.SFX_BLOCK_PLACE);
@@ -2651,6 +2661,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						if (name.equals(GameInputManager.HOTBAR_ACTIONS[i]))
 						{
 							_playerController.getInventory().selectHotbar(i);
+							
+							// Immediately use the item if it is a consumable.
+							tryUseConsumable();
 							break;
 						}
 					}

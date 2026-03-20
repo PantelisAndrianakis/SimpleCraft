@@ -112,8 +112,7 @@ public class ViewmodelRenderer
 	
 	/**
 	 * Flame position relative to the hand node.<br>
-	 * The sprite quad extends from (-SPRITE_SIZE, 0, 0) to (0, SPRITE_SIZE, 0),<br>
-	 * so the torch tip is roughly at (-SPRITE_SIZE/2, SPRITE_SIZE * 0.9, 0).
+	 * The sprite quad extends from (-SPRITE_SIZE, 0, 0) to (0, SPRITE_SIZE, 0)
 	 */
 	private static final float FLAME_X = -SPRITE_SIZE * 0.475f;
 	private static final float FLAME_Y = SPRITE_SIZE * 0.55f;
