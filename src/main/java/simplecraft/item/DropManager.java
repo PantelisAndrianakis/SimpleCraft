@@ -38,7 +38,7 @@ public class DropManager
 	private static final float PICKUP_RANGE_SQ = PICKUP_RANGE * PICKUP_RANGE;
 	
 	/** Maximum number of active drops in the world. */
-	private static final int MAX_ACTIVE_DROPS = 50;
+	private static final int MAX_ACTIVE_DROPS = 1000;
 	
 	/**
 	 * Sound effect path for item pickup.<br>

@@ -95,6 +95,9 @@ public class ViewmodelRenderer
 	private static final float BASE_YAW = -35f;
 	private static final float BASE_ROLL = 5f;
 	
+	/** Filesystem path for dedicated drop/icon override textures (highest priority). */
+	private static final String DROP_TEX_DIR = "assets/images/drops/";
+	
 	/** Filesystem path for item textures. */
 	private static final String ITEM_TEX_DIR = "assets/images/items/";
 	
@@ -112,9 +115,9 @@ public class ViewmodelRenderer
 	 * The sprite quad extends from (-SPRITE_SIZE, 0, 0) to (0, SPRITE_SIZE, 0),<br>
 	 * so the torch tip is roughly at (-SPRITE_SIZE/2, SPRITE_SIZE * 0.9, 0).
 	 */
-	private static final float FLAME_X = -SPRITE_SIZE * 0.5f;
-	private static final float FLAME_Y = SPRITE_SIZE * 0.85f;
-	private static final float FLAME_Z = 0.07f;
+	private static final float FLAME_X = -SPRITE_SIZE * 0.475f;
+	private static final float FLAME_Y = SPRITE_SIZE * 0.55f;
+	private static final float FLAME_Z = 0.15f;
 	
 	// ========================================================
 	// Fields.
@@ -306,6 +309,19 @@ public class ViewmodelRenderer
 			}
 		}
 		
+		// --- Flame: hide during swing so the effect doesn't look odd mid-swing ---
+		if (_flameActive)
+		{
+			if (_swinging)
+			{
+				_flameEmitter.setCullHint(CullHint.Always);
+			}
+			else
+			{
+				_flameEmitter.setCullHint(CullHint.Never);
+			}
+		}
+		
 		// --- Bob ---
 		float bobR = 0;
 		float bobU = 0;
@@ -365,13 +381,13 @@ public class ViewmodelRenderer
 	{
 		final boolean isBlock = (item != null && item.getTemplate().getType() == ItemType.BLOCK);
 		
-		// CROSS_BILLBOARD blocks (torch, flowers, campfire, etc.) render as flat sprites,
-		// not 3D cubes. They should look the same as when placed in-world.
+		// CROSS_BILLBOARD and FLAT_PANEL blocks (torch, flowers, campfire, etc.) render as flat sprites, not 3D cubes.
+		// They should look the same as when placed in-world.
 		final boolean isBillboardBlock;
 		if (isBlock)
 		{
 			final Block block = item.getTemplate().getPlacesBlock();
-			isBillboardBlock = (block != null && block.getRenderMode() == RenderMode.CROSS_BILLBOARD);
+			isBillboardBlock = (block != null && (block.getRenderMode() == RenderMode.CROSS_BILLBOARD || block.getRenderMode() == RenderMode.FLAT_PANEL));
 		}
 		else
 		{
@@ -438,19 +454,30 @@ public class ViewmodelRenderer
 		}
 		
 		// Load new material.
+		// Priority 1: Check drops directory for dedicated icon override (matches ItemTextureResolver).
+		// Only applies to sprite-rendered items (not 3D block cubes, which need tiling textures).
 		Material mat = null;
-		if (showCube)
+		if (!showCube)
 		{
-			mat = loadBlockItemMaterial(item.getTemplate());
+			mat = loadMaterialFromFile(DROP_TEX_DIR, itemId + ".png", true);
 		}
-		else if (isBillboardBlock)
+		
+		// Priority 2+: Type-specific fallback.
+		if (mat == null)
 		{
-			// Billboard block held as sprite - load from block textures directory.
-			mat = loadBillboardBlockMaterial(item.getTemplate());
-		}
-		else
-		{
-			mat = loadItemMaterial(itemId);
+			if (showCube)
+			{
+				mat = loadBlockItemMaterial(item.getTemplate());
+			}
+			else if (isBillboardBlock)
+			{
+				// Billboard block held as sprite - load from block textures directory.
+				mat = loadBillboardBlockMaterial(item.getTemplate());
+			}
+			else
+			{
+				mat = loadItemMaterial(itemId);
+			}
 		}
 		
 		if (mat != null)
@@ -479,11 +506,13 @@ public class ViewmodelRenderer
 		{
 			return null;
 		}
+		
 		final String texFile = block.getTextureFile(Face.NORTH);
 		if (texFile == null || texFile.isEmpty())
 		{
 			return null;
 		}
+		
 		return loadMaterialFromFile(BLOCK_TEX_DIR, texFile, false);
 	}
 	
@@ -498,16 +527,23 @@ public class ViewmodelRenderer
 		{
 			return null;
 		}
+		
 		final String texFile = block.getTextureFile(Face.NORTH);
 		if (texFile == null || texFile.isEmpty())
 		{
 			return null;
 		}
+		
 		return loadMaterialFromFile(BLOCK_TEX_DIR, texFile, true);
 	}
 	
 	/**
-	 * Loads a texture and creates an Unshaded material.
+	 * Loads a texture and creates an Unshaded material.<br>
+	 * <br>
+	 * <b>Important:</b> The TextureKey uses the full relative path ({@code directory + filename})<br>
+	 * rather than just the filename. This prevents jME3's AssetManager from returning a<br>
+	 * same-named file from a different previously-registered locator directory (since<br>
+	 * {@code registerLocator} calls accumulate globally).
 	 * @param directory filesystem directory
 	 * @param filename texture filename
 	 * @param isSprite true for flat sprites (alpha cutout + no face cull + depth off), false for block cubes (normal depth)
@@ -523,8 +559,10 @@ public class ViewmodelRenderer
 		}
 		try
 		{
-			_assetManager.registerLocator(file.getParent(), FileLocator.class);
-			final TextureKey key = new TextureKey(filename, false);
+			// Register project root so full-path TextureKeys resolve unambiguously.
+			_assetManager.registerLocator("", FileLocator.class);
+			final String fullPath = directory + filename;
+			final TextureKey key = new TextureKey(fullPath, false);
 			key.setGenerateMips(false);
 			final Texture2D tex = (Texture2D) _assetManager.loadTexture(key);
 			tex.setMagFilter(Texture.MagFilter.Nearest);
@@ -547,7 +585,7 @@ public class ViewmodelRenderer
 			}
 			// Block cube: default depth - renders like any world block.
 			
-			System.out.println("ViewmodelRenderer: Loaded '" + filename + "'" + (isSprite ? " (sprite)" : " (block)") + ".");
+			System.out.println("ViewmodelRenderer: Loaded '" + fullPath + "'" + (isSprite ? " (sprite)" : " (block)") + ".");
 			return mat;
 		}
 		catch (Exception e)

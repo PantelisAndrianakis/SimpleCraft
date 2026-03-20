@@ -135,9 +135,14 @@ public class ItemTextureResolver
 	
 	/**
 	 * Attempts to load a texture from the filesystem using {@link FileLocator}.<br>
-	 * Checks {@link File#exists()} first, then registers the directory and loads<br>
-	 * with a {@link TextureKey}. Uses nearest-neighbor filtering for pixel art.<br>
-	 * This matches the proven loading approach used by {@link ViewmodelRenderer}.
+	 * Checks {@link File#exists()} first, then registers the project root directory<br>
+	 * and loads with a full-path {@link TextureKey}. Uses nearest-neighbor filtering<br>
+	 * for pixel art.<br>
+	 * <br>
+	 * <b>Important:</b> The TextureKey uses the full relative path ({@code directory + filename})<br>
+	 * rather than just the filename. This prevents jME3's AssetManager from returning a<br>
+	 * same-named file from a different previously-registered locator directory (since<br>
+	 * {@code registerLocator} calls accumulate globally).
 	 * @param assetManager the jME3 asset manager
 	 * @param directory the filesystem directory (e.g. "assets/images/items/")
 	 * @param filename the texture filename (e.g. "stone_pickaxe.png")
@@ -153,8 +158,9 @@ public class ItemTextureResolver
 		
 		try
 		{
-			assetManager.registerLocator(file.getParent(), FileLocator.class);
-			final TextureKey key = new TextureKey(filename, false);
+			// Register project root so full-path TextureKeys resolve unambiguously.
+			assetManager.registerLocator("", FileLocator.class);
+			final TextureKey key = new TextureKey(directory + filename, true);
 			key.setGenerateMips(false);
 			final Texture2D tex = (Texture2D) assetManager.loadTexture(key);
 			tex.setMagFilter(Texture.MagFilter.Nearest);

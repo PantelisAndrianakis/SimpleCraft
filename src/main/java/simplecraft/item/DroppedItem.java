@@ -20,6 +20,7 @@ import com.jme3.util.BufferUtils;
 
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
+import simplecraft.world.Block.RenderMode;
 import simplecraft.world.TextureAtlas;
 
 /**
@@ -145,7 +146,7 @@ public class DroppedItem
 		// Block-type items always render as spinning 3D cubes, never billboards.
 		// ------------------------------------------------------------------
 		final Block placedBlock = instance.getTemplate().getType() == ItemType.BLOCK ? instance.getTemplate().getPlacesBlock() : null;
-		if (placedBlock != null && atlasMaterial != null && placedBlock.getAtlasIndex() >= 0)
+		if (placedBlock != null && atlasMaterial != null && placedBlock.getAtlasIndex() >= 0 && placedBlock.getRenderMode() != RenderMode.CROSS_BILLBOARD && placedBlock.getRenderMode() != RenderMode.FLAT_PANEL)
 		{
 			_isBillboard = false;
 			
