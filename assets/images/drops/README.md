@@ -14,3 +14,8 @@ File name: door.png
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: window.png  
+
+## Berries
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: berries.png  

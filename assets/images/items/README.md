@@ -64,3 +64,33 @@ File name: stone_shovel.png
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: iron_shovel.png  
+
+## Charcoal
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: charcoal.png  
+
+## Cooked Meat
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: cooked_meat.png  
+
+## Health Potion
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: health_potion.png  
+
+## Iron Ingot
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: iron_ingot.png  
+
+## Stone Shard
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: stone_shard.png  
+
+## Wood Plank
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: wood_plank.png  
