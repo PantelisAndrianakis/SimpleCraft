@@ -179,10 +179,6 @@ public class ItemRegistry
 			case STONE:
 			case IRON_ORE:
 			case TORCH:
-			case RED_POPPY:
-			case DANDELION:
-			case BLUE_ORCHID:
-			case WHITE_DAISY:
 			case CAMPFIRE:
 			case CHEST:
 			case CRAFTING_TABLE:
@@ -202,6 +198,10 @@ public class ItemRegistry
 			case TALL_GRASS:
 			case TALL_SEAWEED:
 			case SHORT_SEAWEED:
+			case RED_POPPY:
+			case DANDELION:
+			case BLUE_ORCHID:
+			case WHITE_DAISY:
 			case DOOR_TOP:
 			default:
 			{

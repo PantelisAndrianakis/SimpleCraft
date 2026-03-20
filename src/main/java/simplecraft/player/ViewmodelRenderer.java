@@ -28,6 +28,7 @@ import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemType;
 import simplecraft.world.Block;
 import simplecraft.world.Block.Face;
+import simplecraft.world.Block.RenderMode;
 
 /**
  * Renders the held item in 3D space near the player's right hand.<br>
@@ -336,8 +337,24 @@ public class ViewmodelRenderer
 	{
 		final boolean isBlock = (item != null && item.getTemplate().getType() == ItemType.BLOCK);
 		
-		// Show the right geometry, hide the other.
+		// CROSS_BILLBOARD blocks (torch, flowers, campfire, etc.) render as flat sprites, not 3D cubes.
+		// They should look the same as when placed in-world.
+		final boolean isBillboardBlock;
 		if (isBlock)
+		{
+			final Block block = item.getTemplate().getPlacesBlock();
+			isBillboardBlock = (block != null && block.getRenderMode() == RenderMode.CROSS_BILLBOARD);
+		}
+		else
+		{
+			isBillboardBlock = false;
+		}
+		
+		// Show cube only for non-billboard blocks. Billboard blocks use the sprite quad.
+		final boolean showCube = isBlock && !isBillboardBlock;
+		
+		// Show the right geometry, hide the other.
+		if (showCube)
 		{
 			_blockGeo.setCullHint(Spatial.CullHint.Never);
 			_spriteGeo.setCullHint(Spatial.CullHint.Always);
@@ -354,7 +371,7 @@ public class ViewmodelRenderer
 		final Material cached = _materialCache.get(itemId);
 		if (cached != null)
 		{
-			if (isBlock)
+			if (showCube)
 			{
 				_blockGeo.setMaterial(cached);
 			}
@@ -367,9 +384,14 @@ public class ViewmodelRenderer
 		
 		// Load new material.
 		Material mat = null;
-		if (isBlock)
+		if (showCube)
 		{
 			mat = loadBlockItemMaterial(item.getTemplate());
+		}
+		else if (isBillboardBlock)
+		{
+			// Billboard block held as sprite - load from block textures directory.
+			mat = loadBillboardBlockMaterial(item.getTemplate());
 		}
 		else
 		{
@@ -379,7 +401,7 @@ public class ViewmodelRenderer
 		if (mat != null)
 		{
 			_materialCache.put(itemId, mat);
-			if (isBlock)
+			if (showCube)
 			{
 				_blockGeo.setMaterial(mat);
 			}
@@ -408,6 +430,27 @@ public class ViewmodelRenderer
 			return null;
 		}
 		return loadMaterialFromFile(BLOCK_TEX_DIR, texFile, false);
+	}
+	
+	/**
+	 * Loads a CROSS_BILLBOARD block's texture as a flat sprite material.<br>
+	 * Uses the side texture (the only texture billboard blocks define).
+	 */
+	private Material loadBillboardBlockMaterial(ItemTemplate template)
+	{
+		final Block block = template.getPlacesBlock();
+		if (block == null)
+		{
+			return null;
+		}
+		
+		final String texFile = block.getTextureFile(Face.NORTH);
+		if (texFile == null || texFile.isEmpty())
+		{
+			return null;
+		}
+		
+		return loadMaterialFromFile(BLOCK_TEX_DIR, texFile, true);
 	}
 	
 	/**
