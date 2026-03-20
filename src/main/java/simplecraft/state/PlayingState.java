@@ -31,7 +31,9 @@ import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
 import simplecraft.item.DropManager;
+import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTextureResolver;
+import simplecraft.item.ItemType;
 import simplecraft.player.BlockInteraction;
 import simplecraft.player.ChestScreen;
 import simplecraft.player.CraftingScreen;
@@ -126,6 +128,20 @@ public class PlayingState extends FadeableAppState
 	
 	/** Renders the held item sprite in the lower-right of the screen. */
 	private ViewmodelRenderer _viewmodelRenderer;
+	
+	// --- Held torch dynamic light ---
+	
+	/** Light level emitted by a held torch. */
+	private static final int HELD_TORCH_LIGHT_LEVEL = 10;
+	
+	/** Minimum seconds between held torch light updates to prevent rebuild spam. */
+	private static final float HELD_TORCH_UPDATE_COOLDOWN = 0.2f;
+	
+	/** Block position of the last held torch light propagation (null = no active light). */
+	private int[] _heldTorchLightPos;
+	
+	/** Cooldown timer for held torch light updates. */
+	private float _heldTorchCooldown;
 	
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
@@ -677,6 +693,11 @@ public class PlayingState extends FadeableAppState
 				_viewmodelRenderer.update(SimpleCraft.getInstance().getCamera(), _playerController.getInventory(), _playerController.isMoving() && _playerController.isOnGround(), tpf);
 			}
 			
+			// Update held torch dynamic light.
+			// When the player holds a torch, propagate block light at their feet.
+			// Only updates on block boundary crossings with a cooldown to limit rebuild cost.
+			updateHeldTorchLight(tpf);
+			
 			final SimpleCraft app = SimpleCraft.getInstance();
 			final int renderDistance = app.getSettingsManager().getRenderDistance();
 			_world.update(_playerController.getPosition(), renderDistance);
@@ -747,6 +768,9 @@ public class PlayingState extends FadeableAppState
 			{
 				// Player just died - show death screen.
 				_playerDead = true;
+				
+				// Remove held torch light before death screen.
+				removeHeldTorchLight();
 				
 				// Close inventory if open.
 				if (_inventoryScreen != null && _inventoryScreen.isOpen())
@@ -830,6 +854,93 @@ public class PlayingState extends FadeableAppState
 					app.getSettingsManager().isShowCrosshair()
 				);
 			} // @formatter:on
+		}
+	}
+	
+	// ========================================================
+	// Held Torch Light.
+	// ========================================================
+	
+	/**
+	 * Updates the dynamic block light emitted by a held torch.<br>
+	 * Propagates light at the player's feet when holding a torch, removes it when<br>
+	 * switching to another item. Only fires on block boundary crossings with a<br>
+	 * cooldown to prevent rebuild spam while walking quickly.
+	 * @param tpf time per frame
+	 */
+	private void updateHeldTorchLight(float tpf)
+	{
+		if (_world == null || _playerController == null || _playerDead)
+		{
+			return;
+		}
+		
+		// Tick cooldown.
+		if (_heldTorchCooldown > 0)
+		{
+			_heldTorchCooldown -= tpf;
+		}
+		
+		// Check if the player is holding a torch.
+		final ItemInstance held = _playerController.getInventory().getSelectedItem();
+		final boolean holdingTorch;
+		if (held != null && held.getTemplate().getType() == ItemType.BLOCK)
+		{
+			final Block block = held.getTemplate().getPlacesBlock();
+			holdingTorch = (block == Block.TORCH);
+		}
+		else
+		{
+			holdingTorch = false;
+		}
+		
+		if (!holdingTorch)
+		{
+			// Not holding a torch - remove any active held torch light.
+			removeHeldTorchLight();
+			return;
+		}
+		
+		// Player is holding a torch - check if they moved to a new block.
+		final Vector3f pos = _playerController.getPosition();
+		final int bx = (int) Math.floor(pos.x);
+		final int by = (int) Math.floor(pos.y);
+		final int bz = (int) Math.floor(pos.z);
+		
+		if (_heldTorchLightPos != null && _heldTorchLightPos[0] == bx && _heldTorchLightPos[1] == by && _heldTorchLightPos[2] == bz)
+		{
+			// Same block - no update needed.
+			return;
+		}
+		
+		// Cooldown check - skip update if too soon after last one.
+		if (_heldTorchCooldown > 0)
+		{
+			return;
+		}
+		
+		// Remove old light, propagate at new position.
+		removeHeldTorchLight();
+		_world.propagateBlockLight(bx, by, bz, HELD_TORCH_LIGHT_LEVEL);
+		_heldTorchLightPos = new int[]
+		{
+			bx,
+			by,
+			bz
+		};
+		_heldTorchCooldown = HELD_TORCH_UPDATE_COOLDOWN;
+	}
+	
+	/**
+	 * Removes the currently active held torch light, if any.<br>
+	 * Called when the player switches away from a torch, dies, or the world is destroyed.
+	 */
+	private void removeHeldTorchLight()
+	{
+		if (_heldTorchLightPos != null && _world != null)
+		{
+			_world.removeBlockLight(_heldTorchLightPos[0], _heldTorchLightPos[1], _heldTorchLightPos[2]);
+			_heldTorchLightPos = null;
 		}
 	}
 	
@@ -1412,6 +1523,7 @@ public class PlayingState extends FadeableAppState
 		}
 		
 		// Clean up viewmodel renderer.
+		removeHeldTorchLight();
 		if (_viewmodelRenderer != null)
 		{
 			_viewmodelRenderer.cleanup();

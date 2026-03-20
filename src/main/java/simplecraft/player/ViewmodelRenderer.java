@@ -7,16 +7,21 @@ import java.util.Map;
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.TextureKey;
 import com.jme3.asset.plugins.FileLocator;
+import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
+import com.jme3.scene.Spatial.CullHint;
+import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
@@ -99,6 +104,18 @@ public class ViewmodelRenderer
 	/** ID when hand is empty. */
 	private static final String FIST_ID = "fist";
 	
+	/** Flame effect image path (same as TorchTileEntity). */
+	private static final String FLAME_IMAGE_PATH = "assets/images/effects/flame.png";
+	
+	/**
+	 * Flame position relative to the hand node.<br>
+	 * The sprite quad extends from (-SPRITE_SIZE, 0, 0) to (0, SPRITE_SIZE, 0),<br>
+	 * so the torch tip is roughly at (-SPRITE_SIZE/2, SPRITE_SIZE * 0.9, 0).
+	 */
+	private static final float FLAME_X = -SPRITE_SIZE * 0.5f;
+	private static final float FLAME_Y = SPRITE_SIZE * 0.85f;
+	private static final float FLAME_Z = 0.07f;
+	
 	// ========================================================
 	// Fields.
 	// ========================================================
@@ -124,6 +141,12 @@ public class ViewmodelRenderer
 	
 	/** True when showing the block cube. */
 	private boolean _showingBlock;
+	
+	/** Flame particle emitter for held torch. */
+	private ParticleEmitter _flameEmitter;
+	
+	/** True when the flame is currently active (holding a torch). */
+	private boolean _flameActive;
 	
 	// Swing state.
 	private boolean _swinging;
@@ -155,14 +178,14 @@ public class ViewmodelRenderer
 		
 		// Parent node - positioned and rotated each frame.
 		_handNode = new Node("ViewmodelHand");
-		_handNode.setCullHint(Spatial.CullHint.Never);
+		_handNode.setCullHint(CullHint.Never);
 		rootNode.attachChild(_handNode);
 		
 		// Block geometry - small cube, hidden initially.
 		final Box box = new Box(BLOCK_HALF_SIZE, BLOCK_HALF_SIZE, BLOCK_HALF_SIZE);
 		_blockGeo = new Geometry("ViewmodelBlock", box);
-		_blockGeo.setCullHint(Spatial.CullHint.Always); // hidden
-		_blockGeo.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Translucent);
+		_blockGeo.setCullHint(CullHint.Always); // hidden
+		_blockGeo.setQueueBucket(Bucket.Translucent);
 		_handNode.attachChild(_blockGeo);
 		
 		// Sprite geometry - flat quad for tools/weapons/fist, visible initially.
@@ -183,13 +206,13 @@ public class ViewmodelRenderer
 			1, 0 // TL vertex
 		};
 		// @formatter:on
-		quad.setBuffer(com.jme3.scene.VertexBuffer.Type.TexCoord, 2, uvs);
+		quad.setBuffer(Type.TexCoord, 2, uvs);
 		_spriteGeo = new Geometry("ViewmodelSprite", quad);
 		// Offset so the node origin (rotation pivot) is at the lower-right corner (handle).
 		// Quad extends left and up from the pivot point.
 		_spriteGeo.setLocalTranslation(-SPRITE_SIZE, 0, 0);
-		_spriteGeo.setCullHint(Spatial.CullHint.Never);
-		_spriteGeo.setQueueBucket(com.jme3.renderer.queue.RenderQueue.Bucket.Translucent);
+		_spriteGeo.setCullHint(CullHint.Never);
+		_spriteGeo.setQueueBucket(Bucket.Translucent);
 		_handNode.attachChild(_spriteGeo);
 		
 		// Apply fallback material to both so they never have null material.
@@ -199,6 +222,11 @@ public class ViewmodelRenderer
 		fallback.getAdditionalRenderState().setDepthWrite(false);
 		_blockGeo.setMaterial(fallback);
 		_spriteGeo.setMaterial(fallback);
+		
+		// Flame particle emitter for held torch - hidden until a torch is equipped.
+		createFlameEmitter();
+		_flameEmitter.setCullHint(CullHint.Always);
+		_handNode.attachChild(_flameEmitter);
 		
 		// Start with fist.
 		updateSprite(FIST_ID);
@@ -337,8 +365,8 @@ public class ViewmodelRenderer
 	{
 		final boolean isBlock = (item != null && item.getTemplate().getType() == ItemType.BLOCK);
 		
-		// CROSS_BILLBOARD blocks (torch, flowers, campfire, etc.) render as flat sprites, not 3D cubes.
-		// They should look the same as when placed in-world.
+		// CROSS_BILLBOARD blocks (torch, flowers, campfire, etc.) render as flat sprites,
+		// not 3D cubes. They should look the same as when placed in-world.
 		final boolean isBillboardBlock;
 		if (isBlock)
 		{
@@ -353,18 +381,45 @@ public class ViewmodelRenderer
 		// Show cube only for non-billboard blocks. Billboard blocks use the sprite quad.
 		final boolean showCube = isBlock && !isBillboardBlock;
 		
+		// Detect held torch for flame particle effect.
+		final boolean isTorch;
+		if (isBillboardBlock)
+		{
+			final Block block = item.getTemplate().getPlacesBlock();
+			isTorch = (block == Block.TORCH);
+		}
+		else
+		{
+			isTorch = false;
+		}
+		
 		// Show the right geometry, hide the other.
 		if (showCube)
 		{
-			_blockGeo.setCullHint(Spatial.CullHint.Never);
-			_spriteGeo.setCullHint(Spatial.CullHint.Always);
+			_blockGeo.setCullHint(CullHint.Never);
+			_spriteGeo.setCullHint(CullHint.Always);
 			_showingBlock = true;
 		}
 		else
 		{
-			_blockGeo.setCullHint(Spatial.CullHint.Always);
-			_spriteGeo.setCullHint(Spatial.CullHint.Never);
+			_blockGeo.setCullHint(CullHint.Always);
+			_spriteGeo.setCullHint(CullHint.Never);
 			_showingBlock = false;
+		}
+		
+		// Toggle flame particles - show only when holding a torch.
+		if (isTorch && !_flameActive)
+		{
+			_flameEmitter.setCullHint(CullHint.Never);
+			_flameEmitter.setParticlesPerSec(6);
+			_flameActive = true;
+		}
+		else if (!isTorch && _flameActive)
+		{
+			_flameEmitter.setParticlesPerSec(0);
+			_flameEmitter.killAllParticles();
+			_flameEmitter.setCullHint(CullHint.Always);
+			_flameActive = false;
 		}
 		
 		// Check cache.
@@ -443,13 +498,11 @@ public class ViewmodelRenderer
 		{
 			return null;
 		}
-		
 		final String texFile = block.getTextureFile(Face.NORTH);
 		if (texFile == null || texFile.isEmpty())
 		{
 			return null;
 		}
-		
 		return loadMaterialFromFile(BLOCK_TEX_DIR, texFile, true);
 	}
 	
@@ -505,11 +558,61 @@ public class ViewmodelRenderer
 	}
 	
 	// ========================================================
+	// Flame Particles.
+	// ========================================================
+	
+	/**
+	 * Creates a small flame particle emitter for the held torch tip.<br>
+	 * Based on {@code TorchTileEntity}'s flame but scaled down for the viewmodel.<br>
+	 * The emitter is a child of {@code _handNode} so it follows the hand position<br>
+	 * and rotation naturally. Particles emit upward from the torch tip.<br>
+	 * Depth test/write are disabled so the flame renders on top of world geometry,<br>
+	 * matching the viewmodel rendering approach.
+	 */
+	private void createFlameEmitter()
+	{
+		_flameEmitter = new ParticleEmitter("ViewmodelFlame", ParticleMesh.Type.Triangle, 8);
+		
+		final Material mat = new Material(_assetManager, "Common/MatDefs/Misc/Particle.j3md");
+		mat.setTexture("Texture", _assetManager.loadTexture(FLAME_IMAGE_PATH));
+		mat.getAdditionalRenderState().setBlendMode(BlendMode.Additive);
+		mat.getAdditionalRenderState().setDepthTest(false);
+		mat.getAdditionalRenderState().setDepthWrite(false);
+		_flameEmitter.setMaterial(mat);
+		_flameEmitter.setQueueBucket(Bucket.Transparent);
+		
+		_flameEmitter.setImagesX(2);
+		_flameEmitter.setImagesY(2);
+		_flameEmitter.setSelectRandomImage(true);
+		
+		// Smaller than world torch - this is right in front of the camera.
+		_flameEmitter.setStartSize(0.04f);
+		_flameEmitter.setEndSize(0.01f);
+		_flameEmitter.setStartColor(new ColorRGBA(1.0f, 0.8f, 0.2f, 0.8f));
+		_flameEmitter.setEndColor(new ColorRGBA(1.0f, 0.3f, 0.0f, 0.0f));
+		
+		_flameEmitter.setLowLife(0.15f);
+		_flameEmitter.setHighLife(0.3f);
+		
+		_flameEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.3f, 0));
+		_flameEmitter.getParticleInfluencer().setVelocityVariation(0.2f);
+		_flameEmitter.setGravity(0, -0.15f, 0);
+		
+		// Position at the torch tip.
+		_flameEmitter.setLocalTranslation(FLAME_X, FLAME_Y, FLAME_Z);
+		_flameEmitter.setParticlesPerSec(0); // Off until torch is equipped.
+	}
+	
+	// ========================================================
 	// Cleanup.
 	// ========================================================
 	
 	public void cleanup()
 	{
+		if (_flameEmitter != null)
+		{
+			_flameEmitter.killAllParticles();
+		}
 		_rootNode.detachChild(_handNode);
 		_materialCache.clear();
 	}
