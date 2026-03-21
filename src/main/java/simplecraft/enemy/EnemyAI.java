@@ -230,6 +230,7 @@ public class EnemyAI
 				if (playerInWater)
 				{
 					enemy.setMoving(false);
+					
 					// If player went too far, give up entirely.
 					if (distToPlayer > detectionRange * CHASE_LEASH_MULTIPLIER)
 					{
@@ -282,6 +283,7 @@ public class EnemyAI
 						// No path found - clear stale path so we fall back to direct.
 						enemy.clearPath();
 					}
+					
 					enemy.setPathTimer(0);
 				}
 				
@@ -344,6 +346,7 @@ public class EnemyAI
 				if (enemy.getAttackTimer() >= enemy.getAttackCooldown())
 				{
 					enemy.setAttackTimer(0);
+					
 					// Damage is applied by the caller / damage system.
 					// For now, log the attack.
 				}
@@ -371,6 +374,7 @@ public class EnemyAI
 		if (groundY >= 0)
 		{
 			final float expectedY = groundY + GROUND_OFFSET;
+			
 			// Only snap if the difference is significant (avoids jitter from float precision).
 			if (Math.abs(pos.y - expectedY) > 0.1f)
 			{
@@ -711,6 +715,7 @@ public class EnemyAI
 				// Still blocked - stay put.
 				return;
 			}
+			
 			newY = pos.y;
 		}
 		

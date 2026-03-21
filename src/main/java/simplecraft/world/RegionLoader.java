@@ -307,6 +307,7 @@ public class RegionLoader
 			final Region region = result.getRegion();
 			_pendingKeys.remove(regionKey(region.getRegionX(), region.getRegionZ()));
 		}
+		
 		return result;
 	}
 	

@@ -114,6 +114,7 @@ public class CampfireTileEntity extends TileEntity
 		{
 			_fireEmitter.killAllParticles();
 		}
+		
 		if (_emberEmitter != null)
 		{
 			_emberEmitter.killAllParticles();

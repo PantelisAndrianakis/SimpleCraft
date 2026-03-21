@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Central registry of smelting recipes and fuel burn times for the Furnace.<br>
@@ -104,6 +105,7 @@ public class SmeltingRegistry
 			System.err.println("SmeltingRegistry: Unknown output item '" + outputItemId + "' for recipe input '" + inputItemId + "'");
 			return;
 		}
+		
 		SMELT_RECIPES.put(inputItemId, new SmeltResult(output, smeltTime));
 	}
 	
@@ -170,8 +172,8 @@ public class SmeltingRegistry
 	 */
 	public static Map<ItemTemplate, SmeltResult> getRecipeMap()
 	{
-		final List<Map.Entry<ItemTemplate, SmeltResult>> entries = new ArrayList<>();
-		for (Map.Entry<String, SmeltResult> entry : SMELT_RECIPES.entrySet())
+		final List<Entry<ItemTemplate, SmeltResult>> entries = new ArrayList<>();
+		for (Entry<String, SmeltResult> entry : SMELT_RECIPES.entrySet())
 		{
 			final ItemTemplate input = ItemRegistry.get(entry.getKey());
 			if (input != null)
@@ -179,13 +181,15 @@ public class SmeltingRegistry
 				entries.add(Map.entry(input, entry.getValue()));
 			}
 		}
+		
 		entries.sort((a, b) -> Float.compare(a.getValue().getSmeltTime(), b.getValue().getSmeltTime()));
 		
 		final Map<ItemTemplate, SmeltResult> result = new LinkedHashMap<>();
-		for (Map.Entry<ItemTemplate, SmeltResult> entry : entries)
+		for (Entry<ItemTemplate, SmeltResult> entry : entries)
 		{
 			result.put(entry.getKey(), entry.getValue());
 		}
+		
 		return result;
 	}
 	
@@ -197,8 +201,8 @@ public class SmeltingRegistry
 	 */
 	public static Map<ItemTemplate, Float> getFuelMap()
 	{
-		final List<Map.Entry<ItemTemplate, Float>> entries = new ArrayList<>();
-		for (Map.Entry<String, Float> entry : FUEL_BURN_TIMES.entrySet())
+		final List<Entry<ItemTemplate, Float>> entries = new ArrayList<>();
+		for (Entry<String, Float> entry : FUEL_BURN_TIMES.entrySet())
 		{
 			final ItemTemplate fuel = ItemRegistry.get(entry.getKey());
 			if (fuel != null)
@@ -206,13 +210,15 @@ public class SmeltingRegistry
 				entries.add(Map.entry(fuel, entry.getValue()));
 			}
 		}
+		
 		entries.sort((a, b) -> Float.compare(a.getValue(), b.getValue()));
 		
 		final Map<ItemTemplate, Float> result = new LinkedHashMap<>();
-		for (Map.Entry<ItemTemplate, Float> entry : entries)
+		for (Entry<ItemTemplate, Float> entry : entries)
 		{
 			result.put(entry.getKey(), entry.getValue());
 		}
+		
 		return result;
 	}
 }

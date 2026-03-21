@@ -19,6 +19,8 @@ import com.jme3.font.BitmapFont;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
 import com.jme3.texture.Image;
+import com.jme3.texture.Texture.MagFilter;
+import com.jme3.texture.Texture.MinFilter;
 import com.jme3.texture.Texture2D;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
@@ -294,8 +296,8 @@ public class FontManager
 		
 		final Image jmeImage = new Image(Image.Format.RGBA8, width, height, buffer, ColorSpace.sRGB);
 		final Texture2D texture = new Texture2D(jmeImage);
-		texture.setMagFilter(com.jme3.texture.Texture.MagFilter.Bilinear);
-		texture.setMinFilter(com.jme3.texture.Texture.MinFilter.BilinearNoMipMaps);
+		texture.setMagFilter(MagFilter.Bilinear);
+		texture.setMinFilter(MinFilter.BilinearNoMipMaps);
 		
 		return texture;
 	}

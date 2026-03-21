@@ -92,6 +92,7 @@ public class TileEntityManager
 		{
 			_node.detachChild(entity.getVisualNode());
 		}
+		
 		return entity;
 	}
 	
@@ -197,6 +198,7 @@ public class TileEntityManager
 			sb.append(entity.serialize());
 			first = false;
 		}
+		
 		return sb.toString();
 	}
 	

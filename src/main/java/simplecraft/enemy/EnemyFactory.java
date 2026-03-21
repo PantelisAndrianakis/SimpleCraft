@@ -518,6 +518,7 @@ public class EnemyFactory
 	private static void buildSpider(Enemy enemy, AssetManager assetManager)
 	{
 		final Node root = enemy.getNode();
+		
 		// Dark blue-black spider palette.
 		final ColorRGBA spiderBlue = new ColorRGBA(0.08f, 0.08f, 0.18f, 1.0f);
 		final Material bodyMat = makeNoiseMat(assetManager, spiderBlue);
@@ -647,10 +648,13 @@ public class EnemyFactory
 		
 		// Belly patch - overlaps into body bottom, thicker to be visible.
 		bodyNode.attachChild(makeBox("Belly", 0.12f, 0.015f, 0.2f, bellyMat, 0, -0.1f, 0));
+		
 		// Back patch - overlaps into body top, thicker to be visible.
 		bodyNode.attachChild(makeBox("Back", 0.1f, 0.015f, 0.2f, backMat, 0, 0.1f, 0));
+		
 		// Dorsal fin - overlaps into body top (body top at Y=0.1 local).
 		bodyNode.attachChild(makeBox("DorsalFin", 0.01f, 0.06f, 0.08f, finMat, 0, 0.13f, -0.02f));
+		
 		// Side fins - overlap into body sides (body side at X=±0.15 local).
 		bodyNode.attachChild(makeBox("LeftFin", 0.005f, 0.03f, 0.06f, finMat, -0.14f, -0.04f, -0.05f));
 		bodyNode.attachChild(makeBox("RightFin", 0.005f, 0.03f, 0.06f, finMat, 0.14f, -0.04f, -0.05f));
@@ -729,6 +733,7 @@ public class EnemyFactory
 		
 		// Brown hair - thin strips. (keep hair noisy).
 		headNode.attachChild(makeBox("HairBack", 0.19f, 0.10f, 0.02f, hairMat, 0, 0.25f, 0.21f));
+		
 		// Side strips: center Z=0.05, halfZ=0.18 -> Z=-0.13 to Z=0.23 (overlaps back at Z=0.21).
 		headNode.attachChild(makeBox("HairLeft", 0.02f, 0.06f, 0.18f, hairMat, -0.21f, 0.28f, 0.05f));
 		headNode.attachChild(makeBox("HairRight", 0.02f, 0.06f, 0.18f, hairMat, 0.21f, 0.28f, 0.05f));
@@ -737,8 +742,10 @@ public class EnemyFactory
 		// Only covers forehead and above, leaving eyes/nose/mouth visible.
 		// Top cap: center Y=0.44, halfY=0.08 -> Y=0.36 to Y=0.52.
 		headNode.attachChild(makeBox("HelmetCap", 0.23f, 0.08f, 0.23f, ironMat, 0, 0.44f, 0));
+		
 		// Forehead band: thicker. Center Y=0.34, halfY=0.06 -> Y=0.28 to Y=0.40.
 		headNode.attachChild(makeBox("HelmetBand", 0.24f, 0.06f, 0.24f, ironLightMat, 0, 0.34f, 0));
+		
 		// Nose guard - hangs down from the band center.
 		headNode.attachChild(makeBox("NoseGuard", 0.02f, 0.10f, 0.025f, ironDarkMat, 0, 0.27f, -0.24f));
 		

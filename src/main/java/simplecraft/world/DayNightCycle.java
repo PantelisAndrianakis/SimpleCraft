@@ -224,6 +224,7 @@ public class DayNightCycle
 			_terrainBrightness = TERRAIN_BRIGHTNESS_DAY;
 			_terrainTint.set(TERRAIN_TINT_DAY);
 		}
+		
 		_terrainBrightnessTarget = _terrainBrightness;
 		_terrainTintTarget.set(_terrainTint);
 		_lastTerrainRebuildBrightness = _terrainBrightness;
@@ -262,6 +263,7 @@ public class DayNightCycle
 			_phaseChanged = true;
 			System.out.println("DayNightCycle: Phase transition started to " + (isNight() ? "NIGHT" : "DAY") + ". Target brightness: " + _terrainBrightnessTarget);
 		}
+		
 		_wasNight = isNight();
 		
 		// Advance terrain transition (lerp brightness and tint toward target).

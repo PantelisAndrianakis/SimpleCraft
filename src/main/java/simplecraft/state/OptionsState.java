@@ -456,46 +456,55 @@ public class OptionsState extends FadeableAppState
 			app.getGuiNode().detachChild(_background);
 			_background = null;
 		}
+		
 		if (_titleLabel != null)
 		{
 			app.getGuiNode().detachChild(_titleLabel);
 			_titleLabel = null;
 		}
+		
 		if (_tabRow != null)
 		{
 			app.getGuiNode().detachChild(_tabRow);
 			_tabRow = null;
 		}
+		
 		if (_displayContent != null)
 		{
 			app.getGuiNode().detachChild(_displayContent);
 			_displayContent = null;
 		}
+		
 		if (_audioContent != null)
 		{
 			app.getGuiNode().detachChild(_audioContent);
 			_audioContent = null;
 		}
+		
 		if (_keybindingsSubTabRow != null)
 		{
 			app.getGuiNode().detachChild(_keybindingsSubTabRow);
 			_keybindingsSubTabRow = null;
 		}
+		
 		if (_keyMovementContent != null)
 		{
 			app.getGuiNode().detachChild(_keyMovementContent);
 			_keyMovementContent = null;
 		}
+		
 		if (_keyActionsContent != null)
 		{
 			app.getGuiNode().detachChild(_keyActionsContent);
 			_keyActionsContent = null;
 		}
+		
 		if (_keyMouseContent != null)
 		{
 			app.getGuiNode().detachChild(_keyMouseContent);
 			_keyMouseContent = null;
 		}
+		
 		if (_buttonRow != null)
 		{
 			app.getGuiNode().detachChild(_buttonRow);
@@ -921,6 +930,7 @@ public class OptionsState extends FadeableAppState
 						cancelListening();
 						return null;
 					});
+					
 					return;
 				}
 				
@@ -1107,6 +1117,7 @@ public class OptionsState extends FadeableAppState
 			final int currentCode = app.getGameInputManager().getKeyCode(_listeningAction);
 			_listeningButton.setText(GameInputManager.getKeyName(currentCode));
 		}
+		
 		_listeningButton.setColor(KEY_BUTTON_COLOR);
 		
 		_listeningAction = null;
@@ -1139,6 +1150,7 @@ public class OptionsState extends FadeableAppState
 			entry.getValue().setText(GameInputManager.getKeyName(keyCode));
 			entry.getValue().setColor(KEY_BUTTON_COLOR);
 		}
+		
 		for (Entry<String, Button> entry : _mouseBindButtons.entrySet())
 		{
 			final int buttonCode = input.getMouseCode(entry.getKey());
@@ -1270,10 +1282,12 @@ public class OptionsState extends FadeableAppState
 		{
 			_tabDisplayButton.setColor(_activeTab == TAB_DISPLAY ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_tabAudioButton != null)
 		{
 			_tabAudioButton.setColor(_activeTab == TAB_AUDIO ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_tabKeybindingsButton != null)
 		{
 			_tabKeybindingsButton.setColor(_activeTab == TAB_KEYBINDINGS ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR);
@@ -1307,10 +1321,12 @@ public class OptionsState extends FadeableAppState
 		{
 			_subTabMovementButton.setColor(_activeSubTab == SUB_TAB_MOVEMENT ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_subTabActionsButton != null)
 		{
 			_subTabActionsButton.setColor(_activeSubTab == SUB_TAB_ACTIONS ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_subTabMouseButton != null)
 		{
 			_subTabMouseButton.setColor(_activeSubTab == SUB_TAB_MOUSE ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR);
@@ -1861,6 +1877,7 @@ public class OptionsState extends FadeableAppState
 		final int tabCount = 3;
 		final int newTab = ((_activeTab + direction) % tabCount + tabCount) % tabCount;
 		showTab(newTab);
+		
 		// showTab calls rebuildFocusList; re-apply focus on the tab row.
 		_navigation.setFocusIndex(0);
 	}
@@ -1873,6 +1890,7 @@ public class OptionsState extends FadeableAppState
 		final int subTabCount = 3;
 		final int newSubTab = ((_activeSubTab + direction) % subTabCount + subTabCount) % subTabCount;
 		showSubTab(newSubTab);
+		
 		// showSubTab calls rebuildFocusList; re-apply focus on the sub-tab row (index 1).
 		_navigation.setFocusIndex(1);
 	}
@@ -1887,10 +1905,12 @@ public class OptionsState extends FadeableAppState
 		{
 			_tabDisplayButton.setColor(_activeTab == TAB_DISPLAY ? activeColor : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_tabAudioButton != null)
 		{
 			_tabAudioButton.setColor(_activeTab == TAB_AUDIO ? activeColor : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_tabKeybindingsButton != null)
 		{
 			_tabKeybindingsButton.setColor(_activeTab == TAB_KEYBINDINGS ? activeColor : TAB_INACTIVE_COLOR);
@@ -1907,10 +1927,12 @@ public class OptionsState extends FadeableAppState
 		{
 			_subTabMovementButton.setColor(_activeSubTab == SUB_TAB_MOVEMENT ? activeColor : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_subTabActionsButton != null)
 		{
 			_subTabActionsButton.setColor(_activeSubTab == SUB_TAB_ACTIONS ? activeColor : TAB_INACTIVE_COLOR);
 		}
+		
 		if (_subTabMouseButton != null)
 		{
 			_subTabMouseButton.setColor(_activeSubTab == SUB_TAB_MOUSE ? activeColor : TAB_INACTIVE_COLOR);
@@ -1926,6 +1948,7 @@ public class OptionsState extends FadeableAppState
 		{
 			ButtonManager.setFocused(_defaultsButton, _bottomFocusIndex == 0);
 		}
+		
 		if (_backButton != null)
 		{
 			ButtonManager.setFocused(_backButton, _bottomFocusIndex == 1);
@@ -1941,6 +1964,7 @@ public class OptionsState extends FadeableAppState
 		{
 			ButtonManager.setFocused(_defaultsButton, false);
 		}
+		
 		if (_backButton != null)
 		{
 			ButtonManager.setFocused(_backButton, false);

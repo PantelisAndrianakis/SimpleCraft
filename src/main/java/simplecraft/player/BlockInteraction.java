@@ -559,11 +559,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				t1 = t2;
 				t2 = tmp;
 			}
+			
 			if (t1 > tMin)
 			{
 				tMin = t1;
 				entryFace = near;
 			}
+			
 			tMax = Math.min(tMax, t2);
 		}
 		
@@ -579,11 +581,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				t1 = t2;
 				t2 = tmp;
 			}
+			
 			if (t1 > tMin)
 			{
 				tMin = t1;
 				entryFace = near;
 			}
+			
 			tMax = Math.min(tMax, t2);
 		}
 		
@@ -599,11 +603,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				t1 = t2;
 				t2 = tmp;
 			}
+			
 			if (t1 > tMin)
 			{
 				tMin = t1;
 				entryFace = near;
 			}
+			
 			tMax = Math.min(tMax, t2);
 		}
 		
@@ -819,6 +825,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					System.out.println("Tool broke: " + toolName);
 				}
 			}
+			
 			_hitCooldownTimer = HIT_COOLDOWN;
 			System.out.println("Cannot break " + block.name() + " - unbreakable.");
 			return;
@@ -865,6 +872,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				// Tool broke mid-block-break - recalculate effective hits with bare hands.
 				final ItemInstance newHeld = inventory.getSelectedItem();
 				final int newRequired = getEffectiveHits(block, newHeld);
+				
 				// Scale progress: keep the same ratio of completion.
 				if (newRequired > _hitsRequired)
 				{
@@ -872,6 +880,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					_hitsRequired = newRequired;
 					_hitsDelivered = (int) (progress * newRequired);
 				}
+				
 				// Update tracked item so the tool-switch check doesn't reset on next frame.
 				_breakingWithItem = newHeld;
 			}
@@ -1081,6 +1090,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			{
 				return BLOCK_DAMAGE_CORRECT_TOOL;
 			}
+			
 			// Tool but wrong type.
 			return BLOCK_DAMAGE_WRONG_TOOL;
 		}
@@ -1289,6 +1299,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				
 				door.destroyBothHalves(_world);
 				System.out.println("Door lost support at [" + nx + ", " + ny + ", " + nz + "] - both halves destroyed.");
+				
 				// destroyBothHalves already rebuilds, but mark for rebuild in case of batching.
 				needsRebuild = true;
 				continue;
@@ -1521,6 +1532,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			placeY = _targetY;
 			placeZ = _targetZ;
 			hasPlace = true;
+			
 			// Frame validation was already done in performRaycast via hasWindowFrame().
 			// Facing and attachment will be determined from frame geometry during tile entity creation.
 		}
@@ -1755,6 +1767,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 							windowFacing = entryFaceToFacing(_entryFace);
 							windowAttach = oppositeFace(_entryFace);
 						}
+						
 						final WindowTileEntity window = new WindowTileEntity(pos, windowAttach);
 						window.setFacing(windowFacing);
 						entity = window;
@@ -1779,6 +1792,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						{
 							doorFacing = mirrorFacing(doorFacing);
 						}
+						
 						final Face doorAttach = facingToAttachFace(doorFacing);
 						
 						// Create linked tile entities.
@@ -2213,6 +2227,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				return true;
 			}
 		}
+		
 		return false;
 	}
 	
@@ -2635,6 +2650,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			case ACTION_ATTACK:
 			{
 				_attackHeld = isPressed;
+				
 				// Reset cooldown on fresh press so first click is instant.
 				if (isPressed)
 				{

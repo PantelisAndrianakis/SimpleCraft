@@ -96,6 +96,7 @@ public class TextureAtlas
 				{
 					final BufferedImage tile = ImageIO.read(file);
 					final Graphics2D tileGraphics = _atlasImage.createGraphics();
+					
 					// Use Src composite to REPLACE pixels (not blend over magenta).
 					// This preserves alpha=0 in textures like leaves and billboards.
 					tileGraphics.setComposite(AlphaComposite.Src);

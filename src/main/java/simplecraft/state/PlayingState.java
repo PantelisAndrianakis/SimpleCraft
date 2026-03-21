@@ -934,14 +934,17 @@ public class PlayingState extends FadeableAppState
 				{
 					_inventoryScreen.update(tpf);
 				}
+				
 				if (craftingOpen)
 				{
 					_craftingScreen.update(tpf);
 				}
+				
 				if (chestOpen)
 				{
 					_chestScreen.update(tpf);
 				}
+				
 				if (furnaceOpen)
 				{
 					_furnaceScreen.update(tpf);
@@ -956,6 +959,7 @@ public class PlayingState extends FadeableAppState
 				{
 					_combatSystem.triggerDamageFlash();
 				}
+				
 				if (_playerController.wasHealedThisFrame())
 				{
 					_combatSystem.triggerHealFlash();
@@ -1052,16 +1056,19 @@ public class PlayingState extends FadeableAppState
 				{
 					_inventoryScreen.close();
 				}
+				
 				// Close crafting screen if open.
 				if (_craftingScreen != null && _craftingScreen.isOpen())
 				{
 					_craftingScreen.close();
 				}
+				
 				// Close chest screen if open.
 				if (_chestScreen != null && _chestScreen.isOpen())
 				{
 					_chestScreen.close();
 				}
+				
 				// Close furnace screen if open.
 				if (_furnaceScreen != null && _furnaceScreen.isOpen())
 				{
@@ -1102,6 +1109,7 @@ public class PlayingState extends FadeableAppState
 				{
 					app.getInputManager().addMapping(ACTION_RESPAWN, new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
 				}
+				
 				app.getInputManager().addListener(_respawnListener, ACTION_RESPAWN);
 				
 				System.out.println("Player died! Cause: " + _playerController.getDeathCause());
@@ -1306,16 +1314,19 @@ public class PlayingState extends FadeableAppState
 		{
 			_inventoryScreen.close();
 		}
+		
 		// Close crafting screen if open.
 		if (_craftingScreen != null && _craftingScreen.isOpen())
 		{
 			_craftingScreen.close();
 		}
+		
 		// Close chest screen if open.
 		if (_chestScreen != null && _chestScreen.isOpen())
 		{
 			_chestScreen.close();
 		}
+		
 		// Close furnace screen if open.
 		if (_furnaceScreen != null && _furnaceScreen.isOpen())
 		{
@@ -1331,6 +1342,7 @@ public class PlayingState extends FadeableAppState
 		{
 			_playerController.unregisterInput();
 		}
+		
 		if (_blockInteraction != null)
 		{
 			_blockInteraction.unregisterInput();
@@ -1349,6 +1361,7 @@ public class PlayingState extends FadeableAppState
 		{
 			SaveManager.save(_world, _playerController, _dayNightCycle);
 		}
+		
 		destroyWorld();
 	}
 	
@@ -1416,6 +1429,7 @@ public class PlayingState extends FadeableAppState
 		{
 			sb.append('.');
 		}
+		
 		_loadingText.setText(sb.toString());
 		
 		// Re-center (width changes as dots change).
@@ -1502,6 +1516,7 @@ public class PlayingState extends FadeableAppState
 			if (segmentPassed == segmentLength)
 			{
 				segmentPassed = 0;
+				
 				// Rotate direction: +X -> +Z -> -X -> -Z.
 				final int temp = dx;
 				dx = -dz;
@@ -1835,6 +1850,7 @@ public class PlayingState extends FadeableAppState
 		{
 			_inventoryScreen.setDropManager(_dropManager);
 		}
+		
 		if (_world != null)
 		{
 			_inventoryScreen.setWorld(_world);
@@ -1854,10 +1870,12 @@ public class PlayingState extends FadeableAppState
 		{
 			_chestScreen.setDropManager(_dropManager);
 		}
+		
 		if (_world != null)
 		{
 			_chestScreen.setWorld(_world);
 		}
+		
 		if (_blockInteraction != null)
 		{
 			_blockInteraction.setChestScreen(_chestScreen);
@@ -1869,6 +1887,7 @@ public class PlayingState extends FadeableAppState
 		{
 			_furnaceScreen.setDropManager(_dropManager);
 		}
+		
 		if (_blockInteraction != null)
 		{
 			_blockInteraction.setFurnaceScreen(_furnaceScreen);

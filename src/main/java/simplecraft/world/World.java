@@ -262,6 +262,7 @@ public class World
 						_savedRegionData = new ConcurrentHashMap<>();
 						_regionLoader.setSavedRegionData(_savedRegionData);
 					}
+					
 					_savedRegionData.put(key, new SavedRegionData(unloadRegion.getRawBlockData(), new HashSet<>(unloadRegion.getPlayerPlacedSet()), new HashSet<>(unloadRegion.getPlayerRemovedSet())));
 				}
 				
@@ -297,6 +298,7 @@ public class World
 					});
 				}
 			}
+			
 			toSubmit.sort(Comparator.comparingLong(a -> a[1]));
 			
 			for (long[] entry : toSubmit)
@@ -545,6 +547,7 @@ public class World
 				keys.add(regionKey(cx, cz));
 			}
 		}
+		
 		return keys;
 	}
 	
@@ -929,14 +932,17 @@ public class World
 		{
 			markNeighborDirtyBatch(regionX - 1, regionZ);
 		}
+		
 		if (localX == Region.SIZE_XZ - 1)
 		{
 			markNeighborDirtyBatch(regionX + 1, regionZ);
 		}
+		
 		if (localZ == 0)
 		{
 			markNeighborDirtyBatch(regionX, regionZ - 1);
 		}
+		
 		if (localZ == Region.SIZE_XZ - 1)
 		{
 			markNeighborDirtyBatch(regionX, regionZ + 1);
@@ -973,6 +979,7 @@ public class World
 				rebuildRegionSync(key, region);
 			}
 		}
+		
 		_batchDirtyRegions.clear();
 	}
 	
@@ -1235,6 +1242,7 @@ public class World
 		{
 			final long key = entry.getKey();
 			final Region region = entry.getValue();
+			
 			// Cancel any in-flight async job first. Without this, a stale async result
 			// (started before a window/door was placed) can arrive later and overwrite
 			// the sync-built mesh that included the panel, making it briefly invisible.
@@ -1447,6 +1455,7 @@ public class World
 			{
 				continue;
 			}
+			
 			visited.add(posKey);
 			
 			final int crx = Math.floorDiv(x, Region.SIZE_XZ);
@@ -1699,6 +1708,7 @@ public class World
 				modified.add(region);
 			}
 		}
+		
 		return modified;
 	}
 	

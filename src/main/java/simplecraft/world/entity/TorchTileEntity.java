@@ -353,6 +353,7 @@ public class TorchTileEntity extends TileEntity
 			_sharedMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
 			_sharedMaterial.setFloat("AlphaDiscardThreshold", 0.5f);
 		}
+		
 		return _sharedMaterial;
 	}
 	

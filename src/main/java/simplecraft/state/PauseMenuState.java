@@ -243,6 +243,7 @@ public class PauseMenuState extends FadeableAppState
 					_buttons[i] = null;
 				}
 			}
+			
 			_buttons = null;
 		}
 	}

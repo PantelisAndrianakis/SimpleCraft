@@ -150,6 +150,7 @@ public class AudioManager
 					_suspendedTracks.put(_suspendingPath, _fadingOutMusic);
 					System.out.println("AudioManager: Stopped in-progress suspend: " + _suspendingPath);
 				}
+				
 				_pauseOnFadeOut = false;
 				_suspendingPath = null;
 			}
@@ -157,6 +158,7 @@ public class AudioManager
 			{
 				_fadingOutMusic.stop();
 			}
+			
 			_fadingOutMusic = null;
 		}
 		
@@ -421,6 +423,7 @@ public class AudioManager
 			{
 				node.stop();
 			}
+			
 			System.out.println("AudioManager: Cleared all suspended tracks (" + _suspendedTracks.size() + ")");
 			_suspendedTracks.clear();
 		}
@@ -582,12 +585,14 @@ public class AudioManager
 							System.out.println("AudioManager: Track paused (suspended): " + _suspendingPath);
 							_suspendingPath = null;
 						}
+						
 						_pauseOnFadeOut = false;
 					}
 					else
 					{
 						_fadingOutMusic.stop();
 					}
+					
 					_fadingOutMusic = null;
 				}
 			}

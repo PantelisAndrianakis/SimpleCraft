@@ -132,6 +132,7 @@ public class DoorTileEntity extends TileEntity
 		{
 			world.markRegionDirtyAt(_partnerPos.x, _partnerPos.y, _partnerPos.z);
 		}
+		
 		world.rebuildDirtyRegionsImmediate();
 		
 		System.out.println("Door " + (_open ? "opened" : "closed") + " at " + _position + (_flippedOpen ? " (flipped)" : ""));
@@ -298,6 +299,7 @@ public class DoorTileEntity extends TileEntity
 			sb.append('\n').append("partnerY=").append(_partnerPos.y);
 			sb.append('\n').append("partnerZ=").append(_partnerPos.z);
 		}
+		
 		return sb.toString();
 	}
 }

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Central registry of crafting recipes for the Crafting Table.<br>
@@ -74,6 +75,7 @@ public class CraftingRegistry
 			{
 				return _outputCount + "× " + _output.getDisplayName();
 			}
+			
 			return _output.getDisplayName();
 		}
 		
@@ -93,6 +95,7 @@ public class CraftingRegistry
 				final ItemTemplate ingredient = ItemRegistry.get(_ingredientIds[i]);
 				sb.append(ingredient != null ? ingredient.getDisplayName() : _ingredientIds[i]);
 			}
+			
 			return sb.toString();
 		}
 		
@@ -108,6 +111,7 @@ public class CraftingRegistry
 					return false;
 				}
 			}
+			
 			return true;
 		}
 		
@@ -213,6 +217,7 @@ public class CraftingRegistry
 		{
 			map.put((String) args[i], (int) args[i + 1]);
 		}
+		
 		return map;
 	}
 	
@@ -234,7 +239,7 @@ public class CraftingRegistry
 		final String[] ids = new String[ingredientMap.size()];
 		final int[] counts = new int[ingredientMap.size()];
 		int idx = 0;
-		for (Map.Entry<String, Integer> entry : ingredientMap.entrySet())
+		for (Entry<String, Integer> entry : ingredientMap.entrySet())
 		{
 			ids[idx] = entry.getKey();
 			counts[idx] = entry.getValue();
@@ -271,6 +276,7 @@ public class CraftingRegistry
 				craftable.add(recipe);
 			}
 		}
+		
 		return craftable;
 	}
 }

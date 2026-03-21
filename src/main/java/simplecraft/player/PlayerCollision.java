@@ -253,6 +253,7 @@ public class PlayerCollision
 				final float distance = _fallStartY - position.y;
 				_result._fallDistance = Math.max(0, distance);
 			}
+			
 			_fallStartY = Float.NaN;
 		}
 		
@@ -552,6 +553,7 @@ public class PlayerCollision
 								position.y = groundSurface;
 								velocity.y = 0;
 							}
+							
 							_result._onGround = true;
 							return;
 						}

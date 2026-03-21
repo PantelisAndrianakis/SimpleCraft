@@ -1278,6 +1278,7 @@ public class RegionMeshBuilder
 		{
 			flipU = (facing == Facing.SOUTH || facing == Facing.EAST);
 		}
+		
 		final float uLeft = flipU ? uvBounds[2] : uvBounds[0];
 		final float uRight = flipU ? uvBounds[0] : uvBounds[2];
 		texCoords[uvPtr] = uLeft;

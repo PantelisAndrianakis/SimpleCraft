@@ -25,9 +25,11 @@ public class IntroState extends FadeableAppState
 	private static final String BACKGROUND_PATH = "assets/images/backgrounds/epic_dragon_games.png";
 	
 	private static final float HOLD_DURATION = 3.0f;
+	
 	// Reference resolution for font scaling (1080p baseline).
 	private static final float REFERENCE_WIDTH = 1920f;
 	private static final float REFERENCE_HEIGHT = 1080f;
+	
 	// Base font size at reference resolution.
 	private static final float BASE_FONT_SIZE = 64f;
 	
@@ -71,6 +73,7 @@ public class IntroState extends FadeableAppState
 		// Calculate resolution scale factor (using average of width/height ratios for balanced scaling).
 		final float widthScale = screenWidth / REFERENCE_WIDTH;
 		final float heightScale = screenHeight / REFERENCE_HEIGHT;
+		
 		// Use the smaller scale to ensure text fits on screen, or average for balanced look.
 		final float scaleFactor = Math.min(widthScale, heightScale); // Conservative: text always fits.
 		

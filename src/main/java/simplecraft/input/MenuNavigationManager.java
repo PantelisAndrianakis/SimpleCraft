@@ -251,6 +251,7 @@ public class MenuNavigationManager
 		{
 			_slots.get(_focusIndex).onUnfocus();
 		}
+		
 		_slots.clear();
 	}
 	
@@ -305,6 +306,7 @@ public class MenuNavigationManager
 		{
 			_slots.get(_focusIndex).onUnfocus();
 		}
+		
 		_focusIndex = -1;
 	}
 	

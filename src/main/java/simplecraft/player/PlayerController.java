@@ -352,6 +352,7 @@ public class PlayerController implements ActionListener, AnalogListener
 			{
 				effectiveSpeed *= WATER_SPEED_MULTIPLIER;
 			}
+			
 			_moveDir.multLocal(effectiveSpeed * tpf);
 			deltaX = _moveDir.x;
 			deltaZ = _moveDir.z;
@@ -444,6 +445,7 @@ public class PlayerController implements ActionListener, AnalogListener
 				_air += tpf * AIR_RESTORE_MULTIPLIER;
 				_air = Math.min(_air, _maxAir);
 			}
+			
 			_drowningLogged = false;
 		}
 		

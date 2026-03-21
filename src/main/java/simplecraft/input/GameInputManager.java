@@ -381,6 +381,7 @@ public class GameInputManager
 		_inputManager.addMapping(UI_DOWN, new KeyTrigger(KeyInput.KEY_DOWN));
 		_inputManager.addMapping(UI_LEFT, new KeyTrigger(KeyInput.KEY_LEFT));
 		_inputManager.addMapping(UI_RIGHT, new KeyTrigger(KeyInput.KEY_RIGHT));
+		
 		// WASD as secondary UI navigation (unaffected by key rebinding).
 		_inputManager.addMapping(UI_UP, new KeyTrigger(KeyInput.KEY_W));
 		_inputManager.addMapping(UI_DOWN, new KeyTrigger(KeyInput.KEY_S));
@@ -490,6 +491,7 @@ public class GameInputManager
 		{
 			_trackedListeners.computeIfAbsent(action, k -> new ArrayList<>()).add(listener);
 		}
+		
 		_inputManager.addListener(listener, actions);
 	}
 	
@@ -504,6 +506,7 @@ public class GameInputManager
 		{
 			list.remove(listener);
 		}
+		
 		_inputManager.removeListener(listener);
 	}
 	

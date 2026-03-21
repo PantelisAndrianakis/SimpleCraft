@@ -12,6 +12,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Texture;
 
 import simplecraft.SimpleCraft;
 import simplecraft.item.Inventory;
@@ -736,7 +737,7 @@ public class PlayerHUD
 		final ItemTemplate template = stack.getTemplate();
 		
 		// Try to resolve a sprite texture (drops -> items -> blocks paths).
-		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
+		final Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
 		
 		if (slotTexture != null)
 		{
@@ -878,6 +879,7 @@ public class PlayerHUD
 		{
 			return _blockInteraction.getTargetBlock();
 		}
+		
 		return Block.AIR;
 	}
 	

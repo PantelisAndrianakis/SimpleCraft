@@ -47,6 +47,7 @@ public class ItemRegistry
 		registerBlockItem(ItemTemplate.block("glass", "Glass", Block.GLASS), Block.GLASS);
 		registerBlockItem(ItemTemplate.block("window", "Window", Block.WINDOW), Block.WINDOW);
 		registerBlockItem(ItemTemplate.block("door", "Door", Block.DOOR_BOTTOM), Block.DOOR_BOTTOM);
+		
 		// DOOR_TOP maps to same item as DOOR_BOTTOM (single "door" item).
 		BLOCK_TO_ITEM.put(Block.DOOR_TOP, "door");
 		

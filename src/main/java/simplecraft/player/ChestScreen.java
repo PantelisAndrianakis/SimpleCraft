@@ -291,6 +291,7 @@ public class ChestScreen implements ActionListener
 				final int playerSlotIndex = 9 + row * GRID_COLS + col; // player slots 9-35
 				final int di = ChestTileEntity.CHEST_SLOTS + playerSlotIndex; // display index
 				_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
+				
 				// Row 0 of main = bottom (slots 9-17), row 2 = top (slots 27-35).
 				_slotY[di] = playerMainStartY + (2 - row) * (_slotSize + SLOT_SPACING);
 			}
@@ -304,6 +305,7 @@ public class ChestScreen implements ActionListener
 			{
 				final int di = row * GRID_COLS + col; // 0-26
 				_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
+				
 				// Row 0 = bottom of chest section, row 2 = top.
 				_slotY[di] = chestStartY + (2 - row) * (_slotSize + SLOT_SPACING);
 			}
@@ -456,6 +458,7 @@ public class ChestScreen implements ActionListener
 		// Position above the top chest row.
 		final float titleWidth = _titleText.getLineWidth();
 		final float titleX = (_screenWidth - titleWidth) / 2f;
+		
 		// Top chest row is row 0 (display slots 0-8), which has the highest Y.
 		final float topChestSlotY = _slotY[0];
 		final float titleY = topChestSlotY + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 2;
@@ -572,6 +575,7 @@ public class ChestScreen implements ActionListener
 			{
 				dropItemIntoWorld(_heldStack);
 			}
+			
 			_heldStack = null;
 		}
 		
@@ -814,6 +818,7 @@ public class ChestScreen implements ActionListener
 		{
 			tipX = cx - tipWidth - padding * 2 - 4;
 		}
+		
 		if (tipY > _screenHeight)
 		{
 			tipY = _screenHeight - 4;
@@ -1046,6 +1051,7 @@ public class ChestScreen implements ActionListener
 						_heldStack = null;
 					}
 				}
+				
 				// If slot is not empty, do nothing for shift-click (could be extended later).
 			}
 			return;
@@ -1231,6 +1237,7 @@ public class ChestScreen implements ActionListener
 				return i;
 			}
 		}
+		
 		return -1;
 	}
 	
@@ -1320,6 +1327,7 @@ public class ChestScreen implements ActionListener
 		{
 			close();
 		}
+		
 		_guiNode.detachChild(_screenNode);
 	}
 	

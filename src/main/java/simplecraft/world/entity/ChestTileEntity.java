@@ -117,6 +117,7 @@ public class ChestTileEntity extends TileEntity
 		{
 			return null;
 		}
+		
 		return _contents[index];
 	}
 	
@@ -131,6 +132,7 @@ public class ChestTileEntity extends TileEntity
 		{
 			return;
 		}
+		
 		_contents[index] = stack;
 	}
 	

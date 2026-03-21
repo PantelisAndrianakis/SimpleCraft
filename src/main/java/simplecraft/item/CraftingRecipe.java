@@ -3,6 +3,7 @@ package simplecraft.item;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * A single crafting recipe: maps ingredient requirements to an output item and count.<br>
@@ -42,13 +43,14 @@ public class CraftingRecipe
 	 */
 	public boolean canCraft(Inventory inventory)
 	{
-		for (Map.Entry<String, Integer> entry : _ingredients.entrySet())
+		for (Entry<String, Integer> entry : _ingredients.entrySet())
 		{
 			if (!inventory.hasItem(entry.getKey(), entry.getValue()))
 			{
 				return false;
 			}
 		}
+		
 		return true;
 	}
 	
@@ -74,7 +76,7 @@ public class CraftingRecipe
 		}
 		
 		// Consume all ingredients.
-		for (Map.Entry<String, Integer> entry : _ingredients.entrySet())
+		for (Entry<String, Integer> entry : _ingredients.entrySet())
 		{
 			inventory.removeItem(entry.getKey(), entry.getValue());
 		}
@@ -128,6 +130,7 @@ public class CraftingRecipe
 		{
 			return template.getDisplayName() + " ×" + _outputCount;
 		}
+		
 		return template.getDisplayName();
 	}
 	
@@ -139,7 +142,7 @@ public class CraftingRecipe
 	{
 		final StringBuilder sb = new StringBuilder();
 		boolean first = true;
-		for (Map.Entry<String, Integer> entry : _ingredients.entrySet())
+		for (Entry<String, Integer> entry : _ingredients.entrySet())
 		{
 			if (!first)
 			{
@@ -159,6 +162,7 @@ public class CraftingRecipe
 			
 			first = false;
 		}
+		
 		return sb.toString();
 	}
 }

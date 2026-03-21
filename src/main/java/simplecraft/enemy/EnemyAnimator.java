@@ -264,6 +264,7 @@ public class EnemyAnimator
 				TEMP_QUAT.multLocal(TEMP_QUAT2);
 				leftLeg.setLocalRotation(TEMP_QUAT);
 			}
+			
 			if (rightLeg != null)
 			{
 				// Base splay (positive Z) composed with opposite swing (X).
@@ -301,6 +302,7 @@ public class EnemyAnimator
 		
 		// Translate upward during stretch (positive cycle).
 		final float hopY = Math.max(0, cycle * SLIME_HOP_HEIGHT);
+		
 		// Body pivot is at Y=0.4 (from factory). Add hop offset.
 		body.setLocalTranslation(0, 0.4f + hopY, 0);
 	}
@@ -387,6 +389,7 @@ public class EnemyAnimator
 			
 			// Z-axis: fall sideways.
 			final float toppleAngle = eased * DEATH_TOPPLE_ANGLE;
+			
 			// Y-axis: spin while falling.
 			final float spinAngle = eased * DEATH_SPIN_REVOLUTIONS * FastMath.TWO_PI;
 			
@@ -401,6 +404,7 @@ public class EnemyAnimator
 		{
 			// Phase 2: Shrink to nothing.
 			final float t = (timer - DEATH_TOPPLE_DURATION) / DEATH_SHRINK_DURATION;
+			
 			// Ease-out (inverse quadratic) for a smooth vanish.
 			final float eased = 1.0f - t;
 			final float scale = eased * eased;

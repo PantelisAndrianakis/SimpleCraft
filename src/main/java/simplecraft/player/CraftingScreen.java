@@ -592,10 +592,12 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		{
 			inputManager.addMapping(ACTION_CRAFT_CLICK, new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
 		}
+		
 		if (!inputManager.hasMapping(ACTION_CRAFT_SCROLL_UP))
 		{
 			inputManager.addMapping(ACTION_CRAFT_SCROLL_UP, new MouseAxisTrigger(MouseInput.AXIS_WHEEL, false));
 		}
+		
 		if (!inputManager.hasMapping(ACTION_CRAFT_SCROLL_DOWN))
 		{
 			inputManager.addMapping(ACTION_CRAFT_SCROLL_DOWN, new MouseAxisTrigger(MouseInput.AXIS_WHEEL, true));

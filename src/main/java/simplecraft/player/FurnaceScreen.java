@@ -2,6 +2,7 @@ package simplecraft.player;
 
 import java.awt.Font;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
@@ -289,6 +290,7 @@ public class FurnaceScreen implements ActionListener
 				final Vector3f pos = _playerController.getPosition();
 				_dropManager.spawnDrop(new Vector3f(pos.x, pos.y + 1.0f, pos.z), _cursorItem);
 			}
+			
 			_cursorItem = null;
 		}
 		
@@ -347,6 +349,7 @@ public class FurnaceScreen implements ActionListener
 		{
 			inputManager.addMapping(ACTION_FURNACE_CLICK, new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
 		}
+		
 		inputManager.addListener(this, ACTION_FURNACE_CLICK);
 	}
 	
@@ -799,7 +802,7 @@ public class FurnaceScreen implements ActionListener
 			
 			// Recipe rows.
 			int rowIndex = 0;
-			for (Map.Entry<ItemTemplate, SmeltingRegistry.SmeltResult> entry : recipes.entrySet())
+			for (Entry<ItemTemplate, SmeltingRegistry.SmeltResult> entry : recipes.entrySet())
 			{
 				final ItemTemplate input = entry.getKey();
 				final ItemTemplate output = entry.getValue().getOutput();
@@ -825,6 +828,7 @@ public class FurnaceScreen implements ActionListener
 					inputGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
 					_rootNode.attachChild(inputGeom);
 				}
+				
 				cursorX += iconSlotSize + 4;
 				
 				// Input name text.
@@ -863,6 +867,7 @@ public class FurnaceScreen implements ActionListener
 					outputGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
 					_rootNode.attachChild(outputGeom);
 				}
+				
 				cursorX += iconSlotSize + 4;
 				
 				// Output name text.
@@ -907,7 +912,7 @@ public class FurnaceScreen implements ActionListener
 			
 			// Fuel rows.
 			int fuelIndex = 0;
-			for (Map.Entry<ItemTemplate, Float> entry : fuels.entrySet())
+			for (Entry<ItemTemplate, Float> entry : fuels.entrySet())
 			{
 				final ItemTemplate fuel = entry.getKey();
 				final float burnTime = entry.getValue();
@@ -932,6 +937,7 @@ public class FurnaceScreen implements ActionListener
 					fuelGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
 					_rootNode.attachChild(fuelGeom);
 				}
+				
 				cursorX += iconSlotSize + 4;
 				
 				// Fuel name text.
@@ -967,6 +973,7 @@ public class FurnaceScreen implements ActionListener
 		{
 			return (int) seconds + "s";
 		}
+		
 		return String.format("%.1fs", seconds);
 	}
 	
@@ -1074,6 +1081,7 @@ public class FurnaceScreen implements ActionListener
 						System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not smeltable.");
 						return;
 					}
+					
 					int total = _cursorItem.getCount();
 					int put = (total + 1) / 2;
 					int keep = total - put;
@@ -1088,6 +1096,7 @@ public class FurnaceScreen implements ActionListener
 						_cursorItem = null;
 					}
 				}
+				
 				// If slot is not empty, do nothing for shift
 			}
 			return;
@@ -1182,6 +1191,7 @@ public class FurnaceScreen implements ActionListener
 						System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not a valid fuel.");
 						return;
 					}
+					
 					int total = _cursorItem.getCount();
 					int put = (total + 1) / 2;
 					int keep = total - put;
@@ -1279,6 +1289,7 @@ public class FurnaceScreen implements ActionListener
 					_furnace.setOutputSlot(null);
 				}
 			}
+			
 			// If cursor has item, do nothing (can't place into output)
 			return;
 		}
@@ -1303,6 +1314,7 @@ public class FurnaceScreen implements ActionListener
 				slotItem.remove(slotItem.getCount() - overflow);
 			}
 		}
+		
 		// If cursor holds a different item, do nothing (can't place into output).
 	}
 	
@@ -1357,6 +1369,7 @@ public class FurnaceScreen implements ActionListener
 						_cursorItem = null;
 					}
 				}
+				
 				// If slot is not empty, do nothing for shift
 			}
 			return;

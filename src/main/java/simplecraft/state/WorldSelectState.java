@@ -332,6 +332,7 @@ public class WorldSelectState extends FadeableAppState
 			{
 				_currentPage = totalPages - 1;
 			}
+			
 			if (_currentPage < 0)
 			{
 				_currentPage = 0;
@@ -987,6 +988,7 @@ public class WorldSelectState extends FadeableAppState
 				{
 					return 0;
 				}
+				
 			}).sum();
 		}
 		catch (IOException e)

@@ -483,6 +483,7 @@ public class SpawnSystem
 						despawnEnemy(point);
 					}
 				}
+				
 				trackIterator.remove();
 			}
 		}
@@ -686,6 +687,7 @@ public class SpawnSystem
 					{
 						skyLight *= _dayNightCycle.getSkyBrightness();
 					}
+					
 					enemy.setSkyLight(skyLight);
 					enemy.update(playerPos, playerInWater, world, _audioManager, tpf);
 					
@@ -748,6 +750,7 @@ public class SpawnSystem
 		{
 			skyLight *= _dayNightCycle.getSkyBrightness();
 		}
+		
 		enemy.setSkyLight(skyLight);
 		
 		EnemyLighting.initializeLighting(enemy);
@@ -907,6 +910,7 @@ public class SpawnSystem
 				{
 					continue;
 				}
+				
 				visited.add(key);
 				
 				// Check if this cell has reached the escape radius.

@@ -281,6 +281,7 @@ public class QuestionManager
 		{
 			ButtonManager.setFocused(_yesButton, _selectedIndex == 0);
 		}
+		
 		if (_noButton != null)
 		{
 			ButtonManager.setFocused(_noButton, _selectedIndex == 1);

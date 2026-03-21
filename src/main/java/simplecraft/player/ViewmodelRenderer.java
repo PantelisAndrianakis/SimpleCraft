@@ -194,6 +194,7 @@ public class ViewmodelRenderer
 		// Quad is created in XY plane. FaceCullMode.Off renders both sides.
 		// We flip the UVs horizontally to correct mirroring (cheaper than rotating).
 		final Quad quad = new Quad(SPRITE_SIZE, SPRITE_SIZE);
+		
 		// Flip UVs both horizontally and vertically.
 		// The quad faces +Z but camera looks at -Z, so we see the back face.
 		// FaceCullMode.Off renders it, but the image is mirrored on both axes.
@@ -210,6 +211,7 @@ public class ViewmodelRenderer
 		// @formatter:on
 		quad.setBuffer(Type.TexCoord, 2, uvs);
 		_spriteGeo = new Geometry("ViewmodelSprite", quad);
+		
 		// Offset so the node origin (rotation pivot) is at the lower-right corner (handle).
 		// Quad extends left and up from the pivot point.
 		_spriteGeo.setLocalTranslation(-SPRITE_SIZE, 0, 0);
@@ -556,6 +558,7 @@ public class ViewmodelRenderer
 			System.out.println("ViewmodelRenderer: Missing: " + file.getAbsolutePath());
 			return null;
 		}
+		
 		try
 		{
 			// Register project root so full-path TextureKeys resolve unambiguously.
@@ -582,6 +585,7 @@ public class ViewmodelRenderer
 				// Flat sprite: no face culling (visible from both sides).
 				mat.getAdditionalRenderState().setFaceCullMode(RenderState.FaceCullMode.Off);
 			}
+			
 			// Block cube: default depth - renders like any world block.
 			
 			System.out.println("ViewmodelRenderer: Loaded '" + fullPath + "'" + (isSprite ? " (sprite)" : " (block)") + ".");
@@ -650,6 +654,7 @@ public class ViewmodelRenderer
 		{
 			_flameEmitter.killAllParticles();
 		}
+		
 		_rootNode.detachChild(_handNode);
 		_materialCache.clear();
 	}

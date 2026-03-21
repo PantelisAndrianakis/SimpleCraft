@@ -17,6 +17,7 @@ import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Texture;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
@@ -271,6 +272,7 @@ public class InventoryScreen implements ActionListener
 			{
 				final int slotIndex = 9 + row * GRID_COLS + col;
 				_slotX[slotIndex] = gridStartX + col * (_slotSize + SLOT_SPACING);
+				
 				// Row 0 of main = bottom row (slots 27-35), row 2 = top of main (slots 9-17).
 				_slotY[slotIndex] = gridStartY + (2 - row) * (_slotSize + SLOT_SPACING);
 			}
@@ -519,6 +521,7 @@ public class InventoryScreen implements ActionListener
 			{
 				dropItemIntoWorld(_heldStack);
 			}
+			
 			_heldStack = null;
 		}
 		
@@ -632,7 +635,7 @@ public class InventoryScreen implements ActionListener
 		final ItemTemplate template = stack.getTemplate();
 		
 		// Try to resolve a sprite texture (drops -> items -> blocks paths).
-		final com.jme3.texture.Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
+		final Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
 		
 		if (slotTexture != null)
 		{
@@ -759,6 +762,7 @@ public class InventoryScreen implements ActionListener
 		{
 			tipX = cx - tipWidth - padding * 2 - 4;
 		}
+		
 		if (tipY > _screenHeight)
 		{
 			tipY = _screenHeight - 4;
@@ -766,6 +770,7 @@ public class InventoryScreen implements ActionListener
 		
 		// Background.
 		_tooltipBg.getMesh().updateBound();
+		
 		// Recreate tooltip bg at the right size.
 		final float bgW = tipWidth + padding * 2;
 		final float bgH = tipHeight + padding;
@@ -795,7 +800,7 @@ public class InventoryScreen implements ActionListener
 		final float heldY = cy - heldSize / 2f;
 		
 		// Try to resolve a sprite texture for the held item.
-		final com.jme3.texture.Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
+		final Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
 		
 		if (heldTexture != null)
 		{
@@ -936,6 +941,7 @@ public class InventoryScreen implements ActionListener
 						_heldStack = null;
 					}
 				}
+				
 				// If slot is not empty, do nothing for shift-click (could be extended later).
 			}
 			return;
@@ -1057,6 +1063,7 @@ public class InventoryScreen implements ActionListener
 				return i;
 			}
 		}
+		
 		return -1;
 	}
 	
@@ -1159,6 +1166,7 @@ public class InventoryScreen implements ActionListener
 		{
 			close();
 		}
+		
 		_guiNode.detachChild(_screenNode);
 	}
 	
@@ -1185,6 +1193,7 @@ public class InventoryScreen implements ActionListener
 				{
 					return getBlockColor(block);
 				}
+				
 				return new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f);
 			}
 			case WEAPON:

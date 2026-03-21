@@ -185,6 +185,7 @@ public class EnemyLighting
 			colorBuffer.put(b); // B
 			colorBuffer.put(1.0f); // A
 		}
+		
 		colorBuffer.flip();
 		
 		mesh.setBuffer(Type.Color, 4, colorBuffer);

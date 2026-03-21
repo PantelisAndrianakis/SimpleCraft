@@ -150,6 +150,7 @@ public class DropManager
 					
 					System.out.println("Picked up " + drop.getInstance().getCount() + "x " + drop.getInstance().getTemplate().getDisplayName());
 				}
+				
 				// If inventory is full, leave the drop on the ground.
 			}
 		}
@@ -174,6 +175,7 @@ public class DropManager
 		{
 			_dropNode.detachChild(drop.getNode());
 		}
+		
 		_drops.clear();
 	}
 	

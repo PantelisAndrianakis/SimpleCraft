@@ -237,6 +237,7 @@ public class BlockSupport
 		{
 			indices.add(i);
 		}
+		
 		indices.sort(Comparator.comparingInt(i ->
 		{
 			final int[] pos = collapsedBlocks.get(i);

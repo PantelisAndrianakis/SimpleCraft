@@ -139,11 +139,13 @@ public class ItemInstance
 		{
 			count = 0;
 		}
+		
 		final int max = _template.getMaxStackSize();
 		if (count > max)
 		{
 			count = max;
 		}
+		
 		_count = count;
 	}
 	

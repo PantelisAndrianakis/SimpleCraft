@@ -404,6 +404,7 @@ public class SettingsManager
 				return i;
 			}
 		}
+		
 		return -1;
 	}
 	

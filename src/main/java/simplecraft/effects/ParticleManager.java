@@ -229,6 +229,7 @@ public class ParticleManager
 		{
 			_particleNode.detachChild(_activeEmitters.get(i).emitter);
 		}
+		
 		_activeEmitters.clear();
 	}
 	

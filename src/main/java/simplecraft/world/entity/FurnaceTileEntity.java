@@ -349,6 +349,7 @@ public class FurnaceTileEntity extends TileEntity
 		{
 			return 0;
 		}
+		
 		return Math.min(1.0f, _smeltProgress / _smeltTimeRequired);
 	}
 	
@@ -362,6 +363,7 @@ public class FurnaceTileEntity extends TileEntity
 		{
 			return 0;
 		}
+		
 		return Math.min(1.0f, _fuelRemaining / _fuelTotalBurnTime);
 	}
 	
@@ -439,19 +441,19 @@ public class FurnaceTileEntity extends TileEntity
 		
 		if (_inputSlot != null && !_inputSlot.isEmpty())
 		{
-			dropManager.spawnDrop(new com.jme3.math.Vector3f(cx, cy, cz), _inputSlot);
+			dropManager.spawnDrop(new Vector3f(cx, cy, cz), _inputSlot);
 			_inputSlot = null;
 		}
 		
 		if (_fuelSlot != null && !_fuelSlot.isEmpty())
 		{
-			dropManager.spawnDrop(new com.jme3.math.Vector3f(cx, cy, cz), _fuelSlot);
+			dropManager.spawnDrop(new Vector3f(cx, cy, cz), _fuelSlot);
 			_fuelSlot = null;
 		}
 		
 		if (_outputSlot != null && !_outputSlot.isEmpty())
 		{
-			dropManager.spawnDrop(new com.jme3.math.Vector3f(cx, cy, cz), _outputSlot);
+			dropManager.spawnDrop(new Vector3f(cx, cy, cz), _outputSlot);
 			_outputSlot = null;
 		}
 	}

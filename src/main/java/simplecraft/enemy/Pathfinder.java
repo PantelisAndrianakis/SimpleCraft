@@ -109,6 +109,7 @@ public class Pathfinder
 		
 		// Open set (priority queue sorted by f = g + h).
 		final PriorityQueue<PathNode> openSet = new PriorityQueue<>();
+		
 		// Map from packed (x, z) to best-known PathNode for that column.
 		final Map<Long, PathNode> allNodes = new HashMap<>();
 		
@@ -127,6 +128,7 @@ public class Pathfinder
 			{
 				continue;
 			}
+			
 			current._closed = true;
 			explored++;
 			
@@ -176,6 +178,7 @@ public class Pathfinder
 				{
 					continue; // Wall too high.
 				}
+				
 				if (heightDiff < -MAX_FALL)
 				{
 					continue; // Drop too far.
@@ -202,6 +205,7 @@ public class Pathfinder
 				
 				// Cost calculation.
 				final float moveCost = (d < 4) ? CARDINAL_COST : DIAGONAL_COST;
+				
 				// Penalize step-ups slightly to prefer flat paths.
 				final float stepPenalty = (heightDiff > 0) ? 0.5f : 0;
 				final float newG = current._g + moveCost + stepPenalty;
@@ -258,6 +262,7 @@ public class Pathfinder
 		if (groundEntity instanceof DoorTileEntity)
 		{
 			final DoorTileEntity door = (DoorTileEntity) groundEntity;
+			
 			// If door is closed, it blocks movement.
 			if (!door.isOpen())
 			{
@@ -270,6 +275,7 @@ public class Pathfinder
 		if (headEntity instanceof DoorTileEntity)
 		{
 			final DoorTileEntity door = (DoorTileEntity) headEntity;
+			
 			// If door is closed, it blocks movement (upper half matters for humanoids).
 			if (!door.isOpen())
 			{
@@ -281,6 +287,7 @@ public class Pathfinder
 		if (groundEntity instanceof WindowTileEntity)
 		{
 			final WindowTileEntity window = (WindowTileEntity) groundEntity;
+			
 			// If window is closed, it blocks movement.
 			if (!window.isOpen())
 			{
@@ -432,6 +439,7 @@ public class Pathfinder
 					return false;
 				}
 			}
+			
 			if (groundEntity instanceof WindowTileEntity)
 			{
 				final WindowTileEntity window = (WindowTileEntity) groundEntity;
@@ -453,6 +461,7 @@ public class Pathfinder
 						return false;
 					}
 				}
+				
 				if (headEntity instanceof WindowTileEntity)
 				{
 					final WindowTileEntity window = (WindowTileEntity) headEntity;
@@ -494,6 +503,7 @@ public class Pathfinder
 						return false;
 					}
 				}
+				
 				if (entity instanceof WindowTileEntity)
 				{
 					final WindowTileEntity window = (WindowTileEntity) entity;
@@ -504,6 +514,7 @@ public class Pathfinder
 				}
 			}
 		}
+		
 		return true;
 	}
 	

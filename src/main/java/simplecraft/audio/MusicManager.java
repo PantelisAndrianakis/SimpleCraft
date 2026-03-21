@@ -175,6 +175,7 @@ public class MusicManager
 		{
 			newUnderground = true;
 		}
+		
 		if (_timeSinceUnderground >= UNDERGROUND_EXIT_DELAY)
 		{
 			newUnderground = false;
@@ -231,6 +232,7 @@ public class MusicManager
 				final String staleTrack = wasEffectiveNight ? NIGHT_MUSIC_PATH : DAY_MUSIC_PATH;
 				_audioManager.clearSuspended(staleTrack);
 			}
+			
 			_wasNight = nightNow;
 			_undergroundActive = newUnderground;
 			return;

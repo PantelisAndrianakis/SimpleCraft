@@ -106,6 +106,7 @@ public class CursorManager
 			{
 				return;
 			}
+			
 			CURSOR_CACHE.put(type, cursor);
 		}
 		
@@ -183,6 +184,7 @@ public class CursorManager
 					imageData.put(resized.getRGB(x, y));
 				}
 			}
+			
 			imageData.flip();
 			
 			// Create the JmeCursor.

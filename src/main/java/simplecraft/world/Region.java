@@ -217,6 +217,7 @@ public class Region
 				}
 			}
 		}
+		
 		return flat;
 	}
 	
@@ -374,6 +375,7 @@ public class Region
 						isLeaves = false;
 						break;
 					}
+					
 					if (block == Block.LEAVES)
 					{
 						ceilingY = y;
@@ -381,6 +383,7 @@ public class Region
 						break;
 					}
 				}
+				
 				_skyLightHeight[index] = ceilingY;
 				_skyLightIsLeaves[index] = isLeaves;
 			}
@@ -624,6 +627,7 @@ public class Region
 					{
 						block = Block.AIR;
 					}
+					
 					_blocks[x][y][z] = (byte) block.ordinal();
 				}
 			}

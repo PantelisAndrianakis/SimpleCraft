@@ -296,10 +296,12 @@ public class BlockDestructionQueue
 		{
 			return POOF_COLOR_WOOD;
 		}
+		
 		if (blockType == Block.LEAVES)
 		{
 			return POOF_COLOR_LEAVES;
 		}
+		
 		return POOF_COLOR_DEFAULT;
 	}
 	
