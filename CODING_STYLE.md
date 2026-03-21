@@ -393,6 +393,22 @@ List<Enemy> alive = enemies.stream()
 
 **Why?** Visibility, performance, and memory control.
 
+### No Fully Qualified Class Names Inline
+
+**Always use import statements.** Never use fully qualified class names in method bodies or signatures.
+
+```java
+// WRONG - fully qualified inline.
+player.sendPacket(new ExActivatedCursedTreasureBoxLocation(8190, java.util.Collections.emptyList()));
+
+// CORRECT - use imports.
+import java.util.Collections;
+
+player.sendPacket(new ExActivatedCursedTreasureBoxLocation(8190, Collections.emptyList()));
+```
+
+**Why?** Fully qualified names clutter the code and reduce readability. Imports exist for a reason.
+
 ### No Null Annotations
 
 Do not use `@NonNull`, `@Nullable`, or similar annotations. Use explicit null checks.
@@ -560,6 +576,7 @@ Before submitting code, verify:
 
 - [ ] **No `var` keyword** - always use explicit types
 - [ ] **No Streams API** - use traditional loops
+- [ ] **No fully qualified class names inline** - use import statements
 - [ ] **No null annotations** - use explicit null checks
 - [ ] **No new switch expressions** - use traditional switch only
 - [ ] **GC awareness** - avoid allocations in hot paths, prefer pooling
@@ -588,11 +605,12 @@ Remember these core principles:
 
 1. **No Type Inference** - Always use explicit types. `var` is forbidden.
 2. **No Streams API** - Use traditional loops for visibility and performance.
-3. **No Null Annotations** - Use explicit null checks.
-4. **GC Awareness** - Avoid allocations in hot paths; prefer pooling.
-5. **Primitive Preference** - Avoid boxing/unboxing overhead.
-6. **Single-Line Code** - All control flow, conditions, signatures on single lines. Wrapping hides complexity instead of reducing it.
-7. **Allman Braces** - Opening braces on new lines always.
-8. **Complete Sentences** - Comments are documentation.
-9. **Don't Over-Engineer** - YAGNI (You Ain't Gonna Need It).
-10. **Traditional Switch Only** - No arrow syntax or switch expressions.
+3. **No Fully Qualified Class Names** - Always use imports, never inline `java.util.Whatever`.
+4. **No Null Annotations** - Use explicit null checks.
+5. **GC Awareness** - Avoid allocations in hot paths; prefer pooling.
+6. **Primitive Preference** - Avoid boxing/unboxing overhead.
+7. **Single-Line Code** - All control flow, conditions, signatures on single lines. Wrapping hides complexity instead of reducing it.
+8. **Allman Braces** - Opening braces on new lines always.
+9. **Complete Sentences** - Comments are documentation.
+10. **Don't Over-Engineer** - YAGNI (You Ain't Gonna Need It).
+11. **Traditional Switch Only** - No arrow syntax or switch expressions.
