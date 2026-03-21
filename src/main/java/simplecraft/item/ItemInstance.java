@@ -187,6 +187,29 @@ public class ItemInstance
 	}
 	
 	/**
+	 * Directly sets the current durability.<br>
+	 * Used by save/load to restore saved durability values.<br>
+	 * Clamped to [0, maxDurability].
+	 * @param durability the durability value to set
+	 */
+	public void setDurability(int durability)
+	{
+		final int maxDurability = _template.getMaxDurability();
+		if (durability < 0)
+		{
+			_durability = 0;
+		}
+		else if (durability > maxDurability)
+		{
+			_durability = maxDurability;
+		}
+		else
+		{
+			_durability = durability;
+		}
+	}
+	
+	/**
 	 * Reduces durability by the given amount.
 	 * @param amount durability to lose
 	 * @return true if durability hit 0 or below (item is broken)

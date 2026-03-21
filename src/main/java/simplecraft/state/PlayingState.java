@@ -187,6 +187,9 @@ public class PlayingState extends FadeableAppState
 	/** Loaded tile entity save data for restoring after spawn. Null if no save exists. */
 	private String _tileEntitySaveData;
 	
+	/** Loaded inventory save data for restoring after spawn. Null if no save exists. */
+	private String _inventorySaveData;
+	
 	// ========================================================
 	// Loading Screen / Pending Spawn.
 	// ========================================================
@@ -465,6 +468,7 @@ public class PlayingState extends FadeableAppState
 		// Load player data first so we can use saved time of day.
 		_playerSaveData = SaveManager.loadPlayerData();
 		_tileEntitySaveData = SaveManager.loadTileEntityData();
+		_inventorySaveData = SaveManager.loadInventoryData();
 		
 		// Initialize the day/night cycle. Use saved time if loading, otherwise start at early morning.
 		final float startTime = _playerSaveData != null ? _playerSaveData.getTimeOfDay() : STARTING_TIME_OF_DAY;
@@ -1254,6 +1258,14 @@ public class PlayingState extends FadeableAppState
 			_playerController.setInitialSpawn(SPAWN_X, spawnY, SPAWN_Z);
 		}
 		
+		// Restore inventory from save data (overrides the default starting inventory).
+		// Must happen after player controller creation (which populates defaults)
+		// but before any gameplay systems that read inventory state.
+		if (_inventorySaveData != null)
+		{
+			_playerController.getInventory().deserialize(_inventorySaveData);
+		}
+		
 		_playerController.registerInput();
 		
 		// Create and initialize block interaction (raycasting, breaking, placing).
@@ -1293,6 +1305,7 @@ public class PlayingState extends FadeableAppState
 		// Clear save data references - no longer needed.
 		_playerSaveData = null;
 		_tileEntitySaveData = null;
+		_inventorySaveData = null;
 		
 		// Create the player HUD.
 		createHUD();
@@ -1593,6 +1606,7 @@ public class PlayingState extends FadeableAppState
 		_activeWorld = null;
 		_playerSaveData = null;
 		_tileEntitySaveData = null;
+		_inventorySaveData = null;
 		
 		// Clear active world reference when leaving the game session.
 		app.setActiveWorld(null);

@@ -3,7 +3,12 @@ package simplecraft.item;
 /**
  * Player inventory with 36 slots: hotbar (0-8) and main inventory (9-35).<br>
  * Null slots are empty. Weapons and tools never stack (unique durability).<br>
- * Blocks, consumables and materials stack up to their max stack size.
+ * Blocks, consumables and materials stack up to their max stack size.<br>
+ * <br>
+ * Serialization format (inventory.txt):<br>
+ * Line 1: {@code hotbar:<index>} - selected hotbar slot index (0-8).<br>
+ * Lines 2-37: {@code <itemId>:<count>:<durability>} per slot, or {@code empty:0:0} for empty slots.<br>
+ * Durability is 0 for non-durability items (blocks, materials, consumables).
  * @author Pantelis Andrianakis
  * @since March 13th 2026
  */
@@ -265,5 +270,141 @@ public class Inventory
 		final ItemInstance temp = _slots[a];
 		_slots[a] = _slots[b];
 		_slots[b] = temp;
+	}
+	
+	// ========================================================
+	// Serialization.
+	// ========================================================
+	
+	/**
+	 * Serializes the inventory to a string for saving to disk.<br>
+	 * Format: first line is {@code hotbar:<index>}, followed by 36 lines<br>
+	 * of {@code <itemId>:<count>:<durability>}. Empty slots are written as {@code empty:0:0}.
+	 * @return the serialized inventory string
+	 */
+	public String serialize()
+	{
+		final StringBuilder sb = new StringBuilder();
+		
+		// Line 1: hotbar selection.
+		sb.append("hotbar:").append(_selectedHotbarIndex).append('\n');
+		
+		// Lines 2-37: slot data.
+		for (int i = 0; i < TOTAL_SLOTS; i++)
+		{
+			final ItemInstance slot = _slots[i];
+			if (slot == null)
+			{
+				sb.append("empty:0:0");
+			}
+			else
+			{
+				sb.append(slot.getTemplate().getId());
+				sb.append(':');
+				sb.append(slot.getCount());
+				sb.append(':');
+				sb.append(slot.getDurability());
+			}
+			
+			if (i < TOTAL_SLOTS - 1)
+			{
+				sb.append('\n');
+			}
+		}
+		
+		return sb.toString();
+	}
+	
+	/**
+	 * Deserializes inventory data from a saved string and restores all slots.<br>
+	 * Clears any existing inventory contents before restoring.<br>
+	 * Unknown item IDs are skipped (slot left empty) with a warning logged.
+	 * @param data the serialized inventory string from {@link #serialize()}
+	 */
+	public void deserialize(String data)
+	{
+		if (data == null || data.isEmpty())
+		{
+			System.err.println("Inventory: Cannot deserialize - data is null or empty.");
+			return;
+		}
+		
+		final String[] lines = data.split("\n");
+		if (lines.length < 1 + TOTAL_SLOTS)
+		{
+			System.err.println("Inventory: Cannot deserialize - expected " + (1 + TOTAL_SLOTS) + " lines, got " + lines.length + ".");
+			return;
+		}
+		
+		// Line 1: hotbar selection.
+		final String hotbarLine = lines[0].trim();
+		if (hotbarLine.startsWith("hotbar:"))
+		{
+			try
+			{
+				final int index = Integer.parseInt(hotbarLine.substring("hotbar:".length()));
+				_selectedHotbarIndex = Math.max(0, Math.min(index, HOTBAR_SLOTS - 1));
+			}
+			catch (NumberFormatException e)
+			{
+				System.err.println("Inventory: Bad hotbar index in save - defaulting to 0.");
+				_selectedHotbarIndex = 0;
+			}
+		}
+		
+		// Lines 2-37: slot data.
+		for (int i = 0; i < TOTAL_SLOTS; i++)
+		{
+			final String line = lines[1 + i].trim();
+			
+			// Empty slot marker.
+			if (line.equals("empty:0:0"))
+			{
+				_slots[i] = null;
+				continue;
+			}
+			
+			// Parse id:count:durability.
+			final String[] parts = line.split(":");
+			if (parts.length < 3)
+			{
+				System.err.println("Inventory: Bad slot line [" + i + "]: '" + line + "' - clearing slot.");
+				_slots[i] = null;
+				continue;
+			}
+			
+			final String itemId = parts[0];
+			final ItemTemplate template = ItemRegistry.get(itemId);
+			if (template == null)
+			{
+				System.err.println("Inventory: Unknown item ID '" + itemId + "' in slot " + i + " - clearing slot.");
+				_slots[i] = null;
+				continue;
+			}
+			
+			try
+			{
+				final int count = Integer.parseInt(parts[1]);
+				final int durability = Integer.parseInt(parts[2]);
+				
+				final ItemInstance instance = new ItemInstance(template, count);
+				
+				// Restore durability for weapons/tools. The constructor sets max durability,
+				// so we override it with the saved value for items that have durability.
+				if (instance.hasDurability())
+				{
+					instance.setDurability(durability);
+				}
+				
+				_slots[i] = instance;
+			}
+			catch (NumberFormatException e)
+			{
+				System.err.println("Inventory: Bad count/durability in slot " + i + ": '" + line + "' - clearing slot.");
+				_slots[i] = null;
+			}
+		}
+		
+		System.out.println("Inventory: Deserialized " + TOTAL_SLOTS + " slots, hotbar index " + _selectedHotbarIndex + ".");
 	}
 }

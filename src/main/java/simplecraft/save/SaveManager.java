@@ -36,6 +36,7 @@ import simplecraft.world.entity.TileEntityManager;
  * ├── world_info.txt     (already exists from WorldInfo)
  * ├── world.dat          (modified region block data, GZip compressed)
  * ├── player.dat         (player position, health, time, respawn point)
+ * ├── inventory.txt      (36 inventory slots + hotbar selection)
  * └── tile_entities.dat  (campfires, chests, crafting tables, furnaces)
  * </pre>
  * 
@@ -56,6 +57,7 @@ public class SaveManager
 	
 	private static final String WORLD_FILE = "world.dat";
 	private static final String PLAYER_FILE = "player.dat";
+	private static final String INVENTORY_FILE = "inventory.txt";
 	private static final String TILE_ENTITY_FILE = "tile_entities.dat";
 	
 	// ========================================================
@@ -189,7 +191,7 @@ public class SaveManager
 	/**
 	 * Saves the current world state to the active world's directory.<br>
 	 * Writes world.dat (modified regions), player.dat (player state),<br>
-	 * and tile_entities.dat (all tile entities).<br>
+	 * inventory.txt (inventory contents) and tile_entities.dat (all tile entities).<br>
 	 * Also updates WorldInfo.lastPlayedAt and re-saves world_info.txt.
 	 * @param world the game world
 	 * @param player the player controller
@@ -221,6 +223,9 @@ public class SaveManager
 		
 		// Save player state.
 		savePlayerData(player, dayNightCycle, worldDir);
+		
+		// Save inventory.
+		saveInventoryData(player, worldDir);
 		
 		// Save tile entities.
 		saveTileEntityData(world.getTileEntityManager(), worldDir);
@@ -341,6 +346,24 @@ public class SaveManager
 	}
 	
 	/**
+	 * Saves inventory data to inventory.txt.<br>
+	 * Uses Inventory's built-in serialization (hotbar index + 36 slot lines).
+	 */
+	private static void saveInventoryData(PlayerController player, Path worldDir)
+	{
+		final Path file = worldDir.resolve(INVENTORY_FILE);
+		
+		try (BufferedWriter writer = Files.newBufferedWriter(file))
+		{
+			writer.write(player.getInventory().serialize());
+		}
+		catch (IOException e)
+		{
+			System.err.println("SaveManager: Failed to save inventory data: " + e.getMessage());
+		}
+	}
+	
+	/**
 	 * Saves tile entity data to tile_entities.dat.<br>
 	 * Uses TileEntityManager's built-in serialization.
 	 */
@@ -420,6 +443,47 @@ public class SaveManager
 		catch (IOException e)
 		{
 			System.err.println("SaveManager: Failed to load player data: " + e.getMessage());
+			return null;
+		}
+	}
+	
+	/**
+	 * Loads inventory data from inventory.txt in the active world's directory.
+	 * @return the serialized inventory string, or null if no save exists or read fails
+	 */
+	public static String loadInventoryData()
+	{
+		final WorldInfo activeWorld = SimpleCraft.getInstance().getActiveWorld();
+		if (activeWorld == null)
+		{
+			return null;
+		}
+		
+		final Path file = activeWorld.getWorldDirectory().resolve(INVENTORY_FILE);
+		if (!Files.exists(file))
+		{
+			return null;
+		}
+		
+		try (BufferedReader reader = Files.newBufferedReader(file))
+		{
+			final StringBuilder sb = new StringBuilder();
+			String line;
+			while ((line = reader.readLine()) != null)
+			{
+				if (sb.length() > 0)
+				{
+					sb.append('\n');
+				}
+				sb.append(line);
+			}
+			
+			System.out.println("SaveManager: Loaded inventory data from " + file);
+			return sb.toString();
+		}
+		catch (IOException e)
+		{
+			System.err.println("SaveManager: Failed to load inventory data: " + e.getMessage());
 			return null;
 		}
 	}
