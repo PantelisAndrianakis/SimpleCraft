@@ -146,6 +146,13 @@ public class PlayingState extends FadeableAppState
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
 	
+	/**
+	 * True while the player has been spawned but hasn't touched the ground yet.<br>
+	 * The loading screen stays visible during this phase so the player never sees<br>
+	 * terrain pop-in or the fall from spawn height to the surface.
+	 */
+	private boolean _waitingForGround;
+	
 	/** Listener for respawn click while dead. */
 	private ActionListener _respawnListener;
 	
@@ -204,7 +211,7 @@ public class PlayingState extends FadeableAppState
 	private static final int SPAWN_FALLBACK_Y = 80;
 	
 	/** Maximum frames to wait for terrain before using fallback spawn height. */
-	private static final int SPAWN_TIMEOUT_FRAMES = 300;
+	private static final int SPAWN_TIMEOUT_FRAMES = 600;
 	
 	/**
 	 * Minimum region radius around the spawn point that must be fully loaded<br>
@@ -230,6 +237,18 @@ public class PlayingState extends FadeableAppState
 	
 	/** Fallback Y if terrain never loads within the timeout. */
 	private int _spawnFallbackY;
+	
+	/** True only for a brand-new world (no save data) - triggers safe surface search on initial spawn. */
+	private boolean _newWorldSpawn;
+	
+	/** Spiral search step index for finding a safe spawn surface (GRASS with AIR above). */
+	private int _spawnSearchStep;
+	
+	/**
+	 * Minimum grass radius around the spawn point.<br>
+	 * All blocks within this radius (a 9×9 area for radius 4) must have a GRASS surface with AIR above, ensuring the player spawns on open grassland.
+	 */
+	private static final int SPAWN_GRASS_RADIUS = 4;
 	
 	/** Loading screen container node attached to guiNode. */
 	private Node _loadingScreenNode;
@@ -310,7 +329,7 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
-			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_playerDead && !QuestionManager.isActive())
+			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_waitingForGround && !_playerDead && !QuestionManager.isActive())
 			{
 				// Auto-save before pausing.
 				if (_world != null && _playerController != null && _dayNightCycle != null)
@@ -341,7 +360,7 @@ public class PlayingState extends FadeableAppState
 			
 			// Only toggle inventory during active gameplay (not loading, dead, paused, or in question dialog).
 			final GameStateManager gsm = simpleCraft.getGameStateManager();
-			if (gsm.getCurrentState() != GameState.PLAYING || _pendingSpawn || _playerDead || QuestionManager.isActive())
+			if (gsm.getCurrentState() != GameState.PLAYING || _pendingSpawn || _waitingForGround || _playerDead || QuestionManager.isActive())
 			{
 				return;
 			}
@@ -359,16 +378,19 @@ public class PlayingState extends FadeableAppState
 					{
 						_craftingScreen.close();
 					}
+					
 					// Close chest screen if open before opening inventory.
 					if (_chestScreen != null && _chestScreen.isOpen())
 					{
 						_chestScreen.close();
 					}
+					
 					// Close furnace screen if open before opening inventory.
 					if (_furnaceScreen != null && _furnaceScreen.isOpen())
 					{
 						_furnaceScreen.close();
 					}
+					
 					_inventoryScreen.open();
 				}
 			}
@@ -529,6 +551,8 @@ public class PlayingState extends FadeableAppState
 		_spawnTargetZ = _playerSaveData != null ? (int) _playerSaveData.getPosZ() : SPAWN_Z;
 		_spawnScanFromY = 255;
 		_spawnFallbackY = SPAWN_FALLBACK_Y;
+		_newWorldSpawn = (_playerSaveData == null);
+		_spawnSearchStep = 0;
 		
 		// Kick off region loading around the spawn/saved position.
 		final int renderDistance = app.getSettingsManager().getRenderDistance();
@@ -568,21 +592,237 @@ public class PlayingState extends FadeableAppState
 				}
 			}
 			
-			// Use fallback if timeout reached.
-			if (spawnY < 0 && _spawnWaitFrames >= SPAWN_TIMEOUT_FRAMES)
+			// Head clearance check: ensure 2 blocks of air (feet + head) above spawn Y.
+			// If the player would spawn under a tree canopy or overhang, push upward.
+			if (spawnY >= 0)
 			{
-				spawnY = _spawnFallbackY;
-				System.out.println("Spawn timeout after " + _spawnWaitFrames + " frames, using fallback Y=" + spawnY);
+				while (spawnY < Region.SIZE_Y - 2)
+				{
+					final Block feetBlock = _world.getBlock(_spawnTargetX, spawnY, _spawnTargetZ);
+					final Block headBlock = _world.getBlock(_spawnTargetX, spawnY + 1, _spawnTargetZ);
+					
+					// Accept only AIR or non‑solid decorations (flowers, etc.) – no liquids.
+					if ((feetBlock == Block.AIR || feetBlock.isDecoration()) && (headBlock == Block.AIR || headBlock.isDecoration()))
+					{
+						break;
+					}
+					
+					spawnY++;
+				}
 			}
 			
-			// Even after finding terrain, wait for nearby regions to load so the
-			// player doesn't see terrain pop-in. Skip this check on timeout.
-			if (spawnY >= 0 && _spawnWaitFrames < SPAWN_TIMEOUT_FRAMES)
+			// Reject spawn positions above water - the player would immediately fall in.
+			// The head clearance check pushes spawnY above the water surface, but gravity
+			// pulls the player right back into the water on the first frame.
+			if (spawnY >= 0 && spawnY <= TerrainGenerator.WATER_LEVEL + 1)
+			{
+				final Block blockBelow = _world.getBlock(_spawnTargetX, spawnY - 1, _spawnTargetZ);
+				if (blockBelow.isLiquid())
+				{
+					spawnY = -1;
+				}
+			}
+			
+			// --- Safe surface search for new worlds only. ---
+			// Multi-step spiral search per frame: find a 9×9 area of GRASS blocks all at the same Y level.
+			// Gate on center region loaded rather than spawnY - the spawn column may be
+			// underwater (spawnY rejected above) but loaded regions still exist to search.
+			final boolean centerRegionLoaded = _world.getRegion(Math.floorDiv(SPAWN_X, Region.SIZE_XZ), Math.floorDiv(SPAWN_Z, Region.SIZE_XZ)) != null;
+			if (_newWorldSpawn && centerRegionLoaded)
+			{
+				final int STEPS_PER_FRAME = 20; // Reduced to avoid frame stutter.
+				final int REGION_RADIUS_NEEDED = 1; // Need at least 1 region loaded around check point.
+				
+				boolean foundFlatGrassland = false;
+				int bestY = -1;
+				
+				// Check multiple spiral positions this frame.
+				for (int step = 0; step < STEPS_PER_FRAME && !foundFlatGrassland; step++)
+				{
+					// Calculate current search position.
+					final int[] offset = spiralOffset(_spawnSearchStep);
+					final int checkX = SPAWN_X + offset[0];
+					final int checkZ = SPAWN_Z + offset[1];
+					
+					// PAUSE if regions aren't loaded around this position.
+					// Without this, getBlock() returns garbage/unloaded data.
+					// Don't advance _spawnSearchStep - retry this position next frame
+					// when the region is likely loaded. Since regions load outward from
+					// the center, positions beyond this one are also unlikely to be ready.
+					if (!areRegionsLoadedAround(checkX, checkZ, REGION_RADIUS_NEEDED))
+					{
+						break; // Stop this frame's search - retry same position next frame.
+					}
+					
+					// Find the surface Y at this position.
+					int centerSurfaceY = -1;
+					for (int y = _spawnScanFromY; y >= 0; y--)
+					{
+						final Block b = _world.getBlock(checkX, y, checkZ);
+						if (b != Block.AIR && !b.isLiquid())
+						{
+							if (b == Block.GRASS)
+							{
+								centerSurfaceY = y;
+							}
+							break;
+						}
+					}
+					
+					// If center is grass, check the surrounding area for flat grassland.
+					if (centerSurfaceY >= 0)
+					{
+						boolean allGrass = true;
+						
+						for (int dx = -SPAWN_GRASS_RADIUS; dx <= SPAWN_GRASS_RADIUS && allGrass; dx++)
+						{
+							for (int dz = -SPAWN_GRASS_RADIUS; dz <= SPAWN_GRASS_RADIUS && allGrass; dz++)
+							{
+								final int neighborX = checkX + dx;
+								final int neighborZ = checkZ + dz;
+								
+								// Double-check neighbor regions are loaded too.
+								if (!areRegionsLoadedAround(neighborX, neighborZ, 0))
+								{
+									allGrass = false;
+									break;
+								}
+								
+								int neighborSurfaceY = -1;
+								Block neighborSurfaceBlock = Block.AIR;
+								
+								for (int y = _spawnScanFromY; y >= 0; y--)
+								{
+									final Block b = _world.getBlock(neighborX, y, neighborZ);
+									if (b != Block.AIR && !b.isLiquid())
+									{
+										neighborSurfaceY = y;
+										neighborSurfaceBlock = b;
+										break;
+									}
+								}
+								
+								if (neighborSurfaceY != centerSurfaceY || neighborSurfaceBlock != Block.GRASS)
+								{
+									allGrass = false;
+									break;
+								}
+								
+								final Block feetBlock = _world.getBlock(neighborX, centerSurfaceY + 1, neighborZ);
+								final Block headBlock = _world.getBlock(neighborX, centerSurfaceY + 2, neighborZ);
+								if ((feetBlock != Block.AIR && !feetBlock.isDecoration()) || (headBlock != Block.AIR && !headBlock.isDecoration()))
+								{
+									allGrass = false;
+									break;
+								}
+							}
+						}
+						
+						if (allGrass)
+						{
+							foundFlatGrassland = true;
+							bestY = centerSurfaceY;
+							_spawnTargetX = checkX;
+							_spawnTargetZ = checkZ;
+							System.out.println("Found flat grassland at [" + _spawnTargetX + ", " + bestY + ", " + _spawnTargetZ + "] after " + _spawnSearchStep + " steps (9×9 area verified)");
+						}
+					}
+					
+					_spawnSearchStep++;
+					
+					// Log every 500 valid checks (not skips).
+					if (_spawnSearchStep % 500 == 0)
+					{
+						System.out.println("Searching for flat grassland... step " + _spawnSearchStep + " checked at [" + checkX + ", " + checkZ + "]");
+					}
+				}
+				
+				if (foundFlatGrassland)
+				{
+					spawnY = bestY + 1;
+					_newWorldSpawn = false;
+				}
+				else
+				{
+					// Not found yet - need to load more regions.
+					spawnY = -1;
+				}
+			}
+			
+			// Use fallback if timeout reached and terrain scan still hasn't found ground.
+			if (spawnY < 0 && _spawnWaitFrames >= SPAWN_TIMEOUT_FRAMES)
+			{
+				if (_newWorldSpawn)
+				{
+					// Grassland search timed out - abandon the strict 9×9 GRASS requirement.
+					// Find the nearest dry column (above water level) in loaded regions.
+					_newWorldSpawn = false;
+					System.out.println("Grassland search timeout after " + _spawnWaitFrames + " frames - switching to dry column search.");
+				}
+				
+				// Try to find the nearest dry column in loaded regions.
+				final int[] drySpawn = findNearestDryColumn();
+				if (drySpawn != null)
+				{
+					_spawnTargetX = drySpawn[0];
+					_spawnTargetZ = drySpawn[1];
+					spawnY = drySpawn[2] + 1; // Stand on top.
+					System.out.println("Found dry column at [" + _spawnTargetX + ", " + spawnY + ", " + _spawnTargetZ + "] after " + _spawnWaitFrames + " frames.");
+				}
+				else if (_spawnWaitFrames >= SPAWN_TIMEOUT_FRAMES * 2)
+				{
+					// No dry land anywhere in the loaded area - entire region is ocean.
+					// Accept the original spawn position on the highest solid block as a last resort.
+					for (int y = _spawnScanFromY; y >= 0; y--)
+					{
+						final Block b = _world.getBlock(_spawnTargetX, y, _spawnTargetZ);
+						if (b != Block.AIR && !b.isLiquid())
+						{
+							spawnY = y + 1;
+							break;
+						}
+					}
+					
+					// If still nothing (all AIR), use the fallback height.
+					if (spawnY < 0)
+					{
+						spawnY = _spawnFallbackY;
+					}
+					
+					System.out.println("WARN: No dry land found in loaded area after " + _spawnWaitFrames + " frames - accepting spawn at Y=" + spawnY);
+				}
+			}
+			
+			// Always wait for nearby regions to load before placing the player.
+			// Without this, the player can be placed before terrain data exists,
+			// causing them to spawn inside the ground when blocks load around them.
+			if (spawnY >= 0)
 			{
 				if (!areSpawnRegionsReady(_spawnTargetX, _spawnTargetZ))
 				{
 					// Terrain found but surrounding regions still loading - keep waiting.
-					return;
+					// As a safety net, only keep waiting up to double the normal timeout.
+					if (_spawnWaitFrames < SPAWN_TIMEOUT_FRAMES * 2)
+					{
+						return;
+					}
+					
+					System.out.println("Region wait timeout after " + _spawnWaitFrames + " frames - forcing spawn.");
+				}
+				
+				// Final safety check: verify the chosen position is not underwater.
+				// Catches edge cases like forced spawn after region wait timeout.
+				final Block belowSpawn = _world.getBlock(_spawnTargetX, spawnY - 1, _spawnTargetZ);
+				if (belowSpawn.isLiquid() || spawnY <= TerrainGenerator.WATER_LEVEL)
+				{
+					// Position is wet - reject and keep searching.
+					// Only give up and accept a wet spawn as an extreme last resort.
+					if (_spawnWaitFrames < SPAWN_TIMEOUT_FRAMES * 3)
+					{
+						return;
+					}
+					
+					System.out.println("WARN: All spawn attempts exhausted after " + _spawnWaitFrames + " frames - accepting wet spawn at Y=" + spawnY);
 				}
 			}
 			
@@ -591,6 +831,37 @@ public class PlayingState extends FadeableAppState
 			{
 				System.out.println("Spawn ready at Y=" + spawnY + " (waited " + _spawnWaitFrames + " frames)");
 				finalizeSpawn(spawnY);
+			}
+			
+			return;
+		}
+		
+		// --- Waiting for the player to physically touch the ground after spawn. ---
+		// The loading screen stays visible while the player falls from spawn height
+		// to the surface. World and player physics keep ticking behind the screen
+		// so terrain continues loading and gravity settles the player.
+		if (_waitingForGround && _world != null && _playerController != null)
+		{
+			updateLoadingScreen(tpf);
+			
+			// Keep ticking the world so async region loading and mesh building continue.
+			final SimpleCraft groundApp = SimpleCraft.getInstance();
+			final int groundRenderDist = groundApp.getSettingsManager().getRenderDistance();
+			_world.update(_playerController.getPosition(), groundRenderDist);
+			
+			// Update player physics (gravity, collision) so they actually fall and land.
+			_playerController.update(tpf);
+			
+			if (_playerController.isOnGround())
+			{
+				_waitingForGround = false;
+				hideLoadingScreen();
+				
+				// Ensure cursor is hidden for first-person control.
+				groundApp.getInputManager().setCursorVisible(false);
+				
+				final Vector3f landPos = _playerController.getPosition();
+				System.out.println("Player touched ground at [" + landPos.x + ", " + landPos.y + ", " + landPos.z + "] - loading screen removed.");
 			}
 			
 			return;
@@ -968,23 +1239,41 @@ public class PlayingState extends FadeableAppState
 		_spawnTargetX = (int) respawnPoint.x;
 		_spawnTargetZ = (int) respawnPoint.z;
 		
+		System.out.println("Respawn target: [" + _spawnTargetX + ", " + respawnPoint.y + ", " + _spawnTargetZ + "] (campfire=" + (_playerController.getCampfireSpawn() != null) + ")");
+		
+		// Pre-position the player at the respawn target immediately.
+		// This prevents the player controller from having stale arena coordinates
+		// while the main world regions are loading during the pending spawn loop.
+		_playerController.setPosition(_spawnTargetX + 0.5f, respawnPoint.y, _spawnTargetZ + 0.5f);
+		
 		// For campfire spawns: scan downward from the saved Y to avoid landing on a ceiling.
 		// For initial spawn: scan from the world top (surface is always open sky).
 		final boolean hasCampfire = _playerController.getCampfireSpawn() != null;
 		_spawnScanFromY = hasCampfire ? (int) respawnPoint.y : 255;
 		_spawnFallbackY = hasCampfire ? (int) respawnPoint.y : SPAWN_FALLBACK_Y;
 		
+		// Ensure safe-surface spiral search is disabled (only used for brand-new worlds).
+		_newWorldSpawn = false;
+		_spawnSearchStep = 0;
+		
 		// Hide death screen, clean up HUD and show loading screen.
 		if (_playerHUD != null)
 		{
 			_playerHUD.hideDeathScreen();
 		}
+		
 		cleanupHUD();
 		cleanupRespawnListener();
 		showLoadingScreen();
 		
 		// Hide cursor during loading.
 		app.getInputManager().setCursorVisible(false);
+		
+		// Kick off region loading around the respawn position immediately,
+		// so background threads start generating terrain this frame rather than
+		// waiting until the first iteration of the pending spawn loop.
+		final int renderDistance = app.getSettingsManager().getRenderDistance();
+		_world.update(new Vector3f(_spawnTargetX, _spawnFallbackY, _spawnTargetZ), renderDistance);
 		
 		// Enter pending spawn - the existing loop will tick the world and call finalizeSpawn.
 		_pendingSpawn = true;
@@ -1183,10 +1472,150 @@ public class PlayingState extends FadeableAppState
 	}
 	
 	/**
+	 * Returns an (x, z) offset for step N of a clockwise spiral pattern centered on (0, 0). Step 0 = origin, then expands outward in rings. Used by the safe spawn surface search to check progressively farther columns.
+	 * @param step the spiral step index (0-based)
+	 * @return int array {offsetX, offsetZ}
+	 */
+	private static int[] spiralOffset(int step)
+	{
+		if (step == 0)
+		{
+			return new int[]
+			{
+				0,
+				0
+			};
+		}
+		
+		int x = 0, z = 0;
+		int dx = 1, dz = 0;
+		int segmentLength = 1;
+		int segmentPassed = 0;
+		int segmentCount = 0;
+		
+		for (int i = 0; i < step; i++)
+		{
+			x += dx;
+			z += dz;
+			segmentPassed++;
+			
+			if (segmentPassed == segmentLength)
+			{
+				segmentPassed = 0;
+				// Rotate direction: +X -> +Z -> -X -> -Z.
+				final int temp = dx;
+				dx = -dz;
+				dz = temp;
+				segmentCount++;
+				if (segmentCount % 2 == 0)
+				{
+					segmentLength++;
+				}
+			}
+		}
+		
+		return new int[]
+		{
+			x,
+			z
+		};
+	}
+	
+	/**
+	 * Returns true if regions are loaded around the given world position.
+	 */
+	private boolean areRegionsLoadedAround(int worldX, int worldZ, int radius)
+	{
+		final int centerRX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int centerRZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		
+		for (int rx = centerRX - radius; rx <= centerRX + radius; rx++)
+		{
+			for (int rz = centerRZ - radius; rz <= centerRZ + radius; rz++)
+			{
+				if (_world.getRegion(rx, rz) == null)
+				{
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * Scans loaded regions near the spawn origin for the nearest column above water level.<br>
+	 * Used as a fallback when the strict 9×9 grassland search times out.<br>
+	 * Searches in a spiral pattern from SPAWN_X/Z and returns the first column where<br>
+	 * the surface is above water with head clearance.<br>
+	 * The search covers the entire loaded area (render distance) and stops early if it<br>
+	 * reaches the boundary of loaded regions (many consecutive unloaded columns).
+	 * @return int array {worldX, worldZ, surfaceY} or null if no dry column found
+	 */
+	private int[] findNearestDryColumn()
+	{
+		// Search up to 100,000 spiral steps - covers a radius of ~158 blocks,
+		// well beyond the loaded region boundary for typical render distances.
+		// Early exit after 200 consecutive unloaded columns (reached the boundary).
+		int consecutiveUnloaded = 0;
+		
+		for (int step = 0; step < 100000; step++)
+		{
+			final int[] offset = spiralOffset(step);
+			final int checkX = SPAWN_X + offset[0];
+			final int checkZ = SPAWN_Z + offset[1];
+			
+			// Skip if region not loaded.
+			if (_world.getRegion(Math.floorDiv(checkX, Region.SIZE_XZ), Math.floorDiv(checkZ, Region.SIZE_XZ)) == null)
+			{
+				consecutiveUnloaded++;
+				if (consecutiveUnloaded > 200)
+				{
+					// We've gone well past the loaded boundary - stop searching.
+					break;
+				}
+				continue;
+			}
+			
+			consecutiveUnloaded = 0;
+			
+			// Find surface block.
+			for (int y = _spawnScanFromY; y >= 0; y--)
+			{
+				final Block b = _world.getBlock(checkX, y, checkZ);
+				if (b != Block.AIR && !b.isLiquid())
+				{
+					// Must be above water level.
+					if (y > TerrainGenerator.WATER_LEVEL)
+					{
+						// Head clearance check.
+						final Block feet = _world.getBlock(checkX, y + 1, checkZ);
+						final Block head = _world.getBlock(checkX, y + 2, checkZ);
+						if ((feet == Block.AIR || feet.isDecoration()) && (head == Block.AIR || head.isDecoration()))
+						{
+							return new int[]
+							{
+								checkX,
+								checkZ,
+								y
+							};
+						}
+					}
+					break; // Surface found but underwater or no clearance - try next column.
+				}
+			}
+		}
+		
+		System.out.println("findNearestDryColumn: No dry land found in loaded area.");
+		return null;
+	}
+	
+	/**
 	 * Called once terrain is available at the spawn position and nearby regions are loaded.<br>
 	 * On initial entry: creates the player controller, block interaction and HUD.<br>
 	 * On respawn: places the player, re-registers input and recreates the HUD.<br>
-	 * In both cases, removes the loading screen and begins gameplay.
+	 * In both cases, sets {@code _waitingForGround = true} so the loading screen remains<br>
+	 * visible until the player physically touches the ground (checked in the update loop).
 	 * @param spawnY the Y coordinate to place the player (feet level)
 	 */
 	private void finalizeSpawn(int spawnY)
@@ -1212,8 +1641,8 @@ public class PlayingState extends FadeableAppState
 			// Recreate the HUD (was cleaned up when the loading screen was shown).
 			createHUD();
 			
-			// Remove the loading screen.
-			hideLoadingScreen();
+			// Keep loading screen visible - it will be removed once the player touches the ground.
+			_waitingForGround = true;
 			
 			// Ensure cursor is hidden for first-person control.
 			app.getInputManager().setCursorVisible(false);
@@ -1253,9 +1682,9 @@ public class PlayingState extends FadeableAppState
 		}
 		else
 		{
-			// New world - use default spawn position.
-			_playerController.setPosition(SPAWN_X, spawnY, SPAWN_Z);
-			_playerController.setInitialSpawn(SPAWN_X, spawnY, SPAWN_Z);
+			// New world - use the (possibly adjusted) spawn position from safe surface search.
+			_playerController.setPosition(_spawnTargetX, spawnY, _spawnTargetZ);
+			_playerController.setInitialSpawn(_spawnTargetX, spawnY, _spawnTargetZ);
 		}
 		
 		// Restore inventory from save data (overrides the default starting inventory).
@@ -1314,7 +1743,7 @@ public class PlayingState extends FadeableAppState
 		final Node enemyNode = new Node("Enemies");
 		app.getRootNode().attachChild(enemyNode);
 		_spawnSystem = new SpawnSystem(enemyNode, app.getAssetManager(), _world.getSeed());
-		_spawnSystem.setPlayerSpawnZone(SPAWN_X, SPAWN_Z);
+		_spawnSystem.setPlayerSpawnZone(_spawnTargetX, _spawnTargetZ);
 		_spawnSystem.setDayNightCycle(_dayNightCycle);
 		_spawnSystem.setAudioManager(app.getAudioManager());
 		
@@ -1377,8 +1806,8 @@ public class PlayingState extends FadeableAppState
 			_musicManager = new MusicManager(audioManager, _dayNightCycle);
 		}
 		
-		// Remove the loading screen.
-		hideLoadingScreen();
+		// Keep loading screen visible - it will be removed once the player touches the ground.
+		_waitingForGround = true;
 		
 		// Ensure cursor is hidden for first-person control.
 		app.getInputManager().setCursorVisible(false);
@@ -1499,6 +1928,8 @@ public class PlayingState extends FadeableAppState
 		_paused = false;
 		_pendingSpawn = false;
 		_playerDead = false;
+		_newWorldSpawn = false;
+		_waitingForGround = false;
 		
 		// Clean up loading screen if still showing.
 		hideLoadingScreen();
