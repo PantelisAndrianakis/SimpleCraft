@@ -91,6 +91,37 @@ public class EnemyAnimator
 	private static final float WALK_BLEND_RATE = 4.0f;
 	
 	// ------------------------------------------------------------------
+	// Dragon animation constants.
+	// ------------------------------------------------------------------
+	
+	/** Dragon walk cycle speed (radians per second). */
+	private static final float DRAGON_WALK_SPEED = 5.0f;
+	
+	/** Dragon leg swing amplitude (radians). */
+	private static final float DRAGON_LEG_AMPLITUDE = 0.35f;
+	
+	/** Dragon tail wave speed (radians per second). */
+	private static final float DRAGON_TAIL_SPEED = 2.5f;
+	
+	/** Dragon tail wave amplitude per segment (radians). */
+	private static final float DRAGON_TAIL_AMPLITUDE = 0.2f;
+	
+	/** Phase offset between tail segments (radians). */
+	private static final float DRAGON_TAIL_PHASE_OFFSET = 0.3f;
+	
+	/** Dragon body sway amplitude while walking (radians around Y). */
+	private static final float DRAGON_BODY_SWAY = 0.03f;
+	
+	/** Dragon bite total duration (seconds). */
+	private static final float DRAGON_BITE_DURATION = 0.5f;
+	
+	/** Dragon tail swipe total duration (seconds). */
+	private static final float DRAGON_TAIL_SWIPE_DURATION = 0.5f;
+	
+	/** Dragon boss death animation duration (seconds). */
+	private static final float DRAGON_DEATH_DURATION = 2.0f;
+	
+	// ------------------------------------------------------------------
 	// Death animation constants.
 	// ------------------------------------------------------------------
 	
@@ -137,7 +168,14 @@ public class EnemyAnimator
 		// Death animation overrides everything else.
 		if (enemy.isDying())
 		{
-			animateDeath(enemy, tpf);
+			if (enemy.getType() == Enemy.EnemyType.DRAGON)
+			{
+				animateDragonDeath(enemy, tpf);
+			}
+			else
+			{
+				animateDeath(enemy, tpf);
+			}
 			return;
 		}
 		
@@ -177,6 +215,7 @@ public class EnemyAnimator
 			case SLIME:
 			{
 				animateSlime(enemy, time);
+				
 				// Slime has no idle - the hop IS the idle.
 				break;
 			}
@@ -184,6 +223,11 @@ public class EnemyAnimator
 			{
 				animatePiranha(enemy, time, blend);
 				animateIdle(enemy, time, blend);
+				break;
+			}
+			case DRAGON:
+			{
+				animateDragon(enemy, time, tpf, blend);
 				break;
 			}
 		}
@@ -425,6 +469,327 @@ public class EnemyAnimator
 			root.setLocalScale(0.01f);
 			enemy.setAlive(false);
 			enemy.setStateTimer(999f);
+		}
+	}
+	
+	// ------------------------------------------------------------------
+	// Dragon animation.
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Full dragon animation: walk cycle with diagonal leg pairs, body sway,<br>
+	 * tail wave, idle breathing, bite, tail swipe, charge telegraph and roar.
+	 */
+	private static void animateDragon(Enemy enemy, float time, float tpf, float blend)
+	{
+		final Node body = enemy.getBody();
+		final Node head = enemy.getHead();
+		final Node jaw = enemy.getJaw();
+		final Node tail1 = enemy.getTail1();
+		final Node tail2 = enemy.getTail2();
+		final Node tail3 = enemy.getTail3();
+		
+		// --- Walk cycle: diagonal pair gait (front-left+back-right vs front-right+back-left) ---
+		final float walkSwing = FastMath.sin(time * DRAGON_WALK_SPEED) * DRAGON_LEG_AMPLITUDE * blend;
+		
+		// Front legs: LeftLeg, RightLeg. Back legs: LeftArm, RightArm.
+		setXRotation(enemy.getLeftLeg(), walkSwing);
+		setXRotation(enemy.getRightArm(), walkSwing);
+		setXRotation(enemy.getRightLeg(), -walkSwing);
+		setXRotation(enemy.getLeftArm(), -walkSwing);
+		
+		// Body sway while walking.
+		if (body != null)
+		{
+			final float sway = FastMath.sin(time * DRAGON_WALK_SPEED * 0.5f) * DRAGON_BODY_SWAY * blend;
+			TEMP_QUAT.fromAngleAxis(sway, Vector3f.UNIT_Y);
+			body.setLocalRotation(TEMP_QUAT);
+		}
+		
+		// --- Tail wave (always, slower when idle) ---
+		final float tailBlend = Math.max(blend, 0.4f);
+		if (tail1 != null)
+		{
+			final float t1 = FastMath.sin(time * DRAGON_TAIL_SPEED) * DRAGON_TAIL_AMPLITUDE * tailBlend;
+			TEMP_QUAT.fromAngleAxis(t1, Vector3f.UNIT_Y);
+			tail1.setLocalRotation(TEMP_QUAT);
+		}
+		
+		if (tail2 != null)
+		{
+			final float t2 = FastMath.sin(time * DRAGON_TAIL_SPEED + DRAGON_TAIL_PHASE_OFFSET) * DRAGON_TAIL_AMPLITUDE * 1.3f * tailBlend;
+			TEMP_QUAT.fromAngleAxis(t2, Vector3f.UNIT_Y);
+			tail2.setLocalRotation(TEMP_QUAT);
+		}
+		
+		if (tail3 != null)
+		{
+			final float t3 = FastMath.sin(time * DRAGON_TAIL_SPEED + DRAGON_TAIL_PHASE_OFFSET * 2) * DRAGON_TAIL_AMPLITUDE * 1.6f * tailBlend;
+			TEMP_QUAT.fromAngleAxis(t3, Vector3f.UNIT_Y);
+			tail3.setLocalRotation(TEMP_QUAT);
+		}
+		
+		// --- Idle breathing (body scale Y on slow sine) ---
+		if (blend < 0.5f && body != null)
+		{
+			final float breathe = 1.0f + FastMath.sin(time * 1.2f) * 0.02f * (1.0f - blend);
+			body.setLocalScale(1.0f, breathe, 1.0f);
+		}
+		else if (body != null)
+		{
+			body.setLocalScale(1.0f);
+		}
+		
+		// --- Idle head turn ---
+		if (blend < 0.3f && head != null && !enemy.isBiteActive() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		{
+			final float headTurn = FastMath.sin(time * 0.8f) * 0.15f * (1.0f - blend);
+			TEMP_QUAT.fromAngleAxis(headTurn, Vector3f.UNIT_Y);
+			head.setLocalRotation(TEMP_QUAT);
+		}
+		
+		// --- Bite animation ---
+		if (enemy.isBiteActive())
+		{
+			enemy.setBiteTimer(enemy.getBiteTimer() + tpf);
+			final float bt = enemy.getBiteTimer();
+			
+			if (head != null)
+			{
+				// Head lunges forward.
+				final float lungeZ;
+				if (bt < 0.15f)
+				{
+					lungeZ = -(bt / 0.15f) * 0.5f; // Forward.
+				}
+				else if (bt < 0.35f)
+				{
+					lungeZ = -0.5f + ((bt - 0.15f) / 0.2f) * 0.5f; // Return.
+				}
+				else
+				{
+					lungeZ = 0;
+				}
+				
+				head.setLocalTranslation(0, 1.2f, -2.1f + lungeZ);
+			}
+			
+			if (jaw != null)
+			{
+				// Jaw opens then snaps shut.
+				final float jawAngle;
+				if (bt < 0.15f)
+				{
+					jawAngle = (bt / 0.15f) * 30.0f * FastMath.DEG_TO_RAD; // Open.
+				}
+				else if (bt < 0.25f)
+				{
+					jawAngle = 30.0f * FastMath.DEG_TO_RAD * (1.0f - (bt - 0.15f) / 0.1f); // Snap shut.
+				}
+				else
+				{
+					jawAngle = 0;
+				}
+				
+				TEMP_QUAT.fromAngleAxis(jawAngle, Vector3f.UNIT_X);
+				jaw.setLocalRotation(TEMP_QUAT);
+			}
+			
+			if (bt >= DRAGON_BITE_DURATION)
+			{
+				enemy.setBiteActive(false);
+				enemy.setBiteTimer(0);
+				
+				// Reset head position.
+				if (head != null)
+				{
+					head.setLocalTranslation(0, 1.2f, -2.1f);
+				}
+			}
+		}
+		
+		// --- Tail swipe animation ---
+		if (enemy.isTailSwiping())
+		{
+			enemy.setTailSwipeTimer(enemy.getTailSwipeTimer() + tpf);
+			final float st = enemy.getTailSwipeTimer();
+			
+			// Rapid sweep to one side.
+			final float swipeAngle;
+			if (st < 0.3f)
+			{
+				swipeAngle = (st / 0.3f) * 60.0f * FastMath.DEG_TO_RAD;
+			}
+			else
+			{
+				swipeAngle = 60.0f * FastMath.DEG_TO_RAD * (1.0f - (st - 0.3f) / 0.2f);
+			}
+			
+			if (tail1 != null)
+			{
+				TEMP_QUAT.fromAngleAxis(swipeAngle, Vector3f.UNIT_Y);
+				tail1.setLocalRotation(TEMP_QUAT);
+			}
+			
+			if (tail2 != null)
+			{
+				TEMP_QUAT.fromAngleAxis(swipeAngle * 1.3f, Vector3f.UNIT_Y);
+				tail2.setLocalRotation(TEMP_QUAT);
+			}
+			
+			if (tail3 != null)
+			{
+				TEMP_QUAT.fromAngleAxis(swipeAngle * 1.6f, Vector3f.UNIT_Y);
+				tail3.setLocalRotation(TEMP_QUAT);
+			}
+			
+			if (st >= DRAGON_TAIL_SWIPE_DURATION)
+			{
+				enemy.setTailSwiping(false);
+				enemy.setTailSwipeTimer(0);
+			}
+		}
+		
+		// --- Charge telegraph: head lowers ---
+		if (enemy.isChargeTelegraph() && head != null)
+		{
+			final float pitch = -15.0f * FastMath.DEG_TO_RAD * Math.min(1.0f, enemy.getTelegraphTimer() / 0.3f);
+			TEMP_QUAT.fromAngleAxis(pitch, Vector3f.UNIT_X);
+			head.setLocalRotation(TEMP_QUAT);
+		}
+		
+		// --- Roar animation: head tilts up ---
+		if (enemy.isRoaring() && head != null)
+		{
+			final float roarT = enemy.getRoarTimer();
+			final float pitch;
+			if (roarT < 0.3f)
+			{
+				pitch = (roarT / 0.3f) * 25.0f * FastMath.DEG_TO_RAD;
+			}
+			else if (roarT < 0.7f)
+			{
+				pitch = 25.0f * FastMath.DEG_TO_RAD;
+			}
+			else
+			{
+				pitch = 25.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f);
+			}
+			
+			TEMP_QUAT.fromAngleAxis(pitch, Vector3f.UNIT_X);
+			head.setLocalRotation(TEMP_QUAT);
+			
+			// Open jaw during roar.
+			if (jaw != null)
+			{
+				final float jawAngle = (roarT < 0.7f) ? 25.0f * FastMath.DEG_TO_RAD : 25.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f);
+				TEMP_QUAT.fromAngleAxis(jawAngle, Vector3f.UNIT_X);
+				jaw.setLocalRotation(TEMP_QUAT);
+			}
+		}
+		
+		// --- Idle bob (subtle, when not attacking) ---
+		if (blend < 0.3f && !enemy.isBiteActive() && !enemy.isTailSwiping() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		{
+			final float bobY = FastMath.sin(time * IDLE_BOB_SPEED) * IDLE_BOB_AMPLITUDE * (1.0f - blend);
+			final Node root = enemy.getNode();
+			final Vector3f pos = enemy.getPosition();
+			root.setLocalTranslation(pos.x, pos.y + bobY, pos.z);
+		}
+	}
+	
+	/**
+	 * Dragon-specific death animation: collapse in place, legs buckle, head drops,<br>
+	 * tail goes limp, fades slightly transparent over 2 seconds. Then mark as dead.
+	 */
+	private static void animateDragonDeath(Enemy enemy, float tpf)
+	{
+		enemy.setBossDeathTimer(enemy.getBossDeathTimer() + tpf);
+		final float timer = enemy.getBossDeathTimer();
+		final float t = Math.min(1.0f, timer / DRAGON_DEATH_DURATION);
+		
+		final Node root = enemy.getNode();
+		final Vector3f pos = enemy.getPosition();
+		
+		// Ease-in for collapse.
+		final float eased = t * t;
+		
+		// Body drops: root Y decreases.
+		root.setLocalTranslation(pos.x, pos.y - eased * 0.8f, pos.z);
+		
+		// Tilt sideways slightly.
+		final float tiltAngle = eased * 15.0f * FastMath.DEG_TO_RAD;
+		TEMP_QUAT.fromAngleAxis(tiltAngle, Vector3f.UNIT_Z);
+		
+		// Preserve current Y rotation (facing direction).
+		final float[] angles = new float[3];
+		root.getLocalRotation().toAngles(angles);
+		TEMP_QUAT2.fromAngleAxis(angles[1], Vector3f.UNIT_Y);
+		TEMP_QUAT2.multLocal(TEMP_QUAT);
+		root.setLocalRotation(TEMP_QUAT2);
+		
+		// Legs buckle outward.
+		final float legBuckle = eased * 45.0f * FastMath.DEG_TO_RAD;
+		if (enemy.getLeftLeg() != null)
+		{
+			TEMP_QUAT.fromAngleAxis(-legBuckle, Vector3f.UNIT_Z);
+			enemy.getLeftLeg().setLocalRotation(TEMP_QUAT);
+		}
+		
+		if (enemy.getRightLeg() != null)
+		{
+			TEMP_QUAT.fromAngleAxis(legBuckle, Vector3f.UNIT_Z);
+			enemy.getRightLeg().setLocalRotation(TEMP_QUAT);
+		}
+		
+		if (enemy.getLeftArm() != null)
+		{
+			TEMP_QUAT.fromAngleAxis(-legBuckle * 0.8f, Vector3f.UNIT_Z);
+			enemy.getLeftArm().setLocalRotation(TEMP_QUAT);
+		}
+		
+		if (enemy.getRightArm() != null)
+		{
+			TEMP_QUAT.fromAngleAxis(legBuckle * 0.8f, Vector3f.UNIT_Z);
+			enemy.getRightArm().setLocalRotation(TEMP_QUAT);
+		}
+		
+		// Head drops.
+		if (enemy.getHead() != null)
+		{
+			final float headDrop = eased * 30.0f * FastMath.DEG_TO_RAD;
+			TEMP_QUAT.fromAngleAxis(-headDrop, Vector3f.UNIT_X);
+			enemy.getHead().setLocalRotation(TEMP_QUAT);
+		}
+		
+		// Tail goes limp (droop).
+		if (enemy.getTail1() != null)
+		{
+			TEMP_QUAT.fromAngleAxis(-eased * 20.0f * FastMath.DEG_TO_RAD, Vector3f.UNIT_X);
+			enemy.getTail1().setLocalRotation(TEMP_QUAT);
+		}
+		
+		if (enemy.getTail2() != null)
+		{
+			TEMP_QUAT.fromAngleAxis(-eased * 15.0f * FastMath.DEG_TO_RAD, Vector3f.UNIT_X);
+			enemy.getTail2().setLocalRotation(TEMP_QUAT);
+		}
+		
+		if (enemy.getTail3() != null)
+		{
+			TEMP_QUAT.fromAngleAxis(-eased * 10.0f * FastMath.DEG_TO_RAD, Vector3f.UNIT_X);
+			enemy.getTail3().setLocalRotation(TEMP_QUAT);
+		}
+		
+		// Slight scale-down for fade effect.
+		root.setLocalScale(Math.max(0.01f, 1.0f - eased * 0.15f));
+		
+		if (timer >= DRAGON_DEATH_DURATION)
+		{
+			// Mark for removal.
+			enemy.setAlive(false);
+			enemy.setStateTimer(999f);
+			root.setLocalScale(0.01f);
 		}
 	}
 	

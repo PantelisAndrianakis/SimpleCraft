@@ -88,6 +88,13 @@ public class EnemyDropTable
 		new DropEntry("cooked_meat", 1, 1, 0.40f),
 	};
 	
+	/** Dragon: 1 Recall Orb (100%), 5 Iron Nuggets (100%). */
+	private static final DropEntry[] DRAGON_DROPS =
+	{
+		new DropEntry("recall_orb", 1, 1, 1.00f),
+		new DropEntry("iron_ingot", 5, 5, 1.00f),
+	};
+	
 	/**
 	 * Rolls the drop table for the given enemy type and returns a list of item instances<br>
 	 * that should be spawned as world drops. Each entry is rolled independently.<br>
@@ -173,6 +180,10 @@ public class EnemyDropTable
 			case PIRANHA:
 			{
 				return PIRANHA_DROPS;
+			}
+			case DRAGON:
+			{
+				return DRAGON_DROPS;
 			}
 			default:
 			{

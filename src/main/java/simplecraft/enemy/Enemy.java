@@ -40,7 +40,8 @@ public class Enemy
 		SPIDER,
 		SLIME,
 		PIRANHA,
-		PLAYER
+		PLAYER,
+		DRAGON
 	}
 	
 	// ------------------------------------------------------------------
@@ -190,6 +191,85 @@ public class Enemy
 	private Node _rightArm;
 	private Node _leftLeg;
 	private Node _rightLeg;
+	
+	// ------------------------------------------------------------------
+	// Dragon-specific body parts (set by EnemyFactory, null for non-dragon).
+	// ------------------------------------------------------------------
+	
+	private Node _jaw;
+	private Node _tail1;
+	private Node _tail2;
+	private Node _tail3;
+	
+	// ------------------------------------------------------------------
+	// Boss phase fields (DRAGON only).
+	// ------------------------------------------------------------------
+	
+	/** Current boss phase (1, 2, or 3). */
+	private int _bossPhase = 1;
+	
+	/** Whether the dragon is currently charging. */
+	private boolean _chargeActive;
+	
+	/** Charge direction vector (normalized XZ). */
+	private final Vector3f _chargeDirection = new Vector3f();
+	
+	/** Charge distance remaining (blocks). */
+	private float _chargeDistanceRemaining;
+	
+	/** Timer tracking charge cooldown (seconds since last charge). */
+	private float _chargeCooldown;
+	
+	/** Randomized interval before next charge (seconds). */
+	private float _chargeInterval;
+	
+	/** Whether the dragon is in charge recovery (stunned after charge). */
+	private boolean _chargeRecovery;
+	
+	/** Recovery timer (seconds remaining in recovery). */
+	private float _chargeRecoveryTimer;
+	
+	/** Whether the dragon hit a pillar during the current charge. */
+	private boolean _chargePillarStun;
+	
+	/** Pillar stun timer (seconds remaining - longer than normal recovery). */
+	private float _pillarStunTimer;
+	
+	/** Whether the charge telegraph (head lowering) is playing. */
+	private boolean _chargeTelegraph;
+	
+	/** Telegraph timer (counts up to 0.8s). */
+	private float _telegraphTimer;
+	
+	/** Tail swipe cooldown timer (counts up). */
+	private float _tailSwipeCooldown;
+	
+	/** Whether a tail swipe animation is currently playing. */
+	private boolean _tailSwiping;
+	
+	/** Tail swipe animation timer. */
+	private float _tailSwipeTimer;
+	
+	/** Whether the bite attack animation is currently playing. */
+	private boolean _biteActive;
+	
+	/** Bite attack animation timer. */
+	private float _biteTimer;
+	
+	/** Bite attack cooldown timer (counts up). */
+	private float _biteCooldown;
+	
+	/** Whether the roar animation is currently playing (phase transition). */
+	private boolean _roaring;
+	
+	/** Roar animation timer. */
+	private float _roarTimer;
+	
+	/** Whether the dragon's death animation is the special boss death (collapse, not topple). */
+	private boolean _bossDeath;
+	
+	/** Boss death animation timer. */
+	private float _bossDeathTimer;
 	
 	/**
 	 * Creates a new enemy with the given type.
@@ -430,6 +510,10 @@ public class Enemy
 			case SLIME:
 			{
 				return AudioManager.SFX_SLIME_SQUELCH;
+			}
+			case DRAGON:
+			{
+				return AudioManager.SFX_DRAGON;
 			}
 			default:
 			{
@@ -826,5 +910,268 @@ public class Enemy
 	public void setRightLeg(Node rightLeg)
 	{
 		_rightLeg = rightLeg;
+	}
+	
+	// ------------------------------------------------------------------
+	// Dragon body part accessors.
+	// ------------------------------------------------------------------
+	
+	public Node getJaw()
+	{
+		return _jaw;
+	}
+	
+	public void setJaw(Node jaw)
+	{
+		_jaw = jaw;
+	}
+	
+	public Node getTail1()
+	{
+		return _tail1;
+	}
+	
+	public void setTail1(Node tail1)
+	{
+		_tail1 = tail1;
+	}
+	
+	public Node getTail2()
+	{
+		return _tail2;
+	}
+	
+	public void setTail2(Node tail2)
+	{
+		_tail2 = tail2;
+	}
+	
+	public Node getTail3()
+	{
+		return _tail3;
+	}
+	
+	public void setTail3(Node tail3)
+	{
+		_tail3 = tail3;
+	}
+	
+	// ------------------------------------------------------------------
+	// Boss phase accessors (DRAGON only).
+	// ------------------------------------------------------------------
+	
+	public int getBossPhase()
+	{
+		return _bossPhase;
+	}
+	
+	public void setBossPhase(int phase)
+	{
+		_bossPhase = phase;
+	}
+	
+	public boolean isChargeActive()
+	{
+		return _chargeActive;
+	}
+	
+	public void setChargeActive(boolean active)
+	{
+		_chargeActive = active;
+	}
+	
+	public Vector3f getChargeDirection()
+	{
+		return _chargeDirection;
+	}
+	
+	public float getChargeDistanceRemaining()
+	{
+		return _chargeDistanceRemaining;
+	}
+	
+	public void setChargeDistanceRemaining(float dist)
+	{
+		_chargeDistanceRemaining = dist;
+	}
+	
+	public float getChargeCooldown()
+	{
+		return _chargeCooldown;
+	}
+	
+	public void setChargeCooldown(float cd)
+	{
+		_chargeCooldown = cd;
+	}
+	
+	public float getChargeInterval()
+	{
+		return _chargeInterval;
+	}
+	
+	public void setChargeInterval(float interval)
+	{
+		_chargeInterval = interval;
+	}
+	
+	public boolean isChargeRecovery()
+	{
+		return _chargeRecovery;
+	}
+	
+	public void setChargeRecovery(boolean recovery)
+	{
+		_chargeRecovery = recovery;
+	}
+	
+	public float getChargeRecoveryTimer()
+	{
+		return _chargeRecoveryTimer;
+	}
+	
+	public void setChargeRecoveryTimer(float timer)
+	{
+		_chargeRecoveryTimer = timer;
+	}
+	
+	public boolean isChargePillarStun()
+	{
+		return _chargePillarStun;
+	}
+	
+	public void setChargePillarStun(boolean stun)
+	{
+		_chargePillarStun = stun;
+	}
+	
+	public float getPillarStunTimer()
+	{
+		return _pillarStunTimer;
+	}
+	
+	public void setPillarStunTimer(float timer)
+	{
+		_pillarStunTimer = timer;
+	}
+	
+	public boolean isChargeTelegraph()
+	{
+		return _chargeTelegraph;
+	}
+	
+	public void setChargeTelegraph(boolean telegraph)
+	{
+		_chargeTelegraph = telegraph;
+	}
+	
+	public float getTelegraphTimer()
+	{
+		return _telegraphTimer;
+	}
+	
+	public void setTelegraphTimer(float timer)
+	{
+		_telegraphTimer = timer;
+	}
+	
+	public float getTailSwipeCooldown()
+	{
+		return _tailSwipeCooldown;
+	}
+	
+	public void setTailSwipeCooldown(float cd)
+	{
+		_tailSwipeCooldown = cd;
+	}
+	
+	public boolean isTailSwiping()
+	{
+		return _tailSwiping;
+	}
+	
+	public void setTailSwiping(boolean swiping)
+	{
+		_tailSwiping = swiping;
+	}
+	
+	public float getTailSwipeTimer()
+	{
+		return _tailSwipeTimer;
+	}
+	
+	public void setTailSwipeTimer(float timer)
+	{
+		_tailSwipeTimer = timer;
+	}
+	
+	public boolean isBiteActive()
+	{
+		return _biteActive;
+	}
+	
+	public void setBiteActive(boolean active)
+	{
+		_biteActive = active;
+	}
+	
+	public float getBiteTimer()
+	{
+		return _biteTimer;
+	}
+	
+	public void setBiteTimer(float timer)
+	{
+		_biteTimer = timer;
+	}
+	
+	public float getBiteCooldown()
+	{
+		return _biteCooldown;
+	}
+	
+	public void setBiteCooldown(float cd)
+	{
+		_biteCooldown = cd;
+	}
+	
+	public boolean isRoaring()
+	{
+		return _roaring;
+	}
+	
+	public void setRoaring(boolean roaring)
+	{
+		_roaring = roaring;
+	}
+	
+	public float getRoarTimer()
+	{
+		return _roarTimer;
+	}
+	
+	public void setRoarTimer(float timer)
+	{
+		_roarTimer = timer;
+	}
+	
+	public boolean isBossDeath()
+	{
+		return _bossDeath;
+	}
+	
+	public void setBossDeath(boolean bossDeath)
+	{
+		_bossDeath = bossDeath;
+	}
+	
+	public float getBossDeathTimer()
+	{
+		return _bossDeathTimer;
+	}
+	
+	public void setBossDeathTimer(float timer)
+	{
+		_bossDeathTimer = timer;
 	}
 }

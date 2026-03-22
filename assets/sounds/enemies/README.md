@@ -41,3 +41,9 @@ By: Pantelis Andrianakis
 Created with: jsfxt site (https://sfxr.me)  
 Source: https://sfxr.me/#3WbJqfrynUJ29FDqhCBeGVsCVRT1QM4T8p7C3BUUyeBu9ootcZF8k6jtbRs3T7h3sbxypotjUCY6AaP8MuJfnBa6AaHzB9AqUbdsRn7UR1eEnb9tduJHhbS8C  
 File name: enemy_death.ogg  
+
+## Dragon
+By: Pantelis Andrianakis  
+Created with: jsfxt site (https://sfxr.me)  
+Source: https://sfxr.me/#7BMHBGP5d4vRVe5HL64hYk2qhHWhDvLeVdQT6iDhgKtD1uB5hGia1AkK9B2yDcmBZArDD4U77yq5Nxi3gvkJK7swdKFHvmec8gSxa6bMHvqFNWzLoYa3dw6xf  
+File name: dragon.ogg  

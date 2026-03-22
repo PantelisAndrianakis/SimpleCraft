@@ -56,6 +56,9 @@ public class CombatSystem
 	/** Starting alpha for the damage (red) flash. */
 	private static final float DAMAGE_FLASH_ALPHA = 0.3f;
 	
+	/** Starting alpha for dragon damage flash (more intense). */
+	private static final float DRAGON_DAMAGE_FLASH_ALPHA = 0.5f;
+	
 	/** Starting alpha for the healing (green) flash. */
 	private static final float HEAL_FLASH_ALPHA = 0.2f;
 	
@@ -267,6 +270,18 @@ public class CombatSystem
 		Enemy closestEnemy = null;
 		float closestDist = PLAYER_ATTACK_RANGE;
 		
+		// Scan with extended range if any dragon is in the list.
+		float maxRange = PLAYER_ATTACK_RANGE;
+		for (int i = 0; i < enemies.size(); i++)
+		{
+			if (enemies.get(i).getType() == EnemyType.DRAGON)
+			{
+				maxRange = 5.0f; // Dragon is huge - allow hitting from further away.
+				closestDist = maxRange;
+				break;
+			}
+		}
+		
 		for (int i = 0; i < enemies.size(); i++)
 		{
 			final Enemy enemy = enemies.get(i);
@@ -277,9 +292,14 @@ public class CombatSystem
 			}
 			
 			// Calculate enemy center mass position (feet + vertical offset).
+			// Dragon is much larger - higher center mass and wider hit box.
 			final Vector3f enemyPos = enemy.getPosition();
+			final boolean isDragon = (enemy.getType() == EnemyType.DRAGON);
+			final float centerOffset = isDragon ? 1.6f : ENEMY_CENTER_OFFSET;
+			final float hitRadius = isDragon ? 1.5f : PLAYER_HIT_RADIUS;
+			final float closeRange = isDragon ? 3.5f : CLOSE_RANGE_RADIUS;
 			final float centerX = enemyPos.x;
-			final float centerY = enemyPos.y + ENEMY_CENTER_OFFSET;
+			final float centerY = enemyPos.y + centerOffset;
 			final float centerZ = enemyPos.z;
 			
 			// Vector from ray origin to enemy center.
@@ -291,7 +311,7 @@ public class CombatSystem
 			// the player where the vertical gap between eye height and enemy center
 			// mass exceeds the cylinder hit radius.
 			final float distSq = _toEnemy.lengthSquared();
-			if (distSq <= CLOSE_RANGE_RADIUS * CLOSE_RANGE_RADIUS)
+			if (distSq <= closeRange * closeRange)
 			{
 				// Facing check: dot product between camera direction and direction
 				// to enemy must be positive (enemy is in front of the player).
@@ -315,7 +335,7 @@ public class CombatSystem
 			final float dot = _toEnemy.dot(_rayDir);
 			
 			// Behind the camera or beyond attack range - skip.
-			if (dot < 0 || dot > PLAYER_ATTACK_RANGE)
+			if (dot < 0 || dot > maxRange)
 			{
 				continue;
 			}
@@ -330,7 +350,7 @@ public class CombatSystem
 			final float perpDistSq = dx * dx + dy * dy + dz * dz;
 			
 			// Check if within the generous hit radius and closer than current best.
-			if (perpDistSq <= PLAYER_HIT_RADIUS * PLAYER_HIT_RADIUS && dot < closestDist)
+			if (perpDistSq <= hitRadius * hitRadius && dot < closestDist)
 			{
 				closestEnemy = enemy;
 				closestDist = dot;
@@ -525,6 +545,171 @@ public class CombatSystem
 		_flashStartAlpha = DAMAGE_FLASH_ALPHA;
 		_flashTimer = FLASH_DURATION;
 		_flashGeometry.setCullHint(Geometry.CullHint.Never);
+	}
+	
+	/**
+	 * Triggers a more intense red flash for dragon attacks.
+	 */
+	public void triggerDragonDamageFlash()
+	{
+		_flashColor.set(1.0f, 0.0f, 0.0f, 1.0f);
+		_flashStartAlpha = DRAGON_DAMAGE_FLASH_ALPHA;
+		_flashTimer = FLASH_DURATION;
+		_flashGeometry.setCullHint(Geometry.CullHint.Never);
+	}
+	
+	// ------------------------------------------------------------------
+	// Dragon Boss Combat.
+	// ------------------------------------------------------------------
+	
+	/** Distance at which a charging dragon deals contact damage. */
+	private static final float DRAGON_CHARGE_HIT_RADIUS = 2.0f;
+	
+	/** Bite damage is applied at this point in the bite animation (seconds). */
+	private static final float DRAGON_BITE_DAMAGE_TIME = 0.25f;
+	
+	/** Tail swipe damage is applied at this point in the tail animation (seconds). */
+	private static final float DRAGON_TAIL_DAMAGE_TIME = 0.15f;
+	
+	/** Charge hit damage. */
+	private static final float DRAGON_CHARGE_DAMAGE = 10.0f;
+	
+	/** Tracks whether bite damage was already applied for the current bite animation. */
+	private boolean _biteDamageApplied;
+	
+	/** Tracks whether tail swipe damage was already applied for the current tail animation. */
+	private boolean _tailDamageApplied;
+	
+	/**
+	 * Per-frame update for dragon -> player combat in the boss arena.<br>
+	 * Handles bite, tail swipe and charge contact damage separately from the normal<br>
+	 * enemy attack pipeline because the dragon uses animation-driven damage timing.
+	 * @param player the player controller
+	 * @param dragon the dragon enemy
+	 * @param tpf time per frame in seconds
+	 */
+	public void updateDragonCombat(PlayerController player, Enemy dragon, float tpf)
+	{
+		if (dragon == null || !dragon.isAlive() || dragon.isDying() || player.isDead())
+		{
+			updateFlash(tpf);
+			return;
+		}
+		
+		// Tick player attack cooldown.
+		if (_playerAttackTimer > 0)
+		{
+			_playerAttackTimer -= tpf;
+		}
+		
+		final float distToPlayer = dragon.getPosition().distance(player.getPosition());
+		
+		// --- Bite damage ---
+		if (dragon.isBiteActive())
+		{
+			if (!_biteDamageApplied && dragon.getBiteTimer() >= DRAGON_BITE_DAMAGE_TIME)
+			{
+				if (distToPlayer <= dragon.getAttackRange() * 1.3f)
+				{
+					final String source = "Killed by Dragon";
+					player.takeDamage(dragon.getAttackDamage(), source);
+					triggerDragonDamageFlash();
+					_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					
+					if (player.isDead())
+					{
+						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
+					}
+					
+					System.out.println("Dragon BITE hit player for " + String.format("%.1f", dragon.getAttackDamage()) + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+				}
+				
+				_biteDamageApplied = true;
+			}
+		}
+		else
+		{
+			_biteDamageApplied = false;
+		}
+		
+		// --- Tail swipe damage ---
+		if (dragon.isTailSwiping())
+		{
+			if (!_tailDamageApplied && dragon.getTailSwipeTimer() >= DRAGON_TAIL_DAMAGE_TIME)
+			{
+				// Tail swipe damage uses a separate value based on phase.
+				final float tailDamage = dragon.getBossPhase() >= 2 ? 5.0f : 4.0f;
+				if (distToPlayer <= 4.5f)
+				{
+					final String source = "Killed by Dragon";
+					player.takeDamage(tailDamage, source);
+					triggerDragonDamageFlash();
+					_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					
+					if (player.isDead())
+					{
+						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
+					}
+					
+					System.out.println("Dragon TAIL SWIPE hit player for " + String.format("%.1f", tailDamage) + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+				}
+				
+				_tailDamageApplied = true;
+			}
+		}
+		else
+		{
+			_tailDamageApplied = false;
+		}
+		
+		// --- Charge contact damage ---
+		if (dragon.isChargeActive())
+		{
+			if (distToPlayer <= DRAGON_CHARGE_HIT_RADIUS)
+			{
+				final String source = "Killed by Dragon";
+				player.takeDamage(DRAGON_CHARGE_DAMAGE, source);
+				triggerDragonDamageFlash();
+				_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+				
+				if (player.isDead())
+				{
+					_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
+				}
+				
+				// End charge on contact.
+				dragon.setChargeActive(false);
+				dragon.setChargeRecovery(true);
+				dragon.setChargeRecoveryTimer(1.0f);
+				
+				System.out.println("Dragon CHARGE hit player for " + DRAGON_CHARGE_DAMAGE + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+			}
+		}
+		
+		// Update flash.
+		updateFlash(tpf);
+	}
+	
+	/**
+	 * Attempts a player attack against the dragon boss.<br>
+	 * Uses the same raycast logic as normal enemy attacks but targeted at a single enemy.
+	 * @param camera the player's camera
+	 * @param dragon the dragon enemy
+	 * @param world the arena world
+	 * @param playerController the player controller
+	 * @return true if the dragon was hit
+	 */
+	public boolean tryPlayerAttackDragon(Camera camera, Enemy dragon, World world, PlayerController playerController)
+	{
+		if (dragon == null || !dragon.isAlive() || dragon.isDying())
+		{
+			return false;
+		}
+		
+		// Use the same attack logic but with a single-enemy list.
+		final java.util.ArrayList<Enemy> singleList = new java.util.ArrayList<>(1);
+		singleList.add(dragon);
+		return tryPlayerAttack(camera, singleList, world, playerController);
 	}
 	
 	/**

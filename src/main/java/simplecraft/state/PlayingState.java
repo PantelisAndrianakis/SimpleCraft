@@ -27,6 +27,7 @@ import simplecraft.audio.MusicManager;
 import simplecraft.combat.CombatSystem;
 import simplecraft.effects.ParticleManager;
 import simplecraft.enemy.Enemy;
+import simplecraft.enemy.EnemyAI;
 import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
@@ -47,6 +48,7 @@ import simplecraft.save.SaveManager.PlayerSaveData;
 import simplecraft.save.SaveManager.SavedRegionData;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.FontManager;
+import simplecraft.ui.MessageManager;
 import simplecraft.ui.QuestionManager;
 import simplecraft.world.Block;
 import simplecraft.world.DayNightCycle;
@@ -150,6 +152,9 @@ public class PlayingState extends FadeableAppState
 	
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
+	
+	/** Whether the dragon death has been processed (Recall Orb spawned, message shown). */
+	private boolean _dragonDeathProcessed;
 	
 	/**
 	 * True while the player has been spawned but hasn't touched the ground yet.<br>
@@ -601,6 +606,15 @@ public class PlayingState extends FadeableAppState
 			
 			hideLoadingScreen();
 			
+			// Show boss health bar.
+			if (_playerHUD != null)
+			{
+				_playerHUD.showBossHealthBar();
+			}
+			
+			// Reset dragon death tracking.
+			_dragonDeathProcessed = false;
+			
 			// Re-register input for gameplay in the arena.
 			_playerController.registerInput();
 			if (_blockInteraction != null)
@@ -854,8 +868,8 @@ public class PlayingState extends FadeableAppState
 				if (!areSpawnRegionsReady(_spawnTargetX, _spawnTargetZ))
 				{
 					// Terrain found but surrounding regions still loading - keep waiting.
-					// As a safety net, only keep waiting up to double the normal timeout.
-					if (_spawnWaitFrames < SPAWN_TIMEOUT_FRAMES * 2)
+					// As a safety net, only keep waiting up to triple the normal timeout.
+					if (_spawnWaitFrames < SPAWN_TIMEOUT_FRAMES * 3)
 					{
 						return;
 					}
@@ -1099,6 +1113,70 @@ public class PlayingState extends FadeableAppState
 				_combatSystem.update(_playerController, _spawnSystem.getEnemies(), _world, tpf);
 			}
 			
+			// --- Boss Arena Dragon Updates ---
+			if (isInBossArena() && _bossArenaManager != null)
+			{
+				final simplecraft.enemy.Enemy dragon = _bossArenaManager.getDragon();
+				
+				// Update dragon AI, animation and arena drops.
+				_bossArenaManager.update(_playerController, _world, tpf);
+				
+				// Player -> Dragon attack.
+				if (_combatSystem != null && !_playerDead && !screenOpen && dragon != null && dragon.isAlive() && !dragon.isDying())
+				{
+					if (_blockInteraction != null && _blockInteraction.isAttackHeld())
+					{
+						suppressBlockAttack = _combatSystem.tryPlayerAttackDragon(app.getCamera(), dragon, _world, _playerController);
+					}
+				}
+				
+				// Dragon -> Player combat (bite, tail swipe, charge contact damage).
+				if (_combatSystem != null && dragon != null)
+				{
+					_combatSystem.updateDragonCombat(_playerController, dragon, tpf);
+				}
+				else if (_combatSystem != null)
+				{
+					// No dragon - still update flash fade.
+					_combatSystem.updateDragonCombat(_playerController, null, tpf);
+				}
+				
+				// Dragon death detection.
+				if (dragon != null && dragon.isDying() && !_dragonDeathProcessed)
+				{
+					_dragonDeathProcessed = true;
+					
+					// Spawn drops via the normal drop table (Recall Orb + Iron Ingots).
+					if (_combatSystem != null)
+					{
+						_combatSystem.onEnemyDeath(_playerController, dragon);
+					}
+					
+					// Show victory message.
+					MessageManager.show("The Dragon has been slain!", 5.0f);
+					
+					// Hide boss health bar.
+					if (_playerHUD != null)
+					{
+						_playerHUD.hideBossHealthBar();
+					}
+					
+					System.out.println("PlayingState: Dragon killed! Recall Orb spawned.");
+				}
+				
+				// Dragon fully dead (animation complete) - clean up model from scene.
+				if (dragon != null && !dragon.isAlive() && _dragonDeathProcessed)
+				{
+					_bossArenaManager.onDragonDeathComplete();
+				}
+				
+				// Update boss health bar.
+				if (_playerHUD != null && dragon != null && dragon.isAlive())
+				{
+					_playerHUD.updateBossHealthBar(dragon.getHealth(), dragon.getMaxHealth(), dragon.getBossPhase());
+				}
+			}
+			
 			// --- Death detection and respawn ---
 			if (_playerController.isDead() && !_playerDead)
 			{
@@ -1179,6 +1257,12 @@ public class PlayingState extends FadeableAppState
 			{
 				_lastFogRenderDistance = renderDistance;
 				_fogFilter.setFogDistance(calculateFogDistance(renderDistance));
+			}
+			
+			// Safety guard: hide boss bar if we left the arena (e.g. Recall Orb victory exit).
+			if (_playerHUD != null && !isInBossArena())
+			{
+				_playerHUD.hideBossHealthBar();
 			}
 			
 			// Update HUD with current player and interaction state.
@@ -1309,6 +1393,12 @@ public class PlayingState extends FadeableAppState
 			_bossArenaManager.exitArena(_playerController, this, false);
 			System.out.println("PlayingState: Exited boss arena on respawn.");
 			
+			// Hide boss health bar on arena death exit.
+			if (_playerHUD != null)
+			{
+				_playerHUD.hideBossHealthBar();
+			}
+			
 			// Restore music to match the current time of day.
 			final AudioManager respawnAudio = app.getAudioManager();
 			if (respawnAudio != null && _dayNightCycle != null)
@@ -1420,6 +1510,24 @@ public class PlayingState extends FadeableAppState
 	public BossArenaManager getBossArenaManager()
 	{
 		return _bossArenaManager;
+	}
+	
+	/**
+	 * Returns the combat system instance.<br>
+	 * Used by BossArenaManager to wire dragon combat.
+	 */
+	public CombatSystem getCombatSystem()
+	{
+		return _combatSystem;
+	}
+	
+	/**
+	 * Returns the main world drop manager (not the arena drop manager).<br>
+	 * Used by BossArenaManager to restore the drop manager reference on arena exit.
+	 */
+	public DropManager getMainDropManager()
+	{
+		return _dropManager;
 	}
 	
 	/**
@@ -1919,6 +2027,20 @@ public class PlayingState extends FadeableAppState
 		if (_inventorySaveData != null)
 		{
 			_playerController.getInventory().deserialize(_inventorySaveData);
+			
+			// Strip any Recall Orb that may have been saved while in the arena
+			// (e.g. game crashed or force-quit after killing the dragon but before using the orb).
+			// The Recall Orb must never persist into the main world.
+			final simplecraft.item.Inventory inv = _playerController.getInventory();
+			for (int i = 0; i < 36; i++)
+			{
+				final simplecraft.item.ItemInstance item = inv.getSlot(i);
+				if (item != null && "golden_orb".equals(item.getTemplate().getId()))
+				{
+					inv.setSlot(i, null);
+					System.out.println("PlayingState: Stripped leftover Recall Orb from slot " + i + " on world load.");
+				}
+			}
 		}
 		
 		_playerController.registerInput();
@@ -2020,6 +2142,7 @@ public class PlayingState extends FadeableAppState
 		// Wire particle manager to block interaction and combat system.
 		_blockInteraction.setParticleManager(_particleManager);
 		_combatSystem.setParticleManager(_particleManager);
+		EnemyAI.setParticleManager(_particleManager);
 		
 		// Wire viewmodel renderer to block interaction and combat system for swing animation.
 		_blockInteraction.setViewmodelRenderer(_viewmodelRenderer);
@@ -2191,6 +2314,7 @@ public class PlayingState extends FadeableAppState
 		_pendingSpawn = false;
 		_pendingArenaEntry = false;
 		_playerDead = false;
+		_dragonDeathProcessed = false;
 		_newWorldSpawn = false;
 		_waitingForGround = false;
 		
@@ -2233,6 +2357,7 @@ public class PlayingState extends FadeableAppState
 		{
 			_particleManager.cleanup();
 			app.getRootNode().detachChild(_particleManager.getNode());
+			EnemyAI.setParticleManager(null);
 			_particleManager = null;
 		}
 		

@@ -134,6 +134,18 @@ public class PlayerHUD
 	private static final ColorRGBA COLOR_DEATH_CAUSE = new ColorRGBA(0.85f, 0.85f, 0.85f, 1.0f);
 	private static final ColorRGBA COLOR_DEATH_PROMPT = new ColorRGBA(0.7f, 0.7f, 0.7f, 1.0f);
 	
+	// Boss health bar colors.
+	private static final ColorRGBA COLOR_BOSS_BAR_BG = new ColorRGBA(0.05f, 0.05f, 0.05f, 0.75f);
+	private static final ColorRGBA COLOR_BOSS_BAR_FILL = new ColorRGBA(0.65f, 0.1f, 0.1f, 1.0f);
+	private static final ColorRGBA COLOR_BOSS_BAR_FILL_P2 = new ColorRGBA(0.75f, 0.15f, 0.1f, 1.0f);
+	private static final ColorRGBA COLOR_BOSS_BAR_FILL_P3 = new ColorRGBA(0.85f, 0.2f, 0.1f, 1.0f);
+	
+	/** Boss health bar width as a fraction of screen width. */
+	private static final float BOSS_BAR_WIDTH_RATIO = 0.35f;
+	
+	/** Boss health bar height in pixels. */
+	private static final float BOSS_BAR_HEIGHT = 16f;
+	
 	// ========================================================
 	// Fields.
 	// ========================================================
@@ -216,6 +228,17 @@ public class PlayerHUD
 	/** Pulse timer for the "Click to Respawn" text animation. */
 	private float _deathPromptPulse;
 	
+	// Boss health bar.
+	private Node _bossBarNode;
+	private Geometry _bossBarBg;
+	private Geometry _bossBarFill;
+	private Material _bossBarFillMat;
+	private BitmapText _bossBarName;
+	private BitmapText _bossBarNameShadow;
+	private BitmapText _bossBarHpText;
+	private BitmapText _bossBarHpShadow;
+	private boolean _bossBarVisible;
+	
 	/** Reusable color to avoid allocation each frame. */
 	private final ColorRGBA _tempColor = new ColorRGBA();
 	
@@ -250,6 +273,7 @@ public class PlayerHUD
 		buildHotbar();
 		buildBreakProgress();
 		buildDeathScreen();
+		buildBossHealthBar();
 		
 		_guiNode.attachChild(_hudNode);
 	}
@@ -510,6 +534,135 @@ public class PlayerHUD
 		// Hidden initially.
 		_deathScreenNode.setCullHint(Node.CullHint.Always);
 		_hudNode.attachChild(_deathScreenNode);
+	}
+	
+	/**
+	 * Builds the boss health bar at the top center of the screen (hidden initially).
+	 */
+	private void buildBossHealthBar()
+	{
+		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		_bossBarNode = new Node("BossHealthBar");
+		
+		// Top center of screen, same Y as the player HP bar.
+		final float barWidth = _screenWidth * BOSS_BAR_WIDTH_RATIO;
+		final float barX = (_screenWidth - barWidth) / 2f;
+		final float barY = _screenHeight - EDGE_PADDING - BOSS_BAR_HEIGHT; // Same Y formula as health bar.
+		
+		// Background.
+		_bossBarBg = createQuad("BossBarBg", barWidth + BG_PADDING * 2, BOSS_BAR_HEIGHT + BG_PADDING * 2, COLOR_BOSS_BAR_BG, app);
+		_bossBarBg.setLocalTranslation(barX - BG_PADDING, barY - BG_PADDING, 0);
+		_bossBarNode.attachChild(_bossBarBg);
+		
+		// Fill bar.
+		_bossBarFillMat = createColorMaterial(COLOR_BOSS_BAR_FILL, app);
+		_bossBarFill = createQuadWithMaterial("BossBarFill", barWidth, BOSS_BAR_HEIGHT, _bossBarFillMat);
+		_bossBarFill.setLocalTranslation(barX, barY, 0.1f);
+		_bossBarNode.attachChild(_bossBarFill);
+		
+		// "Dragon" label - inside the bar, left side.
+		_bossBarNameShadow = createText("Dragon", COLOR_TEXT_SHADOW);
+		_bossBarName = createText("Dragon", COLOR_TEXT);
+		_bossBarNode.attachChild(_bossBarNameShadow);
+		_bossBarNode.attachChild(_bossBarName);
+		
+		final float nameX = barX + 4;
+		final float nameY = barY + BOSS_BAR_HEIGHT / 2f + _bossBarName.getLineHeight() / 2f;
+		_bossBarName.setLocalTranslation(nameX, nameY, 0.2f);
+		_bossBarNameShadow.setLocalTranslation(nameX + 1, nameY - 1, 0.1f);
+		
+		// HP text - inside the bar, right side.
+		_bossBarHpShadow = createText("200 / 200", COLOR_TEXT_SHADOW);
+		_bossBarHpText = createText("200 / 200", COLOR_TEXT);
+		_bossBarNode.attachChild(_bossBarHpShadow);
+		_bossBarNode.attachChild(_bossBarHpText);
+		
+		final float hpTextX = barX + barWidth - _bossBarHpText.getLineWidth() - 4;
+		_bossBarHpText.setLocalTranslation(hpTextX, nameY, 0.2f);
+		_bossBarHpShadow.setLocalTranslation(hpTextX + 1, nameY - 1, 0.1f);
+		
+		// Hidden initially.
+		_bossBarNode.setCullHint(Node.CullHint.Always);
+		_bossBarVisible = false;
+		_hudNode.attachChild(_bossBarNode);
+	}
+	
+	/**
+	 * Shows the boss health bar. Called when entering the boss arena.
+	 */
+	public void showBossHealthBar()
+	{
+		if (_bossBarVisible)
+		{
+			return;
+		}
+		
+		_bossBarVisible = true;
+		_bossBarNode.setCullHint(Node.CullHint.Never);
+	}
+	
+	/**
+	 * Hides the boss health bar. Called when the dragon dies or leaving the arena.
+	 */
+	public void hideBossHealthBar()
+	{
+		if (!_bossBarVisible)
+		{
+			return;
+		}
+		
+		_bossBarVisible = false;
+		_bossBarNode.setCullHint(Node.CullHint.Always);
+	}
+	
+	/**
+	 * Updates the boss health bar with current dragon HP.
+	 * @param health current dragon health
+	 * @param maxHealth maximum dragon health
+	 * @param phase current boss phase (1, 2, or 3)
+	 */
+	public void updateBossHealthBar(float health, float maxHealth, int phase)
+	{
+		if (!_bossBarVisible)
+		{
+			return;
+		}
+		
+		final float ratio = maxHealth > 0 ? Math.max(0, Math.min(1, health / maxHealth)) : 0;
+		_bossBarFill.setLocalScale(ratio, 1, 1);
+		
+		// Phase color.
+		switch (phase)
+		{
+			case 3:
+			{
+				_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL_P3);
+				break;
+			}
+			case 2:
+			{
+				_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL_P2);
+				break;
+			}
+			default:
+			{
+				_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL);
+				break;
+			}
+		}
+		
+		// Update HP text and reposition (right-aligned inside bar).
+		final String hpText = (int) Math.ceil(health) + " / " + (int) maxHealth;
+		_bossBarHpText.setText(hpText);
+		_bossBarHpShadow.setText(hpText);
+		
+		final float barWidth = _screenWidth * BOSS_BAR_WIDTH_RATIO;
+		final float barX = (_screenWidth - barWidth) / 2f;
+		final float hpTextX = barX + barWidth - _bossBarHpText.getLineWidth() - 4;
+		final float hpTextY = _bossBarHpText.getLocalTranslation().y;
+		_bossBarHpText.setLocalTranslation(hpTextX, hpTextY, 0.2f);
+		_bossBarHpShadow.setLocalTranslation(hpTextX + 1, hpTextY - 1, 0.1f);
 	}
 	
 	// ========================================================

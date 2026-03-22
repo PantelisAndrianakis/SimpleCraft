@@ -105,6 +105,14 @@ public class EnemyFactory
 				applyStats(enemy, 20, 0, 0, 0, 0, 0, false);
 				break;
 			}
+			case DRAGON:
+			{
+				buildDragon(enemy, assetManager);
+				
+				// Stats: 200 HP, speed 2.0 (Phase 1), detection 50, attackRange 3.0 (bite), damage 6 (bite P1), cooldown 2.0s.
+				applyStats(enemy, 200, 2.0f, 50, 3.0f, 6.0f, 2.0f, false);
+				break;
+			}
 		}
 		
 		return enemy;
@@ -202,6 +210,32 @@ public class EnemyFactory
 		mat.setTexture("ColorMap", generateNoiseTexture(color));
 		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		mat.setBoolean("VertexColor", true); // Enable vertex colors.
+		return mat;
+	}
+	
+	/**
+	 * Creates a noise-textured material WITHOUT VertexColor for the dragon.<br>
+	 * The boss arena has no sky light, so EnemyLighting would set vertex colors<br>
+	 * to black. Disabling VertexColor makes the dragon render at full brightness.
+	 */
+	private static Material makeDragonMat(AssetManager assetManager, ColorRGBA color)
+	{
+		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		mat.setTexture("ColorMap", generateNoiseTexture(color));
+		
+		// VertexColor intentionally NOT set - dragon is always fully lit.
+		return mat;
+	}
+	
+	/**
+	 * Creates a flat color material WITHOUT VertexColor for dragon detail parts.
+	 */
+	private static Material makeDragonFlatMat(AssetManager assetManager, ColorRGBA color)
+	{
+		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		mat.setColor("Color", color);
+		
+		// VertexColor intentionally NOT set - dragon is always fully lit.
 		return mat;
 	}
 	
@@ -793,4 +827,217 @@ public class EnemyFactory
 		
 		rightArm.attachChild(makeBox("RShoulderPlate", 0.15f, 0.18f, 0.15f, ironLightMat, 0, -0.12f, 0));
 	}
+	
+	// ========================================================
+	// Dragon (~2.2 blocks tall, ~7 blocks long, ground drake).
+	// ========================================================
+	
+	/**
+	 * Builds a dragon model - large ground lizard with dark green-grey body,<br>
+	 * four thick legs, articulated jaw, yellow-orange eyes, white teeth,<br>
+	 * and a three-segment tail. No wings - this is a ground drake.<br>
+	 * <br>
+	 * Uses leftLeg/rightLeg for front legs and leftArm/rightArm for back legs<br>
+	 * (same convention as the wolf). Jaw and tail segments are stored in<br>
+	 * dedicated dragon-specific fields on {@link Enemy}.
+	 */
+	private static void buildDragon(Enemy enemy, AssetManager assetManager)
+	{
+		final Node root = enemy.getNode();
+		
+		// Dragon palette - brown/earth tones.
+		// Dragon uses unlit materials (no VertexColor) because the arena has no sky light -
+		// EnemyLighting would read sky=0 and darken the dragon to invisible.
+		final ColorRGBA bodyColor = new ColorRGBA(0.40f, 0.28f, 0.18f, 1.0f); // Warm brown.
+		final ColorRGBA headColor = new ColorRGBA(0.35f, 0.24f, 0.15f, 1.0f); // Darker brown.
+		final ColorRGBA eyeColor = EYE_RED; // Red glowing eyes like all enemies.
+		final ColorRGBA bellyColor = new ColorRGBA(0.50f, 0.40f, 0.28f, 1.0f); // Lighter tan.
+		final ColorRGBA hornColor = new ColorRGBA(0.25f, 0.20f, 0.12f, 1.0f); // Dark bone.
+		final ColorRGBA wingColor = new ColorRGBA(0.45f, 0.32f, 0.20f, 1.0f); // Leathery brown.
+		final ColorRGBA wingMembraneColor = new ColorRGBA(0.55f, 0.38f, 0.22f, 0.85f); // Lighter, slightly transparent.
+		final ColorRGBA backColor = darken(bodyColor, 0.75f);
+		
+		final Material bodyMat = makeDragonMat(assetManager, bodyColor);
+		final Material headMat = makeDragonMat(assetManager, headColor);
+		final Material eyeMat = makeDragonFlatMat(assetManager, eyeColor);
+		final Material toothMat = makeDragonFlatMat(assetManager, TOOTH_WHITE);
+		final Material bellyMat = makeDragonMat(assetManager, bellyColor);
+		final Material backMat = makeDragonMat(assetManager, backColor);
+		final Material jawMat = makeDragonMat(assetManager, darken(headColor, 0.85f));
+		final Material hornMat = makeDragonMat(assetManager, hornColor);
+		final Material wingMat = makeDragonMat(assetManager, wingColor);
+		
+		// Wing membrane - semi-transparent.
+		final Material membraneMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		membraneMat.setTexture("ColorMap", generateNoiseTexture(wingMembraneColor));
+		membraneMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		
+		// ---- Body ----
+		// Pivot at hip level (Y=1.0). Body geometry center at (0, 0.6, 0).
+		// Body: 1.8 wide, 1.2 tall, 3.0 long.
+		final Node bodyNode = makePivotPart("Body", makeBox("BodyBox", 0.9f, 0.6f, 1.5f, bodyMat, 0, 0.6f, 0), 0, 1.0f, 0);
+		root.attachChild(bodyNode);
+		enemy.setBody(bodyNode);
+		
+		// Belly underside.
+		bodyNode.attachChild(makeBox("Belly", 0.7f, 0.03f, 1.3f, bellyMat, 0, 0.01f, 0));
+		
+		// Back ridge - spiny ridge along the spine.
+		bodyNode.attachChild(makeBox("BackRidge", 0.08f, 0.12f, 1.2f, backColor.equals(backColor) ? hornMat : backMat, 0, 1.24f, 0));
+		
+		// ---- Head ----
+		// Two-part head: wider back cranium + narrower forward snout.
+		// Head pivot at (0, 1.2, -2.1). Dragon faces -Z.
+		final Node headNode = new Node("Head");
+		headNode.setLocalTranslation(0, 1.2f, -2.1f);
+		root.attachChild(headNode);
+		enemy.setHead(headNode);
+		
+		// Back cranium - wider, houses the brain.
+		headNode.attachChild(makeBox("Cranium", 0.5f, 0.35f, 0.35f, headMat, 0, 0.25f, 0.1f));
+		
+		// Forward snout - narrower, elongated.
+		headNode.attachChild(makeBox("Snout", 0.35f, 0.28f, 0.4f, headMat, 0, 0.18f, -0.55f));
+		
+		// Eyes on the FRONT of the cranium - facing forward, slightly to each side.
+		// Positioned where cranium meets snout so they're visible head-on.
+		headNode.attachChild(makeBox("LeftEye", 0.08f, 0.07f, 0.04f, eyeMat, -0.28f, 0.38f, -0.25f));
+		headNode.attachChild(makeBox("RightEye", 0.08f, 0.07f, 0.04f, eyeMat, 0.28f, 0.38f, -0.25f));
+		
+		// Nostrils on snout tip.
+		headNode.attachChild(makeBox("LeftNostril", 0.04f, 0.03f, 0.02f, backMat, -0.12f, 0.12f, -0.97f));
+		headNode.attachChild(makeBox("RightNostril", 0.04f, 0.03f, 0.02f, backMat, 0.12f, 0.12f, -0.97f));
+		
+		// Two large white fangs - protruding DOWN and FORWARD past the snout.
+		// Visible from the front, hanging below the jaw line.
+		headNode.attachChild(makeBox("LeftFang", 0.035f, 0.12f, 0.035f, toothMat, -0.18f, -0.08f, -0.75f));
+		headNode.attachChild(makeBox("RightFang", 0.035f, 0.12f, 0.035f, toothMat, 0.18f, -0.08f, -0.75f));
+		
+		// Brow ridge - armored ridge above the eyes.
+		headNode.attachChild(makeBox("BrowRidge", 0.45f, 0.07f, 0.12f, backMat, 0, 0.5f, -0.2f));
+		
+		// ---- Horns (two curved-up horns on top of head) ----
+		// Each horn is 2 segments: base angled back, tip angled further back and up.
+		// Left horn base.
+		final Node leftHornBase = new Node("LeftHornBase");
+		leftHornBase.setLocalTranslation(-0.25f, 0.55f, 0.1f);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -25f, Vector3f.UNIT_X); // Tilt backward.
+		leftHornBase.setLocalRotation(TEMP_QUAT);
+		leftHornBase.attachChild(makeBox("LHornBase", 0.06f, 0.2f, 0.06f, hornMat, 0, 0.2f, 0));
+		headNode.attachChild(leftHornBase);
+		
+		// Left horn tip.
+		final Node leftHornTip = new Node("LeftHornTip");
+		leftHornTip.setLocalTranslation(0, 0.4f, 0);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -15f, Vector3f.UNIT_X);
+		leftHornTip.setLocalRotation(TEMP_QUAT);
+		leftHornTip.attachChild(makeBox("LHornTip", 0.04f, 0.15f, 0.04f, hornMat, 0, 0.15f, 0));
+		leftHornBase.attachChild(leftHornTip);
+		
+		// Right horn base.
+		final Node rightHornBase = new Node("RightHornBase");
+		rightHornBase.setLocalTranslation(0.25f, 0.55f, 0.1f);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -25f, Vector3f.UNIT_X);
+		rightHornBase.setLocalRotation(TEMP_QUAT);
+		rightHornBase.attachChild(makeBox("RHornBase", 0.06f, 0.2f, 0.06f, hornMat, 0, 0.2f, 0));
+		headNode.attachChild(rightHornBase);
+		
+		// Right horn tip.
+		final Node rightHornTip = new Node("RightHornTip");
+		rightHornTip.setLocalTranslation(0, 0.4f, 0);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -15f, Vector3f.UNIT_X);
+		rightHornTip.setLocalRotation(TEMP_QUAT);
+		rightHornTip.attachChild(makeBox("RHornTip", 0.04f, 0.15f, 0.04f, hornMat, 0, 0.15f, 0));
+		rightHornBase.attachChild(rightHornTip);
+		
+		// ---- Lower Jaw (separate node for bite animation) ----
+		// Narrower jaw matching the snout, hinged at the back.
+		final Node jawNode = new Node("Jaw");
+		jawNode.setLocalTranslation(0, -0.1f, -0.2f);
+		jawNode.attachChild(makeBox("JawBox", 0.3f, 0.08f, 0.4f, jawMat, 0, -0.08f, -0.2f));
+		headNode.attachChild(jawNode);
+		enemy.setJaw(jawNode);
+		
+		// Small lower teeth on the jaw - visible when mouth opens.
+		jawNode.attachChild(makeBox("JawTeethL", 0.025f, 0.035f, 0.025f, toothMat, -0.15f, 0.02f, -0.5f));
+		jawNode.attachChild(makeBox("JawTeethR", 0.025f, 0.035f, 0.025f, toothMat, 0.15f, 0.02f, -0.5f));
+		
+		// ---- Front Legs ----
+		final Node frontLeft = makePivotPart("LeftLeg", makeBox("FrontLeftLegBox", 0.2f, 0.5f, 0.2f, bodyMat, 0, -0.5f, 0), -0.75f, 1.0f, -1.0f);
+		root.attachChild(frontLeft);
+		enemy.setLeftLeg(frontLeft);
+		
+		final Node frontRight = makePivotPart("RightLeg", makeBox("FrontRightLegBox", 0.2f, 0.5f, 0.2f, bodyMat, 0, -0.5f, 0), 0.75f, 1.0f, -1.0f);
+		root.attachChild(frontRight);
+		enemy.setRightLeg(frontRight);
+		
+		// ---- Back Legs ----
+		final Node backLeft = makePivotPart("LeftArm", makeBox("BackLeftLegBox", 0.2f, 0.5f, 0.2f, bodyMat, 0, -0.5f, 0), -0.75f, 1.0f, 1.0f);
+		root.attachChild(backLeft);
+		enemy.setLeftArm(backLeft);
+		
+		final Node backRight = makePivotPart("RightArm", makeBox("BackRightLegBox", 0.2f, 0.5f, 0.2f, bodyMat, 0, -0.5f, 0), 0.75f, 1.0f, 1.0f);
+		root.attachChild(backRight);
+		enemy.setRightArm(backRight);
+		
+		// ---- Wings ----
+		// Each wing: bone spar + membrane panel. Attached to upper body sides.
+		// Wings are folded against the body at rest; EnemyAnimator can unfold them.
+		// Left wing.
+		final Node leftWing = new Node("LeftWing");
+		leftWing.setLocalTranslation(-0.9f, 1.6f, 0); // Upper-left of body.
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * 15f, Vector3f.UNIT_Z); // Slightly raised.
+		leftWing.setLocalRotation(TEMP_QUAT);
+		
+		// Wing bone (spar).
+		leftWing.attachChild(makeBox("LWingBone", 0.04f, 0.04f, 0.8f, wingMat, -0.8f, 0, 0));
+		
+		// Wing membrane - large flat panel.
+		final Geometry lMembrane = makeBox("LWingMembrane", 0.8f, 0.01f, 0.7f, membraneMat, -0.8f, -0.05f, 0);
+		lMembrane.setQueueBucket(Bucket.Transparent);
+		leftWing.attachChild(lMembrane);
+		
+		// Wing tip bone.
+		leftWing.attachChild(makeBox("LWingTip", 0.03f, 0.03f, 0.5f, wingMat, -1.5f, 0.02f, 0.2f));
+		
+		bodyNode.attachChild(leftWing);
+		
+		// Right wing (mirrored).
+		final Node rightWing = new Node("RightWing");
+		rightWing.setLocalTranslation(0.9f, 1.6f, 0);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -15f, Vector3f.UNIT_Z);
+		rightWing.setLocalRotation(TEMP_QUAT);
+		
+		rightWing.attachChild(makeBox("RWingBone", 0.04f, 0.04f, 0.8f, wingMat, 0.8f, 0, 0));
+		
+		final Geometry rMembrane = makeBox("RWingMembrane", 0.8f, 0.01f, 0.7f, membraneMat, 0.8f, -0.05f, 0);
+		rMembrane.setQueueBucket(Bucket.Transparent);
+		rightWing.attachChild(rMembrane);
+		
+		rightWing.attachChild(makeBox("RWingTip", 0.03f, 0.03f, 0.5f, wingMat, 1.5f, 0.02f, 0.2f));
+		
+		bodyNode.attachChild(rightWing);
+		
+		// ---- Tail (3 chained segments) ----
+		final Node tail1 = new Node("Tail1");
+		tail1.setLocalTranslation(0, 1.2f, 1.5f);
+		tail1.attachChild(makeBox("Tail1Box", 0.25f, 0.2f, 0.6f, bodyMat, 0, 0, 0.6f));
+		root.attachChild(tail1);
+		enemy.setTail1(tail1);
+		
+		final Node tail2 = new Node("Tail2");
+		tail2.setLocalTranslation(0, -0.05f, 1.2f);
+		tail2.attachChild(makeBox("Tail2Box", 0.175f, 0.15f, 0.5f, bodyMat, 0, 0, 0.5f));
+		tail1.attachChild(tail2);
+		enemy.setTail2(tail2);
+		
+		final Node tail3 = new Node("Tail3");
+		tail3.setLocalTranslation(0, -0.05f, 1.0f);
+		tail3.attachChild(makeBox("Tail3Box", 0.1f, 0.1f, 0.4f, backMat, 0, 0, 0.4f));
+		tail2.attachChild(tail3);
+		enemy.setTail3(tail3);
+	}
+	
+	/** Shared temp quaternion for dragon horn/wing rotation setup. */
+	private static final Quaternion TEMP_QUAT = new Quaternion();
 }
