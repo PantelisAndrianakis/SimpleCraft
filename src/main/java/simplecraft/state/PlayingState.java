@@ -52,9 +52,11 @@ import simplecraft.world.Block;
 import simplecraft.world.DayNightCycle;
 import simplecraft.world.Region;
 import simplecraft.world.RegionMeshBuilder;
+import simplecraft.world.TerrainGenerator;
 import simplecraft.world.TextureAtlas;
 import simplecraft.world.World;
 import simplecraft.world.WorldInfo;
+import simplecraft.world.boss.BossArenaManager;
 import simplecraft.world.entity.TileEntityManager;
 
 /**
@@ -129,6 +131,9 @@ public class PlayingState extends FadeableAppState
 	/** Renders the held item sprite in the lower-right of the screen. */
 	private ViewmodelRenderer _viewmodelRenderer;
 	
+	/** Manages teleportation between the main world and the Dragon's Lair boss arena. */
+	private BossArenaManager _bossArenaManager;
+	
 	// --- Held torch dynamic light ---
 	
 	/** Light level emitted by a held torch. */
@@ -178,6 +183,12 @@ public class PlayingState extends FadeableAppState
 	
 	/** True while the game is paused. Set before the state transition to prevent teardown. */
 	private boolean _paused;
+	
+	/** True for one frame while waiting for the arena to generate (loading screen visible). */
+	private boolean _pendingArenaEntry;
+	
+	/** Frame counter for pending arena entry (ensures loading screen renders before heavy generation). */
+	private int _arenaEntryWaitFrames;
 	
 	/** Time when the state was last entered (for pause debouncing). */
 	private long _lastEnterTime;
@@ -331,8 +342,8 @@ public class PlayingState extends FadeableAppState
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_waitingForGround && !_playerDead && !QuestionManager.isActive())
 			{
-				// Auto-save before pausing.
-				if (_world != null && _playerController != null && _dayNightCycle != null)
+				// Auto-save before pausing (skip if in boss arena - arena is not saved).
+				if (_world != null && _playerController != null && _dayNightCycle != null && (_bossArenaManager == null || !_bossArenaManager.isInArena()))
 				{
 					SaveManager.save(_world, _playerController, _dayNightCycle);
 				}
@@ -566,6 +577,48 @@ public class PlayingState extends FadeableAppState
 	public void update(float tpf)
 	{
 		super.update(tpf);
+		
+		// --- Pending arena entry: loading screen is visible, generate and enter arena. ---
+		if (_pendingArenaEntry && _world != null && _playerController != null)
+		{
+			updateLoadingScreen(tpf);
+			_arenaEntryWaitFrames++;
+			
+			// Wait at least 2 frames so the loading screen is guaranteed to render
+			// before the heavy arena generation blocks the main thread.
+			if (_arenaEntryWaitFrames < 2)
+			{
+				return;
+			}
+			
+			_pendingArenaEntry = false;
+			_arenaEntryWaitFrames = 0;
+			
+			if (_bossArenaManager != null)
+			{
+				_bossArenaManager.enterArena(_playerController, this);
+			}
+			
+			hideLoadingScreen();
+			
+			// Re-register input for gameplay in the arena.
+			_playerController.registerInput();
+			if (_blockInteraction != null)
+			{
+				_blockInteraction.registerInput();
+			}
+			
+			// Fade to night music for the ominous arena atmosphere.
+			final SimpleCraft arenaApp = SimpleCraft.getInstance();
+			final AudioManager arenaAudio = arenaApp.getAudioManager();
+			if (arenaAudio != null)
+			{
+				arenaAudio.fadeInMusic(MusicManager.NIGHT_MUSIC_PATH, 1.5f);
+			}
+			
+			arenaApp.getInputManager().setCursorVisible(false);
+			return;
+		}
 		
 		// While waiting for terrain to generate, check each frame.
 		if (_pendingSpawn && _world != null)
@@ -903,7 +956,8 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			// Update music transitions (water, underground, day/night).
-			if (_musicManager != null)
+			// Skip in boss arena - night music is forced and should not be overridden.
+			if (_musicManager != null && !isInBossArena())
 			{
 				final Vector3f pos = _playerController.getPosition();
 				final boolean underground = _world.isUnderground((int) pos.x, (int) pos.y, (int) pos.z);
@@ -984,9 +1038,9 @@ public class PlayingState extends FadeableAppState
 			// --- Player -> Enemy attack priority ---
 			// Check enemies FIRST on left-click. If the crosshair is on an enemy,
 			// suppress block interaction's attack so we don't mine blocks behind enemies.
-			// Skip combat when a screen is open.
+			// Skip combat when a screen is open or in the boss arena.
 			boolean suppressBlockAttack = false;
-			if (_combatSystem != null && _spawnSystem != null && !_playerDead && !screenOpen)
+			if (_combatSystem != null && _spawnSystem != null && !_playerDead && !screenOpen && !isInBossArena())
 			{
 				if (_blockInteraction != null && _blockInteraction.isAttackHeld())
 				{
@@ -1012,13 +1066,15 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			// Update enemy spawn system (spawning, despawning, AI, animation).
-			if (_spawnSystem != null)
+			// Skip in boss arena - main world enemies are detached and should not update.
+			if (_spawnSystem != null && !isInBossArena())
 			{
 				_spawnSystem.update(_playerController.getPosition(), _playerController.isInWater(), _world, tpf);
 			}
 			
 			// Update dropped items (bob animation, pickup checks, expiration).
-			if (_dropManager != null && !_playerDead)
+			// Skip in boss arena - main world drops are detached.
+			if (_dropManager != null && !_playerDead && !isInBossArena())
 			{
 				_dropManager.update(_playerController.getPosition(), _playerController.getInventory(), tpf);
 			}
@@ -1037,7 +1093,8 @@ public class PlayingState extends FadeableAppState
 			}
 			
 			// Update combat system (enemy attacks, screen flash fade).
-			if (_combatSystem != null && _spawnSystem != null)
+			// Skip in boss arena - no enemies to fight and spawn system is paused.
+			if (_combatSystem != null && _spawnSystem != null && !isInBossArena())
 			{
 				_combatSystem.update(_playerController, _spawnSystem.getEnemies(), _world, tpf);
 			}
@@ -1046,6 +1103,8 @@ public class PlayingState extends FadeableAppState
 			if (_playerController.isDead() && !_playerDead)
 			{
 				// Player just died - show death screen.
+				// If in boss arena, the arena stays visible behind the death screen.
+				// Arena exit happens later in performRespawn() when the player clicks Respawn.
 				_playerDead = true;
 				
 				// Remove held torch light before death screen.
@@ -1242,6 +1301,23 @@ public class PlayingState extends FadeableAppState
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
+		// If dying in the boss arena, exit the arena first to restore the main world.
+		// This happens here (on respawn click) instead of on death detection, so the
+		// death screen shows the arena behind it rather than the normal world.
+		if (_bossArenaManager != null && _bossArenaManager.isInArena())
+		{
+			_bossArenaManager.exitArena(_playerController, this, false);
+			System.out.println("PlayingState: Exited boss arena on respawn.");
+			
+			// Restore music to match the current time of day.
+			final AudioManager respawnAudio = app.getAudioManager();
+			if (respawnAudio != null && _dayNightCycle != null)
+			{
+				final String track = _dayNightCycle.isNight() ? MusicManager.NIGHT_MUSIC_PATH : MusicManager.DAY_MUSIC_PATH;
+				respawnAudio.fadeInMusic(track, 2.0f);
+			}
+		}
+		
 		// Get the active respawn point (campfire if set, otherwise initial spawn).
 		final Vector3f respawnPoint = _playerController.getActiveRespawnPoint();
 		_spawnTargetX = (int) respawnPoint.x;
@@ -1301,6 +1377,118 @@ public class PlayingState extends FadeableAppState
 		}
 	}
 	
+	// ========================================================
+	// World Access (used by BossArenaManager).
+	// ========================================================
+	
+	/**
+	 * Returns the currently active world.
+	 */
+	public World getWorld()
+	{
+		return _world;
+	}
+	
+	/**
+	 * Returns the shared texture atlas material.<br>
+	 * Used by BossArenaManager to create the arena world with matching textures.
+	 */
+	public Material getAtlasMaterial()
+	{
+		return _atlasMaterial;
+	}
+	
+	/**
+	 * Swaps the active world reference.<br>
+	 * Called by BossArenaManager when entering or exiting the boss arena.<br>
+	 * Updates the world reference used by this state and by BlockInteraction.
+	 * @param newWorld the new world to use
+	 */
+	public void swapWorld(World newWorld)
+	{
+		_world = newWorld;
+		
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.setWorld(newWorld);
+		}
+	}
+	
+	/**
+	 * Returns the BossArenaManager instance.
+	 */
+	public BossArenaManager getBossArenaManager()
+	{
+		return _bossArenaManager;
+	}
+	
+	/**
+	 * Begins the arena entry sequence: shows a loading screen, disables input,<br>
+	 * consumes the Dragon Orb and sets a flag so the next frame performs the actual<br>
+	 * arena generation and world swap.<br>
+	 * <br>
+	 * This split across frames ensures the loading screen is rendered before<br>
+	 * the heavy arena generation work blocks the main thread.
+	 */
+	public void beginArenaEntry()
+	{
+		if (_pendingArenaEntry)
+		{
+			return;
+		}
+		
+		// Consume the Dragon Orb immediately.
+		if (_playerController != null)
+		{
+			_playerController.getInventory().consumeSelectedItem();
+		}
+		
+		// Disable player input during loading.
+		if (_playerController != null)
+		{
+			_playerController.unregisterInput();
+		}
+		
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.unregisterInput();
+		}
+		
+		// Show loading screen (will be visible this frame's render pass).
+		showLoadingScreen();
+		
+		_pendingArenaEntry = true;
+		_arenaEntryWaitFrames = 0;
+		
+		System.out.println("PlayingState: Arena entry initiated - loading screen shown, generating next frame.");
+	}
+	
+	/**
+	 * Returns true if the player is currently in the boss arena.
+	 */
+	private boolean isInBossArena()
+	{
+		return _bossArenaManager != null && _bossArenaManager.isInArena();
+	}
+	
+	/**
+	 * Returns the enemy scene node, or null if the spawn system is not initialized.<br>
+	 * Used by BossArenaManager to detach/reattach enemies during arena transitions.
+	 */
+	public Node getEnemyNode()
+	{
+		return _spawnSystem != null ? _spawnSystem.getEnemyNode() : null;
+	}
+	
+	/**
+	 * Returns the drop manager scene node, or null if the drop manager is not initialized.<br>
+	 * Used by BossArenaManager to detach/reattach drops during arena transitions.
+	 */
+	public Node getDropNode()
+	{
+		return _dropManager != null ? _dropManager.getNode() : null;
+	}
+	
 	@Override
 	protected void onExitState()
 	{
@@ -1357,6 +1545,29 @@ public class PlayingState extends FadeableAppState
 		}
 		
 		// Full exit (returning to main menu) - save and tear down everything.
+		// If in boss arena, exit arena first to restore main world before saving.
+		if (_bossArenaManager != null && _bossArenaManager.isInArena())
+		{
+			_bossArenaManager.exitArena(_playerController, this, false);
+			
+			// Restore the player's position to their respawn point before saving.
+			// Without this, the arena coordinates (200, 2, 145) would be saved as the
+			// main world position, causing the player to spawn underground on next load.
+			if (_playerController != null)
+			{
+				final Vector3f respawnPoint = _playerController.getActiveRespawnPoint();
+				_playerController.setPosition(respawnPoint.x, respawnPoint.y, respawnPoint.z);
+				
+				// Also restore health since the player might have been dead.
+				if (_playerController.isDead())
+				{
+					_playerController.setHealth(_playerController.getMaxHealth());
+				}
+				
+				System.out.println("PlayingState: Restored player to respawn point [" + respawnPoint.x + ", " + respawnPoint.y + ", " + respawnPoint.z + "] before saving.");
+			}
+		}
+		
 		if (_world != null && _playerController != null && _dayNightCycle != null)
 		{
 			SaveManager.save(_world, _playerController, _dayNightCycle);
@@ -1721,6 +1932,13 @@ public class PlayingState extends FadeableAppState
 		// Create the viewmodel renderer (first-person held item sprite on GUI).
 		_viewmodelRenderer = new ViewmodelRenderer(app.getAssetManager(), app.getRootNode());
 		
+		// Create the boss arena manager for Dragon's Lair teleportation.
+		_bossArenaManager = new BossArenaManager();
+		if (_blockInteraction != null)
+		{
+			_blockInteraction.setBossArenaManager(_bossArenaManager);
+		}
+		
 		// Restore saved tile entities BEFORE attaching tile entity visual node,
 		// so particles and other visuals are created during deserialization.
 		final TileEntityManager tileEntityManager = _world.getTileEntityManager();
@@ -1943,9 +2161,35 @@ public class PlayingState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
+		// Safety net: if still in the boss arena when the world is being destroyed
+		// (e.g. quit-to-menu from pause while in arena), exit the arena first,
+		// restore the player to their respawn point and save.
+		if (_bossArenaManager != null && _bossArenaManager.isInArena())
+		{
+			_bossArenaManager.exitArena(_playerController, this, false);
+			
+			if (_playerController != null)
+			{
+				final Vector3f respawnPoint = _playerController.getActiveRespawnPoint();
+				_playerController.setPosition(respawnPoint.x, respawnPoint.y, respawnPoint.z);
+				
+				if (_playerController.isDead())
+				{
+					_playerController.setHealth(_playerController.getMaxHealth());
+				}
+			}
+			
+			if (_world != null && _playerController != null && _dayNightCycle != null)
+			{
+				SaveManager.save(_world, _playerController, _dayNightCycle);
+				System.out.println("PlayingState.destroyWorld: Saved after emergency arena exit.");
+			}
+		}
+		
 		// Reset paused flag.
 		_paused = false;
 		_pendingSpawn = false;
+		_pendingArenaEntry = false;
 		_playerDead = false;
 		_newWorldSpawn = false;
 		_waitingForGround = false;
@@ -1967,6 +2211,13 @@ public class PlayingState extends FadeableAppState
 		{
 			_combatSystem.cleanup();
 			_combatSystem = null;
+		}
+		
+		// Clean up boss arena manager.
+		if (_bossArenaManager != null)
+		{
+			_bossArenaManager.cleanup();
+			_bossArenaManager = null;
 		}
 		
 		// Clean up drop manager.

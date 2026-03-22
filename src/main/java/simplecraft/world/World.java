@@ -144,6 +144,13 @@ public class World
 	 */
 	private ConcurrentHashMap<Long, SavedRegionData> _savedRegionData;
 	
+	/**
+	 * When true, this world is static (e.g. boss arena) and skips dynamic region<br>
+	 * loading/unloading in {@link #update(Vector3f, int)}. Regions must be created<br>
+	 * manually via {@link #createEmptyRegion(int, int)}.
+	 */
+	private boolean _staticWorld;
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -171,6 +178,36 @@ public class World
 		
 		_regionLoader = new RegionLoader(seed);
 		_tileEntityManager = new TileEntityManager();
+	}
+	
+	// ========================================================
+	// Static World Support.
+	// ========================================================
+	
+	/**
+	 * Sets whether this world is static (no dynamic region loading/unloading).<br>
+	 * Used for special worlds like the boss arena where regions are pre-generated.
+	 * @param staticWorld true to disable dynamic loading
+	 */
+	public void setStaticWorld(boolean staticWorld)
+	{
+		_staticWorld = staticWorld;
+	}
+	
+	/**
+	 * Creates an empty region at the given region coordinates and registers it.<br>
+	 * Used for static worlds (boss arena) where regions are filled manually.
+	 * @param regionX the region X coordinate
+	 * @param regionZ the region Z coordinate
+	 * @return the created region
+	 */
+	public Region createEmptyRegion(int regionX, int regionZ)
+	{
+		final Region region = new Region(regionX, regionZ);
+		final long key = regionKey(regionX, regionZ);
+		_regions.put(key, region);
+		_regionLoader.updateRegionCache(region);
+		return region;
 	}
 	
 	// ========================================================
@@ -225,6 +262,12 @@ public class World
 	{
 		// Process pending block changes (limited per frame).
 		processBlockChanges();
+		
+		// Static worlds (e.g. boss arena) skip dynamic region loading/unloading.
+		if (_staticWorld)
+		{
+			return;
+		}
 		
 		// Calculate which region the camera is currently in.
 		final int camRegionX = Math.floorDiv((int) Math.floor(cameraPos.x), Region.SIZE_XZ);

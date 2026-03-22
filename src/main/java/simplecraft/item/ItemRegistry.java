@@ -87,6 +87,12 @@ public class ItemRegistry
 		register(ItemTemplate.consumable("berries", "Berries", 3.0f));
 		
 		// ========================================================
+		// Special Orbs.
+		// ========================================================
+		register(ItemTemplate.consumable("dragon_orb", "Dragon Orb", 0.0f, 1));
+		register(ItemTemplate.consumable("recall_orb", "Recall Orb", 0.0f, 1));
+		
+		// ========================================================
 		// Materials.
 		// ========================================================
 		register(ItemTemplate.material("wood_plank", "Wood Plank"));

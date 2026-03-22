@@ -187,6 +187,11 @@ public class CraftingRegistry
 		register("health_potion", 1, ingredients("cooked_meat", 2, "glass", 1));
 		
 		// ========================================================
+		// Special Orbs.
+		// ========================================================
+		register("dragon_orb", 1, ingredients("iron_ingot", 20, "stone_shard", 50, "glass", 10));
+		
+		// ========================================================
 		// Utility / Furniture.
 		// ========================================================
 		register("campfire", 1, ingredients("wood", 2, "stone_shard", 4));

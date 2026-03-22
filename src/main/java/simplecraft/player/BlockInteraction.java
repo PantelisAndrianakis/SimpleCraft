@@ -22,6 +22,7 @@ import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.scene.debug.WireBox;
 import com.jme3.util.BufferUtils;
 
+import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.effects.ParticleManager;
 import simplecraft.input.GameInputManager;
@@ -31,6 +32,7 @@ import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemType;
+import simplecraft.state.PlayingState;
 import simplecraft.ui.MessageManager;
 import simplecraft.util.Rnd;
 import simplecraft.util.Vector3i;
@@ -41,6 +43,7 @@ import simplecraft.world.BlockDestructionQueue;
 import simplecraft.world.BlockSupport;
 import simplecraft.world.TreeFeller;
 import simplecraft.world.World;
+import simplecraft.world.boss.BossArenaManager;
 import simplecraft.world.entity.CampfireTileEntity;
 import simplecraft.world.entity.ChestTileEntity;
 import simplecraft.world.entity.CraftingTableTileEntity;
@@ -130,7 +133,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	private final Camera _camera;
 	private final InputManager _inputManager;
-	private final World _world;
+	private World _world;
 	private final PlayerController _playerController;
 	private final AudioManager _audioManager;
 	
@@ -225,6 +228,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	/** Inventory screen reference for screen-open detection. */
 	private InventoryScreen _inventoryScreen;
+	
+	/** Boss arena manager for orb teleportation. */
+	private BossArenaManager _bossArenaManager;
 	
 	// Camera shake.
 	private float _shakeTimer;
@@ -1386,6 +1392,79 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	 * Handles block placement at the placement position.
 	 */
 	/**
+	 * Attempts to use a Dragon Orb or Recall Orb from the selected hotbar slot.<br>
+	 * Dragon Orb: teleports the player to the Dragon's Lair (only in main world).<br>
+	 * Recall Orb: returns the player from the arena (only in arena after dragon dies).
+	 * @return true if an orb was used (caller should skip further input handling)
+	 */
+	private boolean tryUseOrb()
+	{
+		final Inventory inventory = _playerController.getInventory();
+		final ItemInstance selectedItem = inventory.getSelectedItem();
+		if (selectedItem == null || selectedItem.getTemplate().getType() != ItemType.CONSUMABLE)
+		{
+			return false;
+		}
+		
+		final String itemId = selectedItem.getTemplate().getId();
+		
+		// Dragon Orb - teleport to arena.
+		if ("dragon_orb".equals(itemId))
+		{
+			if (_playerController.isInBossArena())
+			{
+				MessageManager.show("The orb has no power here.");
+				return true;
+			}
+			
+			// Initiate arena entry via PlayingState (shows loading screen, generates arena next frame).
+			final PlayingState state = getPlayingState();
+			if (state != null)
+			{
+				state.beginArenaEntry();
+				return true;
+			}
+			
+			System.err.println("BlockInteraction: Dragon Orb used but PlayingState not found.");
+			return false;
+		}
+		
+		// Recall Orb - return from arena.
+		if ("recall_orb".equals(itemId))
+		{
+			if (!_playerController.isInBossArena())
+			{
+				MessageManager.show("The orb glows faintly but does nothing.");
+				return true;
+			}
+			
+			if (_bossArenaManager != null)
+			{
+				// Consume the Recall Orb.
+				inventory.consumeSelectedItem();
+				_bossArenaManager.exitArena(_playerController, getPlayingState(), true);
+				return true;
+			}
+			
+			System.err.println("BlockInteraction: Recall Orb used but no BossArenaManager set.");
+			return false;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Returns the PlayingState instance from the application.<br>
+	 * Used internally by orb usage to pass to BossArenaManager.
+	 */
+	private PlayingState getPlayingState()
+	{
+		// The playing state is registered under GameState.PLAYING.
+		// We can access it via the current state since we're always in PLAYING when this is called.
+		return (PlayingState) SimpleCraft.getInstance().getStateManager().getState(PlayingState.class);
+	}
+	
+	/**
 	 * Attempts to use the currently selected consumable item.<br>
 	 * Heals the player and consumes one from the stack regardless of current health<br>
 	 * (the item is consumed even if health is already full - "overheal" is allowed).<br>
@@ -1401,6 +1480,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return false;
 		}
 		
+		// Special orb items are handled separately (not regular consumables).
+		final String itemId = selectedItem.getTemplate().getId();
+		if ("dragon_orb".equals(itemId) || "recall_orb".equals(itemId))
+		{
+			return false;
+		}
+		
 		final float healAmount = selectedItem.getTemplate().getHealAmount();
 		_playerController.heal(healAmount);
 		inventory.consumeSelectedItem();
@@ -1410,6 +1496,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	
 	private void handlePlace()
 	{
+		// Dragon Orb / Recall Orb - special use items (works even without a block target).
+		if (tryUseOrb())
+		{
+			return;
+		}
+		
 		// Consumable use - works even without a block target (looking at sky, etc.).
 		if (tryUseConsumable())
 		{
@@ -1476,6 +1568,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		if (selectedBlock == Block.WATER || selectedBlock == Block.BEDROCK)
 		{
 			System.out.println("Cannot place " + selectedBlock.name() + ".");
+			return;
+		}
+		
+		// Boss arena restriction: cannot place tile entity blocks (campfire, chest, crafting table, furnace).
+		if (_playerController.isInBossArena() && selectedBlock.isTileEntity())
+		{
+			MessageManager.show("You cannot place that here.");
+			System.out.println("Arena restriction: Cannot place " + selectedBlock.name() + " in boss arena.");
 			return;
 		}
 		
@@ -2678,8 +2778,11 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						{
 							_playerController.getInventory().selectHotbar(i);
 							
-							// Immediately use the item if it is a consumable.
-							tryUseConsumable();
+							// Immediately use the item if it is an orb or consumable.
+							if (!tryUseOrb())
+							{
+								tryUseConsumable();
+							}
 							break;
 						}
 					}
@@ -2891,6 +2994,24 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	public void setInventoryScreen(InventoryScreen inventoryScreen)
 	{
 		_inventoryScreen = inventoryScreen;
+	}
+	
+	/**
+	 * Sets the world reference. Used when swapping between main world and boss arena.
+	 * @param world the new world
+	 */
+	public void setWorld(World world)
+	{
+		_world = world;
+	}
+	
+	/**
+	 * Sets the boss arena manager for orb teleportation.
+	 * @param bossArenaManager the boss arena manager instance
+	 */
+	public void setBossArenaManager(BossArenaManager bossArenaManager)
+	{
+		_bossArenaManager = bossArenaManager;
 	}
 	
 	/**

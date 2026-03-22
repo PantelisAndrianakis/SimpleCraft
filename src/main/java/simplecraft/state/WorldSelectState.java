@@ -85,7 +85,7 @@ public class WorldSelectState extends FadeableAppState
 	private static final ColorRGBA PAGE_TEXT_COLOR = new ColorRGBA(0.7f, 0.7f, 0.7f, 0.9f);
 	private static final ColorRGBA DELETE_SYMBOL_COLOR = new ColorRGBA(0.55f, 0.55f, 0.55f, 0.9f);
 	private static final ColorRGBA DELETE_SYMBOL_HOVER = new ColorRGBA(0.9f, 0.2f, 0.2f, 1f);
-
+	
 	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 	
 	private Picture _background;

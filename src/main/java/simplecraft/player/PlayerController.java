@@ -52,12 +52,15 @@ public class PlayerController implements ActionListener, AnalogListener
 {
 	private final Camera _camera;
 	private final InputManager _inputManager;
-	private final World _world;
+	private World _world;
 	private final PlayerCollision _collision;
 	private final AudioManager _audioManager;
 	
 	/** Player inventory (36 slots: 0-8 hotbar, 9-35 main). */
 	private final Inventory _inventory;
+	
+	/** Whether the player is currently in the boss arena. */
+	private boolean _inBossArena;
 	
 	/** Interval between footstep sounds while moving on ground (seconds). */
 	private static final float FOOTSTEP_INTERVAL = 0.45f;
@@ -846,6 +849,33 @@ public class PlayerController implements ActionListener, AnalogListener
 	}
 	
 	// ========== Respawn Point Management ==========
+	
+	/**
+	 * Sets the world reference. Used when swapping between main world and boss arena.
+	 * @param world the new world to use for collision and block lookups
+	 */
+	public void setWorld(World world)
+	{
+		_world = world;
+	}
+	
+	/**
+	 * Returns true if the player is currently in the boss arena.
+	 */
+	public boolean isInBossArena()
+	{
+		return _inBossArena;
+	}
+	
+	/**
+	 * Sets whether the player is in the boss arena.<br>
+	 * Used by BossArenaManager to restrict campfire placement and other arena rules.
+	 * @param inBossArena true if in arena, false if in main world
+	 */
+	public void setInBossArena(boolean inBossArena)
+	{
+		_inBossArena = inBossArena;
+	}
 	
 	/**
 	 * Returns the initial spawn point (world origin). Always valid.

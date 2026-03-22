@@ -98,6 +98,19 @@ public class ItemTemplate
 	}
 	
 	/**
+	 * Creates a consumable item with a custom stack size. No durability.
+	 * @param id unique key (e.g. "dragon_orb")
+	 * @param displayName human-readable name
+	 * @param healAmount health restored on use (0 for non-healing consumables)
+	 * @param maxStackSize maximum stack size
+	 * @return new consumable ItemTemplate
+	 */
+	public static ItemTemplate consumable(String id, String displayName, float healAmount, int maxStackSize)
+	{
+		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, maxStackSize, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0);
+	}
+	
+	/**
 	 * Creates a crafting material. Stack size 64, no durability, not placeable.
 	 * @param id unique key (e.g. "wood_plank")
 	 * @param displayName human-readable name

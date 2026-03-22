@@ -94,3 +94,14 @@ File name: stone_shard.png
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: wood_plank.png  
+
+## Dragon Orb
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: dragon_orb.png  
+
+## Recall Orb
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: recall_orb.png  
+
