@@ -116,8 +116,21 @@ public class EnemyAI
 	/** Piranha wander timeout before picking a new destination (seconds). */
 	private static final float PIRANHA_WANDER_TIMEOUT = 5.0f;
 	
-	/** Shared quaternion for facing rotation. */
+	/** Shared quaternion for facing rotation (target). */
 	private static final Quaternion TEMP_QUAT = new Quaternion();
+	
+	/** Shared quaternion for slerp (current rotation snapshot). */
+	private static final Quaternion SLERP_QUAT = new Quaternion();
+	
+	/**
+	 * Turn speed for smooth enemy rotation (radians per second).<br>
+	 * Controls how quickly enemies rotate to face their target direction.<br>
+	 * At 5 rad/s, a full 180° turn takes roughly 0.6 seconds.
+	 */
+	private static final float TURN_SPEED = 5.0f;
+	
+	/** Current frame's delta time, stored at the start of {@link #update} for use by facing helpers. */
+	private static float _tpf;
 	
 	/** Particle manager for dragon block destruction effects. */
 	private static ParticleManager _particleManager;
@@ -153,6 +166,9 @@ public class EnemyAI
 	 */
 	public static void update(Enemy enemy, Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
+		// Store frame delta for facing helpers.
+		_tpf = tpf;
+		
 		if (!enemy.isAlive() || enemy.isDying())
 		{
 			enemy.setMoving(false);
@@ -1502,7 +1518,8 @@ public class EnemyAI
 	// ==================================================================
 	
 	/**
-	 * Rotates the enemy's root node to face a direction on the XZ plane.<br>
+	 * Smoothly rotates the enemy's root node toward a direction on the XZ plane.<br>
+	 * Uses slerp at {@link #TURN_SPEED} radians per second for natural turning.<br>
 	 * jME3 models face -Z at identity rotation, so we negate the direction components to produce the correct yaw angle.
 	 * @param enemy the enemy to rotate
 	 * @param dx X component of the movement direction
@@ -1512,7 +1529,12 @@ public class EnemyAI
 	{
 		final float angle = FastMath.atan2(-dx, -dz);
 		TEMP_QUAT.fromAngleAxis(angle, Vector3f.UNIT_Y);
-		enemy.getNode().setLocalRotation(TEMP_QUAT);
+		
+		// Slerp from current rotation toward target.
+		SLERP_QUAT.set(enemy.getNode().getLocalRotation());
+		final float t = Math.min(1.0f, TURN_SPEED * _tpf);
+		SLERP_QUAT.slerp(TEMP_QUAT, t);
+		enemy.getNode().setLocalRotation(SLERP_QUAT);
 	}
 	
 	/**
