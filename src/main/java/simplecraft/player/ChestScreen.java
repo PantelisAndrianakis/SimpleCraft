@@ -11,21 +11,33 @@ import com.jme3.input.controls.KeyTrigger;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Quaternion;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
+import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Quad;
+import com.jme3.texture.FrameBuffer;
+import com.jme3.texture.FrameBuffer.FrameBufferTarget;
+import com.jme3.texture.Image.Format;
 import com.jme3.texture.Texture;
+import com.jme3.texture.Texture.MagFilter;
+import com.jme3.texture.Texture.MinFilter;
+import com.jme3.texture.Texture2D;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
+import simplecraft.item.ArmorSlot;
 import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemTextureResolver;
+import simplecraft.item.ItemType;
 import simplecraft.ui.FontManager;
 import simplecraft.world.World;
 import simplecraft.world.entity.ChestTileEntity;
@@ -106,6 +118,26 @@ public class ChestScreen implements ActionListener
 	private static final ColorRGBA COLOR_DURABILITY_GREEN = new ColorRGBA(0.2f, 0.85f, 0.2f, 1.0f);
 	private static final ColorRGBA COLOR_DURABILITY_YELLOW = new ColorRGBA(0.9f, 0.85f, 0.2f, 1.0f);
 	private static final ColorRGBA COLOR_DURABILITY_RED = new ColorRGBA(0.9f, 0.2f, 0.2f, 1.0f);
+	private static final ColorRGBA COLOR_ARMOR_SLOT_EMPTY = new ColorRGBA(0.30f, 0.30f, 0.35f, 0.6f);
+	
+	// Player model colors (matching EnemyFactory.buildPlayer).
+	private static final ColorRGBA COLOR_SKIN = new ColorRGBA(0.67f, 0.5f, 0.36f, 1.0f);
+	private static final ColorRGBA COLOR_HAIR = new ColorRGBA(0.20f, 0.12f, 0.06f, 1.0f);
+	private static final ColorRGBA COLOR_IRON = new ColorRGBA(0.62f, 0.62f, 0.65f, 1.0f);
+	private static final ColorRGBA COLOR_IRON_DARK = new ColorRGBA(0.48f, 0.48f, 0.52f, 1.0f);
+	private static final ColorRGBA COLOR_IRON_LIGHT = new ColorRGBA(0.72f, 0.72f, 0.76f, 1.0f);
+	private static final ColorRGBA COLOR_EYE_GREEN = new ColorRGBA(0.04f, 0.30f, 0.10f, 1.0f);
+	private static final ColorRGBA COLOR_EYE_WHITE = new ColorRGBA(0.92f, 0.92f, 0.92f, 1.0f);
+	private static final ColorRGBA COLOR_PANTS_BROWN = new ColorRGBA(0.35f, 0.25f, 0.15f, 1.0f);
+	
+	/** Armor slot label letters shown in empty armor slots. */
+	// @formatter:off
+	private static final String[] ARMOR_SLOT_LABELS = { "Head", "Chest", "Pants", "Boots" };
+	// @formatter:on
+	
+	/** Offscreen render texture dimensions. */
+	private static final int MODEL_TEX_WIDTH = 256;
+	private static final int MODEL_TEX_HEIGHT = 512;
 	
 	// ========================================================
 	// Fields.
@@ -196,6 +228,54 @@ public class ChestScreen implements ActionListener
 		}
 	};
 	
+	// Armor slot geometry and text (4 slots).
+	private final Geometry[] _armorSlotBg = new Geometry[ArmorSlot.COUNT];
+	private final Geometry[] _armorSlotFill = new Geometry[ArmorSlot.COUNT];
+	private final Material[] _armorSlotFillMat = new Material[ArmorSlot.COUNT];
+	private final BitmapText[] _armorSlotLabel = new BitmapText[ArmorSlot.COUNT];
+	private final Geometry[] _armorSlotDurBar = new Geometry[ArmorSlot.COUNT];
+	private final Material[] _armorSlotDurMat = new Material[ArmorSlot.COUNT];
+	private final float[] _armorSlotX = new float[ArmorSlot.COUNT];
+	private final float[] _armorSlotY = new float[ArmorSlot.COUNT];
+	private int _hoveredArmorIndex = -1;
+	
+	// 3D player model rendered via offscreen viewport.
+	private ViewPort _modelViewPort;
+	private Node _modelScene;
+	private Node _modelRootNode;
+	private Geometry _modelDisplayQuad;
+	private Material _modelDisplayMat;
+	private Texture2D _modelRenderTexture;
+	
+	// Toggleable 3D armor nodes.
+	private Node _armor3dHelmet;
+	private Node _armor3dChestplate;
+	private Node _armor3dPants;
+	private Node _armor3dBoots;
+	
+	// Base clothing nodes (hidden when armor equipped).
+	private Geometry _basePantsLeft;
+	private Geometry _basePantsRight;
+	private Geometry _baseWaistband;
+	private Node _baseHair;
+	
+	/** Model rotation and mouse drag tracking. */
+	private float _modelRotation;
+	private boolean _mouseDown;
+	private float _prevCursorX;
+	private float _modelDisplayX;
+	private float _modelDisplayY;
+	private float _modelDisplayWidth;
+	private float _modelDisplayHeight;
+	
+	/** Armor panel X and Y position. */
+	private float _armorPanelX;
+	private float _armorPanelY;
+	
+	/** Armor title label. */
+	private BitmapText _armorTitleText;
+	private BitmapText _armorTitleTextShadow;
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -233,6 +313,8 @@ public class ChestScreen implements ActionListener
 		buildOverlay(app);
 		computeSlotPositions();
 		buildSlots(app);
+		buildArmorSlots(app);
+		buildPlayerModel(app);
 		buildHoverHighlight(app);
 		buildTooltip(app);
 		buildHeldItem(app);
@@ -270,29 +352,37 @@ public class ChestScreen implements ActionListener
 		// Total height: chest(3 rows) + gap + player main(3 rows) + gap + hotbar(1 row).
 		final float totalGridHeight = (CHEST_ROWS + PLAYER_MAIN_ROWS + 1) * _slotSize + (CHEST_ROWS + PLAYER_MAIN_ROWS) * SLOT_SPACING + SECTION_GAP * 2;
 		
-		final float gridStartX = (_screenWidth - totalGridWidth) / 2f;
+		// Armor panel dimensions.
+		final float armorPanelWidth = _slotSize;
+		final float playerModelWidth = _slotSize * 1.6f;
+		final float armorGap = _slotSize * 0.5f;
+		final float panelGridGap = _slotSize * 0.5f;
+		final float armorAreaWidth = armorPanelWidth + armorGap + playerModelWidth + panelGridGap;
+		
+		// Combined width centered on screen, grid shifted right.
+		final float combinedWidth = armorAreaWidth + totalGridWidth;
+		final float combinedStartX = (_screenWidth - combinedWidth) / 2f;
+		final float gridStartX = combinedStartX + armorAreaWidth;
 		final float gridStartY = (_screenHeight - totalGridHeight) / 2f;
 		
 		// Player hotbar (display slots 27-35): bottom row.
 		final float hotbarY = gridStartY;
 		for (int col = 0; col < GRID_COLS; col++)
 		{
-			final int di = ChestTileEntity.CHEST_SLOTS + col; // 27 + col
+			final int di = ChestTileEntity.CHEST_SLOTS + col;
 			_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
 			_slotY[di] = hotbarY;
 		}
 		
-		// Player main inventory (display slots 36-62): 3 rows above hotbar with gap.
+		// Player main inventory (display slots 36-62): 3 rows above hotbar with gap for Action Bar label.
 		final float playerMainStartY = hotbarY + _slotSize + SLOT_SPACING + SECTION_GAP;
 		for (int row = 0; row < PLAYER_MAIN_ROWS; row++)
 		{
 			for (int col = 0; col < GRID_COLS; col++)
 			{
-				final int playerSlotIndex = 9 + row * GRID_COLS + col; // player slots 9-35
-				final int di = ChestTileEntity.CHEST_SLOTS + playerSlotIndex; // display index
+				final int playerSlotIndex = 9 + row * GRID_COLS + col;
+				final int di = ChestTileEntity.CHEST_SLOTS + playerSlotIndex;
 				_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
-				
-				// Row 0 of main = bottom (slots 9-17), row 2 = top (slots 27-35).
 				_slotY[di] = playerMainStartY + (2 - row) * (_slotSize + SLOT_SPACING);
 			}
 		}
@@ -303,12 +393,23 @@ public class ChestScreen implements ActionListener
 		{
 			for (int col = 0; col < GRID_COLS; col++)
 			{
-				final int di = row * GRID_COLS + col; // 0-26
+				final int di = row * GRID_COLS + col;
 				_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
-				
-				// Row 0 = bottom of chest section, row 2 = top.
 				_slotY[di] = chestStartY + (2 - row) * (_slotSize + SLOT_SPACING);
 			}
+		}
+		
+		// Armor panel: 4 slots, helmet aligned with top inventory row.
+		final float topInvRowY = playerMainStartY + 2 * (_slotSize + SLOT_SPACING);
+		final float armorStartY = topInvRowY - 3 * (_slotSize + SLOT_SPACING);
+		
+		_armorPanelX = combinedStartX;
+		_armorPanelY = armorStartY;
+		
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			_armorSlotX[i] = combinedStartX;
+			_armorSlotY[i] = armorStartY + (ArmorSlot.COUNT - 1 - i) * (_slotSize + SLOT_SPACING);
 		}
 	}
 	
@@ -384,6 +485,176 @@ public class ChestScreen implements ActionListener
 		_screenNode.attachChild(_hoverHighlight);
 	}
 	
+	/**
+	 * Builds the 4 armor equipment slots.
+	 */
+	private void buildArmorSlots(SimpleCraft app)
+	{
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			final float bgSize = _slotSize + SLOT_PADDING * 2;
+			_armorSlotBg[i] = createQuad("ChArmorBg" + i, bgSize, bgSize, COLOR_SLOT_BG, app);
+			_armorSlotBg[i].setLocalTranslation(_armorSlotX[i] - SLOT_PADDING, _armorSlotY[i] - SLOT_PADDING, Z_SLOT_BG);
+			_screenNode.attachChild(_armorSlotBg[i]);
+			
+			_armorSlotFillMat[i] = createColorMaterial(COLOR_ARMOR_SLOT_EMPTY, app);
+			_armorSlotFill[i] = createQuadWithMaterial("ChArmorFill" + i, _slotSize, _slotSize, _armorSlotFillMat[i]);
+			_armorSlotFill[i].setLocalTranslation(_armorSlotX[i], _armorSlotY[i], Z_SLOT_FILL);
+			_screenNode.attachChild(_armorSlotFill[i]);
+			
+			_armorSlotLabel[i] = new BitmapText(_font);
+			_armorSlotLabel[i].setText(ARMOR_SLOT_LABELS[i]);
+			_armorSlotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+			_armorSlotLabel[i].setColor(new ColorRGBA(0.5f, 0.5f, 0.55f, 0.5f));
+			final float labelWidth = _armorSlotLabel[i].getLineWidth();
+			final float labelHeight = _armorSlotLabel[i].getLineHeight();
+			_armorSlotLabel[i].setLocalTranslation(_armorSlotX[i] + (_slotSize - labelWidth) / 2f, _armorSlotY[i] + (_slotSize + labelHeight) / 2f, Z_TEXT);
+			_screenNode.attachChild(_armorSlotLabel[i]);
+			
+			_armorSlotDurMat[i] = createColorMaterial(COLOR_DURABILITY_GREEN, app);
+			_armorSlotDurBar[i] = createQuadWithMaterial("ChArmorDur" + i, _slotSize, 3f, _armorSlotDurMat[i]);
+			_armorSlotDurBar[i].setLocalTranslation(_armorSlotX[i], _armorSlotY[i], Z_DURABILITY);
+			_armorSlotDurBar[i].setCullHint(Geometry.CullHint.Always);
+			_screenNode.attachChild(_armorSlotDurBar[i]);
+		}
+	}
+	
+	/**
+	 * Builds the 3D player model via offscreen viewport (same as InventoryScreen).
+	 */
+	private void buildPlayerModel(SimpleCraft app)
+	{
+		_modelScene = new Node("ChestModelScene");
+		_modelRootNode = new Node("ChestModelRoot");
+		_modelScene.attachChild(_modelRootNode);
+		
+		final Material skinMat = makeModelMat(COLOR_SKIN, app);
+		final Material skinDarkMat = makeModelMat(new ColorRGBA(0.60f, 0.45f, 0.32f, 1.0f), app);
+		final Material hairMat = makeModelMat(COLOR_HAIR, app);
+		final Material eyeWhiteMat = makeModelMat(COLOR_EYE_WHITE, app);
+		final Material eyeGreenMat = makeModelMat(COLOR_EYE_GREEN, app);
+		final Material mouthMat = makeModelMat(new ColorRGBA(0.45f, 0.30f, 0.25f, 1.0f), app);
+		final Material pantsMat = makeModelMat(COLOR_PANTS_BROWN, app);
+		final Material ironMat = makeModelMat(COLOR_IRON, app);
+		final Material ironDarkMat = makeModelMat(COLOR_IRON_DARK, app);
+		final Material ironLightMat = makeModelMat(COLOR_IRON_LIGHT, app);
+		
+		// Body.
+		final Node bodyNode = makeModelPivot("Body", makeModelBox("BodyBox", 0.3f, 0.33f, 0.15f, skinMat, 0, 0, 0), 0, 1.27f, 0);
+		_modelRootNode.attachChild(bodyNode);
+		_baseWaistband = makeModelBox("Waistband", 0.31f, 0.12f, 0.16f, pantsMat, 0, 0.88f, 0);
+		_modelRootNode.attachChild(_baseWaistband);
+		_modelRootNode.attachChild(makeModelBox("Neck", 0.15f, 0.04f, 0.12f, skinMat, 0, 1.64f, 0));
+		
+		// Head.
+		final Node headNode = makeModelPivot("Head", makeModelBox("HeadBox", 0.2f, 0.2f, 0.2f, skinMat, 0, 0.2f, 0), 0, 1.65f, 0);
+		_modelRootNode.attachChild(headNode);
+		
+		// Hair.
+		_baseHair = new Node("BaseHairTop");
+		headNode.attachChild(_baseHair);
+		_baseHair.attachChild(makeModelBox("HairCap", 0.21f, 0.08f, 0.19f, hairMat, 0, 0.37f, 0.02f));
+		_baseHair.attachChild(makeModelBox("HairFringe", 0.21f, 0.03f, 0.02f, hairMat, 0, 0.37f, -0.19f));
+		headNode.attachChild(makeModelBox("HairBack", 0.21f, 0.16f, 0.02f, hairMat, 0, 0.26f, 0.21f));
+		headNode.attachChild(makeModelBox("HairLeft", 0.02f, 0.10f, 0.19f, hairMat, -0.21f, 0.30f, 0.04f));
+		headNode.attachChild(makeModelBox("HairRight", 0.02f, 0.10f, 0.19f, hairMat, 0.21f, 0.30f, 0.04f));
+		
+		// Eyes, nose, mouth.
+		headNode.attachChild(makeModelBox("LeftEyeWhite", 0.035f, 0.03f, 0.015f, eyeWhiteMat, -0.07f, 0.24f, -0.215f));
+		headNode.attachChild(makeModelBox("RightEyeWhite", 0.035f, 0.03f, 0.015f, eyeWhiteMat, 0.07f, 0.24f, -0.215f));
+		headNode.attachChild(makeModelBox("LeftIris", 0.018f, 0.018f, 0.005f, eyeGreenMat, -0.07f, 0.24f, -0.235f));
+		headNode.attachChild(makeModelBox("RightIris", 0.018f, 0.018f, 0.005f, eyeGreenMat, 0.07f, 0.24f, -0.235f));
+		headNode.attachChild(makeModelBox("Nose", 0.02f, 0.025f, 0.02f, skinDarkMat, 0, 0.17f, -0.22f));
+		headNode.attachChild(makeModelBox("Mouth", 0.05f, 0.01f, 0.015f, mouthMat, 0, 0.1f, -0.215f));
+		
+		// Legs with pants.
+		final Node leftLeg = makeModelPivot("LeftLeg", makeModelBox("LeftLegBox", 0.125f, 0.39f, 0.125f, skinMat, 0, -0.39f, 0), -0.175f, 0.8f, 0);
+		_modelRootNode.attachChild(leftLeg);
+		_basePantsLeft = makeModelBox("LPants", 0.135f, 0.25f, 0.135f, pantsMat, 0, -0.15f, 0);
+		leftLeg.attachChild(_basePantsLeft);
+		
+		final Node rightLeg = makeModelPivot("RightLeg", makeModelBox("RightLegBox", 0.125f, 0.39f, 0.125f, skinMat, 0, -0.39f, 0), 0.175f, 0.8f, 0);
+		_modelRootNode.attachChild(rightLeg);
+		_basePantsRight = makeModelBox("RPants", 0.135f, 0.25f, 0.135f, pantsMat, 0, -0.15f, 0);
+		rightLeg.attachChild(_basePantsRight);
+		
+		// Arms.
+		_modelRootNode.attachChild(makeModelPivot("LeftArm", makeModelBox("LeftArmBox", 0.125f, 0.4f, 0.125f, skinMat, 0, -0.4f, 0), -0.425f, 1.55f, 0));
+		_modelRootNode.attachChild(makeModelPivot("RightArm", makeModelBox("RightArmBox", 0.125f, 0.4f, 0.125f, skinMat, 0, -0.4f, 0), 0.425f, 1.55f, 0));
+		
+		// Armor nodes.
+		_armor3dHelmet = new Node("ArmorHelmet");
+		headNode.attachChild(_armor3dHelmet);
+		_armor3dHelmet.attachChild(makeModelBox("HelmetCap", 0.23f, 0.08f, 0.23f, ironMat, 0, 0.44f, 0));
+		_armor3dHelmet.attachChild(makeModelBox("HelmetBand", 0.24f, 0.06f, 0.24f, ironLightMat, 0, 0.34f, 0));
+		_armor3dHelmet.attachChild(makeModelBox("NoseGuard", 0.02f, 0.10f, 0.025f, ironDarkMat, 0, 0.27f, -0.24f));
+		_armor3dHelmet.setCullHint(Node.CullHint.Always);
+		
+		_armor3dChestplate = new Node("ArmorChestplate");
+		_modelRootNode.attachChild(_armor3dChestplate);
+		_armor3dChestplate.attachChild(makeModelBox("IronBody", 0.31f, 0.34f, 0.18f, ironMat, 0, 1.27f, 0));
+		_armor3dChestplate.attachChild(makeModelBox("ChestPlate", 0.22f, 0.2f, 0.005f, ironDarkMat, 0, 1.32f, -0.20f));
+		_armor3dChestplate.attachChild(makeModelBox("IronWaist", 0.32f, 0.13f, 0.17f, ironDarkMat, 0, 0.88f, 0));
+		_armor3dChestplate.attachChild(makeModelBox("LShoulderPlate", 0.15f, 0.18f, 0.15f, ironLightMat, -0.425f, 1.43f, 0));
+		_armor3dChestplate.attachChild(makeModelBox("RShoulderPlate", 0.15f, 0.18f, 0.15f, ironLightMat, 0.425f, 1.43f, 0));
+		_armor3dChestplate.setCullHint(Node.CullHint.Always);
+		
+		_armor3dPants = new Node("ArmorPants");
+		_modelRootNode.attachChild(_armor3dPants);
+		_armor3dPants.attachChild(makeModelBox("LIronPants", 0.135f, 0.25f, 0.135f, ironDarkMat, -0.175f, 0.65f, 0));
+		_armor3dPants.attachChild(makeModelBox("RIronPants", 0.135f, 0.25f, 0.135f, ironDarkMat, 0.175f, 0.65f, 0));
+		_armor3dPants.attachChild(makeModelBox("IronBelt", 0.31f, 0.12f, 0.16f, ironMat, 0, 0.88f, 0));
+		_armor3dPants.setCullHint(Node.CullHint.Always);
+		
+		_armor3dBoots = new Node("ArmorBoots");
+		_modelRootNode.attachChild(_armor3dBoots);
+		_armor3dBoots.attachChild(makeModelBox("LBoots", 0.145f, 0.21f, 0.145f, ironMat, -0.175f, 0.2f, 0));
+		_armor3dBoots.attachChild(makeModelBox("RBoots", 0.145f, 0.21f, 0.145f, ironMat, 0.175f, 0.2f, 0));
+		_armor3dBoots.setCullHint(Node.CullHint.Always);
+		
+		// Offscreen viewport.
+		final Camera modelCam = new Camera(MODEL_TEX_WIDTH, MODEL_TEX_HEIGHT);
+		modelCam.setFrustumPerspective(45f, (float) MODEL_TEX_WIDTH / MODEL_TEX_HEIGHT, 0.1f, 10f);
+		modelCam.setLocation(new Vector3f(0, 1.05f, -3.2f));
+		modelCam.lookAt(new Vector3f(0, 1.05f, 0), Vector3f.UNIT_Y);
+		
+		_modelRenderTexture = new Texture2D(MODEL_TEX_WIDTH, MODEL_TEX_HEIGHT, Format.RGBA8);
+		_modelRenderTexture.setMinFilter(MinFilter.BilinearNoMipMaps);
+		_modelRenderTexture.setMagFilter(MagFilter.Bilinear);
+		
+		final FrameBuffer fb = new FrameBuffer(MODEL_TEX_WIDTH, MODEL_TEX_HEIGHT, 1);
+		fb.setDepthTarget(FrameBufferTarget.newTarget(Format.Depth));
+		fb.addColorTarget(FrameBufferTarget.newTarget(_modelRenderTexture));
+		
+		_modelViewPort = app.getRenderManager().createPreView("ChestPlayerModel", modelCam);
+		_modelViewPort.setClearFlags(true, true, true);
+		_modelViewPort.setBackgroundColor(new ColorRGBA(0, 0, 0, 0));
+		_modelViewPort.setOutputFrameBuffer(fb);
+		_modelViewPort.attachScene(_modelScene);
+		_modelViewPort.setEnabled(false);
+		
+		_modelScene.updateGeometricState();
+		
+		// Display quad.
+		final float armorGap = _slotSize * 0.5f;
+		_modelDisplayX = _armorPanelX + _slotSize + armorGap;
+		_modelDisplayWidth = _slotSize * 1.6f;
+		final float armorTotalHeight = 4 * _slotSize + 3 * SLOT_SPACING;
+		_modelDisplayY = _armorPanelY;
+		_modelDisplayHeight = armorTotalHeight;
+		
+		_modelDisplayMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		_modelDisplayMat.setTexture("ColorMap", _modelRenderTexture);
+		_modelDisplayMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		
+		final Quad displayQuad = new Quad(_modelDisplayWidth, _modelDisplayHeight);
+		_modelDisplayQuad = new Geometry("ChModelDisplay", displayQuad);
+		_modelDisplayQuad.setMaterial(_modelDisplayMat);
+		_modelDisplayQuad.setQueueBucket(Bucket.Gui);
+		_modelDisplayQuad.setLocalTranslation(_modelDisplayX, _modelDisplayY, Z_SLOT_FILL);
+		_screenNode.attachChild(_modelDisplayQuad);
+	}
+	
 	private void buildTooltip(SimpleCraft app)
 	{
 		final Material bgMat = createColorMaterial(COLOR_TOOLTIP_BG, app);
@@ -455,9 +726,12 @@ public class ChestScreen implements ActionListener
 		_titleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_titleText);
 		
+		// Grid center X for label centering (first hotbar slot to last hotbar slot).
+		final float gridCenterX = (_slotX[ChestTileEntity.CHEST_SLOTS] + _slotX[ChestTileEntity.CHEST_SLOTS + 8] + _slotSize) / 2f;
+		
 		// Position above the top chest row.
 		final float titleWidth = _titleText.getLineWidth();
-		final float titleX = (_screenWidth - titleWidth) / 2f;
+		final float titleX = gridCenterX - titleWidth / 2f;
 		
 		// Top chest row is row 0 (display slots 0-8), which has the highest Y.
 		final float topChestSlotY = _slotY[0];
@@ -480,13 +754,13 @@ public class ChestScreen implements ActionListener
 		
 		// Position above the top player main inventory row (display slot for player slot 9).
 		final float invWidth = _inventoryLabel.getLineWidth();
-		final float invX = (_screenWidth - invWidth) / 2f;
+		final float invX = gridCenterX - invWidth / 2f;
 		final float topPlayerMainY = _slotY[ChestTileEntity.CHEST_SLOTS + 9];
 		final float invY = topPlayerMainY + _slotSize + SLOT_PADDING + _inventoryLabel.getLineHeight() + 2;
 		_inventoryLabel.setLocalTranslation(invX, invY, Z_TEXT);
 		_inventoryLabelShadow.setLocalTranslation(invX + 1, invY - 1, Z_TEXT - 0.1f);
 		
-		// "Action Bar" label above the player hotbar section.
+		// "Action Bar" label above the hotbar row, below the inventory.
 		_actionBarLabelShadow = new BitmapText(titleFont);
 		_actionBarLabelShadow.setText("Action Bar");
 		_actionBarLabelShadow.setSize(titleSize);
@@ -499,13 +773,31 @@ public class ChestScreen implements ActionListener
 		_actionBarLabel.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_actionBarLabel);
 		
-		// Position above the hotbar row (display slot 27 = player slot 0).
 		final float abWidth = _actionBarLabel.getLineWidth();
-		final float abX = (_screenWidth - abWidth) / 2f;
-		final float hotbarTopY = _slotY[ChestTileEntity.CHEST_SLOTS]; // display slot 27 = player hotbar slot 0
+		final float abX = gridCenterX - abWidth / 2f;
+		final float hotbarTopY = _slotY[ChestTileEntity.CHEST_SLOTS];
 		final float abY = hotbarTopY + _slotSize + SLOT_PADDING + _actionBarLabel.getLineHeight() + 2;
 		_actionBarLabel.setLocalTranslation(abX, abY, Z_TEXT);
 		_actionBarLabelShadow.setLocalTranslation(abX + 1, abY - 1, Z_TEXT - 0.1f);
+		
+		// "Armor" label above the armor slots.
+		_armorTitleTextShadow = new BitmapText(titleFont);
+		_armorTitleTextShadow.setText("Armor");
+		_armorTitleTextShadow.setSize(titleSize);
+		_armorTitleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_screenNode.attachChild(_armorTitleTextShadow);
+		
+		_armorTitleText = new BitmapText(titleFont);
+		_armorTitleText.setText("Armor");
+		_armorTitleText.setSize(titleSize);
+		_armorTitleText.setColor(COLOR_TEXT.clone());
+		_screenNode.attachChild(_armorTitleText);
+		
+		final float armorTitleWidth = _armorTitleText.getLineWidth();
+		final float armorTitleX = _armorSlotX[0] + (_slotSize - armorTitleWidth) / 2f;
+		final float armorTitleY = _armorSlotY[0] + _slotSize + SLOT_PADDING + _armorTitleText.getLineHeight() + 2;
+		_armorTitleText.setLocalTranslation(armorTitleX, armorTitleY, Z_TEXT);
+		_armorTitleTextShadow.setLocalTranslation(armorTitleX + 1, armorTitleY - 1, Z_TEXT - 0.1f);
 	}
 	
 	// ========================================================
@@ -527,7 +819,9 @@ public class ChestScreen implements ActionListener
 		_activeChest = chest;
 		_heldStack = null;
 		_hoveredSlot = -1;
+		_hoveredArmorIndex = -1;
 		_shiftDown = false;
+		_mouseDown = false;
 		
 		// Show screen.
 		_screenNode.setCullHint(Node.CullHint.Never);
@@ -553,7 +847,9 @@ public class ChestScreen implements ActionListener
 		// Force full slot refresh.
 		refreshAllSlots();
 		
-		System.out.println("ChestScreen: Opened chest at " + chest.getPosition());
+		// Enable 3D player model viewport.
+		_modelViewPort.setEnabled(true);
+		_modelRotation = 0.35f; // ~20 degrees, slightly turned right.
 	}
 	
 	/**
@@ -583,6 +879,9 @@ public class ChestScreen implements ActionListener
 		
 		// Hide screen.
 		_screenNode.setCullHint(Node.CullHint.Always);
+		
+		// Disable 3D player model viewport.
+		_modelViewPort.setEnabled(false);
 		
 		// Hide held item visuals.
 		_heldQuad.setCullHint(Geometry.CullHint.Always);
@@ -632,7 +931,7 @@ public class ChestScreen implements ActionListener
 			return;
 		}
 		
-		// Refresh slot visuals.
+		// Refresh slot visuals (chest + inventory + armor).
 		refreshAllSlots();
 		
 		// Get cursor position.
@@ -640,13 +939,35 @@ public class ChestScreen implements ActionListener
 		final float cx = cursor.x;
 		final float cy = cursor.y;
 		
+		// Mouse-drag rotation of 3D model.
+		if (_mouseDown)
+		{
+			final float deltaX = cx - _prevCursorX;
+			if (cx >= _modelDisplayX && cx < _modelDisplayX + _modelDisplayWidth && cy >= _modelDisplayY && cy < _modelDisplayY + _modelDisplayHeight)
+			{
+				_modelRotation += deltaX * 0.01f;
+			}
+		}
+		
+		_prevCursorX = cx;
+		
+		_modelRootNode.setLocalRotation(new Quaternion().fromAngleAxis(_modelRotation, Vector3f.UNIT_Y));
+		_modelScene.updateLogicalState(tpf);
+		_modelScene.updateGeometricState();
+		
 		// Determine hovered slot.
 		_hoveredSlot = getSlotAtPosition(cx, cy);
+		_hoveredArmorIndex = getArmorSlotAtPosition(cx, cy);
 		
 		// Update hover highlight.
 		if (_hoveredSlot >= 0)
 		{
 			_hoverHighlight.setLocalTranslation(_slotX[_hoveredSlot], _slotY[_hoveredSlot], Z_HIGHLIGHT);
+			_hoverHighlight.setCullHint(Geometry.CullHint.Never);
+		}
+		else if (_hoveredArmorIndex >= 0)
+		{
+			_hoverHighlight.setLocalTranslation(_armorSlotX[_hoveredArmorIndex], _armorSlotY[_hoveredArmorIndex], Z_HIGHLIGHT);
 			_hoverHighlight.setCullHint(Geometry.CullHint.Never);
 		}
 		else
@@ -679,6 +1000,16 @@ public class ChestScreen implements ActionListener
 			final ItemInstance stack = _inventory.getSlot(i);
 			updateSlotVisual(ChestTileEntity.CHEST_SLOTS + i, stack);
 		}
+		
+		// Armor slots and 3D model overlays.
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			final ArmorSlot slot = ArmorSlot.fromIndex(i);
+			final ItemInstance armorItem = _inventory.getArmorSlot(slot);
+			updateArmorSlotVisual(i, armorItem);
+		}
+		
+		updatePlayerModelOverlays();
 	}
 	
 	/**
@@ -781,15 +1112,17 @@ public class ChestScreen implements ActionListener
 	
 	private void updateTooltip(float cx, float cy)
 	{
-		if (_hoveredSlot < 0)
+		// Determine which item to tooltip.
+		ItemInstance stack = null;
+		if (_hoveredSlot >= 0)
 		{
-			_tooltipBg.setCullHint(Geometry.CullHint.Always);
-			_tooltipText.setCullHint(BitmapText.CullHint.Always);
-			_tooltipTextShadow.setCullHint(BitmapText.CullHint.Always);
-			return;
+			stack = getItemAtDisplaySlot(_hoveredSlot);
+		}
+		else if (_hoveredArmorIndex >= 0)
+		{
+			stack = _inventory.getArmorSlot(ArmorSlot.fromIndex(_hoveredArmorIndex));
 		}
 		
-		final ItemInstance stack = getItemAtDisplaySlot(_hoveredSlot);
 		if (stack == null || stack.isEmpty())
 		{
 			_tooltipBg.setCullHint(Geometry.CullHint.Always);
@@ -909,21 +1242,84 @@ public class ChestScreen implements ActionListener
 	@Override
 	public void onAction(String name, boolean isPressed, float tpf)
 	{
-		if (!_open || !isPressed)
+		if (!_open)
+		{
+			return;
+		}
+		
+		// Track left mouse button state for model drag rotation.
+		if (GameInputManager.ATTACK.equals(name))
+		{
+			_mouseDown = isPressed;
+			
+			if (!isPressed)
+			{
+				return;
+			}
+		}
+		
+		if (!isPressed)
 		{
 			return;
 		}
 		
 		final Vector2f cursor = _inputManager.getCursorPosition();
 		final int slot = getSlotAtPosition(cursor.x, cursor.y);
+		final int armorIndex = getArmorSlotAtPosition(cursor.x, cursor.y);
 		
 		if (GameInputManager.ATTACK.equals(name))
 		{
-			handleLeftClick(slot, _shiftDown);
+			if (armorIndex >= 0)
+			{
+				handleArmorSlotClick(armorIndex);
+			}
+			else if (isOverModelDisplay(cursor.x, cursor.y))
+			{
+				// Clicking on the 3D model area - used for drag rotation, don't drop items.
+			}
+			else
+			{
+				handleLeftClick(slot, _shiftDown);
+			}
 		}
 		else if (GameInputManager.PLACE_BLOCK.equals(name))
 		{
-			handleRightClick(slot, _shiftDown);
+			if (armorIndex < 0)
+			{
+				handleRightClick(slot, _shiftDown);
+			}
+		}
+	}
+	
+	/**
+	 * Handles left-click on an armor slot.
+	 */
+	private void handleArmorSlotClick(int armorIndex)
+	{
+		final ArmorSlot slot = ArmorSlot.fromIndex(armorIndex);
+		if (slot == null)
+		{
+			return;
+		}
+		
+		final ItemInstance equipped = _inventory.getArmorSlot(slot);
+		
+		if (_heldStack == null)
+		{
+			if (equipped != null && !equipped.isEmpty())
+			{
+				_heldStack = equipped;
+				_inventory.setArmorSlot(slot, null);
+			}
+		}
+		else
+		{
+			final ItemTemplate template = _heldStack.getTemplate();
+			if (template.getType() == ItemType.ARMOR && template.getArmorSlot() == slot)
+			{
+				_inventory.setArmorSlot(slot, _heldStack);
+				_heldStack = (equipped != null && !equipped.isEmpty()) ? equipped : null;
+			}
 		}
 	}
 	
@@ -1241,6 +1637,111 @@ public class ChestScreen implements ActionListener
 		return -1;
 	}
 	
+	/**
+	 * Returns the armor slot index (0-3) at the given screen position, or -1 if outside.
+	 */
+	private int getArmorSlotAtPosition(float x, float y)
+	{
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			if (x >= _armorSlotX[i] && x < _armorSlotX[i] + _slotSize && y >= _armorSlotY[i] && y < _armorSlotY[i] + _slotSize)
+			{
+				return i;
+			}
+		}
+		
+		return -1;
+	}
+	
+	/**
+	 * Returns true if the given screen position is over the 3D model display quad.
+	 */
+	private boolean isOverModelDisplay(float x, float y)
+	{
+		return x >= _modelDisplayX && x < _modelDisplayX + _modelDisplayWidth && y >= _modelDisplayY && y < _modelDisplayY + _modelDisplayHeight;
+	}
+	
+	/**
+	 * Updates the visual representation of a single armor slot.
+	 */
+	private void updateArmorSlotVisual(int index, ItemInstance armorItem)
+	{
+		if (armorItem == null || armorItem.isEmpty())
+		{
+			_armorSlotFillMat[index].clearParam("ColorMap");
+			_armorSlotFillMat[index].setColor("Color", COLOR_ARMOR_SLOT_EMPTY);
+			_armorSlotLabel[index].setCullHint(BitmapText.CullHint.Never);
+			_armorSlotDurBar[index].setCullHint(Geometry.CullHint.Always);
+			return;
+		}
+		
+		final ItemTemplate template = armorItem.getTemplate();
+		final Texture slotTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), template);
+		
+		if (slotTexture != null)
+		{
+			_armorSlotFillMat[index].setTexture("ColorMap", slotTexture);
+			_armorSlotFillMat[index].setColor("Color", ColorRGBA.White);
+		}
+		else
+		{
+			_armorSlotFillMat[index].clearParam("ColorMap");
+			_armorSlotFillMat[index].setColor("Color", InventoryScreen.getItemColor(template));
+		}
+		
+		_armorSlotLabel[index].setCullHint(BitmapText.CullHint.Always);
+		
+		if (armorItem.hasDurability())
+		{
+			final float percent = armorItem.getDurabilityPercent();
+			_armorSlotDurBar[index].setLocalScale(percent, 1, 1);
+			
+			if (percent > 0.6f)
+			{
+				_armorSlotDurMat[index].setColor("Color", COLOR_DURABILITY_GREEN);
+			}
+			else if (percent > 0.3f)
+			{
+				_armorSlotDurMat[index].setColor("Color", COLOR_DURABILITY_YELLOW);
+			}
+			else
+			{
+				_armorSlotDurMat[index].setColor("Color", COLOR_DURABILITY_RED);
+			}
+			
+			_armorSlotDurBar[index].setCullHint(Geometry.CullHint.Never);
+		}
+		else
+		{
+			_armorSlotDurBar[index].setCullHint(Geometry.CullHint.Always);
+		}
+	}
+	
+	/**
+	 * Updates the 3D player model armor node visibility based on equipped armor.
+	 */
+	private void updatePlayerModelOverlays()
+	{
+		final ItemInstance helmet = _inventory.getArmorSlot(ArmorSlot.HELMET);
+		final boolean hasHelmet = helmet != null && !helmet.isEmpty();
+		_armor3dHelmet.setCullHint(hasHelmet ? Node.CullHint.Inherit : Node.CullHint.Always);
+		_baseHair.setCullHint(hasHelmet ? Node.CullHint.Always : Node.CullHint.Inherit);
+		
+		final ItemInstance chest = _inventory.getArmorSlot(ArmorSlot.CHESTPLATE);
+		final boolean hasChest = chest != null && !chest.isEmpty();
+		_armor3dChestplate.setCullHint(hasChest ? Node.CullHint.Inherit : Node.CullHint.Always);
+		
+		final ItemInstance pants = _inventory.getArmorSlot(ArmorSlot.PANTS);
+		final boolean hasPants = pants != null && !pants.isEmpty();
+		_armor3dPants.setCullHint(hasPants ? Node.CullHint.Inherit : Node.CullHint.Always);
+		_basePantsLeft.setCullHint(hasPants ? Geometry.CullHint.Always : Geometry.CullHint.Inherit);
+		_basePantsRight.setCullHint(hasPants ? Geometry.CullHint.Always : Geometry.CullHint.Inherit);
+		_baseWaistband.setCullHint((hasChest || hasPants) ? Geometry.CullHint.Always : Geometry.CullHint.Inherit);
+		
+		final ItemInstance boots = _inventory.getArmorSlot(ArmorSlot.BOOTS);
+		_armor3dBoots.setCullHint(boots != null && !boots.isEmpty() ? Node.CullHint.Inherit : Node.CullHint.Always);
+	}
+	
 	// ========================================================
 	// World Drop Support.
 	// ========================================================
@@ -1328,6 +1829,9 @@ public class ChestScreen implements ActionListener
 			close();
 		}
 		
+		// Remove offscreen viewport.
+		SimpleCraft.getInstance().getRenderManager().removePreView(_modelViewPort);
+		
 		_guiNode.detachChild(_screenNode);
 	}
 	
@@ -1356,5 +1860,33 @@ public class ChestScreen implements ActionListener
 		mat.setColor("Color", color.clone());
 		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		return mat;
+	}
+	
+	// ========================================================
+	// 3D Model Helpers.
+	// ========================================================
+	
+	private Material makeModelMat(ColorRGBA color, SimpleCraft app)
+	{
+		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		mat.setColor("Color", color.clone());
+		return mat;
+	}
+	
+	private Geometry makeModelBox(String name, float halfX, float halfY, float halfZ, Material mat, float tx, float ty, float tz)
+	{
+		final Box box = new Box(halfX, halfY, halfZ);
+		final Geometry geom = new Geometry(name, box);
+		geom.setMaterial(mat);
+		geom.setLocalTranslation(tx, ty, tz);
+		return geom;
+	}
+	
+	private Node makeModelPivot(String name, Geometry geom, float pivotX, float pivotY, float pivotZ)
+	{
+		final Node pivot = new Node(name);
+		pivot.setLocalTranslation(pivotX, pivotY, pivotZ);
+		pivot.attachChild(geom);
+		return pivot;
 	}
 }

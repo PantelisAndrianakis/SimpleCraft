@@ -182,6 +182,14 @@ public class CraftingRegistry
 		register("iron_sword", 1, ingredients("iron_ingot", 3, "wood_plank", 1));
 		
 		// ========================================================
+		// Armor - Iron Set.
+		// ========================================================
+		register("iron_helmet", 1, ingredients("iron_ingot", 5));
+		register("iron_chestplate", 1, ingredients("iron_ingot", 8));
+		register("iron_pants", 1, ingredients("iron_ingot", 7));
+		register("iron_boots", 1, ingredients("iron_ingot", 4));
+		
+		// ========================================================
 		// Consumables.
 		// ========================================================
 		register("health_potion", 1, ingredients("cooked_meat", 2, "glass", 1));

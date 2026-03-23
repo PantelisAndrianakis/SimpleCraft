@@ -105,3 +105,22 @@ By: Pantelis Andrianakis
 Created with: Paint.NET  
 File name: recall_orb.png  
 
+## Iron Helmet
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: iron_helmet.png  
+
+## Iron Chestplate
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: iron_chestplate.png  
+
+## Iron Pants
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: iron_pants.png  
+
+## Iron Boots
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: iron_boots.png  

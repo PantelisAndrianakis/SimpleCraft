@@ -80,6 +80,14 @@ public class ItemRegistry
 		register(ItemTemplate.tool("iron_shovel", "Iron Shovel", ToolType.SHOVEL, 2.5f, 0.4f, 250));
 		
 		// ========================================================
+		// Armor - Iron Set (4 pieces, each reduces 1 damage, 250 durability).
+		// ========================================================
+		register(ItemTemplate.armor("iron_helmet", "Iron Helmet", ArmorSlot.HELMET, 1.0f, 250));
+		register(ItemTemplate.armor("iron_chestplate", "Iron Chestplate", ArmorSlot.CHESTPLATE, 1.0f, 250));
+		register(ItemTemplate.armor("iron_pants", "Iron Pants", ArmorSlot.PANTS, 1.0f, 250));
+		register(ItemTemplate.armor("iron_boots", "Iron Boots", ArmorSlot.BOOTS, 1.0f, 250));
+		
+		// ========================================================
 		// Consumables.
 		// ========================================================
 		register(ItemTemplate.consumable("health_potion", "Health Potion", 8.0f));

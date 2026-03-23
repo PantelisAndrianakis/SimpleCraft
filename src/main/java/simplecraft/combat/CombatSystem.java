@@ -36,6 +36,8 @@ import simplecraft.world.World;
  * Hit and death feedback is handled by {@link Enemy#takeDamage(float)} (white flash, scale-down).<br>
  * <br>
  * <b>Enemy -> Player damage:</b> Scans all enemies in ATTACK state each frame. When an enemy's attack cooldown fires and the player is within attack range, damage is dealt via {@link PlayerController#takeDamage(float, String)}.<br>
+ * Incoming damage is reduced by the total armor protection from equipped armor pieces.<br>
+ * Each equipped armor piece loses 1 durability per hit taken; pieces at 0 durability break.<br>
  * <br>
  * <b>Screen flash:</b> Full-screen colored quad on the GUI node that fades out over 0.3 seconds. Red (alpha 0.3) for damage, green (alpha 0.2) for healing. Reused across all damage/healing sources - any new flash restarts the timer.<br>
  * <br>
@@ -170,6 +172,42 @@ public class CombatSystem
 		_guiNode.attachChild(_flashGeometry);
 	}
 	
+	// ------------------------------------------------------------------
+	// Armor-Aware Damage Application.
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Applies damage to the player after subtracting armor reduction.<br>
+	 * Each equipped armor piece reduces incoming damage by its protection value (1.0 each).<br>
+	 * All equipped armor pieces lose 1 durability per hit. Pieces at 0 durability break.<br>
+	 * If armor fully absorbs the damage (final <= 0), no damage is dealt but durability is still consumed.
+	 * @param player the player controller
+	 * @param rawDamage the incoming damage before armor reduction
+	 * @param deathSource the death message if this kills the player
+	 * @return the final damage actually dealt to the player (after armor reduction)
+	 */
+	private float applyDamageWithArmor(PlayerController player, float rawDamage, String deathSource)
+	{
+		final Inventory inventory = player.getInventory();
+		final float armorReduction = inventory.getTotalArmorReduction();
+		final float finalDamage = Math.max(0, rawDamage - armorReduction);
+		
+		// Armor durability loss - all equipped pieces take 1 durability per hit,
+		// even if the damage is fully absorbed.
+		if (armorReduction > 0)
+		{
+			inventory.damageAllArmor();
+		}
+		
+		// Apply the reduced damage to the player.
+		if (finalDamage > 0)
+		{
+			player.takeDamage(finalDamage, deathSource);
+		}
+		
+		return finalDamage;
+	}
+	
 	/**
 	 * Per-frame update. Checks enemy attacks, processes flash fade-out.
 	 * @param player the player controller
@@ -224,16 +262,21 @@ public class CombatSystem
 					}
 					
 					final String source = "Killed by " + formatEnemyName(enemy.getType());
-					player.takeDamage(enemy.getAttackDamage(), source);
-					triggerDamageFlash();
-					_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					final float rawDamage = enemy.getAttackDamage();
+					final float finalDamage = applyDamageWithArmor(player, rawDamage, source);
+					
+					if (finalDamage > 0)
+					{
+						triggerDamageFlash();
+						_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					}
 					
 					if (player.isDead())
 					{
 						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
 					}
 					
-					System.out.println(formatEnemyName(enemy.getType()) + " hit player for " + String.format("%.1f", enemy.getAttackDamage()) + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+					System.out.println(formatEnemyName(enemy.getType()) + " hit player for " + String.format("%.1f", rawDamage) + " raw damage (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 				}
 			}
 		}
@@ -612,16 +655,21 @@ public class CombatSystem
 				if (distToPlayer <= dragon.getAttackRange() * 1.3f)
 				{
 					final String source = "Killed by Dragon";
-					player.takeDamage(dragon.getAttackDamage(), source);
-					triggerDragonDamageFlash();
-					_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					final float rawDamage = dragon.getAttackDamage();
+					final float finalDamage = applyDamageWithArmor(player, rawDamage, source);
+					
+					if (finalDamage > 0)
+					{
+						triggerDragonDamageFlash();
+						_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					}
 					
 					if (player.isDead())
 					{
 						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
 					}
 					
-					System.out.println("Dragon BITE hit player for " + String.format("%.1f", dragon.getAttackDamage()) + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+					System.out.println("Dragon BITE hit player for " + String.format("%.1f", rawDamage) + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 				}
 				
 				_biteDamageApplied = true;
@@ -642,16 +690,20 @@ public class CombatSystem
 				if (distToPlayer <= 4.5f)
 				{
 					final String source = "Killed by Dragon";
-					player.takeDamage(tailDamage, source);
-					triggerDragonDamageFlash();
-					_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					final float finalDamage = applyDamageWithArmor(player, tailDamage, source);
+					
+					if (finalDamage > 0)
+					{
+						triggerDragonDamageFlash();
+						_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+					}
 					
 					if (player.isDead())
 					{
 						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
 					}
 					
-					System.out.println("Dragon TAIL SWIPE hit player for " + String.format("%.1f", tailDamage) + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+					System.out.println("Dragon TAIL SWIPE hit player for " + String.format("%.1f", tailDamage) + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 				}
 				
 				_tailDamageApplied = true;
@@ -668,9 +720,13 @@ public class CombatSystem
 			if (distToPlayer <= DRAGON_CHARGE_HIT_RADIUS)
 			{
 				final String source = "Killed by Dragon";
-				player.takeDamage(DRAGON_CHARGE_DAMAGE, source);
-				triggerDragonDamageFlash();
-				_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+				final float finalDamage = applyDamageWithArmor(player, DRAGON_CHARGE_DAMAGE, source);
+				
+				if (finalDamage > 0)
+				{
+					triggerDragonDamageFlash();
+					_audioManager.playSfx(AudioManager.SFX_PLAYER_HURT);
+				}
 				
 				if (player.isDead())
 				{
@@ -682,7 +738,7 @@ public class CombatSystem
 				dragon.setChargeRecovery(true);
 				dragon.setChargeRecoveryTimer(1.0f);
 				
-				System.out.println("Dragon CHARGE hit player for " + DRAGON_CHARGE_DAMAGE + " damage! HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+				System.out.println("Dragon CHARGE hit player for " + DRAGON_CHARGE_DAMAGE + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 			}
 		}
 		

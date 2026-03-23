@@ -10,11 +10,14 @@ public enum ItemType
 	/** Placeable block items (dirt, stone, wood, etc). */
 	BLOCK,
 	
+	/** Block-breaking tools (pickaxe, axe, shovel). Can be used as a weapon at lower damage. */
+	TOOL,
+	
 	/** Combat weapons (swords). No tool affinity bonus for block breaking. */
 	WEAPON,
 	
-	/** Block-breaking tools (pickaxe, axe, shovel). Can be used as a weapon at lower damage. */
-	TOOL,
+	/** Armor equipment. */
+	ARMOR,
 	
 	/** Consumable items that restore health (potions, food). */
 	CONSUMABLE,

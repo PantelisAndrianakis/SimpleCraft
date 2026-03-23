@@ -66,37 +66,37 @@ public class EnemyFactory
 			case ZOMBIE:
 			{
 				buildZombie(enemy, assetManager);
-				applyStats(enemy, 18, 2.5f, 16, 1.5f, 5.0f, 1.5f, false);
+				applyStats(enemy, 18, 2.5f, 16, 1.5f, 8.0f, 1.5f, false);
 				break;
 			}
 			case SKELETON:
 			{
 				buildSkeleton(enemy, assetManager);
-				applyStats(enemy, 15, 2.8f, 18, 1.5f, 5.0f, 1.5f, false);
+				applyStats(enemy, 15, 2.8f, 18, 1.5f, 8.0f, 1.5f, false);
 				break;
 			}
 			case WOLF:
 			{
 				buildWolf(enemy, assetManager);
-				applyStats(enemy, 12, 4.0f, 20, 1.2f, 4.0f, 1.0f, false);
+				applyStats(enemy, 12, 4.0f, 20, 1.2f, 7.0f, 1.0f, false);
 				break;
 			}
 			case SPIDER:
 			{
 				buildSpider(enemy, assetManager);
-				applyStats(enemy, 9, 3.0f, 12, 1.0f, 3.0f, 1.2f, false);
+				applyStats(enemy, 9, 3.0f, 12, 1.0f, 6.0f, 1.2f, false);
 				break;
 			}
 			case SLIME:
 			{
 				buildSlime(enemy, assetManager);
-				applyStats(enemy, 6, 1.5f, 10, 1.0f, 2.0f, 2.0f, false);
+				applyStats(enemy, 6, 1.5f, 10, 1.0f, 5.0f, 2.0f, false);
 				break;
 			}
 			case PIRANHA:
 			{
 				buildPiranha(enemy, assetManager);
-				applyStats(enemy, 3, 5.0f, 12, 0.8f, 1.0f, 0.8f, true);
+				applyStats(enemy, 3, 5.0f, 12, 0.8f, 4.0f, 0.8f, true);
 				break;
 			}
 			case PLAYER:
@@ -109,8 +109,8 @@ public class EnemyFactory
 			{
 				buildDragon(enemy, assetManager);
 				
-				// Stats: 200 HP, speed 2.0 (Phase 1), detection 50, attackRange 3.0 (bite), damage 6 (bite P1), cooldown 2.0s.
-				applyStats(enemy, 200, 2.0f, 50, 3.0f, 6.0f, 2.0f, false);
+				// Stats: 200 HP, speed 2.0 (Phase 1), detection 50, attackRange 3.0 (bite), damage 8 (bite P1), cooldown 2.0s.
+				applyStats(enemy, 200, 2.0f, 50, 3.0f, 8.0f, 2.0f, false);
 				break;
 			}
 		}

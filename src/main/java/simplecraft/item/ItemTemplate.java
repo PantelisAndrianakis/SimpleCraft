@@ -5,7 +5,7 @@ import simplecraft.world.Block.ToolType;
 
 /**
  * Defines what an item IS (template/prototype, not an instance).<br>
- * Created via static factory methods: {@link #block}, {@link #weapon}, {@link #tool}, {@link #consumable}, {@link #material}.
+ * Created via static factory methods: {@link #block}, {@link #weapon}, {@link #tool}, {@link #consumable}, {@link #material}, {@link #armor}.
  * @author Pantelis Andrianakis
  * @since March 13th 2026
  */
@@ -21,11 +21,13 @@ public class ItemTemplate
 	private final float _healAmount;
 	private final ToolType _toolType;
 	private final int _maxDurability;
+	private final ArmorSlot _armorSlot;
+	private final float _damageReduction;
 	
 	/**
 	 * Private constructor. Use static factory methods to create items.
 	 */
-	private ItemTemplate(String id, String displayName, ItemType type, int maxStackSize, Block placesBlock, float weaponDamage, float weaponSpeed, float healAmount, ToolType toolType, int maxDurability)
+	private ItemTemplate(String id, String displayName, ItemType type, int maxStackSize, Block placesBlock, float weaponDamage, float weaponSpeed, float healAmount, ToolType toolType, int maxDurability, ArmorSlot armorSlot, float damageReduction)
 	{
 		_id = id;
 		_displayName = displayName;
@@ -37,6 +39,8 @@ public class ItemTemplate
 		_healAmount = healAmount;
 		_toolType = toolType;
 		_maxDurability = maxDurability;
+		_armorSlot = armorSlot;
+		_damageReduction = damageReduction;
 	}
 	
 	// ========================================================
@@ -52,7 +56,7 @@ public class ItemTemplate
 	 */
 	public static ItemTemplate block(String id, String displayName, Block placesBlock)
 	{
-		return new ItemTemplate(id, displayName, ItemType.BLOCK, 64, placesBlock, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0);
+		return new ItemTemplate(id, displayName, ItemType.BLOCK, 64, placesBlock, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0, null, 0.0f);
 	}
 	
 	/**
@@ -66,7 +70,7 @@ public class ItemTemplate
 	 */
 	public static ItemTemplate weapon(String id, String displayName, float damage, float speed, int durability)
 	{
-		return new ItemTemplate(id, displayName, ItemType.WEAPON, 1, null, damage, speed, 0.0f, ToolType.NONE, durability);
+		return new ItemTemplate(id, displayName, ItemType.WEAPON, 1, null, damage, speed, 0.0f, ToolType.NONE, durability, null, 0.0f);
 	}
 	
 	/**
@@ -82,7 +86,7 @@ public class ItemTemplate
 	 */
 	public static ItemTemplate tool(String id, String displayName, ToolType toolType, float damage, float speed, int durability)
 	{
-		return new ItemTemplate(id, displayName, ItemType.TOOL, 1, null, damage, speed, 0.0f, toolType, durability);
+		return new ItemTemplate(id, displayName, ItemType.TOOL, 1, null, damage, speed, 0.0f, toolType, durability, null, 0.0f);
 	}
 	
 	/**
@@ -94,7 +98,7 @@ public class ItemTemplate
 	 */
 	public static ItemTemplate consumable(String id, String displayName, float healAmount)
 	{
-		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, 64, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0);
+		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, 64, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0, null, 0.0f);
 	}
 	
 	/**
@@ -107,7 +111,7 @@ public class ItemTemplate
 	 */
 	public static ItemTemplate consumable(String id, String displayName, float healAmount, int maxStackSize)
 	{
-		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, maxStackSize, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0);
+		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, maxStackSize, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0, null, 0.0f);
 	}
 	
 	/**
@@ -118,7 +122,22 @@ public class ItemTemplate
 	 */
 	public static ItemTemplate material(String id, String displayName)
 	{
-		return new ItemTemplate(id, displayName, ItemType.MATERIAL, 64, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0);
+		return new ItemTemplate(id, displayName, ItemType.MATERIAL, 64, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0, null, 0.0f);
+	}
+	
+	/**
+	 * Creates an armor item. Stack size 1, has durability, reduces incoming damage.<br>
+	 * Each armor piece occupies a specific slot (helmet, chestplate, pants, boots).
+	 * @param id unique key (e.g. "iron_helmet")
+	 * @param displayName human-readable name (e.g. "Iron Helmet")
+	 * @param armorSlot which equipment slot this armor occupies
+	 * @param damageReduction damage reduced per incoming hit (e.g. 1.0f)
+	 * @param durability maximum durability (e.g. 300)
+	 * @return new armor ItemTemplate
+	 */
+	public static ItemTemplate armor(String id, String displayName, ArmorSlot armorSlot, float damageReduction, int durability)
+	{
+		return new ItemTemplate(id, displayName, ItemType.ARMOR, 1, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, durability, armorSlot, damageReduction);
 	}
 	
 	// ========================================================
@@ -147,7 +166,7 @@ public class ItemTemplate
 	}
 	
 	/**
-	 * Maximum stack size. 64 for blocks/materials/consumables, 1 for weapons/tools.
+	 * Maximum stack size. 64 for blocks/materials/consumables, 1 for weapons/tools/armor.
 	 */
 	public int getMaxStackSize()
 	{
@@ -205,11 +224,29 @@ public class ItemTemplate
 	}
 	
 	/**
-	 * Maximum durability for weapons and tools. 0 for non-durability items.
+	 * Maximum durability for weapons, tools and armor. 0 for non-durability items.
 	 */
 	public int getMaxDurability()
 	{
 		return _maxDurability;
+	}
+	
+	/**
+	 * The armor equipment slot this item occupies (HELMET, CHESTPLATE, PANTS, BOOTS).<br>
+	 * Null for non-armor items.
+	 */
+	public ArmorSlot getArmorSlot()
+	{
+		return _armorSlot;
+	}
+	
+	/**
+	 * Damage reduction per incoming hit when this armor piece is worn (e.g. 1.0f).<br>
+	 * 0 for non-armor items.
+	 */
+	public float getDamageReduction()
+	{
+		return _damageReduction;
 	}
 	
 	@Override

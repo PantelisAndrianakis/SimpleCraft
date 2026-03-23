@@ -1,13 +1,15 @@
 package simplecraft.item;
 
 /**
- * Player inventory with 36 slots: hotbar (0-8) and main inventory (9-35).<br>
- * Null slots are empty. Weapons and tools never stack (unique durability).<br>
+ * Player inventory with 36 slots: hotbar (0-8) and main inventory (9-35),<br>
+ * plus 4 armor equipment slots (helmet, chestplate, pants, boots).<br>
+ * Null slots are empty. Weapons, tools and armor never stack (unique durability).<br>
  * Blocks, consumables and materials stack up to their max stack size.<br>
  * <br>
  * Serialization format (inventory.txt):<br>
  * Line 1: {@code hotbar:<index>} - selected hotbar slot index (0-8).<br>
  * Lines 2-37: {@code <itemId>:<count>:<durability>} per slot, or {@code empty:0:0} for empty slots.<br>
+ * Lines 38-41: {@code armor:<slotIndex>:<itemId>:<count>:<durability>} for armor slots, or {@code armor:<slotIndex>:empty:0:0}.<br>
  * Durability is 0 for non-durability items (blocks, materials, consumables).
  * @author Pantelis Andrianakis
  * @since March 13th 2026
@@ -22,6 +24,9 @@ public class Inventory
 	
 	/** All inventory slots. Null means empty. */
 	private final ItemInstance[] _slots = new ItemInstance[TOTAL_SLOTS];
+	
+	/** Armor equipment slots (4 slots: helmet, chestplate, pants, boots). */
+	private final ItemInstance[] _armorSlots = new ItemInstance[ArmorSlot.COUNT];
 	
 	/** Currently selected hotbar index (0-8). */
 	private int _selectedHotbarIndex;
@@ -59,6 +64,81 @@ public class Inventory
 		}
 		
 		_slots[index] = stack;
+	}
+	
+	// ========================================================
+	// Armor Slot Access.
+	// ========================================================
+	
+	/**
+	 * Returns the item equipped in the given armor slot, or null if empty.
+	 * @param slot the armor slot (HELMET, CHESTPLATE, PANTS, BOOTS)
+	 * @return the equipped ItemInstance, or null
+	 */
+	public ItemInstance getArmorSlot(ArmorSlot slot)
+	{
+		if (slot == null)
+		{
+			return null;
+		}
+		
+		return _armorSlots[slot.getIndex()];
+	}
+	
+	/**
+	 * Sets the item in the given armor slot.
+	 * @param slot the armor slot
+	 * @param item the armor item to equip (null to unequip)
+	 */
+	public void setArmorSlot(ArmorSlot slot, ItemInstance item)
+	{
+		if (slot == null)
+		{
+			return;
+		}
+		
+		_armorSlots[slot.getIndex()] = item;
+	}
+	
+	/**
+	 * Returns the total damage reduction from all equipped armor pieces.<br>
+	 * Each piece reduces incoming damage by its damageReduction value.
+	 * @return total damage reduction (e.g. 4.0f with full iron set)
+	 */
+	public float getTotalArmorReduction()
+	{
+		float total = 0;
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			final ItemInstance armor = _armorSlots[i];
+			if (armor != null && !armor.isEmpty())
+			{
+				total += armor.getTemplate().getDamageReduction();
+			}
+		}
+		
+		return total;
+	}
+	
+	/**
+	 * Applies durability damage to all equipped armor pieces.<br>
+	 * Each piece loses 1 durability per hit. Pieces that reach 0 durability are destroyed.
+	 */
+	public void damageAllArmor()
+	{
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			final ItemInstance armor = _armorSlots[i];
+			if (armor != null && !armor.isEmpty() && armor.hasDurability())
+			{
+				final boolean broken = armor.loseDurability(1);
+				if (broken)
+				{
+					System.out.println("Armor broke: " + armor.getTemplate().getDisplayName());
+					_armorSlots[i] = null;
+				}
+			}
+		}
 	}
 	
 	// ========================================================
@@ -279,7 +359,9 @@ public class Inventory
 	/**
 	 * Serializes the inventory to a string for saving to disk.<br>
 	 * Format: first line is {@code hotbar:<index>}, followed by 36 lines<br>
-	 * of {@code <itemId>:<count>:<durability>}. Empty slots are written as {@code empty:0:0}.
+	 * of {@code <itemId>:<count>:<durability>}, then 4 armor lines<br>
+	 * of {@code armor:<slotIndex>:<itemId>:<count>:<durability>}.<br>
+	 * Empty slots are written as {@code empty:0:0} (inventory) or {@code armor:<i>:empty:0:0} (armor).
 	 * @return the serialized inventory string
 	 */
 	public String serialize()
@@ -306,7 +388,28 @@ public class Inventory
 				sb.append(slot.getDurability());
 			}
 			
-			if (i < TOTAL_SLOTS - 1)
+			sb.append('\n');
+		}
+		
+		// Lines 38-41: armor slot data.
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			sb.append("armor:").append(i).append(':');
+			final ItemInstance armor = _armorSlots[i];
+			if (armor == null)
+			{
+				sb.append("empty:0:0");
+			}
+			else
+			{
+				sb.append(armor.getTemplate().getId());
+				sb.append(':');
+				sb.append(armor.getCount());
+				sb.append(':');
+				sb.append(armor.getDurability());
+			}
+			
+			if (i < ArmorSlot.COUNT - 1)
 			{
 				sb.append('\n');
 			}
@@ -332,8 +435,14 @@ public class Inventory
 		final String[] lines = data.split("\n");
 		if (lines.length < 1 + TOTAL_SLOTS)
 		{
-			System.err.println("Inventory: Cannot deserialize - expected " + (1 + TOTAL_SLOTS) + " lines, got " + lines.length + ".");
+			System.err.println("Inventory: Cannot deserialize - expected at least " + (1 + TOTAL_SLOTS) + " lines, got " + lines.length + ".");
 			return;
+		}
+		
+		// Clear armor slots before restoring.
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			_armorSlots[i] = null;
 		}
 		
 		// Line 1: hotbar selection.
@@ -389,7 +498,7 @@ public class Inventory
 				
 				final ItemInstance instance = new ItemInstance(template, count);
 				
-				// Restore durability for weapons/tools. The constructor sets max durability,
+				// Restore durability for weapons/tools/armor. The constructor sets max durability,
 				// so we override it with the saved value for items that have durability.
 				if (instance.hasDurability())
 				{
@@ -405,6 +514,62 @@ public class Inventory
 			}
 		}
 		
-		System.out.println("Inventory: Deserialized " + TOTAL_SLOTS + " slots, hotbar index " + _selectedHotbarIndex + ".");
+		// Lines 38-41: armor slot data (optional).
+		for (int lineIdx = 1 + TOTAL_SLOTS; lineIdx < lines.length; lineIdx++)
+		{
+			final String line = lines[lineIdx].trim();
+			if (!line.startsWith("armor:"))
+			{
+				continue;
+			}
+			
+			// Format: armor:<slotIndex>:<itemId>:<count>:<durability>
+			final String[] parts = line.substring("armor:".length()).split(":");
+			if (parts.length < 4)
+			{
+				continue;
+			}
+			
+			try
+			{
+				final int slotIndex = Integer.parseInt(parts[0]);
+				final String itemId = parts[1];
+				
+				if ("empty".equals(itemId))
+				{
+					continue;
+				}
+				
+				final ArmorSlot slot = ArmorSlot.fromIndex(slotIndex);
+				if (slot == null)
+				{
+					continue;
+				}
+				
+				final ItemTemplate template = ItemRegistry.get(itemId);
+				if (template == null)
+				{
+					System.err.println("Inventory: Unknown armor item ID '" + itemId + "' in armor slot " + slotIndex + " - clearing.");
+					continue;
+				}
+				
+				final int count = Integer.parseInt(parts[2]);
+				final int durability = Integer.parseInt(parts[3]);
+				
+				final ItemInstance instance = new ItemInstance(template, count);
+				if (instance.hasDurability())
+				{
+					instance.setDurability(durability);
+				}
+				
+				_armorSlots[slot.getIndex()] = instance;
+			}
+			catch (NumberFormatException e)
+			{
+				System.err.println("Inventory: Bad armor slot data: '" + line + "' - skipping.");
+			}
+		}
+		
+		System.out.println("Inventory: Deserialized " + TOTAL_SLOTS + " slots + " + ArmorSlot.COUNT + " armor slots, hotbar index " + _selectedHotbarIndex + ".");
 	}
 }
