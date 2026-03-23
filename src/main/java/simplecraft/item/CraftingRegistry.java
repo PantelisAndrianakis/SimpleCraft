@@ -174,41 +174,57 @@ public class CraftingRegistry
 		register("stone_sword", 1, ingredients("stone_shard", 5, "wood_plank", 1));
 		
 		// ========================================================
-		// Iron Tools & Weapons (use iron_ingot - smelted from iron ore or crafted from nuggets).
-		// ========================================================
-		register("iron_pickaxe", 1, ingredients("iron_ingot", 3, "wood_plank", 1));
-		register("iron_axe", 1, ingredients("iron_ingot", 3, "wood_plank", 1));
-		register("iron_shovel", 1, ingredients("iron_ingot", 3, "wood_plank", 1));
-		register("iron_sword", 1, ingredients("iron_ingot", 3, "wood_plank", 1));
-		
-		// ========================================================
 		// Armor - Iron Set.
 		// ========================================================
-		register("iron_helmet", 1, ingredients("iron_ingot", 5));
-		register("iron_chestplate", 1, ingredients("iron_ingot", 8));
-		register("iron_pants", 1, ingredients("iron_ingot", 7));
-		register("iron_boots", 1, ingredients("iron_ingot", 4));
+		register("iron_helmet", 1, ingredients("iron_bar", 5));
+		register("iron_chestplate", 1, ingredients("iron_bar", 8));
+		register("iron_pants", 1, ingredients("iron_bar", 7));
+		register("iron_boots", 1, ingredients("iron_bar", 4));
 		
 		// ========================================================
-		// Consumables.
+		// Iron Tools & Weapons.
 		// ========================================================
-		register("health_potion", 1, ingredients("cooked_meat", 2, "glass", 1));
+		register("iron_pickaxe", 1, ingredients("iron_bar", 3, "wood_plank", 1));
+		register("iron_axe", 1, ingredients("iron_bar", 3, "wood_plank", 1));
+		register("iron_shovel", 1, ingredients("iron_bar", 3, "wood_plank", 1));
+		register("iron_sword", 1, ingredients("iron_bar", 3, "wood_plank", 1));
 		
 		// ========================================================
-		// Special Orbs.
+		// Armor - Gold Set.
 		// ========================================================
-		register("dragon_orb", 1, ingredients("iron_ingot", 20, "stone_shard", 50, "glass", 10));
+		register("gold_helmet", 1, ingredients("gold_bar", 5));
+		register("gold_chestplate", 1, ingredients("gold_bar", 8));
+		register("gold_pants", 1, ingredients("gold_bar", 7));
+		register("gold_boots", 1, ingredients("gold_bar", 4));
+		
+		// ========================================================
+		// Gold Tools & Weapons.
+		// ========================================================
+		register("gold_pickaxe", 1, ingredients("gold_bar", 3, "wood_plank", 1));
+		register("gold_axe", 1, ingredients("gold_bar", 3, "wood_plank", 1));
+		register("gold_shovel", 1, ingredients("gold_bar", 3, "wood_plank", 1));
+		register("gold_sword", 1, ingredients("gold_bar", 3, "wood_plank", 1));
 		
 		// ========================================================
 		// Utility / Furniture.
 		// ========================================================
-		register("campfire", 1, ingredients("wood", 2, "stone_shard", 4));
-		register("chest", 1, ingredients("wood_plank", 10));
-		register("crafting_table", 1, ingredients("wood", 4));
-		register("furnace", 1, ingredients("stone_shard", 20));
 		register("torch", 1, ingredients("wood_plank", 1, "charcoal", 1));
+		register("campfire", 1, ingredients("wood", 2, "stone_shard", 4));
+		register("crafting_table", 1, ingredients("wood", 4));
+		register("chest", 1, ingredients("wood_plank", 10));
+		register("furnace", 1, ingredients("stone_shard", 20));
 		register("door", 1, ingredients("wood_plank", 12, "glass", 1));
 		register("window", 1, ingredients("wood_plank", 6, "glass", 4));
+		
+		// ========================================================
+		// Consumables.
+		// ========================================================
+		register("health_potion", 1, ingredients("meat", 2, "glass", 1));
+		
+		// ========================================================
+		// Special Orbs.
+		// ========================================================
+		register("dragon_orb", 1, ingredients("iron_bar", 20, "stone_shard", 50, "glass", 10));
 		
 		System.out.println("CraftingRegistry: Registered " + RECIPES.size() + " recipes.");
 	}

@@ -72,7 +72,7 @@ public class SmeltingRegistry
 		// ========================================================
 		// Smelting Recipes.
 		// ========================================================
-		registerRecipe("iron_ore", "iron_ingot", 10.0f);
+		registerRecipe("iron_ore", "iron_bar", 10.0f);
 		registerRecipe("sand", "glass", 8.0f);
 		registerRecipe("wood", "charcoal", 5.0f);
 		
@@ -94,7 +94,7 @@ public class SmeltingRegistry
 	/**
 	 * Registers a smelting recipe.
 	 * @param inputItemId the item ID of the input (e.g. "iron_ore")
-	 * @param outputItemId the item ID of the output (e.g. "iron_ingot")
+	 * @param outputItemId the item ID of the output (e.g. "iron_bar")
 	 * @param smeltTime time in seconds to smelt
 	 */
 	private static void registerRecipe(String inputItemId, String outputItemId, float smeltTime)

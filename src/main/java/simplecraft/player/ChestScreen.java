@@ -126,6 +126,9 @@ public class ChestScreen implements ActionListener
 	private static final ColorRGBA COLOR_IRON = new ColorRGBA(0.62f, 0.62f, 0.65f, 1.0f);
 	private static final ColorRGBA COLOR_IRON_DARK = new ColorRGBA(0.48f, 0.48f, 0.52f, 1.0f);
 	private static final ColorRGBA COLOR_IRON_LIGHT = new ColorRGBA(0.72f, 0.72f, 0.76f, 1.0f);
+	private static final ColorRGBA COLOR_GOLD = new ColorRGBA(0.85f, 0.70f, 0.25f, 1.0f);
+	private static final ColorRGBA COLOR_GOLD_DARK = new ColorRGBA(0.70f, 0.55f, 0.15f, 1.0f);
+	private static final ColorRGBA COLOR_GOLD_LIGHT = new ColorRGBA(0.95f, 0.82f, 0.35f, 1.0f);
 	private static final ColorRGBA COLOR_EYE_GREEN = new ColorRGBA(0.04f, 0.30f, 0.10f, 1.0f);
 	private static final ColorRGBA COLOR_EYE_WHITE = new ColorRGBA(0.92f, 0.92f, 0.92f, 1.0f);
 	private static final ColorRGBA COLOR_PANTS_BROWN = new ColorRGBA(0.35f, 0.25f, 0.15f, 1.0f);
@@ -252,6 +255,11 @@ public class ChestScreen implements ActionListener
 	private Node _armor3dChestplate;
 	private Node _armor3dPants;
 	private Node _armor3dBoots;
+	
+	// Per-armor-piece materials (recolored dynamically for iron vs gold).
+	private final Material[] _armorMatsMain = new Material[ArmorSlot.COUNT];
+	private final Material[] _armorMatsDark = new Material[ArmorSlot.COUNT];
+	private final Material[] _armorMatsLight = new Material[ArmorSlot.COUNT];
 	
 	// Base clothing nodes (hidden when armor equipped).
 	private Geometry _basePantsLeft;
@@ -535,9 +543,14 @@ public class ChestScreen implements ActionListener
 		final Material eyeGreenMat = makeModelMat(COLOR_EYE_GREEN, app);
 		final Material mouthMat = makeModelMat(new ColorRGBA(0.45f, 0.30f, 0.25f, 1.0f), app);
 		final Material pantsMat = makeModelMat(COLOR_PANTS_BROWN, app);
-		final Material ironMat = makeModelMat(COLOR_IRON, app);
-		final Material ironDarkMat = makeModelMat(COLOR_IRON_DARK, app);
-		final Material ironLightMat = makeModelMat(COLOR_IRON_LIGHT, app);
+		
+		// Per-piece armor materials (recolored dynamically in updatePlayerModelOverlays).
+		for (int i = 0; i < ArmorSlot.COUNT; i++)
+		{
+			_armorMatsMain[i] = makeModelMat(COLOR_IRON, app);
+			_armorMatsDark[i] = makeModelMat(COLOR_IRON_DARK, app);
+			_armorMatsLight[i] = makeModelMat(COLOR_IRON_LIGHT, app);
+		}
 		
 		// Body.
 		final Node bodyNode = makeModelPivot("Body", makeModelBox("BodyBox", 0.3f, 0.33f, 0.15f, skinMat, 0, 0, 0), 0, 1.27f, 0);
@@ -585,31 +598,31 @@ public class ChestScreen implements ActionListener
 		// Armor nodes.
 		_armor3dHelmet = new Node("ArmorHelmet");
 		headNode.attachChild(_armor3dHelmet);
-		_armor3dHelmet.attachChild(makeModelBox("HelmetCap", 0.23f, 0.08f, 0.23f, ironMat, 0, 0.44f, 0));
-		_armor3dHelmet.attachChild(makeModelBox("HelmetBand", 0.24f, 0.06f, 0.24f, ironLightMat, 0, 0.34f, 0));
-		_armor3dHelmet.attachChild(makeModelBox("NoseGuard", 0.02f, 0.10f, 0.025f, ironDarkMat, 0, 0.27f, -0.24f));
+		_armor3dHelmet.attachChild(makeModelBox("HelmetCap", 0.23f, 0.08f, 0.23f, _armorMatsMain[0], 0, 0.44f, 0));
+		_armor3dHelmet.attachChild(makeModelBox("HelmetBand", 0.24f, 0.06f, 0.24f, _armorMatsLight[0], 0, 0.34f, 0));
+		_armor3dHelmet.attachChild(makeModelBox("NoseGuard", 0.02f, 0.10f, 0.025f, _armorMatsDark[0], 0, 0.27f, -0.24f));
 		_armor3dHelmet.setCullHint(Node.CullHint.Always);
 		
 		_armor3dChestplate = new Node("ArmorChestplate");
 		_modelRootNode.attachChild(_armor3dChestplate);
-		_armor3dChestplate.attachChild(makeModelBox("IronBody", 0.31f, 0.34f, 0.18f, ironMat, 0, 1.27f, 0));
-		_armor3dChestplate.attachChild(makeModelBox("ChestPlate", 0.22f, 0.2f, 0.005f, ironDarkMat, 0, 1.32f, -0.20f));
-		_armor3dChestplate.attachChild(makeModelBox("IronWaist", 0.32f, 0.13f, 0.17f, ironDarkMat, 0, 0.88f, 0));
-		_armor3dChestplate.attachChild(makeModelBox("LShoulderPlate", 0.15f, 0.18f, 0.15f, ironLightMat, -0.425f, 1.43f, 0));
-		_armor3dChestplate.attachChild(makeModelBox("RShoulderPlate", 0.15f, 0.18f, 0.15f, ironLightMat, 0.425f, 1.43f, 0));
+		_armor3dChestplate.attachChild(makeModelBox("IronBody", 0.31f, 0.34f, 0.18f, _armorMatsMain[1], 0, 1.27f, 0));
+		_armor3dChestplate.attachChild(makeModelBox("ChestPlate", 0.22f, 0.2f, 0.005f, _armorMatsDark[1], 0, 1.32f, -0.20f));
+		_armor3dChestplate.attachChild(makeModelBox("IronWaist", 0.32f, 0.13f, 0.17f, _armorMatsDark[1], 0, 0.88f, 0));
+		_armor3dChestplate.attachChild(makeModelBox("LShoulderPlate", 0.15f, 0.18f, 0.15f, _armorMatsLight[1], -0.425f, 1.43f, 0));
+		_armor3dChestplate.attachChild(makeModelBox("RShoulderPlate", 0.15f, 0.18f, 0.15f, _armorMatsLight[1], 0.425f, 1.43f, 0));
 		_armor3dChestplate.setCullHint(Node.CullHint.Always);
 		
 		_armor3dPants = new Node("ArmorPants");
 		_modelRootNode.attachChild(_armor3dPants);
-		_armor3dPants.attachChild(makeModelBox("LIronPants", 0.135f, 0.25f, 0.135f, ironDarkMat, -0.175f, 0.65f, 0));
-		_armor3dPants.attachChild(makeModelBox("RIronPants", 0.135f, 0.25f, 0.135f, ironDarkMat, 0.175f, 0.65f, 0));
-		_armor3dPants.attachChild(makeModelBox("IronBelt", 0.31f, 0.12f, 0.16f, ironMat, 0, 0.88f, 0));
+		_armor3dPants.attachChild(makeModelBox("LIronPants", 0.135f, 0.25f, 0.135f, _armorMatsDark[2], -0.175f, 0.65f, 0));
+		_armor3dPants.attachChild(makeModelBox("RIronPants", 0.135f, 0.25f, 0.135f, _armorMatsDark[2], 0.175f, 0.65f, 0));
+		_armor3dPants.attachChild(makeModelBox("IronBelt", 0.31f, 0.12f, 0.16f, _armorMatsMain[2], 0, 0.88f, 0));
 		_armor3dPants.setCullHint(Node.CullHint.Always);
 		
 		_armor3dBoots = new Node("ArmorBoots");
 		_modelRootNode.attachChild(_armor3dBoots);
-		_armor3dBoots.attachChild(makeModelBox("LBoots", 0.145f, 0.21f, 0.145f, ironMat, -0.175f, 0.2f, 0));
-		_armor3dBoots.attachChild(makeModelBox("RBoots", 0.145f, 0.21f, 0.145f, ironMat, 0.175f, 0.2f, 0));
+		_armor3dBoots.attachChild(makeModelBox("LBoots", 0.145f, 0.21f, 0.145f, _armorMatsMain[3], -0.175f, 0.2f, 0));
+		_armor3dBoots.attachChild(makeModelBox("RBoots", 0.145f, 0.21f, 0.145f, _armorMatsMain[3], 0.175f, 0.2f, 0));
 		_armor3dBoots.setCullHint(Node.CullHint.Always);
 		
 		// Offscreen viewport.
@@ -1726,10 +1739,18 @@ public class ChestScreen implements ActionListener
 		final boolean hasHelmet = helmet != null && !helmet.isEmpty();
 		_armor3dHelmet.setCullHint(hasHelmet ? Node.CullHint.Inherit : Node.CullHint.Always);
 		_baseHair.setCullHint(hasHelmet ? Node.CullHint.Always : Node.CullHint.Inherit);
+		if (hasHelmet)
+		{
+			recolorArmorMaterials(0, helmet.getTemplate().getId());
+		}
 		
 		final ItemInstance chest = _inventory.getArmorSlot(ArmorSlot.CHESTPLATE);
 		final boolean hasChest = chest != null && !chest.isEmpty();
 		_armor3dChestplate.setCullHint(hasChest ? Node.CullHint.Inherit : Node.CullHint.Always);
+		if (hasChest)
+		{
+			recolorArmorMaterials(1, chest.getTemplate().getId());
+		}
 		
 		final ItemInstance pants = _inventory.getArmorSlot(ArmorSlot.PANTS);
 		final boolean hasPants = pants != null && !pants.isEmpty();
@@ -1737,9 +1758,29 @@ public class ChestScreen implements ActionListener
 		_basePantsLeft.setCullHint(hasPants ? Geometry.CullHint.Always : Geometry.CullHint.Inherit);
 		_basePantsRight.setCullHint(hasPants ? Geometry.CullHint.Always : Geometry.CullHint.Inherit);
 		_baseWaistband.setCullHint((hasChest || hasPants) ? Geometry.CullHint.Always : Geometry.CullHint.Inherit);
+		if (hasPants)
+		{
+			recolorArmorMaterials(2, pants.getTemplate().getId());
+		}
 		
 		final ItemInstance boots = _inventory.getArmorSlot(ArmorSlot.BOOTS);
-		_armor3dBoots.setCullHint(boots != null && !boots.isEmpty() ? Node.CullHint.Inherit : Node.CullHint.Always);
+		final boolean hasBoots = boots != null && !boots.isEmpty();
+		_armor3dBoots.setCullHint(hasBoots ? Node.CullHint.Inherit : Node.CullHint.Always);
+		if (hasBoots)
+		{
+			recolorArmorMaterials(3, boots.getTemplate().getId());
+		}
+	}
+	
+	/**
+	 * Recolors the 3D armor materials for the given piece index based on the item ID.
+	 */
+	private void recolorArmorMaterials(int index, String itemId)
+	{
+		final boolean isGold = itemId.startsWith("gold_");
+		_armorMatsMain[index].setColor("Color", isGold ? COLOR_GOLD.clone() : COLOR_IRON.clone());
+		_armorMatsDark[index].setColor("Color", isGold ? COLOR_GOLD_DARK.clone() : COLOR_IRON_DARK.clone());
+		_armorMatsLight[index].setColor("Color", isGold ? COLOR_GOLD_LIGHT.clone() : COLOR_IRON_LIGHT.clone());
 	}
 	
 	// ========================================================

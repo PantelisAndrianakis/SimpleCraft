@@ -25,7 +25,7 @@ import simplecraft.world.World;
  * every frame via {@link #update(float)}, called by {@link TileEntityManager}.<br>
  * <br>
  * <b>Key behavior:</b> Smelting continues even when the UI is closed. The player<br>
- * can load ore and fuel, walk away and return to find finished ingots.<br>
+ * can load ore and fuel, walk away and return to find finished bars.<br>
  * <br>
  * Fuel burns continuously once lit - if the input runs out or the output is full,<br>
  * remaining fuel is wasted (matches Minecraft behavior).<br>

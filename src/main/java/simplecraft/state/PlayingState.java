@@ -1146,7 +1146,7 @@ public class PlayingState extends FadeableAppState
 				{
 					_dragonDeathProcessed = true;
 					
-					// Spawn drops via the normal drop table (Recall Orb + Iron Ingots).
+					// Spawn drops via the normal drop table (Recall Orb + Gold Bars).
 					if (_combatSystem != null)
 					{
 						_combatSystem.onEnemyDeath(_playerController, dragon);

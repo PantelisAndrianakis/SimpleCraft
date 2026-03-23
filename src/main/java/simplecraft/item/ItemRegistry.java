@@ -57,6 +57,7 @@ public class ItemRegistry
 		register(ItemTemplate.weapon("wood_sword", "Wood Sword", 4.0f, 0.5f, 60));
 		register(ItemTemplate.weapon("stone_sword", "Stone Sword", 5.0f, 0.45f, 132));
 		register(ItemTemplate.weapon("iron_sword", "Iron Sword", 7.0f, 0.4f, 250));
+		register(ItemTemplate.weapon("gold_sword", "Gold Sword", 7.5f, 0.4f, 300));
 		
 		// ========================================================
 		// Tools - Pickaxes (for STONE, IRON_ORE).
@@ -64,6 +65,7 @@ public class ItemRegistry
 		register(ItemTemplate.tool("wood_pickaxe", "Wood Pickaxe", ToolType.PICKAXE, 2.0f, 0.5f, 60));
 		register(ItemTemplate.tool("stone_pickaxe", "Stone Pickaxe", ToolType.PICKAXE, 2.5f, 0.45f, 132));
 		register(ItemTemplate.tool("iron_pickaxe", "Iron Pickaxe", ToolType.PICKAXE, 3.0f, 0.4f, 250));
+		register(ItemTemplate.tool("gold_pickaxe", "Gold Pickaxe", ToolType.PICKAXE, 3.5f, 0.4f, 300));
 		
 		// ========================================================
 		// Tools - Axes (for WOOD, LEAVES, BERRY_BUSH).
@@ -71,6 +73,7 @@ public class ItemRegistry
 		register(ItemTemplate.tool("wood_axe", "Wood Axe", ToolType.AXE, 3.0f, 0.6f, 60));
 		register(ItemTemplate.tool("stone_axe", "Stone Axe", ToolType.AXE, 4.0f, 0.55f, 132));
 		register(ItemTemplate.tool("iron_axe", "Iron Axe", ToolType.AXE, 5.0f, 0.5f, 250));
+		register(ItemTemplate.tool("gold_axe", "Gold Axe", ToolType.AXE, 5.5f, 0.5f, 300));
 		
 		// ========================================================
 		// Tools - Shovels (for DIRT, GRASS, SAND).
@@ -78,6 +81,7 @@ public class ItemRegistry
 		register(ItemTemplate.tool("wood_shovel", "Wood Shovel", ToolType.SHOVEL, 1.5f, 0.5f, 60));
 		register(ItemTemplate.tool("stone_shovel", "Stone Shovel", ToolType.SHOVEL, 2.0f, 0.45f, 132));
 		register(ItemTemplate.tool("iron_shovel", "Iron Shovel", ToolType.SHOVEL, 2.5f, 0.4f, 250));
+		register(ItemTemplate.tool("gold_shovel", "Gold Shovel", ToolType.SHOVEL, 3.0f, 0.4f, 300));
 		
 		// ========================================================
 		// Armor - Iron Set (4 pieces, each reduces 1 damage, 250 durability).
@@ -88,10 +92,18 @@ public class ItemRegistry
 		register(ItemTemplate.armor("iron_boots", "Iron Boots", ArmorSlot.BOOTS, 1.0f, 250));
 		
 		// ========================================================
+		// Armor - Gold Set (6 total reduction: 1+2+2+1, 300 durability).
+		// ========================================================
+		register(ItemTemplate.armor("gold_helmet", "Gold Helmet", ArmorSlot.HELMET, 1.0f, 300));
+		register(ItemTemplate.armor("gold_chestplate", "Gold Chestplate", ArmorSlot.CHESTPLATE, 2.0f, 300));
+		register(ItemTemplate.armor("gold_pants", "Gold Pants", ArmorSlot.PANTS, 2.0f, 300));
+		register(ItemTemplate.armor("gold_boots", "Gold Boots", ArmorSlot.BOOTS, 1.0f, 300));
+		
+		// ========================================================
 		// Consumables.
 		// ========================================================
 		register(ItemTemplate.consumable("health_potion", "Health Potion", 8.0f));
-		register(ItemTemplate.consumable("cooked_meat", "Cooked Meat", 4.0f));
+		register(ItemTemplate.consumable("meat", "Meat", 4.0f));
 		register(ItemTemplate.consumable("berries", "Berries", 3.0f));
 		
 		// ========================================================
@@ -105,8 +117,9 @@ public class ItemRegistry
 		// ========================================================
 		register(ItemTemplate.material("wood_plank", "Wood Plank"));
 		register(ItemTemplate.material("stone_shard", "Stone Shard"));
-		register(ItemTemplate.material("iron_ingot", "Iron Ingot"));
 		register(ItemTemplate.material("charcoal", "Charcoal"));
+		register(ItemTemplate.material("iron_bar", "Iron Bar"));
+		register(ItemTemplate.material("gold_bar", "Gold Bar"));
 		
 		System.out.println("ItemRegistry: Registered " + ITEMS.size() + " items.");
 	}

@@ -20,6 +20,11 @@ By: Pantelis Andrianakis
 Created with: Paint.NET  
 File name: iron_sword.png  
 
+## Gold Sword
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_sword.png  
+
 ## Wood Pickaxe
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
@@ -34,6 +39,11 @@ File name: stone_pickaxe.png
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: iron_pickaxe.png  
+
+## Gold Pickaxe
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_pickaxe.png  
 
 ## Wood Axe
 By: Pantelis Andrianakis  
@@ -50,6 +60,11 @@ By: Pantelis Andrianakis
 Created with: Paint.NET  
 File name: iron_axe.png  
 
+## Gold Axe
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_axe.png  
+
 ## Wood Shovel
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
@@ -65,25 +80,35 @@ By: Pantelis Andrianakis
 Created with: Paint.NET  
 File name: iron_shovel.png  
 
+## Gold Shovel
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_shovel.png  
+
 ## Charcoal
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: charcoal.png  
 
-## Cooked Meat
+## Meat
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
-File name: cooked_meat.png  
+File name: meat.png  
 
 ## Health Potion
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: health_potion.png  
 
-## Iron Ingot
+## Iron Bar
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
-File name: iron_ingot.png  
+File name: iron_bar.png  
+
+## Gold Bar
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_bar.png  
 
 ## Stone Shard
 By: Pantelis Andrianakis  
@@ -95,15 +120,15 @@ By: Pantelis Andrianakis
 Created with: Paint.NET  
 File name: wood_plank.png  
 
-## Dragon Orb
-By: Pantelis Andrianakis  
-Created with: Paint.NET  
-File name: dragon_orb.png  
-
 ## Recall Orb
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: recall_orb.png  
+
+## Dragon Orb
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: dragon_orb.png  
 
 ## Iron Helmet
 By: Pantelis Andrianakis  
@@ -124,3 +149,23 @@ File name: iron_pants.png
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
 File name: iron_boots.png  
+
+## Gold Helmet
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_helmet.png  
+
+## Gold Chestplate
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_chestplate.png  
+
+## Gold Pants
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_pants.png  
+
+## Gold Boots
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: gold_boots.png  

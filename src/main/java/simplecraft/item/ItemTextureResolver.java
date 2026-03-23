@@ -125,7 +125,7 @@ public class ItemTextureResolver
 	 * Convenience overload that resolves by item ID.<br>
 	 * Looks up the ItemTemplate from the registry, then delegates to {@link #resolve(AssetManager, ItemTemplate)}.
 	 * @param assetManager the jME3 asset manager
-	 * @param itemId the item ID (e.g. "wood_sword", "cooked_meat", "dirt")
+	 * @param itemId the item ID (e.g. "wood_sword", "meat", "dirt")
 	 * @return the loaded Texture, or null if none found
 	 */
 	public static Texture resolve(AssetManager assetManager, String itemId)

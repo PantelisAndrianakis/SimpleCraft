@@ -50,10 +50,10 @@ public class EnemyDropTable
 	// Drop tables per enemy type.
 	// ------------------------------------------------------------------
 	
-	/** Zombie: 1-2 Cooked Meat (60%), 1 Iron Nugget (20%). */
+	/** Zombie: 1-2 Meat (60%), 1 Iron Nugget (20%). */
 	private static final DropEntry[] ZOMBIE_DROPS =
 	{
-		new DropEntry("cooked_meat", 1, 2, 0.60f),
+		new DropEntry("meat", 1, 2, 0.60f),
 		new DropEntry("iron_nugget", 1, 1, 0.20f),
 	};
 	
@@ -64,10 +64,10 @@ public class EnemyDropTable
 		new DropEntry("wood_plank", 1, 1, 0.40f),
 	};
 	
-	/** Wolf: 1-2 Cooked Meat (80%). */
+	/** Wolf: 1-2 Meat (80%). */
 	private static final DropEntry[] WOLF_DROPS =
 	{
-		new DropEntry("cooked_meat", 1, 2, 0.80f),
+		new DropEntry("meat", 1, 2, 0.80f),
 	};
 	
 	/** Spider: 1 Iron Nugget (30%). */
@@ -82,17 +82,17 @@ public class EnemyDropTable
 		new DropEntry("health_potion", 1, 1, 0.25f),
 	};
 	
-	/** Piranha: 1 Cooked Meat (40%). */
+	/** Piranha: 1 Meat (40%). */
 	private static final DropEntry[] PIRANHA_DROPS =
 	{
-		new DropEntry("cooked_meat", 1, 1, 0.40f),
+		new DropEntry("meat", 1, 1, 0.40f),
 	};
 	
-	/** Dragon: 1 Recall Orb (100%), 5 Iron Nuggets (100%). */
+	/** Dragon: 1 Recall Orb (100%), 5-10 Gold Nuggets (100%). */
 	private static final DropEntry[] DRAGON_DROPS =
 	{
 		new DropEntry("recall_orb", 1, 1, 1.00f),
-		new DropEntry("iron_ingot", 5, 5, 1.00f),
+		new DropEntry("gold_bar", 5, 10, 1.00f),
 	};
 	
 	/**

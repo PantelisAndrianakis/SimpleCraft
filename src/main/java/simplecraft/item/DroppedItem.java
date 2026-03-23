@@ -545,7 +545,7 @@ public class DroppedItem
 	{
 		switch (itemId)
 		{
-			case "cooked_meat":
+			case "meat":
 			{
 				return new ColorRGBA(0.6f, 0.3f, 0.15f, 1.0f); // Brown.
 			}
