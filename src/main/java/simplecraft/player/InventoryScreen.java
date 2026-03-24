@@ -282,6 +282,10 @@ public class InventoryScreen implements ActionListener
 	private BitmapText _armorTitleText;
 	private BitmapText _armorTitleTextShadow;
 	
+	/** Tip text at bottom-right of the screen. */
+	private BitmapText _tipText;
+	private BitmapText _tipTextShadow;
+	
 	/** Shift tracking. */
 	private boolean _shiftDown;
 	private final ActionListener _shiftListener = (name, isPressed, tpf) ->
@@ -842,6 +846,29 @@ public class InventoryScreen implements ActionListener
 		final float armorTitleY = _armorSlotY[0] + _slotSize + SLOT_PADDING + _armorTitleText.getLineHeight() + 2;
 		_armorTitleText.setLocalTranslation(armorTitleX, armorTitleY, Z_TEXT);
 		_armorTitleTextShadow.setLocalTranslation(armorTitleX + 1, armorTitleY - 1, Z_TEXT - 0.1f);
+		
+		// "TIP" note at bottom-right of the screen.
+		final int tipSize = Math.max(11, (int) (_screenHeight * 0.015f));
+		final BitmapFont tipFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, tipSize);
+		final ColorRGBA tipColor = new ColorRGBA(0.35f, 0.35f, 0.35f, 0.7f);
+		
+		_tipTextShadow = new BitmapText(tipFont);
+		_tipTextShadow.setText("TIP: You can right-click on 4 Wood blocks to create a Crafting Table.");
+		_tipTextShadow.setSize(tipSize);
+		_tipTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
+		_screenNode.attachChild(_tipTextShadow);
+		
+		_tipText = new BitmapText(tipFont);
+		_tipText.setText("TIP: You can right-click on 4 Wood blocks to create a Crafting Table.");
+		_tipText.setSize(tipSize);
+		_tipText.setColor(tipColor);
+		_screenNode.attachChild(_tipText);
+		
+		final float tipMargin = 10f;
+		final float tipX = tipMargin;
+		final float tipY = _tipText.getLineHeight() + tipMargin;
+		_tipText.setLocalTranslation(tipX, tipY, Z_TEXT);
+		_tipTextShadow.setLocalTranslation(tipX + 1, tipY - 1, Z_TEXT - 0.1f);
 	}
 	
 	// ========================================================
