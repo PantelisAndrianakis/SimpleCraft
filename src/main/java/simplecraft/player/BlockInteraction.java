@@ -1421,11 +1421,32 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			final PlayingState state = getPlayingState();
 			if (state != null)
 			{
-				state.beginArenaEntry();
+				state.beginArenaEntry(itemId);
 				return true;
 			}
 			
 			System.err.println("BlockInteraction: Dragon Orb used but PlayingState not found.");
+			return false;
+		}
+		
+		// Shadow Orb - teleport to arena.
+		if ("shadow_orb".equals(itemId))
+		{
+			if (_playerController.isInBossArena())
+			{
+				MessageManager.show("The orb has no power here.");
+				return true;
+			}
+			
+			// Initiate arena entry via PlayingState (shows loading screen, generates arena next frame).
+			final PlayingState state = getPlayingState();
+			if (state != null)
+			{
+				state.beginArenaEntry(itemId);
+				return true;
+			}
+			
+			System.err.println("BlockInteraction: Shadow Orb used but PlayingState not found.");
 			return false;
 		}
 		
@@ -1482,7 +1503,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		// Special orb items are handled separately (not regular consumables).
 		final String itemId = selectedItem.getTemplate().getId();
-		if ("dragon_orb".equals(itemId) || "recall_orb".equals(itemId))
+		if ("dragon_orb".equals(itemId) || "shadow_orb".equals(itemId) || "recall_orb".equals(itemId))
 		{
 			return false;
 		}

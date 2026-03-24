@@ -179,7 +179,7 @@ public class EnemyAI
 		{
 			updateAquatic(enemy, playerPos, playerInWater, world, tpf);
 		}
-		else if (enemy.getType() == EnemyType.DRAGON)
+		else if (enemy.getType() == EnemyType.DRAGON || enemy.getType() == EnemyType.SHADOW)
 		{
 			updateBoss(enemy, playerPos, world, tpf);
 			snapDragonToGround(enemy, world);
@@ -1010,9 +1010,9 @@ public class EnemyAI
 			return;
 		}
 		
-		// --- Tail swipe check ---
+		// --- Tail swipe check (Dragon only) ---
 		// If player is within tail range and behind the dragon.
-		if (distToPlayer <= DRAGON_TAIL_RANGE && enemy.getTailSwipeCooldown() >= 3.0f)
+		if (enemy.getType() == EnemyType.DRAGON && distToPlayer <= DRAGON_TAIL_RANGE && enemy.getTailSwipeCooldown() >= 3.0f)
 		{
 			if (isPlayerBehind(enemy, playerPos, tailRearArc))
 			{
@@ -1046,6 +1046,9 @@ public class EnemyAI
 			float dz = playerPos.z - pos.z;
 			final float dist = FastMath.sqrt(dx * dx + dz * dz);
 			
+			// Headroom depends on boss type (Dragon=3, Shadow=4).
+			final int bossHeadroom = getHeadroom(enemy);
+			
 			if (dist > 0.1f)
 			{
 				dx /= dist;
@@ -1070,7 +1073,7 @@ public class EnemyAI
 				
 				// Check headroom above the destination ground level (not current foot level).
 				boolean blocked = false;
-				for (int h = 0; h < 3; h++)
+				for (int h = 0; h < bossHeadroom; h++)
 				{
 					final Block ahead = world.getBlock(bx, checkFootY + h, bz);
 					if (ahead != Block.AIR && !ahead.isLiquid())
@@ -1089,8 +1092,8 @@ public class EnemyAI
 				}
 				else
 				{
-					// Destroy any blocks above ground level that block the dragon's path.
-					if (dragonDestroyBlocks(world, bx, checkFootY, bz, dx, dz))
+					// Destroy any blocks above ground level that block the boss's path.
+					if (bossDestroyBlocks(enemy, world, bx, checkFootY, bz, dx, dz))
 					{
 						// Blocks were destroyed - pause for one frame to sell the impact,
 						// then the dragon will move through on the next frame.
@@ -1110,7 +1113,7 @@ public class EnemyAI
 						final int slideGroundY = findGroundY(world, sbx, sbz, currentFootY);
 						final int slideCheckY = (slideGroundY >= 0) ? slideGroundY : currentFootY;
 						boolean slideBlocked = false;
-						for (int h = 0; h < 3; h++)
+						for (int h = 0; h < bossHeadroom; h++)
 						{
 							if (world.getBlock(sbx, slideCheckY + h, sbz).isSolid())
 							{
@@ -1171,7 +1174,8 @@ public class EnemyAI
 		final int checkFootY = (newGroundY >= 0) ? newGroundY : currentFootY;
 		
 		boolean hitBlock = false;
-		for (int h = 0; h < 3; h++)
+		final int chargeHeadroom = getHeadroom(enemy);
+		for (int h = 0; h < chargeHeadroom; h++)
 		{
 			final Block ahead = world.getBlock(bx, checkFootY + h, bz);
 			if (ahead != Block.AIR && !ahead.isLiquid())
@@ -1187,8 +1191,8 @@ public class EnemyAI
 		if (hitBlock)
 		{
 			// Destroy blocks in the charge path and continue charging through.
-			dragonDestroyBlocks(world, bx, checkFootY, bz, dir.x, dir.z);
-			// Charge continues - dragon plows through player-placed blocks.
+			bossDestroyBlocks(enemy, world, bx, checkFootY, bz, dir.x, dir.z);
+			// Charge continues - boss plows through player-placed blocks.
 		}
 		
 		if (hitBoundary)
@@ -1222,17 +1226,19 @@ public class EnemyAI
 	/**
 	 * Destroys all non-AIR blocks (solid, torches, doors, etc.) in three columns:<br>
 	 * center, left and right (perpendicular to movement direction).<br>
-	 * Each column spans the dragon's 3-block headroom plus 1 block above (4 total).<br>
+	 * Each column spans the boss's headroom plus 1 block above.<br>
+	 * Dragon uses 3+1=4 height, Shadow uses 4+1=5 height.<br>
 	 * Uses batch block removal with a single mesh rebuild for efficiency.
+	 * @param enemy the boss enemy (for headroom calculation)
 	 * @param world the arena world
 	 * @param bx block X coordinate of the center column
-	 * @param footY the dragon's foot-level Y (ground surface)
+	 * @param footY the boss's foot-level Y (ground surface)
 	 * @param bz block Z coordinate of the center column
 	 * @param dirX normalized X movement direction (for computing perpendicular)
 	 * @param dirZ normalized Z movement direction (for computing perpendicular)
 	 * @return true if any blocks were destroyed
 	 */
-	private static boolean dragonDestroyBlocks(World world, int bx, int footY, int bz, float dirX, float dirZ)
+	private static boolean bossDestroyBlocks(Enemy enemy, World world, int bx, int footY, int bz, float dirX, float dirZ)
 	{
 		// Perpendicular direction for left/right expansion.
 		// Left = (-dirZ, dirX), Right = (dirZ, -dirX) - rounded to block offsets.
@@ -1247,8 +1253,9 @@ public class EnemyAI
 		
 		boolean destroyed = false;
 		
-		// Destroy center, left and right columns (3-block headroom + 1 above each).
-		for (int h = 0; h < 4; h++)
+		// Destroy center, left and right columns (headroom + 1 above each).
+		final int destroyHeight = getHeadroom(enemy) + 1;
+		for (int h = 0; h < destroyHeight; h++)
 		{
 			final int by = footY + h;
 			
@@ -1265,7 +1272,7 @@ public class EnemyAI
 		if (destroyed)
 		{
 			world.rebuildDirtyRegionsImmediate();
-			System.out.println("Dragon destroyed blocks at [" + bx + ", " + footY + ", " + bz + "]");
+			System.out.println("Boss destroyed blocks at [" + bx + ", " + footY + ", " + bz + "] (height=" + destroyHeight + ")");
 		}
 		
 		return destroyed;
@@ -1315,7 +1322,7 @@ public class EnemyAI
 			enemy.setChargeInterval(5.0f + Rnd.nextFloat() * 3.0f);
 		}
 		
-		System.out.println("Dragon entered Phase " + phase + "! HP: " + String.format("%.1f", enemy.getHealth()) + "/" + String.format("%.0f", enemy.getMaxHealth()));
+		System.out.println("Boss entered Phase " + phase + "! HP: " + String.format("%.1f", enemy.getHealth()) + "/" + String.format("%.0f", enemy.getMaxHealth()));
 	}
 	
 	/**
@@ -1505,6 +1512,10 @@ public class EnemyAI
 			case DRAGON:
 			{
 				return 3;
+			}
+			case SHADOW:
+			{
+				return 4;
 			}
 			default:
 			{

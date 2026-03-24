@@ -4,6 +4,8 @@ import java.nio.ByteBuffer;
 import java.util.Random;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
@@ -109,8 +111,16 @@ public class EnemyFactory
 			{
 				buildDragon(enemy, assetManager);
 				
-				// Stats: 200 HP, speed 2.0 (Phase 1), detection 50, attackRange 3.0 (bite), damage 8 (bite P1), cooldown 2.0s.
-				applyStats(enemy, 200, 2.0f, 50, 3.0f, 8.0f, 2.0f, false);
+				// Stats: 200 HP, speed 2.0 (Phase 1), detection 50, attackRange 3.0 (bite), damage 10 (bite P1), cooldown 2.0s.
+				applyStats(enemy, 200, 2.0f, 50, 3.0f, 10.0f, 2.0f, false);
+				break;
+			}
+			case SHADOW:
+			{
+				buildShadow(enemy, assetManager);
+				
+				// Stats: 500 HP, speed 2.0 (Phase 1), detection 50, attackRange 3.0, damage 12, cooldown 2.0s.
+				applyStats(enemy, 500, 2.0f, 50, 3.0f, 12.0f, 2.0f, false);
 				break;
 			}
 		}
@@ -1036,8 +1046,359 @@ public class EnemyFactory
 		tail3.attachChild(makeBox("Tail3Box", 0.1f, 0.1f, 0.4f, backMat, 0, 0, 0.4f));
 		tail2.attachChild(tail3);
 		enemy.setTail3(tail3);
+		
+		// ---- Fire Breath Emitter ----
+		// Identical to Shadow's emitter - dormant until activated by EnemyAnimator.
+		// Stored on the Enemy and attached outside the node hierarchy by BossArenaManager.
+		final ParticleEmitter dragonFireEmitter = new ParticleEmitter("DragonFireBreath", ParticleMesh.Type.Triangle, 30);
+		
+		final Material dragonFireMat = new Material(assetManager, "Common/MatDefs/Misc/Particle.j3md");
+		dragonFireMat.setTexture("Texture", assetManager.loadTexture(FLAME_IMAGE_PATH));
+		dragonFireMat.getAdditionalRenderState().setBlendMode(BlendMode.Additive);
+		dragonFireEmitter.setMaterial(dragonFireMat);
+		dragonFireEmitter.setQueueBucket(Bucket.Transparent);
+		
+		dragonFireEmitter.setImagesX(2);
+		dragonFireEmitter.setImagesY(2);
+		dragonFireEmitter.setSelectRandomImage(true);
+		
+		dragonFireEmitter.setStartSize(0.25f);
+		dragonFireEmitter.setEndSize(0.7f);
+		dragonFireEmitter.setStartColor(new ColorRGBA(1.0f, 0.6f, 0.1f, 0.9f));
+		dragonFireEmitter.setEndColor(new ColorRGBA(1.0f, 0.1f, 0.0f, 0.0f));
+		
+		dragonFireEmitter.setLowLife(0.2f);
+		dragonFireEmitter.setHighLife(0.5f);
+		
+		// Fire shoots forward (-Z in head-local space). Dragon snout is longer.
+		dragonFireEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.5f, -8.0f));
+		dragonFireEmitter.getParticleInfluencer().setVelocityVariation(0.3f);
+		dragonFireEmitter.setGravity(0, -1.0f, 0);
+		
+		dragonFireEmitter.setLocalTranslation(0, 0.1f, -0.95f); // Mouth of the snout.
+		dragonFireEmitter.setParticlesPerSec(0); // Dormant.
+		
+		enemy.setFireBreathEmitter(dragonFireEmitter);
 	}
 	
 	/** Shared temp quaternion for dragon horn/wing rotation setup. */
 	private static final Quaternion TEMP_QUAT = new Quaternion();
+	
+	// ========================================================
+	// Shadow (~3 blocks tall, bipedal demon / balrog).
+	// ========================================================
+	
+	/** Flame effect image path (shared with campfire). */
+	private static final String FLAME_IMAGE_PATH = "assets/images/effects/flame.png";
+	
+	/**
+	 * Builds a shadow demon model - tall dark bipedal demon with:<br>
+	 * - Charcoal/obsidian body with dark red accents<br>
+	 * - Curved ram-like horns<br>
+	 * - Red glowing eyes, two white fangs<br>
+	 * - Broad muscular torso<br>
+	 * - Long clawed arms<br>
+	 * - Digitigrade goat-like legs with hooves<br>
+	 * <br>
+	 * Uses leftLeg/rightLeg for goat legs and leftArm/rightArm for demon arms.<br>
+	 * Jaw stored in the dragon jaw field for bite animation reuse.<br>
+	 * Stands approximately 3 blocks tall (head at ~2.8, horns at ~3.2).
+	 */
+	private static void buildShadow(Enemy enemy, AssetManager assetManager)
+	{
+		final Node root = enemy.getNode();
+		
+		// Shadow palette - dark obsidian body with subtle crimson accents.
+		// Uses unlit materials (no VertexColor) because the arena has no sky light.
+		final ColorRGBA bodyColor = new ColorRGBA(0.10f, 0.08f, 0.08f, 1.0f); // Near-black.
+		final ColorRGBA chestColor = new ColorRGBA(0.14f, 0.06f, 0.06f, 1.0f); // Dark crimson.
+		final ColorRGBA headColor = new ColorRGBA(0.12f, 0.09f, 0.09f, 1.0f);
+		final ColorRGBA hornColor = new ColorRGBA(0.18f, 0.12f, 0.08f, 1.0f); // Dark bone.
+		final ColorRGBA clawColor = new ColorRGBA(0.15f, 0.10f, 0.07f, 1.0f);
+		final ColorRGBA hoofColor = new ColorRGBA(0.08f, 0.06f, 0.06f, 1.0f); // Almost black hooves.
+		final ColorRGBA eyeColor = EYE_RED;
+		
+		final Material bodyMat = makeDragonMat(assetManager, bodyColor);
+		final Material chestMat = makeDragonMat(assetManager, chestColor);
+		final Material headMat = makeDragonMat(assetManager, headColor);
+		final Material hornMat = makeDragonMat(assetManager, hornColor);
+		final Material clawMat = makeDragonMat(assetManager, clawColor);
+		final Material hoofMat = makeDragonMat(assetManager, hoofColor);
+		final Material eyeMat = makeDragonFlatMat(assetManager, eyeColor);
+		final Material toothMat = makeDragonFlatMat(assetManager, TOOTH_WHITE);
+		final Material jawMat = makeDragonMat(assetManager, darken(headColor, 0.8f));
+		
+		// ---- Body / Torso ----
+		// Pivot at hip level (Y=1.3). Broad muscular torso.
+		final Node bodyNode = makePivotPart("Body", makeBox("BodyBox", 0.45f, 0.55f, 0.25f, bodyMat, 0, 0.55f, 0), 0, 1.3f, 0);
+		root.attachChild(bodyNode);
+		enemy.setBody(bodyNode);
+		
+		// Chest plate - slightly lighter, overlaid on front.
+		bodyNode.attachChild(makeBox("ChestPlate", 0.38f, 0.4f, 0.03f, chestMat, 0, 0.55f, -0.27f));
+		
+		// Back ridge - subtle spinal ridge.
+		bodyNode.attachChild(makeBox("BackRidge", 0.06f, 0.45f, 0.03f, hornMat, 0, 0.6f, 0.27f));
+		
+		// ---- Head ----
+		// Head pivot at neck level (Y=2.35). Angular demon skull.
+		final Node headNode = new Node("Head");
+		headNode.setLocalTranslation(0, 2.35f, -0.05f);
+		root.attachChild(headNode);
+		enemy.setHead(headNode);
+		
+		// Main skull - angular, slightly elongated.
+		headNode.attachChild(makeBox("Skull", 0.28f, 0.28f, 0.28f, headMat, 0, 0.28f, 0));
+		
+		// Brow ridge - heavy overhanging brow.
+		headNode.attachChild(makeBox("BrowRidge", 0.32f, 0.06f, 0.12f, darken(headColor, 0.7f) == null ? headMat : makeDragonMat(assetManager, darken(headColor, 0.7f)), 0, 0.42f, -0.18f));
+		
+		// Snout / muzzle - slightly protruding.
+		headNode.attachChild(makeBox("Snout", 0.2f, 0.15f, 0.12f, headMat, 0, 0.15f, -0.35f));
+		
+		// Eyes - red, glowing, deep set under the brow.
+		headNode.attachChild(makeBox("LeftEye", 0.06f, 0.05f, 0.03f, eyeMat, -0.15f, 0.35f, -0.28f));
+		headNode.attachChild(makeBox("RightEye", 0.06f, 0.05f, 0.03f, eyeMat, 0.15f, 0.35f, -0.28f));
+		
+		// Two large white fangs - protruding downward from upper jaw.
+		headNode.attachChild(makeBox("LeftFang", 0.03f, 0.1f, 0.03f, toothMat, -0.1f, -0.02f, -0.35f));
+		headNode.attachChild(makeBox("RightFang", 0.03f, 0.1f, 0.03f, toothMat, 0.1f, -0.02f, -0.35f));
+		
+		// ---- Horns (ram-style, curving back and outward) ----
+		// Left horn - base segment angling back and out.
+		final Node leftHornBase = new Node("LeftHornBase");
+		leftHornBase.setLocalTranslation(-0.2f, 0.5f, 0.05f);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -20f, Vector3f.UNIT_X);
+		leftHornBase.setLocalRotation(TEMP_QUAT);
+		leftHornBase.attachChild(makeBox("LHornBase", 0.06f, 0.18f, 0.06f, hornMat, -0.06f, 0.18f, 0));
+		headNode.attachChild(leftHornBase);
+		
+		// Left horn - mid segment curving further.
+		final Node leftHornMid = new Node("LeftHornMid");
+		leftHornMid.setLocalTranslation(-0.06f, 0.36f, 0);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -30f, Vector3f.UNIT_X);
+		leftHornMid.setLocalRotation(TEMP_QUAT);
+		leftHornMid.attachChild(makeBox("LHornMid", 0.05f, 0.15f, 0.05f, hornMat, -0.04f, 0.15f, 0));
+		leftHornBase.attachChild(leftHornMid);
+		
+		// Left horn - tip.
+		final Node leftHornTip = new Node("LeftHornTip");
+		leftHornTip.setLocalTranslation(-0.04f, 0.3f, 0);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -20f, Vector3f.UNIT_X);
+		leftHornTip.setLocalRotation(TEMP_QUAT);
+		leftHornTip.attachChild(makeBox("LHornTip", 0.035f, 0.1f, 0.035f, hornMat, 0, 0.1f, 0));
+		leftHornMid.attachChild(leftHornTip);
+		
+		// Right horn (mirrored).
+		final Node rightHornBase = new Node("RightHornBase");
+		rightHornBase.setLocalTranslation(0.2f, 0.5f, 0.05f);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -20f, Vector3f.UNIT_X);
+		rightHornBase.setLocalRotation(TEMP_QUAT);
+		rightHornBase.attachChild(makeBox("RHornBase", 0.06f, 0.18f, 0.06f, hornMat, 0.06f, 0.18f, 0));
+		headNode.attachChild(rightHornBase);
+		
+		final Node rightHornMid = new Node("RightHornMid");
+		rightHornMid.setLocalTranslation(0.06f, 0.36f, 0);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -30f, Vector3f.UNIT_X);
+		rightHornMid.setLocalRotation(TEMP_QUAT);
+		rightHornMid.attachChild(makeBox("RHornMid", 0.05f, 0.15f, 0.05f, hornMat, 0.04f, 0.15f, 0));
+		rightHornBase.attachChild(rightHornMid);
+		
+		final Node rightHornTip = new Node("RightHornTip");
+		rightHornTip.setLocalTranslation(0.04f, 0.3f, 0);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -20f, Vector3f.UNIT_X);
+		rightHornTip.setLocalRotation(TEMP_QUAT);
+		rightHornTip.attachChild(makeBox("RHornTip", 0.035f, 0.1f, 0.035f, hornMat, 0, 0.1f, 0));
+		rightHornMid.attachChild(rightHornTip);
+		
+		// ---- Lower Jaw (for bite animation) ----
+		final Node jawNode = new Node("Jaw");
+		jawNode.setLocalTranslation(0, 0.0f, -0.1f);
+		jawNode.attachChild(makeBox("JawBox", 0.18f, 0.06f, 0.2f, jawMat, 0, -0.06f, -0.15f));
+		headNode.attachChild(jawNode);
+		enemy.setJaw(jawNode);
+		
+		// Lower teeth on the jaw.
+		jawNode.attachChild(makeBox("JawTeethL", 0.02f, 0.03f, 0.02f, toothMat, -0.08f, 0.01f, -0.3f));
+		jawNode.attachChild(makeBox("JawTeethR", 0.02f, 0.03f, 0.02f, toothMat, 0.08f, 0.01f, -0.3f));
+		
+		// ---- Arms ----
+		// Long, muscular demon arms with clawed hands.
+		// Left arm - pivot at shoulder (Y=2.1, outboard of torso).
+		final Node leftArm = new Node("LeftArm");
+		leftArm.setLocalTranslation(-0.55f, 2.1f, 0);
+		root.attachChild(leftArm);
+		enemy.setLeftArm(leftArm);
+		
+		// Upper arm.
+		leftArm.attachChild(makeBox("LUpperArm", 0.12f, 0.35f, 0.12f, bodyMat, 0, -0.35f, 0));
+		
+		// Forearm (slightly thinner, offset downward).
+		leftArm.attachChild(makeBox("LForearm", 0.1f, 0.3f, 0.1f, bodyMat, 0, -0.95f, 0));
+		
+		// Clawed hand.
+		leftArm.attachChild(makeBox("LClaw1", 0.02f, 0.08f, 0.02f, clawMat, -0.06f, -1.28f, -0.04f));
+		leftArm.attachChild(makeBox("LClaw2", 0.02f, 0.08f, 0.02f, clawMat, 0, -1.3f, -0.06f));
+		leftArm.attachChild(makeBox("LClaw3", 0.02f, 0.08f, 0.02f, clawMat, 0.06f, -1.28f, -0.04f));
+		
+		// Right arm (mirrored).
+		final Node rightArm = new Node("RightArm");
+		rightArm.setLocalTranslation(0.55f, 2.1f, 0);
+		root.attachChild(rightArm);
+		enemy.setRightArm(rightArm);
+		
+		rightArm.attachChild(makeBox("RUpperArm", 0.12f, 0.35f, 0.12f, bodyMat, 0, -0.35f, 0));
+		rightArm.attachChild(makeBox("RForearm", 0.1f, 0.3f, 0.1f, bodyMat, 0, -0.95f, 0));
+		rightArm.attachChild(makeBox("RClaw1", 0.02f, 0.08f, 0.02f, clawMat, -0.06f, -1.28f, -0.04f));
+		rightArm.attachChild(makeBox("RClaw2", 0.02f, 0.08f, 0.02f, clawMat, 0, -1.3f, -0.06f));
+		rightArm.attachChild(makeBox("RClaw3", 0.02f, 0.08f, 0.02f, clawMat, 0.06f, -1.28f, -0.04f));
+		
+		// ---- Wings (dark bat-like, attached to upper back of body) ----
+		// Each wing: two bone spars + large dark membrane panel.
+		// Positioned at shoulder height on the back, angled slightly upward and out.
+		final ColorRGBA wingBoneColor = new ColorRGBA(0.08f, 0.06f, 0.06f, 1.0f); // Near-black bone.
+		final ColorRGBA wingMembraneColor = new ColorRGBA(0.06f, 0.04f, 0.04f, 0.75f); // Very dark, semi-transparent.
+		final Material wingBoneMat = makeDragonMat(assetManager, wingBoneColor);
+		
+		// Wing membrane - semi-transparent dark material.
+		final Material membraneMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		membraneMat.setTexture("ColorMap", generateNoiseTexture(wingMembraneColor));
+		membraneMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		
+		// Left wing.
+		final Node leftWing = new Node("LeftWing");
+		leftWing.setLocalTranslation(-0.45f, 0.9f, 0.15f); // Upper-left of body, slightly behind.
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * 20f, Vector3f.UNIT_Z); // Angled outward/upward.
+		leftWing.setLocalRotation(TEMP_QUAT);
+		
+		// Main bone spar.
+		leftWing.attachChild(makeBox("LWingBone1", 0.03f, 0.03f, 0.7f, wingBoneMat, -0.7f, 0, 0));
+		
+		// Secondary bone spar (angled down from tip for bat shape).
+		leftWing.attachChild(makeBox("LWingBone2", 0.025f, 0.025f, 0.5f, wingBoneMat, -1.2f, -0.15f, -0.15f));
+		
+		// Wing membrane - large dark panel.
+		final Geometry lMembrane = makeBox("LWingMembrane", 0.7f, 0.01f, 0.65f, membraneMat, -0.7f, -0.08f, 0);
+		lMembrane.setQueueBucket(Bucket.Transparent);
+		leftWing.attachChild(lMembrane);
+		
+		// Wing tip claw.
+		leftWing.attachChild(makeBox("LWingClaw", 0.02f, 0.06f, 0.02f, clawMat, -1.4f, -0.08f, -0.3f));
+		
+		bodyNode.attachChild(leftWing);
+		
+		// Right wing (mirrored).
+		final Node rightWing = new Node("RightWing");
+		rightWing.setLocalTranslation(0.45f, 0.9f, 0.15f);
+		TEMP_QUAT.fromAngleAxis(FastMath.DEG_TO_RAD * -20f, Vector3f.UNIT_Z);
+		rightWing.setLocalRotation(TEMP_QUAT);
+		
+		rightWing.attachChild(makeBox("RWingBone1", 0.03f, 0.03f, 0.7f, wingBoneMat, 0.7f, 0, 0));
+		rightWing.attachChild(makeBox("RWingBone2", 0.025f, 0.025f, 0.5f, wingBoneMat, 1.2f, -0.15f, -0.15f));
+		
+		final Geometry rMembrane = makeBox("RWingMembrane", 0.7f, 0.01f, 0.65f, membraneMat, 0.7f, -0.08f, 0);
+		rMembrane.setQueueBucket(Bucket.Transparent);
+		rightWing.attachChild(rMembrane);
+		
+		rightWing.attachChild(makeBox("RWingClaw", 0.02f, 0.06f, 0.02f, clawMat, 1.4f, -0.08f, -0.3f));
+		
+		bodyNode.attachChild(rightWing);
+		
+		// ---- Goat Legs (digitigrade) ----
+		// Each leg has: upper thigh (angled forward), lower shin (angled back), hoof.
+		// The pivot is at the hip (Y=1.3). The whole leg assembly hangs below.
+		
+		// Left leg.
+		final Node leftLeg = new Node("LeftLeg");
+		leftLeg.setLocalTranslation(-0.2f, 1.3f, 0);
+		root.attachChild(leftLeg);
+		enemy.setLeftLeg(leftLeg);
+		
+		// Upper thigh - thick, angled slightly forward.
+		leftLeg.attachChild(makeBox("LThigh", 0.14f, 0.35f, 0.14f, bodyMat, 0, -0.35f, -0.05f));
+		
+		// Lower shin - thinner, angled backward (creates the digitigrade "reversed knee").
+		leftLeg.attachChild(makeBox("LShin", 0.1f, 0.35f, 0.1f, bodyMat, 0, -0.95f, 0.1f));
+		
+		// Hoof - small, dark, at ground level.
+		leftLeg.attachChild(makeBox("LHoof", 0.09f, 0.06f, 0.12f, hoofMat, 0, -1.3f, 0.05f));
+		
+		// Right leg (mirrored).
+		final Node rightLeg = new Node("RightLeg");
+		rightLeg.setLocalTranslation(0.2f, 1.3f, 0);
+		root.attachChild(rightLeg);
+		enemy.setRightLeg(rightLeg);
+		
+		rightLeg.attachChild(makeBox("RThigh", 0.14f, 0.35f, 0.14f, bodyMat, 0, -0.35f, -0.05f));
+		rightLeg.attachChild(makeBox("RShin", 0.1f, 0.35f, 0.1f, bodyMat, 0, -0.95f, 0.1f));
+		rightLeg.attachChild(makeBox("RHoof", 0.09f, 0.06f, 0.12f, hoofMat, 0, -1.3f, 0.05f));
+		
+		// ---- Fire Breath Emitter ----
+		// Attached to the head node, initially dormant (0 particles per sec).
+		// EnemyAnimator activates it during fire breath attacks.
+		final ParticleEmitter fireEmitter = new ParticleEmitter("FireBreath", ParticleMesh.Type.Triangle, 30);
+		
+		final Material fireMat = new Material(assetManager, "Common/MatDefs/Misc/Particle.j3md");
+		fireMat.setTexture("Texture", assetManager.loadTexture(FLAME_IMAGE_PATH));
+		fireMat.getAdditionalRenderState().setBlendMode(BlendMode.Additive);
+		fireEmitter.setMaterial(fireMat);
+		fireEmitter.setQueueBucket(Bucket.Transparent);
+		
+		fireEmitter.setImagesX(2);
+		fireEmitter.setImagesY(2);
+		fireEmitter.setSelectRandomImage(true);
+		
+		fireEmitter.setStartSize(0.2f);
+		fireEmitter.setEndSize(0.6f);
+		fireEmitter.setStartColor(new ColorRGBA(1.0f, 0.6f, 0.1f, 0.9f)); // Orange.
+		fireEmitter.setEndColor(new ColorRGBA(1.0f, 0.1f, 0.0f, 0.0f)); // Red, fade out.
+		
+		fireEmitter.setLowLife(0.2f);
+		fireEmitter.setHighLife(0.5f);
+		
+		// Fire shoots forward (-Z in head-local space).
+		fireEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.5f, -8.0f));
+		fireEmitter.getParticleInfluencer().setVelocityVariation(0.3f);
+		fireEmitter.setGravity(0, -1.0f, 0);
+		
+		// Position at the mouth (relative offset - applied in world space each frame by BossArenaManager).
+		fireEmitter.setLocalTranslation(0, 0.1f, -0.45f);
+		fireEmitter.setParticlesPerSec(0); // Dormant until activated.
+		
+		// NOTE: Do NOT attach the emitter to headNode. EnemyLighting recursively
+		// traverses the enemy node hierarchy and tries to set vertex color buffers
+		// on every Geometry - ParticleEmitter meshes have an incompatible buffer
+		// format, causing an UnsupportedOperationException. The emitter is stored
+		// on the Enemy and attached to a separate scene node by BossArenaManager,
+		// which syncs its world transform to the head each frame.
+		enemy.setFireBreathEmitter(fireEmitter);
+		
+		// ---- Ambient Smoke Emitter ----
+		// Dark wispy smoke constantly rising from the Shadow's body.
+		// Uses PointSprite (same as furnace smoke) - no texture needed.
+		// Attached outside enemy hierarchy by BossArenaManager to avoid EnemyLighting crash.
+		final ParticleEmitter smokeEmitter = new ParticleEmitter("ShadowSmoke", ParticleMesh.Type.Point, 20);
+		
+		final Material smokeMat = new Material(assetManager, "Common/MatDefs/Misc/Particle.j3md");
+		smokeMat.setBoolean("PointSprite", true);
+		smokeEmitter.setMaterial(smokeMat);
+		
+		smokeEmitter.setImagesX(1);
+		smokeEmitter.setImagesY(1);
+		
+		smokeEmitter.setStartColor(new ColorRGBA(0.12f, 0.08f, 0.08f, 0.5f)); // Dark charcoal, semi-transparent.
+		smokeEmitter.setEndColor(new ColorRGBA(0.08f, 0.05f, 0.05f, 0.0f)); // Fades to nothing.
+		smokeEmitter.setStartSize(0.2f);
+		smokeEmitter.setEndSize(0.8f);
+		
+		smokeEmitter.setGravity(0, -0.4f, 0); // Drifts upward (negative gravity = up).
+		smokeEmitter.setLowLife(1.2f);
+		smokeEmitter.setHighLife(2.5f);
+		
+		smokeEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.6f, 0));
+		smokeEmitter.getParticleInfluencer().setVelocityVariation(0.5f);
+		smokeEmitter.setParticlesPerSec(8); // Always emitting.
+		
+		enemy.setSmokeEmitter(smokeEmitter);
+	}
 }

@@ -130,6 +130,11 @@ By: Pantelis Andrianakis
 Created with: Paint.NET  
 File name: dragon_orb.png  
 
+## Shadow Orb
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: shadow_orb.png  
+
 ## Iron Helmet
 By: Pantelis Andrianakis  
 Created with: Paint.NET  

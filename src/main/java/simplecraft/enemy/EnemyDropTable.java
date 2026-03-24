@@ -88,11 +88,19 @@ public class EnemyDropTable
 		new DropEntry("meat", 1, 1, 0.40f),
 	};
 	
-	/** Dragon: 1 Recall Orb (100%), 5-10 Gold Nuggets (100%). */
+	/** Dragon: 1 Recall Orb (100%), 5-10 Gold Bars (100%). */
 	private static final DropEntry[] DRAGON_DROPS =
 	{
 		new DropEntry("recall_orb", 1, 1, 1.00f),
 		new DropEntry("gold_bar", 5, 10, 1.00f),
+	};
+	
+	/** Shadow: 1 Recall Orb (100%), 20-50 Iron Bars (100%), 20-50 Gold Bars (100%). */
+	private static final DropEntry[] SHADOW_DROPS =
+	{
+		new DropEntry("recall_orb", 1, 1, 1.00f),
+		new DropEntry("iron_bar", 20, 50, 1.00f),
+		new DropEntry("gold_bar", 20, 50, 1.00f),
 	};
 	
 	/**
@@ -184,6 +192,10 @@ public class EnemyDropTable
 			case DRAGON:
 			{
 				return DRAGON_DROPS;
+			}
+			case SHADOW:
+			{
+				return SHADOW_DROPS;
 			}
 			default:
 			{

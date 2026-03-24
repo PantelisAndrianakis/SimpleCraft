@@ -224,7 +224,8 @@ public class CraftingRegistry
 		// ========================================================
 		// Special Orbs.
 		// ========================================================
-		register("dragon_orb", 1, ingredients("iron_bar", 20, "stone_shard", 50, "glass", 10));
+		register("dragon_orb", 1, ingredients("iron_bar", 10, "stone_shard", 50, "glass", 10));
+		register("shadow_orb", 1, ingredients("gold_bar", 10, "iron_bar", 20, "glass", 10));
 		
 		System.out.println("CraftingRegistry: Registered " + RECIPES.size() + " recipes.");
 	}

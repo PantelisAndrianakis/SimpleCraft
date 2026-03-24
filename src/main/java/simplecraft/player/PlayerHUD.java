@@ -589,17 +589,38 @@ public class PlayerHUD
 	}
 	
 	/**
-	 * Shows the boss health bar. Called when entering the boss arena.
+	 * Shows the boss health bar with the given boss name. Called when entering the boss arena.
+	 * @param bossName the display name of the boss (e.g. "Dragon", "Shadow")
 	 */
-	public void showBossHealthBar()
+	public void showBossHealthBar(String bossName)
 	{
 		if (_bossBarVisible)
 		{
 			return;
 		}
 		
+		// Update the name label.
+		if (_bossBarName != null)
+		{
+			_bossBarName.setText(bossName);
+		}
+		
+		if (_bossBarNameShadow != null)
+		{
+			_bossBarNameShadow.setText(bossName);
+		}
+		
 		_bossBarVisible = true;
 		_bossBarNode.setCullHint(Node.CullHint.Never);
+	}
+	
+	/**
+	 * Shows the boss health bar with the default "Dragon" name.<br>
+	 * Convenience overload for backward compatibility.
+	 */
+	public void showBossHealthBar()
+	{
+		showBossHealthBar("Dragon");
 	}
 	
 	/**

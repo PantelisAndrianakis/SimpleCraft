@@ -1,10 +1,13 @@
 package simplecraft.enemy;
 
+import com.jme3.effect.ParticleEmitter;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+
+import simplecraft.enemy.Enemy.EnemyType;
 
 /**
  * Procedural animation system for all enemy types.<br>
@@ -122,6 +125,25 @@ public class EnemyAnimator
 	private static final float DRAGON_DEATH_DURATION = 2.0f;
 	
 	// ------------------------------------------------------------------
+	// Shadow animation constants.
+	// ------------------------------------------------------------------
+	
+	/** Shadow walk cycle speed (radians per second). */
+	private static final float SHADOW_WALK_SPEED = 6.0f;
+	
+	/** Shadow leg swing amplitude (radians). */
+	private static final float SHADOW_LEG_AMPLITUDE = 0.5f;
+	
+	/** Shadow arm swing amplitude (radians). */
+	private static final float SHADOW_ARM_AMPLITUDE = 0.4f;
+	
+	/** Shadow body sway amplitude while walking (radians around Y). */
+	private static final float SHADOW_BODY_SWAY = 0.04f;
+	
+	/** Shadow bite total duration (seconds). */
+	private static final float SHADOW_BITE_DURATION = 0.5f;
+	
+	// ------------------------------------------------------------------
 	// Death animation constants.
 	// ------------------------------------------------------------------
 	
@@ -168,7 +190,7 @@ public class EnemyAnimator
 		// Death animation overrides everything else.
 		if (enemy.isDying())
 		{
-			if (enemy.getType() == Enemy.EnemyType.DRAGON)
+			if (enemy.getType() == EnemyType.DRAGON || enemy.getType() == EnemyType.SHADOW)
 			{
 				animateDragonDeath(enemy, tpf);
 			}
@@ -228,6 +250,11 @@ public class EnemyAnimator
 			case DRAGON:
 			{
 				animateDragon(enemy, time, tpf, blend);
+				break;
+			}
+			case SHADOW:
+			{
+				animateShadow(enemy, time, tpf, blend);
 				break;
 			}
 		}
@@ -548,7 +575,7 @@ public class EnemyAnimator
 			head.setLocalRotation(TEMP_QUAT);
 		}
 		
-		// --- Bite animation ---
+		// --- Bite animation (with fire visual) ---
 		if (enemy.isBiteActive())
 		{
 			enemy.setBiteTimer(enemy.getBiteTimer() + tpf);
@@ -595,6 +622,13 @@ public class EnemyAnimator
 				jaw.setLocalRotation(TEMP_QUAT);
 			}
 			
+			// Fire emitter active while jaw is open (visual only - damage is from bite).
+			final ParticleEmitter emitter = enemy.getFireBreathEmitter();
+			if (emitter != null)
+			{
+				emitter.setParticlesPerSec(bt < 0.25f ? 40 : 0);
+			}
+			
 			if (bt >= DRAGON_BITE_DURATION)
 			{
 				enemy.setBiteActive(false);
@@ -605,6 +639,21 @@ public class EnemyAnimator
 				{
 					head.setLocalTranslation(0, 1.2f, -2.1f);
 				}
+				
+				// Ensure fire off.
+				if (emitter != null)
+				{
+					emitter.setParticlesPerSec(0);
+				}
+			}
+		}
+		else
+		{
+			// Ensure fire emitter is off when not biting.
+			final ParticleEmitter emitter = enemy.getFireBreathEmitter();
+			if (emitter != null)
+			{
+				emitter.setParticlesPerSec(0);
 			}
 		}
 		
@@ -704,6 +753,13 @@ public class EnemyAnimator
 	 */
 	private static void animateDragonDeath(Enemy enemy, float tpf)
 	{
+		// Kill fire breath particles if dying mid-breath (Shadow only).
+		final com.jme3.effect.ParticleEmitter breathEmitter = enemy.getFireBreathEmitter();
+		if (breathEmitter != null)
+		{
+			breathEmitter.setParticlesPerSec(0);
+		}
+		
 		enemy.setBossDeathTimer(enemy.getBossDeathTimer() + tpf);
 		final float timer = enemy.getBossDeathTimer();
 		final float t = Math.min(1.0f, timer / DRAGON_DEATH_DURATION);
@@ -790,6 +846,189 @@ public class EnemyAnimator
 			enemy.setAlive(false);
 			enemy.setStateTimer(999f);
 			root.setLocalScale(0.01f);
+		}
+	}
+	
+	// ------------------------------------------------------------------
+	// Shadow animation (bipedal demon).
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Full shadow demon animation: bipedal walk cycle with humanoid limbs,<br>
+	 * body sway, idle breathing, bite, fire breath (particle activation),<br>
+	 * charge telegraph and roar.
+	 */
+	private static void animateShadow(Enemy enemy, float time, float tpf, float blend)
+	{
+		final Node body = enemy.getBody();
+		final Node head = enemy.getHead();
+		final Node jaw = enemy.getJaw();
+		
+		// --- Walk cycle: humanoid gait (legs opposite to arms) ---
+		final float walkSwing = FastMath.sin(time * SHADOW_WALK_SPEED) * SHADOW_LEG_AMPLITUDE * blend;
+		
+		// Legs swing in opposition.
+		setXRotation(enemy.getLeftLeg(), walkSwing);
+		setXRotation(enemy.getRightLeg(), -walkSwing);
+		
+		// Arms swing opposite to legs.
+		setXRotation(enemy.getLeftArm(), -walkSwing * (SHADOW_ARM_AMPLITUDE / SHADOW_LEG_AMPLITUDE));
+		setXRotation(enemy.getRightArm(), walkSwing * (SHADOW_ARM_AMPLITUDE / SHADOW_LEG_AMPLITUDE));
+		
+		// Body sway while walking.
+		if (body != null)
+		{
+			final float sway = FastMath.sin(time * SHADOW_WALK_SPEED * 0.5f) * SHADOW_BODY_SWAY * blend;
+			TEMP_QUAT.fromAngleAxis(sway, Vector3f.UNIT_Y);
+			body.setLocalRotation(TEMP_QUAT);
+		}
+		
+		// --- Idle breathing (body scale Y on slow sine) ---
+		if (blend < 0.5f && body != null)
+		{
+			final float breathe = 1.0f + FastMath.sin(time * 1.0f) * 0.025f * (1.0f - blend);
+			body.setLocalScale(1.0f, breathe, 1.0f);
+		}
+		else if (body != null)
+		{
+			body.setLocalScale(1.0f);
+		}
+		
+		// --- Idle head turn ---
+		if (blend < 0.3f && head != null && !enemy.isBiteActive() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		{
+			final float headTurn = FastMath.sin(time * 0.7f) * 0.12f * (1.0f - blend);
+			TEMP_QUAT.fromAngleAxis(headTurn, Vector3f.UNIT_Y);
+			head.setLocalRotation(TEMP_QUAT);
+		}
+		
+		// --- Bite animation (with fire visual) ---
+		if (enemy.isBiteActive())
+		{
+			enemy.setBiteTimer(enemy.getBiteTimer() + tpf);
+			final float bt = enemy.getBiteTimer();
+			
+			if (head != null)
+			{
+				// Head lunges forward.
+				final float lungeZ;
+				if (bt < 0.15f)
+				{
+					lungeZ = -(bt / 0.15f) * 0.35f;
+				}
+				else if (bt < 0.35f)
+				{
+					lungeZ = -0.35f + ((bt - 0.15f) / 0.2f) * 0.35f;
+				}
+				else
+				{
+					lungeZ = 0;
+				}
+				
+				head.setLocalTranslation(0, 2.35f, -0.05f + lungeZ);
+			}
+			
+			if (jaw != null)
+			{
+				// Jaw opens then snaps shut.
+				final float jawAngle;
+				if (bt < 0.15f)
+				{
+					jawAngle = (bt / 0.15f) * 25.0f * FastMath.DEG_TO_RAD;
+				}
+				else if (bt < 0.25f)
+				{
+					jawAngle = 25.0f * FastMath.DEG_TO_RAD * (1.0f - (bt - 0.15f) / 0.1f);
+				}
+				else
+				{
+					jawAngle = 0;
+				}
+				
+				TEMP_QUAT.fromAngleAxis(jawAngle, Vector3f.UNIT_X);
+				jaw.setLocalRotation(TEMP_QUAT);
+			}
+			
+			// Fire emitter active while jaw is open (visual only - damage is from bite).
+			final ParticleEmitter emitter = enemy.getFireBreathEmitter();
+			if (emitter != null)
+			{
+				emitter.setParticlesPerSec(bt < 0.25f ? 40 : 0);
+			}
+			
+			if (bt >= SHADOW_BITE_DURATION)
+			{
+				enemy.setBiteActive(false);
+				enemy.setBiteTimer(0);
+				
+				// Reset head position.
+				if (head != null)
+				{
+					head.setLocalTranslation(0, 2.35f, -0.05f);
+				}
+				
+				// Ensure fire off.
+				if (emitter != null)
+				{
+					emitter.setParticlesPerSec(0);
+				}
+			}
+		}
+		else
+		{
+			// Ensure fire emitter is off when not biting.
+			final ParticleEmitter emitter = enemy.getFireBreathEmitter();
+			if (emitter != null)
+			{
+				emitter.setParticlesPerSec(0);
+			}
+		}
+		
+		// --- Charge telegraph: head lowers ---
+		if (enemy.isChargeTelegraph() && head != null)
+		{
+			final float pitch = -20.0f * FastMath.DEG_TO_RAD * Math.min(1.0f, enemy.getTelegraphTimer() / 0.3f);
+			TEMP_QUAT.fromAngleAxis(pitch, Vector3f.UNIT_X);
+			head.setLocalRotation(TEMP_QUAT);
+		}
+		
+		// --- Roar animation: head tilts up ---
+		if (enemy.isRoaring() && head != null)
+		{
+			final float roarT = enemy.getRoarTimer();
+			final float pitch;
+			if (roarT < 0.3f)
+			{
+				pitch = (roarT / 0.3f) * 30.0f * FastMath.DEG_TO_RAD;
+			}
+			else if (roarT < 0.7f)
+			{
+				pitch = 30.0f * FastMath.DEG_TO_RAD;
+			}
+			else
+			{
+				pitch = 30.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f);
+			}
+			
+			TEMP_QUAT.fromAngleAxis(pitch, Vector3f.UNIT_X);
+			head.setLocalRotation(TEMP_QUAT);
+			
+			// Open jaw during roar.
+			if (jaw != null)
+			{
+				final float jawAngle = (roarT < 0.7f) ? 30.0f * FastMath.DEG_TO_RAD : 30.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f);
+				TEMP_QUAT.fromAngleAxis(jawAngle, Vector3f.UNIT_X);
+				jaw.setLocalRotation(TEMP_QUAT);
+			}
+		}
+		
+		// --- Idle bob (subtle, when not attacking) ---
+		if (blend < 0.3f && !enemy.isBiteActive() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		{
+			final float bobY = FastMath.sin(time * IDLE_BOB_SPEED) * IDLE_BOB_AMPLITUDE * (1.0f - blend);
+			final Node root = enemy.getNode();
+			final Vector3f pos = enemy.getPosition();
+			root.setLocalTranslation(pos.x, pos.y + bobY, pos.z);
 		}
 	}
 	

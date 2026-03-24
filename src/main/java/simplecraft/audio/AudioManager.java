@@ -52,6 +52,7 @@ public class AudioManager
 	public static final String SFX_SPIDER_HISS = "sounds/enemies/spider_hiss.ogg";
 	public static final String SFX_SLIME_SQUELCH = "sounds/enemies/slime_squelch.ogg";
 	public static final String SFX_DRAGON = "sounds/enemies/dragon.ogg";
+	public static final String SFX_SHADOW = "sounds/enemies/shadow.ogg";
 	
 	// Public SFX paths - enemy combat.
 	public static final String SFX_ENEMY_HIT = "sounds/enemies/enemy_hit.ogg";

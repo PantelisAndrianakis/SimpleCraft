@@ -10,6 +10,7 @@ import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial.CullHint;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
@@ -167,7 +168,7 @@ public class CombatSystem
 		_flashGeometry.setMaterial(_flashMaterial);
 		_flashGeometry.setQueueBucket(Bucket.Gui);
 		_flashGeometry.setLocalTranslation(0, 0, 10); // Above most GUI elements.
-		_flashGeometry.setCullHint(Geometry.CullHint.Always);
+		_flashGeometry.setCullHint(CullHint.Always);
 		
 		_guiNode.attachChild(_flashGeometry);
 	}
@@ -313,13 +314,14 @@ public class CombatSystem
 		Enemy closestEnemy = null;
 		float closestDist = PLAYER_ATTACK_RANGE;
 		
-		// Scan with extended range if any dragon is in the list.
+		// Scan with extended range if any boss is in the list.
 		float maxRange = PLAYER_ATTACK_RANGE;
 		for (int i = 0; i < enemies.size(); i++)
 		{
-			if (enemies.get(i).getType() == EnemyType.DRAGON)
+			final EnemyType et = enemies.get(i).getType();
+			if (et == EnemyType.DRAGON || et == EnemyType.SHADOW)
 			{
-				maxRange = 5.0f; // Dragon is huge - allow hitting from further away.
+				maxRange = 5.0f; // Boss is huge - allow hitting from further away.
 				closestDist = maxRange;
 				break;
 			}
@@ -335,12 +337,12 @@ public class CombatSystem
 			}
 			
 			// Calculate enemy center mass position (feet + vertical offset).
-			// Dragon is much larger - higher center mass and wider hit box.
+			// Boss enemies (Dragon, Shadow) are much larger - higher center mass and wider hit box.
 			final Vector3f enemyPos = enemy.getPosition();
-			final boolean isDragon = (enemy.getType() == EnemyType.DRAGON);
-			final float centerOffset = isDragon ? 1.6f : ENEMY_CENTER_OFFSET;
-			final float hitRadius = isDragon ? 1.5f : PLAYER_HIT_RADIUS;
-			final float closeRange = isDragon ? 3.5f : CLOSE_RANGE_RADIUS;
+			final boolean isBoss = (enemy.getType() == EnemyType.DRAGON || enemy.getType() == EnemyType.SHADOW);
+			final float centerOffset = isBoss ? (enemy.getType() == EnemyType.SHADOW ? 1.8f : 1.6f) : ENEMY_CENTER_OFFSET;
+			final float hitRadius = isBoss ? 1.5f : PLAYER_HIT_RADIUS;
+			final float closeRange = isBoss ? 3.5f : CLOSE_RANGE_RADIUS;
 			final float centerX = enemyPos.x;
 			final float centerY = enemyPos.y + centerOffset;
 			final float centerZ = enemyPos.z;
@@ -587,7 +589,7 @@ public class CombatSystem
 		_flashColor.set(1.0f, 0.0f, 0.0f, 1.0f);
 		_flashStartAlpha = DAMAGE_FLASH_ALPHA;
 		_flashTimer = FLASH_DURATION;
-		_flashGeometry.setCullHint(Geometry.CullHint.Never);
+		_flashGeometry.setCullHint(CullHint.Never);
 	}
 	
 	/**
@@ -598,14 +600,14 @@ public class CombatSystem
 		_flashColor.set(1.0f, 0.0f, 0.0f, 1.0f);
 		_flashStartAlpha = DRAGON_DAMAGE_FLASH_ALPHA;
 		_flashTimer = FLASH_DURATION;
-		_flashGeometry.setCullHint(Geometry.CullHint.Never);
+		_flashGeometry.setCullHint(CullHint.Never);
 	}
 	
 	// ------------------------------------------------------------------
-	// Dragon Boss Combat.
+	// Boss Combat (Dragon & Shadow).
 	// ------------------------------------------------------------------
 	
-	/** Distance at which a charging dragon deals contact damage. */
+	/** Distance at which a charging boss deals contact damage. */
 	private static final float DRAGON_CHARGE_HIT_RADIUS = 2.0f;
 	
 	/** Bite damage is applied at this point in the bite animation (seconds). */
@@ -624,11 +626,12 @@ public class CombatSystem
 	private boolean _tailDamageApplied;
 	
 	/**
-	 * Per-frame update for dragon -> player combat in the boss arena.<br>
-	 * Handles bite, tail swipe and charge contact damage separately from the normal<br>
-	 * enemy attack pipeline because the dragon uses animation-driven damage timing.
+	 * Per-frame update for boss -> player combat in the boss arena.<br>
+	 * Handles bite, tail swipe (Dragon), fire breath (Shadow) and charge contact<br>
+	 * damage separately from the normal enemy attack pipeline because bosses use<br>
+	 * animation-driven damage timing.
 	 * @param player the player controller
-	 * @param dragon the dragon enemy
+	 * @param dragon the boss enemy (Dragon or Shadow)
 	 * @param tpf time per frame in seconds
 	 */
 	public void updateDragonCombat(PlayerController player, Enemy dragon, float tpf)
@@ -646,6 +649,8 @@ public class CombatSystem
 		}
 		
 		final float distToPlayer = dragon.getPosition().distance(player.getPosition());
+		final String bossName = (dragon.getType() == EnemyType.SHADOW) ? "Shadow" : "Dragon";
+		final String deathSource = "Killed by " + bossName;
 		
 		// --- Bite damage ---
 		if (dragon.isBiteActive())
@@ -654,9 +659,8 @@ public class CombatSystem
 			{
 				if (distToPlayer <= dragon.getAttackRange() * 1.3f)
 				{
-					final String source = "Killed by Dragon";
 					final float rawDamage = dragon.getAttackDamage();
-					final float finalDamage = applyDamageWithArmor(player, rawDamage, source);
+					final float finalDamage = applyDamageWithArmor(player, rawDamage, deathSource);
 					
 					if (finalDamage > 0)
 					{
@@ -669,7 +673,7 @@ public class CombatSystem
 						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
 					}
 					
-					System.out.println("Dragon BITE hit player for " + String.format("%.1f", rawDamage) + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+					System.out.println(bossName + " BITE hit player for " + String.format("%.1f", rawDamage) + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 				}
 				
 				_biteDamageApplied = true;
@@ -680,17 +684,15 @@ public class CombatSystem
 			_biteDamageApplied = false;
 		}
 		
-		// --- Tail swipe damage ---
+		// --- Tail swipe damage (Dragon only) ---
 		if (dragon.isTailSwiping())
 		{
 			if (!_tailDamageApplied && dragon.getTailSwipeTimer() >= DRAGON_TAIL_DAMAGE_TIME)
 			{
-				// Tail swipe damage uses a separate value based on phase.
 				final float tailDamage = dragon.getBossPhase() >= 2 ? 5.0f : 4.0f;
 				if (distToPlayer <= 4.5f)
 				{
-					final String source = "Killed by Dragon";
-					final float finalDamage = applyDamageWithArmor(player, tailDamage, source);
+					final float finalDamage = applyDamageWithArmor(player, tailDamage, deathSource);
 					
 					if (finalDamage > 0)
 					{
@@ -703,7 +705,7 @@ public class CombatSystem
 						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
 					}
 					
-					System.out.println("Dragon TAIL SWIPE hit player for " + String.format("%.1f", tailDamage) + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+					System.out.println(bossName + " TAIL SWIPE hit player for " + String.format("%.1f", tailDamage) + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 				}
 				
 				_tailDamageApplied = true;
@@ -719,8 +721,7 @@ public class CombatSystem
 		{
 			if (distToPlayer <= DRAGON_CHARGE_HIT_RADIUS)
 			{
-				final String source = "Killed by Dragon";
-				final float finalDamage = applyDamageWithArmor(player, DRAGON_CHARGE_DAMAGE, source);
+				final float finalDamage = applyDamageWithArmor(player, DRAGON_CHARGE_DAMAGE, deathSource);
 				
 				if (finalDamage > 0)
 				{
@@ -738,7 +739,7 @@ public class CombatSystem
 				dragon.setChargeRecovery(true);
 				dragon.setChargeRecoveryTimer(1.0f);
 				
-				System.out.println("Dragon CHARGE hit player for " + DRAGON_CHARGE_DAMAGE + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+				System.out.println(bossName + " CHARGE hit player for " + DRAGON_CHARGE_DAMAGE + " raw (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 			}
 		}
 		
@@ -776,7 +777,7 @@ public class CombatSystem
 		_flashColor.set(0.0f, 1.0f, 0.0f, 1.0f);
 		_flashStartAlpha = HEAL_FLASH_ALPHA;
 		_flashTimer = FLASH_DURATION;
-		_flashGeometry.setCullHint(Geometry.CullHint.Never);
+		_flashGeometry.setCullHint(CullHint.Never);
 	}
 	
 	/**
@@ -794,7 +795,7 @@ public class CombatSystem
 		if (_flashTimer <= 0)
 		{
 			_flashTimer = 0;
-			_flashGeometry.setCullHint(Geometry.CullHint.Always);
+			_flashGeometry.setCullHint(CullHint.Always);
 		}
 		else
 		{

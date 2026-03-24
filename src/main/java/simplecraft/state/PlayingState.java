@@ -27,6 +27,7 @@ import simplecraft.audio.MusicManager;
 import simplecraft.combat.CombatSystem;
 import simplecraft.effects.ParticleManager;
 import simplecraft.enemy.Enemy;
+import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyAI;
 import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
@@ -133,7 +134,7 @@ public class PlayingState extends FadeableAppState
 	/** Renders the held item sprite in the lower-right of the screen. */
 	private ViewmodelRenderer _viewmodelRenderer;
 	
-	/** Manages teleportation between the main world and the Dragon's Lair boss arena. */
+	/** Manages teleportation between the main world and the boss arena. */
 	private BossArenaManager _bossArenaManager;
 	
 	// --- Held torch dynamic light ---
@@ -153,8 +154,8 @@ public class PlayingState extends FadeableAppState
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
 	
-	/** Whether the dragon death has been processed (Recall Orb spawned, message shown). */
-	private boolean _dragonDeathProcessed;
+	/** Whether the boss death has been processed (Recall Orb spawned, message shown). */
+	private boolean _bossDeathProcessed;
 	
 	/**
 	 * True while the player has been spawned but hasn't touched the ground yet.<br>
@@ -190,7 +191,8 @@ public class PlayingState extends FadeableAppState
 	private boolean _paused;
 	
 	/** True for one frame while waiting for the arena to generate (loading screen visible). */
-	private boolean _pendingArenaEntry;
+	private boolean _pendingDragonArenaEntry;
+	private boolean _pendingShadowArenaEntry;
 	
 	/** Frame counter for pending arena entry (ensures loading screen renders before heavy generation). */
 	private int _arenaEntryWaitFrames;
@@ -584,7 +586,7 @@ public class PlayingState extends FadeableAppState
 		super.update(tpf);
 		
 		// --- Pending arena entry: loading screen is visible, generate and enter arena. ---
-		if (_pendingArenaEntry && _world != null && _playerController != null)
+		if ((_pendingDragonArenaEntry || _pendingShadowArenaEntry) && _world != null && _playerController != null)
 		{
 			updateLoadingScreen(tpf);
 			_arenaEntryWaitFrames++;
@@ -596,24 +598,31 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
-			_pendingArenaEntry = false;
+			final boolean shadowArena = _pendingShadowArenaEntry;
+			_pendingDragonArenaEntry = false;
+			_pendingShadowArenaEntry = false;
 			_arenaEntryWaitFrames = 0;
 			
 			if (_bossArenaManager != null)
 			{
-				_bossArenaManager.enterArena(_playerController, this);
+				_bossArenaManager.enterArena(shadowArena, _playerController, this);
 			}
+			
+			// Force one PlayerController update so the camera snaps to the spawn position
+			// BEFORE the loading screen is removed. Without this, the camera is still at
+			// the old main-world coordinates for one frame, briefly showing a tower interior.
+			_playerController.update(0);
 			
 			hideLoadingScreen();
 			
 			// Show boss health bar.
 			if (_playerHUD != null)
 			{
-				_playerHUD.showBossHealthBar();
+				_playerHUD.showBossHealthBar(shadowArena ? "Shadow" : "Dragon");
 			}
 			
-			// Reset dragon death tracking.
-			_dragonDeathProcessed = false;
+			// Reset boss death tracking.
+			_bossDeathProcessed = false;
 			
 			// Re-register input for gameplay in the arena.
 			_playerController.registerInput();
@@ -1113,47 +1122,47 @@ public class PlayingState extends FadeableAppState
 				_combatSystem.update(_playerController, _spawnSystem.getEnemies(), _world, tpf);
 			}
 			
-			// --- Boss Arena Dragon Updates ---
+			// --- Boss Arena Updates ---
 			if (isInBossArena() && _bossArenaManager != null)
 			{
-				final simplecraft.enemy.Enemy dragon = _bossArenaManager.getDragon();
+				final Enemy boss = _bossArenaManager.getBoss();
 				
-				// Update dragon AI, animation and arena drops.
+				// Update boss AI, animation and arena drops.
 				_bossArenaManager.update(_playerController, _world, tpf);
 				
-				// Player -> Dragon attack.
-				if (_combatSystem != null && !_playerDead && !screenOpen && dragon != null && dragon.isAlive() && !dragon.isDying())
+				// Player -> Boss attack.
+				if (_combatSystem != null && !_playerDead && !screenOpen && boss != null && boss.isAlive() && !boss.isDying())
 				{
 					if (_blockInteraction != null && _blockInteraction.isAttackHeld())
 					{
-						suppressBlockAttack = _combatSystem.tryPlayerAttackDragon(app.getCamera(), dragon, _world, _playerController);
+						suppressBlockAttack = _combatSystem.tryPlayerAttackDragon(app.getCamera(), boss, _world, _playerController);
 					}
 				}
 				
-				// Dragon -> Player combat (bite, tail swipe, charge contact damage).
-				if (_combatSystem != null && dragon != null)
+				// Boss -> Player combat (bite, tail swipe, charge contact damage).
+				if (_combatSystem != null && boss != null)
 				{
-					_combatSystem.updateDragonCombat(_playerController, dragon, tpf);
+					_combatSystem.updateDragonCombat(_playerController, boss, tpf);
 				}
 				else if (_combatSystem != null)
 				{
-					// No dragon - still update flash fade.
+					// No boss - still update flash fade.
 					_combatSystem.updateDragonCombat(_playerController, null, tpf);
 				}
 				
-				// Dragon death detection.
-				if (dragon != null && dragon.isDying() && !_dragonDeathProcessed)
+				// Boss death detection.
+				if (boss != null && boss.isDying() && !_bossDeathProcessed)
 				{
-					_dragonDeathProcessed = true;
+					_bossDeathProcessed = true;
 					
 					// Spawn drops via the normal drop table (Recall Orb + Gold Bars).
 					if (_combatSystem != null)
 					{
-						_combatSystem.onEnemyDeath(_playerController, dragon);
+						_combatSystem.onEnemyDeath(_playerController, boss);
 					}
 					
 					// Show victory message.
-					MessageManager.show("The Dragon has been slain!", 5.0f);
+					MessageManager.show("The " + (boss.getType() == EnemyType.DRAGON ? "Dragon" : "Shadow") + " has been slain!", 5.0f);
 					
 					// Hide boss health bar.
 					if (_playerHUD != null)
@@ -1161,19 +1170,19 @@ public class PlayingState extends FadeableAppState
 						_playerHUD.hideBossHealthBar();
 					}
 					
-					System.out.println("PlayingState: Dragon killed! Recall Orb spawned.");
+					System.out.println("PlayingState: " + (boss.getType() == EnemyType.DRAGON ? "Dragon" : "Shadow") + " killed! Recall Orb spawned.");
 				}
 				
-				// Dragon fully dead (animation complete) - clean up model from scene.
-				if (dragon != null && !dragon.isAlive() && _dragonDeathProcessed)
+				// Boss fully dead (animation complete) - clean up model from scene.
+				if (boss != null && !boss.isAlive() && _bossDeathProcessed)
 				{
-					_bossArenaManager.onDragonDeathComplete();
+					_bossArenaManager.onBossDeathComplete();
 				}
 				
 				// Update boss health bar.
-				if (_playerHUD != null && dragon != null && dragon.isAlive())
+				if (_playerHUD != null && boss != null && boss.isAlive())
 				{
-					_playerHUD.updateBossHealthBar(dragon.getHealth(), dragon.getMaxHealth(), dragon.getBossPhase());
+					_playerHUD.updateBossHealthBar(boss.getHealth(), boss.getMaxHealth(), boss.getBossPhase());
 				}
 			}
 			
@@ -1514,7 +1523,7 @@ public class PlayingState extends FadeableAppState
 	
 	/**
 	 * Returns the combat system instance.<br>
-	 * Used by BossArenaManager to wire dragon combat.
+	 * Used by BossArenaManager to wire boss combat.
 	 */
 	public CombatSystem getCombatSystem()
 	{
@@ -1532,20 +1541,21 @@ public class PlayingState extends FadeableAppState
 	
 	/**
 	 * Begins the arena entry sequence: shows a loading screen, disables input,<br>
-	 * consumes the Dragon Orb and sets a flag so the next frame performs the actual<br>
+	 * consumes the Orb and sets a flag so the next frame performs the actual<br>
 	 * arena generation and world swap.<br>
 	 * <br>
 	 * This split across frames ensures the loading screen is rendered before<br>
 	 * the heavy arena generation work blocks the main thread.
+	 * @param orbItemId the orb used to enter the arena
 	 */
-	public void beginArenaEntry()
+	public void beginArenaEntry(String orbItemId)
 	{
-		if (_pendingArenaEntry)
+		if (_pendingDragonArenaEntry || _pendingShadowArenaEntry)
 		{
 			return;
 		}
 		
-		// Consume the Dragon Orb immediately.
+		// Consume the Orb immediately.
 		if (_playerController != null)
 		{
 			_playerController.getInventory().consumeSelectedItem();
@@ -1565,7 +1575,8 @@ public class PlayingState extends FadeableAppState
 		// Show loading screen (will be visible this frame's render pass).
 		showLoadingScreen();
 		
-		_pendingArenaEntry = true;
+		_pendingDragonArenaEntry = orbItemId.equals("dragon_orb");
+		_pendingShadowArenaEntry = orbItemId.equals("shadow_orb");
 		_arenaEntryWaitFrames = 0;
 		
 		System.out.println("PlayingState: Arena entry initiated - loading screen shown, generating next frame.");
@@ -2029,7 +2040,7 @@ public class PlayingState extends FadeableAppState
 			_playerController.getInventory().deserialize(_inventorySaveData);
 			
 			// Strip any Recall Orb that may have been saved while in the arena
-			// (e.g. game crashed or force-quit after killing the dragon but before using the orb).
+			// (e.g. game crashed or force-quit after killing the boss but before using the orb).
 			// The Recall Orb must never persist into the main world.
 			final simplecraft.item.Inventory inv = _playerController.getInventory();
 			for (int i = 0; i < 36; i++)
@@ -2054,7 +2065,7 @@ public class PlayingState extends FadeableAppState
 		// Create the viewmodel renderer (first-person held item sprite on GUI).
 		_viewmodelRenderer = new ViewmodelRenderer(app.getAssetManager(), app.getRootNode());
 		
-		// Create the boss arena manager for Dragon's Lair teleportation.
+		// Create the boss arena manager for teleportation.
 		_bossArenaManager = new BossArenaManager();
 		if (_blockInteraction != null)
 		{
@@ -2312,9 +2323,10 @@ public class PlayingState extends FadeableAppState
 		// Reset paused flag.
 		_paused = false;
 		_pendingSpawn = false;
-		_pendingArenaEntry = false;
+		_pendingDragonArenaEntry = false;
+		_pendingShadowArenaEntry = false;
 		_playerDead = false;
-		_dragonDeathProcessed = false;
+		_bossDeathProcessed = false;
 		_newWorldSpawn = false;
 		_waitingForGround = false;
 		

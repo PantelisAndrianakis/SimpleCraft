@@ -47,3 +47,9 @@ By: Pantelis Andrianakis
 Created with: jsfxt site (https://sfxr.me)  
 Source: https://sfxr.me/#7BMHBGP5d4vRVe5HL64hYk2qhHWhDvLeVdQT6iDhgKtD1uB5hGia1AkK9B2yDcmBZArDD4U77yq5Nxi3gvkJK7swdKFHvmec8gSxa6bMHvqFNWzLoYa3dw6xf  
 File name: dragon.ogg  
+
+## Shadow
+By: Pantelis Andrianakis  
+Created with: jsfxt site (https://sfxr.me)  
+Source: https://sfxr.me/#4nYrjaGmYZdNhka38mtvGQBg6ZWwgvxxnWZ2RVobBMM6xo2dq7vmCfFUvGykkXDjAjpUUKiVPMsT5CDpRvgMkKVH9kmixv2Es8Uv8tUjj55EaKEP6cmC792vJ  
+File name: shadow.ogg  

@@ -1,5 +1,7 @@
 package simplecraft.world.boss;
 
+import com.jme3.effect.ParticleEmitter;
+import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
@@ -12,6 +14,7 @@ import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.player.PlayerController;
+import simplecraft.settings.LanguageManager;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.MessageManager;
 import simplecraft.world.RegionMeshBuilder;
@@ -19,9 +22,9 @@ import simplecraft.world.World;
 import simplecraft.world.entity.TileEntityManager;
 
 /**
- * Manages teleportation between the main overworld and the Dragon's Lair boss arena.<br>
+ * Manages teleportation between the main overworld and the boss arena.<br>
  * <br>
- * The arena is generated fresh each time the player uses a Dragon Orb. On entry, the main<br>
+ * The arena is generated fresh each time the player uses a boss Orb. On entry, the main<br>
  * world's scene nodes are detached (world, tile entities, enemies, drops) and the arena<br>
  * world is attached in their place. The player keeps their full inventory.<br>
  * <br>
@@ -34,7 +37,7 @@ import simplecraft.world.entity.TileEntityManager;
  * arena exit happen, followed by normal respawn in the main world. This avoids the<br>
  * jarring visual of the main world appearing behind the death screen.<br>
  * <br>
- * The Dragon Orb is consumed on entry. If the player dies, they must craft another to retry.
+ * The boss Orb is consumed on entry. If the player dies, they must craft another to retry.
  * @author Pantelis Andrianakis
  * @since March 22nd 2026
  */
@@ -64,14 +67,20 @@ public class BossArenaManager
 	/** The drop manager node from the main world (detached to hide drops in arena). */
 	private Node _mainWorldDropNode;
 	
-	/** The dragon boss enemy spawned in the arena. */
-	private Enemy _dragon;
+	/** The boss enemy spawned in the arena. */
+	private Enemy _boss;
 	
-	/** Enemy node for the arena dragon. */
+	/** Enemy node for the arena boss. */
 	private Node _arenaEnemyNode;
 	
-	/** Drop manager for the arena (spawns Recall Orb on dragon death). */
+	/** Drop manager for the arena (spawns Recall Orb on boss death). */
 	private DropManager _arenaDropManager;
+	
+	/** Fire breath particle emitter for the Shadow boss (attached outside enemy hierarchy to avoid EnemyLighting crash). */
+	private ParticleEmitter _fireBreathEmitter;
+	
+	/** Ambient smoke emitter for the Shadow boss (attached outside enemy hierarchy). */
+	private ParticleEmitter _smokeEmitter;
 	
 	/** Duration in seconds for the arena entry message. */
 	private static final float ARENA_ENTRY_MESSAGE_DURATION = 10.0f;
@@ -84,13 +93,14 @@ public class BossArenaManager
 	// ========================================================
 	
 	/**
-	 * Teleports the player into the Dragon's Lair boss arena.<br>
+	 * Teleports the player into a Boss arena.<br>
 	 * Generates a fresh arena, swaps the world, detaches main world nodes<br>
-	 * (including enemies and drops) and consumes the Dragon Orb.
+	 * (including enemies and drops) and consumes the Orb.
+	 * @param shadowArena whether the arena spawns a shadow
 	 * @param player the player controller
 	 * @param state the playing state for scene management
 	 */
-	public void enterArena(PlayerController player, PlayingState state)
+	public void enterArena(boolean shadowArena, PlayerController player, PlayingState state)
 	{
 		if (_inArena)
 		{
@@ -155,29 +165,46 @@ public class BossArenaManager
 		player.setInBossArena(true);
 		state.swapWorld(_arenaWorld);
 		
-		// Point enemy lighting at the arena world so the dragon is lit correctly.
+		// Point enemy lighting at the arena world so the boss is lit correctly.
 		EnemyLighting.setWorld(_arenaWorld);
 		
-		// --- Spawn the Dragon ---
+		// --- Spawn the Boss ---
 		final SimpleCraft spawnApp = SimpleCraft.getInstance();
-		_dragon = EnemyFactory.createEnemy(EnemyType.DRAGON, spawnApp.getAssetManager());
-		_dragon.initCombat(spawnApp.getAssetManager());
+		_boss = EnemyFactory.createEnemy(shadowArena ? EnemyType.SHADOW : EnemyType.DRAGON, spawnApp.getAssetManager());
+		_boss.initCombat(spawnApp.getAssetManager());
 		
 		// Position at arena center, same floor height as the player spawn.
-		final float dragonX = ArenaGenerator.ARENA_SIZE_X / 2f;
-		final float dragonZ = ArenaGenerator.ARENA_SIZE_Z / 2f;
-		final float dragonY = ArenaGenerator.PLAYER_SPAWN.y + 0.05f;
-		_dragon.setPosition(new Vector3f(dragonX, dragonY, dragonZ));
+		final float bossX = ArenaGenerator.ARENA_SIZE_X / 2f;
+		final float bossZ = ArenaGenerator.ARENA_SIZE_Z / 2f;
+		final float bossY = ArenaGenerator.PLAYER_SPAWN.y + 0.05f;
+		_boss.setPosition(new Vector3f(bossX, bossY, bossZ));
 		
-		System.out.println("BossArenaManager: Dragon spawned at [" + dragonX + ", " + dragonY + ", " + dragonZ + "] (arena size: " + ArenaGenerator.ARENA_SIZE_X + "x" + ArenaGenerator.ARENA_SIZE_Z + ")");
+		System.out.println("BossArenaManager: Boss spawned at [" + bossX + ", " + bossY + ", " + bossZ + "] (arena size: " + ArenaGenerator.ARENA_SIZE_X + "x" + ArenaGenerator.ARENA_SIZE_Z + ")");
 		
 		// Initialize charge interval for Phase 1 (no charges, but set a default).
-		_dragon.setChargeInterval(999f);
+		_boss.setChargeInterval(999f);
 		
-		// Create arena enemy node and attach dragon.
+		// Create arena enemy node and attach boss.
 		_arenaEnemyNode = new Node("ArenaEnemies");
-		_arenaEnemyNode.attachChild(_dragon.getNode());
+		_arenaEnemyNode.attachChild(_boss.getNode());
 		spawnApp.getRootNode().attachChild(_arenaEnemyNode);
+		
+		// Attach fire breath emitter outside the enemy node hierarchy.
+		// EnemyLighting recursively traverses enemy.getNode() and crashes on ParticleEmitter
+		// meshes (incompatible vertex color buffer). The emitter's world transform is synced
+		// to the boss head each frame in update().
+		_fireBreathEmitter = _boss.getFireBreathEmitter();
+		if (_fireBreathEmitter != null)
+		{
+			spawnApp.getRootNode().attachChild(_fireBreathEmitter);
+		}
+		
+		// Attach ambient smoke emitter for Shadow boss (same reason as fire breath).
+		_smokeEmitter = _boss.getSmokeEmitter();
+		if (_smokeEmitter != null)
+		{
+			spawnApp.getRootNode().attachChild(_smokeEmitter);
+		}
 		
 		// Create arena drop manager for Recall Orb drop.
 		_arenaDropManager = new DropManager(spawnApp.getAssetManager(), spawnApp.getAudioManager(), state.getAtlasMaterial());
@@ -204,7 +231,7 @@ public class BossArenaManager
 		_inArena = true;
 		
 		// Show dramatic entry message.
-		MessageManager.show("You have entered the Dragon's Lair.", ARENA_ENTRY_MESSAGE_DURATION);
+		MessageManager.show(shadowArena ? "You have entered the Shadow Lair." : "You have entered the Dragon's Lair.", ARENA_ENTRY_MESSAGE_DURATION);
 		
 		System.out.println("BossArenaManager: Entered arena. Return pos: [" + _mainWorldReturnPos.x + ", " + _mainWorldReturnPos.y + ", " + _mainWorldReturnPos.z + "]");
 	}
@@ -261,11 +288,27 @@ public class BossArenaManager
 			app.getRootNode().attachChild(_mainWorldDropNode);
 		}
 		
-		// Detach and clean up arena enemy node (dragon).
+		// Detach and clean up arena enemy node (boss).
 		if (_arenaEnemyNode != null)
 		{
 			app.getRootNode().detachChild(_arenaEnemyNode);
 			_arenaEnemyNode = null;
+		}
+		
+		// Detach fire breath emitter (attached to root, not enemy hierarchy).
+		if (_fireBreathEmitter != null)
+		{
+			_fireBreathEmitter.killAllParticles();
+			app.getRootNode().detachChild(_fireBreathEmitter);
+			_fireBreathEmitter = null;
+		}
+		
+		// Detach smoke emitter.
+		if (_smokeEmitter != null)
+		{
+			_smokeEmitter.killAllParticles();
+			app.getRootNode().detachChild(_smokeEmitter);
+			_smokeEmitter = null;
 		}
 		
 		// Detach and clean up arena drop manager.
@@ -282,7 +325,7 @@ public class BossArenaManager
 			state.getCombatSystem().setDropManager(state.getMainDropManager());
 		}
 		
-		_dragon = null;
+		_boss = null;
 		
 		// Restore the global tile entity manager.
 		RegionMeshBuilder.setGlobalTileEntityManager(_mainWorld.getTileEntityManager());
@@ -356,11 +399,11 @@ public class BossArenaManager
 	}
 	
 	/**
-	 * Returns the dragon boss enemy, or null if not in arena or dragon is dead.
+	 * Returns the boss enemy, or null if not in arena or boss is dead.
 	 */
-	public Enemy getDragon()
+	public Enemy getBoss()
 	{
-		return _dragon;
+		return _boss;
 	}
 	
 	/**
@@ -373,7 +416,7 @@ public class BossArenaManager
 	
 	/**
 	 * Per-frame update for the boss arena.<br>
-	 * Drives dragon AI, animation, visual effects and drop pickup while in the arena.
+	 * Drives boss AI, animation, visual effects and drop pickup while in the arena.
 	 * @param player the player controller
 	 * @param world the arena world
 	 * @param tpf time per frame
@@ -385,14 +428,65 @@ public class BossArenaManager
 			return;
 		}
 		
-		// Update dragon AI and animation (if dragon is still alive/dying).
-		if (_dragon != null && (_dragon.isAlive() || _dragon.isDying()))
+		// Update boss AI and animation (if boss is still alive/dying).
+		if (_boss != null && (_boss.isAlive() || _boss.isDying()))
 		{
-			_dragon.update(player.getPosition(), false, world, SimpleCraft.getInstance().getAudioManager(), tpf);
+			_boss.update(player.getPosition(), false, world, SimpleCraft.getInstance().getAudioManager(), tpf);
+			
+			// Sync fire breath emitter world transform to the boss.
+			// The emitter lives outside the enemy node hierarchy (to avoid EnemyLighting crash)
+			// so we manually position it each frame.
+			if (_fireBreathEmitter != null && _boss.getHead() != null)
+			{
+				// Force world transform update so getWorldTranslation() reflects the current frame's AI rotation (not the previous frame's cached value).
+				_boss.getNode().updateGeometricState();
+				
+				final Node head = _boss.getHead();
+				final Quaternion headWorldRot = head.getWorldRotation();
+				
+				if (_boss.getType() == EnemyType.DRAGON)
+				{
+					// Dragon's head is 2.1 blocks forward from feet. At bite range (3.0), the snout tip is at/past the player — fire spawning there is invisible.
+					// Anchor fire at the body/neck area instead: use the body world position with a small forward offset so the fire stream runs from the neck,
+					// through the open jaw, toward the player (3+ blocks of visible stream).
+					final Node body = _boss.getBody();
+					final Vector3f bodyWorldPos = (body != null) ? body.getWorldTranslation() : _boss.getNode().getWorldTranslation();
+					final Vector3f neckOffset = headWorldRot.mult(new Vector3f(0, 0.3f, -3f));
+					_fireBreathEmitter.setLocalTranslation(bodyWorldPos.add(neckOffset));
+				}
+				else
+				{
+					// Shadow: head is close to the body (z=-0.05), so anchoring at the
+					// head with a mouth offset works perfectly.
+					final Vector3f headWorldPos = head.getWorldTranslation();
+					final Vector3f mouthOffset = headWorldRot.mult(new Vector3f(0, 0.1f, -0.45f));
+					_fireBreathEmitter.setLocalTranslation(headWorldPos.add(mouthOffset));
+				}
+				
+				_fireBreathEmitter.setLocalRotation(headWorldRot);
+				
+				// JME3 particle velocities are in world space and NOT rotated by the emitter's local rotation.
+				// Update initial velocity direction each frame so fire shoots forward from the mouth in the direction the boss is facing.
+				final Vector3f fireVelocity = headWorldRot.mult(new Vector3f(0, 0.5f, -8.0f));
+				_fireBreathEmitter.getParticleInfluencer().setInitialVelocity(fireVelocity);
+			}
+			
+			// Sync smoke emitter to the boss body (torso area, slightly above center).
+			// Stop emitting when the boss starts dying - particles fade out naturally.
+			if (_smokeEmitter != null && _boss.getBody() != null)
+			{
+				if (_boss.isDying())
+				{
+					_smokeEmitter.setParticlesPerSec(0);
+				}
+				
+				final Vector3f bodyWorldPos = _boss.getBody().getWorldTranslation();
+				_smokeEmitter.setLocalTranslation(bodyWorldPos.x, bodyWorldPos.y + 0.5f, bodyWorldPos.z);
+			}
 		}
 		
 		// Always update arena drops - the Recall Orb needs pickup checks
-		// even after the dragon is dead and removed from the scene.
+		// even after the boss is dead and removed from the scene.
 		if (_arenaDropManager != null && !player.isDead())
 		{
 			_arenaDropManager.update(player.getPosition(), player.getInventory(), tpf);
@@ -400,19 +494,38 @@ public class BossArenaManager
 	}
 	
 	/**
-	 * Called when the dragon's death animation completes.<br>
-	 * Marks the dragon as fully dead for removal.
+	 * Called when the boss's death animation completes.<br>
+	 * Marks the boss as fully dead for removal.
 	 */
-	public void onDragonDeathComplete()
+	public void onBossDeathComplete()
 	{
-		// Dragon model is cleaned up; just null the reference.
+		// Boss model is cleaned up; just null the reference.
 		// The Recall Orb was already spawned when dying began.
-		if (_arenaEnemyNode != null && _dragon != null)
+		if (_arenaEnemyNode != null && _boss != null)
 		{
-			_arenaEnemyNode.detachChild(_dragon.getNode());
+			_arenaEnemyNode.detachChild(_boss.getNode());
 		}
 		
-		_dragon = null;
+		// Stop and detach particle emitters (smoke lingers visually after death otherwise).
+		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		if (_smokeEmitter != null)
+		{
+			_smokeEmitter.setParticlesPerSec(0);
+			_smokeEmitter.killAllParticles();
+			app.getRootNode().detachChild(_smokeEmitter);
+			_smokeEmitter = null;
+		}
+		
+		if (_fireBreathEmitter != null)
+		{
+			_fireBreathEmitter.setParticlesPerSec(0);
+			_fireBreathEmitter.killAllParticles();
+			app.getRootNode().detachChild(_fireBreathEmitter);
+			_fireBreathEmitter = null;
+		}
+		
+		_boss = null;
 	}
 	
 	/**
@@ -435,6 +548,20 @@ public class BossArenaManager
 			_arenaEnemyNode = null;
 		}
 		
+		if (_fireBreathEmitter != null)
+		{
+			_fireBreathEmitter.killAllParticles();
+			app.getRootNode().detachChild(_fireBreathEmitter);
+			_fireBreathEmitter = null;
+		}
+		
+		if (_smokeEmitter != null)
+		{
+			_smokeEmitter.killAllParticles();
+			app.getRootNode().detachChild(_smokeEmitter);
+			_smokeEmitter = null;
+		}
+		
 		if (_arenaDropManager != null)
 		{
 			_arenaDropManager.cleanup();
@@ -442,7 +569,7 @@ public class BossArenaManager
 			_arenaDropManager = null;
 		}
 		
-		_dragon = null;
+		_boss = null;
 		_mainWorld = null;
 		_mainWorldReturnPos = null;
 		_mainWorldTileEntityNode = null;

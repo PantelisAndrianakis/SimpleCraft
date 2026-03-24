@@ -13,7 +13,7 @@ import simplecraft.world.entity.TileEntityManager;
 import simplecraft.world.entity.TorchTileEntity;
 
 /**
- * Generates the Dragon's Lair - a massive sealed underground boss arena.<br>
+ * Generates the Boss Lair - a massive sealed underground boss arena.<br>
  * <br>
  * Arena dimensions: 401×80×401 blocks. All solid blocks are BEDROCK (indestructible).<br>
  * <br>
@@ -167,7 +167,7 @@ public class ArenaGenerator
 		// Build meshes.
 		arenaWorld.rebuildAllLoadedRegions();
 		
-		System.out.println("ArenaGenerator: Dragon's Lair generated (" + ARENA_SIZE_X + "x" + ARENA_SIZE_Y + "x" + ARENA_SIZE_Z + ") in " + (System.currentTimeMillis() - startTime) + "ms.");
+		System.out.println("ArenaGenerator: Boss Lair generated (" + ARENA_SIZE_X + "x" + ARENA_SIZE_Y + "x" + ARENA_SIZE_Z + ") in " + (System.currentTimeMillis() - startTime) + "ms.");
 		return arenaWorld;
 	}
 	

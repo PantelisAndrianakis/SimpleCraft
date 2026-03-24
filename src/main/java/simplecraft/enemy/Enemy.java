@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.effect.ParticleEmitter;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
@@ -41,7 +42,8 @@ public class Enemy
 		SLIME,
 		PIRANHA,
 		PLAYER,
-		DRAGON
+		DRAGON,
+		SHADOW
 	}
 	
 	// ------------------------------------------------------------------
@@ -270,6 +272,25 @@ public class Enemy
 	
 	/** Boss death animation timer. */
 	private float _bossDeathTimer;
+	
+	// ------------------------------------------------------------------
+	// Shadow-specific fields (fire breath replaces tail swipe).
+	// ------------------------------------------------------------------
+	
+	/** Whether the shadow's fire breath is currently active. */
+	private boolean _fireBreathActive;
+	
+	/** Fire breath animation timer. */
+	private float _fireBreathTimer;
+	
+	/** Fire breath cooldown timer (counts up). */
+	private float _fireBreathCooldown;
+	
+	/** Fire breath particle emitter (created by EnemyFactory, attached to head). */
+	private ParticleEmitter _fireBreathEmitter;
+	
+	/** Ambient smoke emitter (created by EnemyFactory, attached outside enemy hierarchy). */
+	private ParticleEmitter _smokeEmitter;
 	
 	/**
 	 * Creates a new enemy with the given type.
@@ -514,6 +535,10 @@ public class Enemy
 			case DRAGON:
 			{
 				return AudioManager.SFX_DRAGON;
+			}
+			case SHADOW:
+			{
+				return AudioManager.SFX_SHADOW;
 			}
 			default:
 			{
@@ -1173,5 +1198,59 @@ public class Enemy
 	public void setBossDeathTimer(float timer)
 	{
 		_bossDeathTimer = timer;
+	}
+	
+	// ------------------------------------------------------------------
+	// Shadow fire breath accessors.
+	// ------------------------------------------------------------------
+	
+	public boolean isFireBreathActive()
+	{
+		return _fireBreathActive;
+	}
+	
+	public void setFireBreathActive(boolean active)
+	{
+		_fireBreathActive = active;
+	}
+	
+	public float getFireBreathTimer()
+	{
+		return _fireBreathTimer;
+	}
+	
+	public void setFireBreathTimer(float timer)
+	{
+		_fireBreathTimer = timer;
+	}
+	
+	public float getFireBreathCooldown()
+	{
+		return _fireBreathCooldown;
+	}
+	
+	public void setFireBreathCooldown(float cd)
+	{
+		_fireBreathCooldown = cd;
+	}
+	
+	public ParticleEmitter getFireBreathEmitter()
+	{
+		return _fireBreathEmitter;
+	}
+	
+	public void setFireBreathEmitter(ParticleEmitter emitter)
+	{
+		_fireBreathEmitter = emitter;
+	}
+	
+	public ParticleEmitter getSmokeEmitter()
+	{
+		return _smokeEmitter;
+	}
+	
+	public void setSmokeEmitter(ParticleEmitter emitter)
+	{
+		_smokeEmitter = emitter;
 	}
 }

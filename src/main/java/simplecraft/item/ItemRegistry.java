@@ -107,12 +107,6 @@ public class ItemRegistry
 		register(ItemTemplate.consumable("berries", "Berries", 3.0f));
 		
 		// ========================================================
-		// Special Orbs.
-		// ========================================================
-		register(ItemTemplate.consumable("dragon_orb", "Dragon Orb", 0.0f, 1));
-		register(ItemTemplate.consumable("recall_orb", "Recall Orb", 0.0f, 1));
-		
-		// ========================================================
 		// Materials.
 		// ========================================================
 		register(ItemTemplate.material("wood_plank", "Wood Plank"));
@@ -120,6 +114,13 @@ public class ItemRegistry
 		register(ItemTemplate.material("charcoal", "Charcoal"));
 		register(ItemTemplate.material("iron_bar", "Iron Bar"));
 		register(ItemTemplate.material("gold_bar", "Gold Bar"));
+		
+		// ========================================================
+		// Special Orbs.
+		// ========================================================
+		register(ItemTemplate.consumable("recall_orb", "Recall Orb", 0.0f, 1));
+		register(ItemTemplate.consumable("dragon_orb", "Dragon Orb", 0.0f, 1));
+		register(ItemTemplate.consumable("shadow_orb", "Shadow Orb", 0.0f, 1));
 		
 		System.out.println("ItemRegistry: Registered " + ITEMS.size() + " items.");
 	}
