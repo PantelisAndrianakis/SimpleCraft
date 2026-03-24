@@ -23,11 +23,12 @@ public class ItemTemplate
 	private final int _maxDurability;
 	private final ArmorSlot _armorSlot;
 	private final float _damageReduction;
+	private final float _viewmodelScale;
 	
 	/**
 	 * Private constructor. Use static factory methods to create items.
 	 */
-	private ItemTemplate(String id, String displayName, ItemType type, int maxStackSize, Block placesBlock, float weaponDamage, float weaponSpeed, float healAmount, ToolType toolType, int maxDurability, ArmorSlot armorSlot, float damageReduction)
+	private ItemTemplate(String id, String displayName, ItemType type, int maxStackSize, Block placesBlock, float weaponDamage, float weaponSpeed, float healAmount, ToolType toolType, int maxDurability, ArmorSlot armorSlot, float damageReduction, float viewmodelScale)
 	{
 		_id = id;
 		_displayName = displayName;
@@ -41,6 +42,7 @@ public class ItemTemplate
 		_maxDurability = maxDurability;
 		_armorSlot = armorSlot;
 		_damageReduction = damageReduction;
+		_viewmodelScale = viewmodelScale;
 	}
 	
 	// ========================================================
@@ -52,11 +54,12 @@ public class ItemTemplate
 	 * @param id unique key (e.g. "dirt", "stone")
 	 * @param displayName human-readable name
 	 * @param placesBlock the Block enum value this item places
+	 * @param viewmodelScale first-person sprite scale (1.0 = full size)
 	 * @return new block ItemTemplate
 	 */
-	public static ItemTemplate block(String id, String displayName, Block placesBlock)
+	public static ItemTemplate block(String id, String displayName, Block placesBlock, float viewmodelScale)
 	{
-		return new ItemTemplate(id, displayName, ItemType.BLOCK, 64, placesBlock, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0, null, 0.0f);
+		return new ItemTemplate(id, displayName, ItemType.BLOCK, 64, placesBlock, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0, null, 0.0f, viewmodelScale);
 	}
 	
 	/**
@@ -66,11 +69,12 @@ public class ItemTemplate
 	 * @param damage attack damage
 	 * @param speed attack cooldown in seconds
 	 * @param durability maximum durability
+	 * @param viewmodelScale first-person sprite scale (1.0 = full size)
 	 * @return new weapon ItemTemplate
 	 */
-	public static ItemTemplate weapon(String id, String displayName, float damage, float speed, int durability)
+	public static ItemTemplate weapon(String id, String displayName, float damage, float speed, int durability, float viewmodelScale)
 	{
-		return new ItemTemplate(id, displayName, ItemType.WEAPON, 1, null, damage, speed, 0.0f, ToolType.NONE, durability, null, 0.0f);
+		return new ItemTemplate(id, displayName, ItemType.WEAPON, 1, null, damage, speed, 0.0f, ToolType.NONE, durability, null, 0.0f, viewmodelScale);
 	}
 	
 	/**
@@ -82,11 +86,12 @@ public class ItemTemplate
 	 * @param damage weapon damage when used in combat
 	 * @param speed attack cooldown in seconds
 	 * @param durability maximum durability
+	 * @param viewmodelScale first-person sprite scale (1.0 = full size)
 	 * @return new tool ItemTemplate
 	 */
-	public static ItemTemplate tool(String id, String displayName, ToolType toolType, float damage, float speed, int durability)
+	public static ItemTemplate tool(String id, String displayName, ToolType toolType, float damage, float speed, int durability, float viewmodelScale)
 	{
-		return new ItemTemplate(id, displayName, ItemType.TOOL, 1, null, damage, speed, 0.0f, toolType, durability, null, 0.0f);
+		return new ItemTemplate(id, displayName, ItemType.TOOL, 1, null, damage, speed, 0.0f, toolType, durability, null, 0.0f, viewmodelScale);
 	}
 	
 	/**
@@ -94,11 +99,12 @@ public class ItemTemplate
 	 * @param id unique key (e.g. "health_potion")
 	 * @param displayName human-readable name
 	 * @param healAmount health restored on use
+	 * @param viewmodelScale first-person sprite scale (1.0 = full size)
 	 * @return new consumable ItemTemplate
 	 */
-	public static ItemTemplate consumable(String id, String displayName, float healAmount)
+	public static ItemTemplate consumable(String id, String displayName, float healAmount, float viewmodelScale)
 	{
-		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, 64, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0, null, 0.0f);
+		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, 64, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0, null, 0.0f, viewmodelScale);
 	}
 	
 	/**
@@ -107,22 +113,24 @@ public class ItemTemplate
 	 * @param displayName human-readable name
 	 * @param healAmount health restored on use (0 for non-healing consumables)
 	 * @param maxStackSize maximum stack size
+	 * @param viewmodelScale first-person sprite scale (1.0 = full size)
 	 * @return new consumable ItemTemplate
 	 */
-	public static ItemTemplate consumable(String id, String displayName, float healAmount, int maxStackSize)
+	public static ItemTemplate consumable(String id, String displayName, float healAmount, int maxStackSize, float viewmodelScale)
 	{
-		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, maxStackSize, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0, null, 0.0f);
+		return new ItemTemplate(id, displayName, ItemType.CONSUMABLE, maxStackSize, null, 0.0f, 0.0f, healAmount, ToolType.NONE, 0, null, 0.0f, viewmodelScale);
 	}
 	
 	/**
 	 * Creates a crafting material. Stack size 64, no durability, not placeable.
 	 * @param id unique key (e.g. "wood_plank")
 	 * @param displayName human-readable name
+	 * @param viewmodelScale first-person sprite scale (1.0 = full size)
 	 * @return new material ItemTemplate
 	 */
-	public static ItemTemplate material(String id, String displayName)
+	public static ItemTemplate material(String id, String displayName, float viewmodelScale)
 	{
-		return new ItemTemplate(id, displayName, ItemType.MATERIAL, 64, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0, null, 0.0f);
+		return new ItemTemplate(id, displayName, ItemType.MATERIAL, 64, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, 0, null, 0.0f, viewmodelScale);
 	}
 	
 	/**
@@ -133,11 +141,12 @@ public class ItemTemplate
 	 * @param armorSlot which equipment slot this armor occupies
 	 * @param damageReduction damage reduced per incoming hit (e.g. 1.0f)
 	 * @param durability maximum durability (e.g. 300)
+	 * @param viewmodelScale first-person sprite scale (1.0 = full size)
 	 * @return new armor ItemTemplate
 	 */
-	public static ItemTemplate armor(String id, String displayName, ArmorSlot armorSlot, float damageReduction, int durability)
+	public static ItemTemplate armor(String id, String displayName, ArmorSlot armorSlot, float damageReduction, int durability, float viewmodelScale)
 	{
-		return new ItemTemplate(id, displayName, ItemType.ARMOR, 1, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, durability, armorSlot, damageReduction);
+		return new ItemTemplate(id, displayName, ItemType.ARMOR, 1, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, durability, armorSlot, damageReduction, viewmodelScale);
 	}
 	
 	// ========================================================
@@ -247,6 +256,15 @@ public class ItemTemplate
 	public float getDamageReduction()
 	{
 		return _damageReduction;
+	}
+	
+	/**
+	 * Scale multiplier for the first-person viewmodel sprite.<br>
+	 * 1.0 = full size, 0.7 = 30% smaller, etc. Configured per item in {@code ItemRegistry}.
+	 */
+	public float getViewmodelScale()
+	{
+		return _viewmodelScale;
 	}
 	
 	@Override

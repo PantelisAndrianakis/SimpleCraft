@@ -1,5 +1,10 @@
 # Drop Image Files
 
+## Torch
+By: Pantelis Andrianakis  
+Created with: Paint.NET  
+File name: torch.png  
+
 ## Campfire
 By: Pantelis Andrianakis  
 Created with: Paint.NET  

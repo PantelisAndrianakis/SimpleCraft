@@ -115,7 +115,7 @@ public class ViewmodelRenderer
 	 * The sprite quad extends from (-SPRITE_SIZE, 0, 0) to (0, SPRITE_SIZE, 0)
 	 */
 	private static final float FLAME_X = -SPRITE_SIZE * 0.475f;
-	private static final float FLAME_Y = SPRITE_SIZE * 0.55f;
+	private static final float FLAME_Y = SPRITE_SIZE * 0.8f;
 	private static final float FLAME_Z = 0.15f;
 	
 	// ========================================================
@@ -143,6 +143,9 @@ public class ViewmodelRenderer
 	
 	/** True when showing the block cube. */
 	private boolean _showingBlock;
+	
+	/** Current item's viewmodel scale (1.0 = full size). Used to adjust hand position. */
+	private float _currentViewmodelScale = 1.0f;
 	
 	/** Flame particle emitter for held torch. */
 	private ParticleEmitter _flameEmitter;
@@ -338,9 +341,16 @@ public class ViewmodelRenderer
 		camera.getLeft(_left);
 		camera.getUp(_up);
 		
-		final float rightOffset = _showingBlock ? BLOCK_RIGHT : RIGHT;
+		// Scaled-down sprite items are shifted right and up proportionally
+		// so they stay centered in the hand rather than drifting to the bottom-left.
+		final float reduction = _showingBlock ? 0f : (1.0f - _currentViewmodelScale);
+		final float scaleShiftRight = SPRITE_SIZE * reduction * 0.3f;
+		final float scaleShiftUp = SPRITE_SIZE * reduction * 0.2f;
+		
+		final float rightOffset = (_showingBlock ? BLOCK_RIGHT : RIGHT) + scaleShiftRight;
+		final float downOffset = DOWN - scaleShiftUp;
 		final float r = -(rightOffset + bobR);
-		final float d = -(DOWN - bobU);
+		final float d = -(downOffset - bobU);
 		
 		_pos.set(camera.getLocation());
 		_pos.x += _dir.x * FORWARD + _left.x * r + _up.x * d;
@@ -416,12 +426,20 @@ public class ViewmodelRenderer
 			_blockGeo.setCullHint(CullHint.Never);
 			_spriteGeo.setCullHint(CullHint.Always);
 			_showingBlock = true;
+			_currentViewmodelScale = 1.0f;
 		}
 		else
 		{
 			_blockGeo.setCullHint(CullHint.Always);
 			_spriteGeo.setCullHint(CullHint.Never);
 			_showingBlock = false;
+			
+			// Apply per-item viewmodel scale to the sprite quad.
+			// Fist (item == null) stays full size; everything else reads from template.
+			final float scale = (item != null) ? item.getTemplate().getViewmodelScale() : 1.0f;
+			_spriteGeo.setLocalScale(scale);
+			_spriteGeo.setLocalTranslation(-SPRITE_SIZE * scale, 0, 0);
+			_currentViewmodelScale = scale;
 		}
 		
 		// Toggle flame particles - show only when holding a torch.
