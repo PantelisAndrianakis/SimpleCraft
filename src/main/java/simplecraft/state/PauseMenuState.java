@@ -147,7 +147,7 @@ public class PauseMenuState extends FadeableAppState
 		
 		// Logo: to the right of title, vertically centered with text.
 		final float logoX = titleGroupX + titleWidth + LOGO_TITLE_SPACING;
-		final float logoY = titleY - (titleHeight * 0.41f) - (LOGO_SIZE / 2f);
+		final float logoY = titleY - (titleHeight * 0.52f) - (LOGO_SIZE / 2f);
 		_logo.setLocalTranslation(logoX, logoY, 1);
 		app.getGuiNode().attachChild(_logo);
 		

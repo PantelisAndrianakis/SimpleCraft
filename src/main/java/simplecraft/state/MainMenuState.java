@@ -155,7 +155,7 @@ public class MainMenuState extends FadeableAppState
 		
 		// Logo: to the right of the title, vertically centered with title.
 		final float logoX = titleGroupX + titleWidth + LOGO_TITLE_SPACING;
-		final float logoY = titleY - (titleHeight * 0.41f) - (LOGO_SIZE / 2f);
+		final float logoY = titleY - (titleHeight * 0.52f) - (LOGO_SIZE / 2f);
 		_logo.setLocalTranslation(logoX, logoY, 0);
 		
 		// Button container: centered on screen independently.
