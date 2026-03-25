@@ -58,7 +58,7 @@ import simplecraft.ui.QuestionManager;
  */
 public class OptionsState extends FadeableAppState
 {
-	private static final String BACKGROUND_PATH = "assets/images/backgrounds/main_menu.png";
+	private static final String BACKGROUND_PATH = "assets/images/backgrounds/options_menu.png";
 	
 	// Font size ratios relative to screen height for resolution-independent scaling.
 	private static final float TITLE_FONT_RATIO = 0.078f;

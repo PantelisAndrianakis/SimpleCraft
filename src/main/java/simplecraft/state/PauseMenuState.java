@@ -29,7 +29,7 @@ import simplecraft.ui.QuestionManager;
 public class PauseMenuState extends FadeableAppState
 {
 	// Title layout constants (matching main menu).
-	private static final String BACKGROUND_PATH = "assets/images/backgrounds/main_menu.png";
+	private static final String BACKGROUND_PATH = "assets/images/backgrounds/pause_menu.png";
 	private static final String TITLE_LOGO_PATH = "assets/images/app_icons/icon_128.png";
 	private static final int LOGO_SIZE = 128;
 	private static final int LOGO_TITLE_SPACING = 5;

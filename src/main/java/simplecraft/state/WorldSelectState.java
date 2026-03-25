@@ -54,7 +54,7 @@ import simplecraft.world.WorldInfo;
  */
 public class WorldSelectState extends FadeableAppState
 {
-	private static final String BACKGROUND_PATH = "assets/images/backgrounds/main_menu.png";
+	private static final String BACKGROUND_PATH = "assets/images/backgrounds/world_select_menu.png";
 	private static final String TITLE_LOGO_PATH = "assets/images/app_icons/icon_128.png";
 	
 	private static final int LOGO_SIZE = 128;
