@@ -19,6 +19,7 @@ import com.jme3.post.filters.FogFilter;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial.CullHint;
 import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
@@ -1140,7 +1141,13 @@ public class PlayingState extends FadeableAppState
 			{
 				_blockInteraction.setAttackSuppressed(suppressBlockAttack);
 				_blockInteraction.setShowHighlight(app.getSettingsManager().isShowHighlight());
+				_blockInteraction.getOverlayNode().setCullHint(CullHint.Inherit);
 				_blockInteraction.update(tpf);
+			}
+			else if (_blockInteraction != null && screenOpen)
+			{
+				// Hide the wireframe highlight directly while a screen is open.
+				_blockInteraction.getOverlayNode().setCullHint(Node.CullHint.Always);
 			}
 			
 			// Update enemy spawn system (spawning, despawning, AI, animation).
@@ -1341,7 +1348,7 @@ public class PlayingState extends FadeableAppState
 					_blockInteraction != null ? _blockInteraction.getHitsDelivered() : 0,
 					_blockInteraction != null ? _blockInteraction.getHitsRequired() : 0,
 					_blockInteraction != null && _blockInteraction.isBreaking(),
-					app.getSettingsManager().isShowCrosshair()
+					app.getSettingsManager().isShowCrosshair() && !screenOpen
 				);
 			} // @formatter:on
 		}

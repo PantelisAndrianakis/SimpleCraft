@@ -60,14 +60,14 @@ public class FurnaceScreen implements ActionListener
 	// Constants.
 	// ========================================================
 	
-	/** Slot visual size in pixels. */
-	private static final float SLOT_SIZE = 48;
+	/** Slot visual size in pixels (matches ChestScreen/InventoryScreen at 1080p: screenHeight * 0.05). */
+	private static final float SLOT_SIZE = 54;
 	
-	/** Icon size inside a slot (slightly smaller for padding). */
-	private static final float ICON_SIZE = 40;
+	/** Icon fills the entire slot (same as ChestScreen/InventoryScreen). */
+	private static final float ICON_SIZE = SLOT_SIZE;
 	
-	/** Icon padding inside a slot. */
-	private static final float ICON_PAD = (SLOT_SIZE - ICON_SIZE) / 2;
+	/** Icon padding inside a slot (zero - icon fills the slot). */
+	private static final float ICON_PAD = 0;
 	
 	/** Furnace slot visual size in pixels (doubled for prominence). */
 	private static final float FURNACE_SLOT_SIZE = 96;
@@ -88,7 +88,14 @@ public class FurnaceScreen implements ActionListener
 	private static final float RECIPE_PANEL_MARGIN = 20;
 	
 	/** Gap between slots. */
-	private static final float SLOT_GAP = 8;
+	/** Gap between inventory grid slots (matches ChestScreen/InventoryScreen). */
+	private static final float SLOT_GAP = 3;
+	
+	/** Gap between the larger furnace panel slots (Input/Fuel/Output). */
+	private static final float FURNACE_SLOT_GAP = 8;
+	
+	/** Padding around the slot fill for the border effect (matches InventoryScreen). */
+	private static final float SLOT_PADDING = 2f;
 	
 	/** Inventory grid columns. */
 	private static final int INV_COLS = 9;
@@ -115,6 +122,7 @@ public class FurnaceScreen implements ActionListener
 	private static final float Z_OVERLAY = 10;
 	private static final float Z_SLOT_BORDER = 10.5f;
 	private static final float Z_SLOT_BG = 11;
+	private static final float Z_SLOT_FILL = 11.5f;
 	private static final float Z_ICON = 12;
 	private static final float Z_LABEL = 13;
 	private static final float Z_PROGRESS = 12;
@@ -145,14 +153,17 @@ public class FurnaceScreen implements ActionListener
 	private Geometry _inputIcon;
 	private Material _inputIconMat;
 	private BitmapText _inputCountLabel;
+	private BitmapText _inputCountShadow;
 	
 	private Geometry _fuelIcon;
 	private Material _fuelIconMat;
 	private BitmapText _fuelCountLabel;
+	private BitmapText _fuelCountShadow;
 	
 	private Geometry _outputIcon;
 	private Material _outputIconMat;
 	private BitmapText _outputCountLabel;
+	private BitmapText _outputCountShadow;
 	
 	// Progress indicators.
 	private Geometry _arrowFill;
@@ -162,6 +173,7 @@ public class FurnaceScreen implements ActionListener
 	private final Geometry[] _invIcons = new Geometry[Inventory.TOTAL_SLOTS];
 	private final Material[] _invIconMats = new Material[Inventory.TOTAL_SLOTS];
 	private final BitmapText[] _invCountLabels = new BitmapText[Inventory.TOTAL_SLOTS];
+	private final BitmapText[] _invCountShadows = new BitmapText[Inventory.TOTAL_SLOTS];
 	
 	/** Hotbar slot key labels (displays current keybind for each hotbar slot). */
 	private final BitmapText[] _hotbarNumbers = new BitmapText[Inventory.HOTBAR_SLOTS];
@@ -386,12 +398,15 @@ public class FurnaceScreen implements ActionListener
 		// Update furnace slot icons.
 		updateSlotIcon(_inputIcon, _inputIconMat, _inputCountLabel, _furnace.getInputSlot(), _lastInputTemplate, app);
 		_lastInputTemplate = _furnace.getInputSlot() != null ? _furnace.getInputSlot().getTemplate() : null;
+		syncFurnaceCountShadow(_inputCountLabel, _inputCountShadow, _inputSlotX, _inputSlotY);
 		
 		updateSlotIcon(_fuelIcon, _fuelIconMat, _fuelCountLabel, _furnace.getFuelSlot(), _lastFuelTemplate, app);
 		_lastFuelTemplate = _furnace.getFuelSlot() != null ? _furnace.getFuelSlot().getTemplate() : null;
+		syncFurnaceCountShadow(_fuelCountLabel, _fuelCountShadow, _fuelSlotX, _fuelSlotY);
 		
 		updateSlotIcon(_outputIcon, _outputIconMat, _outputCountLabel, _furnace.getOutputSlot(), _lastOutputTemplate, app);
 		_lastOutputTemplate = _furnace.getOutputSlot() != null ? _furnace.getOutputSlot().getTemplate() : null;
+		syncFurnaceCountShadow(_outputCountLabel, _outputCountShadow, _outputSlotX, _outputSlotY);
 		
 		// Update player inventory slot icons.
 		final Inventory inv = _playerController.getInventory();
@@ -400,6 +415,23 @@ public class FurnaceScreen implements ActionListener
 			final ItemInstance item = inv.getSlot(i);
 			updateSlotIcon(_invIcons[i], _invIconMats[i], _invCountLabels[i], item, _lastInvTemplates[i], app);
 			_lastInvTemplates[i] = item != null ? item.getTemplate() : null;
+			
+			// Reposition count label and shadow to bottom-right of slot (matching ChestScreen).
+			if (item != null && item.getCount() > 1)
+			{
+				final String countStr = String.valueOf(item.getCount());
+				_invCountShadows[i].setText(countStr);
+				
+				final float countWidth = _invCountLabels[i].getLineWidth();
+				final float countX = _invSlotX[i] + SLOT_SIZE - countWidth - 2;
+				final float countY = _invSlotY[i] + _invCountLabels[i].getLineHeight() + 1;
+				_invCountLabels[i].setLocalTranslation(countX, countY, Z_LABEL);
+				_invCountShadows[i].setLocalTranslation(countX + 1, countY - 1, Z_LABEL - 0.1f);
+			}
+			else
+			{
+				_invCountShadows[i].setText("");
+			}
 		}
 		
 		// Update cursor icon.
@@ -498,7 +530,7 @@ public class FurnaceScreen implements ActionListener
 		_rootNode.attachChild(overlay);
 		
 		// Layout calculations - furnace slots use doubled sizes.
-		final float furnacePanelW = FURNACE_SLOT_SIZE * 3 + SLOT_GAP * 2;
+		final float furnacePanelW = FURNACE_SLOT_SIZE * 3 + FURNACE_SLOT_GAP * 2;
 		final float furnacePanelX = (screenW - furnacePanelW) / 2;
 		final float furnaceY = screenH * 0.66f;
 		
@@ -525,10 +557,11 @@ public class FurnaceScreen implements ActionListener
 		_inputIconMat = createIconMaterial(app);
 		_inputIcon = createFurnaceIconGeometry("InputIcon", _inputIconMat, _inputSlotX + FURNACE_ICON_PAD, _inputSlotY + FURNACE_ICON_PAD);
 		_inputCountLabel = createFurnaceCountLabel(font, _inputSlotX, _inputSlotY);
+		_inputCountShadow = createFurnaceCountShadow(font, _inputSlotX, _inputSlotY);
 		
 		// Fuel slot (below input, doubled size).
 		_fuelSlotX = furnacePanelX;
-		_fuelSlotY = furnaceY - FURNACE_SLOT_SIZE - SLOT_GAP * 2;
+		_fuelSlotY = furnaceY - FURNACE_SLOT_SIZE - FURNACE_SLOT_GAP * 2;
 		final Geometry fuelBorder = createQuad("FuelBorder", borderSize, borderSize, borderColor);
 		fuelBorder.setLocalTranslation(_fuelSlotX - borderPad, _fuelSlotY - borderPad, Z_SLOT_BORDER);
 		_rootNode.attachChild(fuelBorder);
@@ -536,10 +569,11 @@ public class FurnaceScreen implements ActionListener
 		_fuelIconMat = createIconMaterial(app);
 		_fuelIcon = createFurnaceIconGeometry("FuelIcon", _fuelIconMat, _fuelSlotX + FURNACE_ICON_PAD, _fuelSlotY + FURNACE_ICON_PAD);
 		_fuelCountLabel = createFurnaceCountLabel(font, _fuelSlotX, _fuelSlotY);
+		_fuelCountShadow = createFurnaceCountShadow(font, _fuelSlotX, _fuelSlotY);
 		
 		// Output slot (right side, vertically centered between input and fuel, doubled size).
-		_outputSlotX = furnacePanelX + FURNACE_SLOT_SIZE * 2 + SLOT_GAP * 2;
-		_outputSlotY = furnaceY - (FURNACE_SLOT_SIZE + SLOT_GAP * 2) / 2;
+		_outputSlotX = furnacePanelX + FURNACE_SLOT_SIZE * 2 + FURNACE_SLOT_GAP * 2;
+		_outputSlotY = furnaceY - (FURNACE_SLOT_SIZE + FURNACE_SLOT_GAP * 2) / 2;
 		final Geometry outputBorder = createQuad("OutputBorder", borderSize, borderSize, borderColor);
 		outputBorder.setLocalTranslation(_outputSlotX - borderPad, _outputSlotY - borderPad, Z_SLOT_BORDER);
 		_rootNode.attachChild(outputBorder);
@@ -547,9 +581,10 @@ public class FurnaceScreen implements ActionListener
 		_outputIconMat = createIconMaterial(app);
 		_outputIcon = createFurnaceIconGeometry("OutputIcon", _outputIconMat, _outputSlotX + FURNACE_ICON_PAD, _outputSlotY + FURNACE_ICON_PAD);
 		_outputCountLabel = createFurnaceCountLabel(font, _outputSlotX, _outputSlotY);
+		_outputCountShadow = createFurnaceCountShadow(font, _outputSlotX, _outputSlotY);
 		
 		// Arrow indicator (between input/output, scaled for doubled slots).
-		final float arrowX = furnacePanelX + FURNACE_SLOT_SIZE + SLOT_GAP;
+		final float arrowX = furnacePanelX + FURNACE_SLOT_SIZE + FURNACE_SLOT_GAP;
 		final float arrowY = _outputSlotY + FURNACE_SLOT_SIZE / 2 - 12;
 		final Geometry arrowBg = createQuad("ArrowBg", FURNACE_SLOT_SIZE, 24, new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f));
 		arrowBg.setLocalTranslation(arrowX, arrowY, Z_PROGRESS);
@@ -560,8 +595,8 @@ public class FurnaceScreen implements ActionListener
 		
 		// Flame indicator (between input and fuel, scaled for doubled slots).
 		final float flameX = _inputSlotX + FURNACE_SLOT_SIZE / 2 - 12;
-		final float flameY = furnaceY - SLOT_GAP - 2;
-		final float flameHeight = SLOT_GAP * 2;
+		final float flameY = furnaceY - FURNACE_SLOT_GAP - 2;
+		final float flameHeight = FURNACE_SLOT_GAP * 2;
 		final Geometry flameBg = createQuad("FlameBg", 24, flameHeight, new ColorRGBA(0.3f, 0.2f, 0.1f, 0.6f));
 		flameBg.setLocalTranslation(flameX, flameY - flameHeight, Z_PROGRESS);
 		_rootNode.attachChild(flameBg);
@@ -602,6 +637,7 @@ public class FurnaceScreen implements ActionListener
 			_invIconMats[i] = createIconMaterial(app);
 			_invIcons[i] = createIconGeometry("InvIcon" + i, _invIconMats[i], _invSlotX[i] + ICON_PAD, _invSlotY[i] + ICON_PAD);
 			_invCountLabels[i] = createCountLabel(font, _invSlotX[i], _invSlotY[i]);
+			_invCountShadows[i] = createCountShadow(font, _invSlotX[i], _invSlotY[i]);
 			
 			// Hotbar slot key labels (displays current keybind).
 			final GameInputManager gim = app.getGameInputManager();
@@ -628,6 +664,7 @@ public class FurnaceScreen implements ActionListener
 			_invIconMats[i] = createIconMaterial(app);
 			_invIcons[i] = createIconGeometry("InvIcon" + i, _invIconMats[i], _invSlotX[i] + ICON_PAD, _invSlotY[i] + ICON_PAD);
 			_invCountLabels[i] = createCountLabel(font, _invSlotX[i], _invSlotY[i]);
+			_invCountShadows[i] = createCountShadow(font, _invSlotX[i], _invSlotY[i]);
 		}
 		
 		// ========================================================
@@ -690,9 +727,16 @@ public class FurnaceScreen implements ActionListener
 	 */
 	private void createSlotBg(String name, float x, float y)
 	{
-		final Geometry bg = createQuad(name, SLOT_SIZE, SLOT_SIZE, new ColorRGBA(0.15f, 0.15f, 0.15f, SLOT_BG_ALPHA));
-		bg.setLocalTranslation(x, y, Z_SLOT_BG);
+		// Dark border quad (slightly larger than the slot).
+		final float bgSize = SLOT_SIZE + SLOT_PADDING * 2;
+		final Geometry bg = createQuad(name, bgSize, bgSize, new ColorRGBA(0.15f, 0.15f, 0.15f, SLOT_BG_ALPHA));
+		bg.setLocalTranslation(x - SLOT_PADDING, y - SLOT_PADDING, Z_SLOT_BG);
 		_rootNode.attachChild(bg);
+		
+		// Lighter fill quad (same size as the slot, sits on top of the border).
+		final Geometry fill = createQuad(name + "Fill", SLOT_SIZE, SLOT_SIZE, new ColorRGBA(0.25f, 0.25f, 0.25f, 0.6f));
+		fill.setLocalTranslation(x, y, Z_SLOT_FILL);
+		_rootNode.attachChild(fill);
 	}
 	
 	/**
@@ -735,6 +779,19 @@ public class FurnaceScreen implements ActionListener
 	}
 	
 	/**
+	 * Creates a count shadow label (dark offset behind the count text for readability).
+	 */
+	private BitmapText createCountShadow(BitmapFont font, float slotX, float slotY)
+	{
+		final BitmapText shadow = new BitmapText(font);
+		shadow.setSize(font.getCharSet().getRenderedSize());
+		shadow.setColor(new ColorRGBA(0.0f, 0.0f, 0.0f, 0.8f));
+		shadow.setLocalTranslation(slotX + SLOT_SIZE - 19, slotY + 15, Z_LABEL - 0.1f);
+		_rootNode.attachChild(shadow);
+		return shadow;
+	}
+	
+	/**
 	 * Creates a small field label (e.g. "Input", "Fuel", "Output").
 	 */
 	private void createFieldLabel(BitmapFont font, String text, float x, float y)
@@ -767,9 +824,15 @@ public class FurnaceScreen implements ActionListener
 	 */
 	private void createFurnaceSlotBg(String name, float x, float y)
 	{
+		// Dark background quad.
 		final Geometry bg = createQuad(name, FURNACE_SLOT_SIZE, FURNACE_SLOT_SIZE, new ColorRGBA(0.15f, 0.15f, 0.15f, SLOT_BG_ALPHA));
 		bg.setLocalTranslation(x, y, Z_SLOT_BG);
 		_rootNode.attachChild(bg);
+		
+		// Lighter fill quad on top.
+		final Geometry fill = createQuad(name + "Fill", FURNACE_SLOT_SIZE - SLOT_PADDING * 2, FURNACE_SLOT_SIZE - SLOT_PADDING * 2, new ColorRGBA(0.25f, 0.25f, 0.25f, 0.6f));
+		fill.setLocalTranslation(x + SLOT_PADDING, y + SLOT_PADDING, Z_SLOT_FILL);
+		_rootNode.attachChild(fill);
 	}
 	
 	/**
@@ -798,6 +861,40 @@ public class FurnaceScreen implements ActionListener
 		label.setLocalTranslation(slotX + FURNACE_SLOT_SIZE - 24, slotY + 18, Z_LABEL);
 		_rootNode.attachChild(label);
 		return label;
+	}
+	
+	/**
+	 * Creates a furnace-sized count shadow label.
+	 */
+	private BitmapText createFurnaceCountShadow(BitmapFont font, float slotX, float slotY)
+	{
+		final BitmapText shadow = new BitmapText(font);
+		shadow.setSize(font.getCharSet().getRenderedSize());
+		shadow.setColor(new ColorRGBA(0.0f, 0.0f, 0.0f, 0.8f));
+		shadow.setLocalTranslation(slotX + FURNACE_SLOT_SIZE - 23, slotY + 17, Z_LABEL - 0.1f);
+		_rootNode.attachChild(shadow);
+		return shadow;
+	}
+	
+	/**
+	 * Syncs a furnace slot's count shadow text and position with its label.
+	 */
+	private void syncFurnaceCountShadow(BitmapText label, BitmapText shadow, float slotX, float slotY)
+	{
+		final String text = label.getText();
+		if (text != null && !text.isEmpty())
+		{
+			shadow.setText(text);
+			final float countWidth = label.getLineWidth();
+			final float countX = slotX + FURNACE_SLOT_SIZE - countWidth - 4;
+			final float countY = slotY + label.getLineHeight() + 2;
+			label.setLocalTranslation(countX, countY, Z_LABEL);
+			shadow.setLocalTranslation(countX + 1, countY - 1, Z_LABEL - 0.1f);
+		}
+		else
+		{
+			shadow.setText("");
+		}
 	}
 	
 	/**

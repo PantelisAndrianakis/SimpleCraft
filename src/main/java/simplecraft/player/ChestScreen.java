@@ -110,6 +110,10 @@ public class ChestScreen implements ActionListener
 	private static final ColorRGBA COLOR_OVERLAY = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.65f);
 	private static final ColorRGBA COLOR_SLOT_BG = new ColorRGBA(0.15f, 0.15f, 0.15f, 0.85f);
 	private static final ColorRGBA COLOR_SLOT_EMPTY = new ColorRGBA(0.25f, 0.25f, 0.25f, 0.6f);
+	
+	/** Lighter background for chest container slots (visual distinction from player inventory). */
+	private static final ColorRGBA COLOR_CHEST_SLOT_BG = new ColorRGBA(0.25f, 0.25f, 0.25f, 0.85f);
+	private static final ColorRGBA COLOR_CHEST_SLOT_EMPTY = new ColorRGBA(0.35f, 0.35f, 0.35f, 0.6f);
 	private static final ColorRGBA COLOR_HOTBAR_LABEL = new ColorRGBA(0.5f, 0.5f, 0.5f, 0.4f);
 	private static final ColorRGBA COLOR_HOVER = new ColorRGBA(1.0f, 1.0f, 1.0f, 0.15f);
 	private static final ColorRGBA COLOR_TEXT = new ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
@@ -425,14 +429,19 @@ public class ChestScreen implements ActionListener
 	{
 		for (int i = 0; i < TOTAL_DISPLAY_SLOTS; i++)
 		{
+			// Chest slots (0-26) use lighter colors; player inventory/action bar (27-62) use darker colors matching InventoryScreen.
+			final boolean isChestSlot = i < ChestTileEntity.CHEST_SLOTS;
+			final ColorRGBA bgColor = isChestSlot ? COLOR_CHEST_SLOT_BG : COLOR_SLOT_BG;
+			final ColorRGBA fillColor = isChestSlot ? COLOR_CHEST_SLOT_EMPTY : COLOR_SLOT_EMPTY;
+			
 			// Background quad.
 			final float bgSize = _slotSize + SLOT_PADDING * 2;
-			_slotBg[i] = createQuad("ChSlotBg" + i, bgSize, bgSize, COLOR_SLOT_BG, app);
+			_slotBg[i] = createQuad("ChSlotBg" + i, bgSize, bgSize, bgColor, app);
 			_slotBg[i].setLocalTranslation(_slotX[i] - SLOT_PADDING, _slotY[i] - SLOT_PADDING, Z_SLOT_BG);
 			_screenNode.attachChild(_slotBg[i]);
 			
 			// Fill quad.
-			_slotFillMat[i] = createColorMaterial(COLOR_SLOT_EMPTY, app);
+			_slotFillMat[i] = createColorMaterial(fillColor, app);
 			_slotFill[i] = createQuadWithMaterial("ChSlotFill" + i, _slotSize, _slotSize, _slotFillMat[i]);
 			_slotFill[i].setLocalTranslation(_slotX[i], _slotY[i], Z_SLOT_FILL);
 			_screenNode.attachChild(_slotFill[i]);
@@ -1035,7 +1044,7 @@ public class ChestScreen implements ActionListener
 		if (stack == null || stack.isEmpty())
 		{
 			_slotFillMat[index].clearParam("ColorMap");
-			_slotFillMat[index].setColor("Color", COLOR_SLOT_EMPTY);
+			_slotFillMat[index].setColor("Color", index < ChestTileEntity.CHEST_SLOTS ? COLOR_CHEST_SLOT_EMPTY : COLOR_SLOT_EMPTY);
 			_slotLabel[index].setCullHint(BitmapText.CullHint.Always);
 			_slotCount[index].setCullHint(BitmapText.CullHint.Always);
 			_slotCountShadow[index].setCullHint(BitmapText.CullHint.Always);
