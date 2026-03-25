@@ -16,6 +16,7 @@ import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
 
 import simplecraft.SimpleCraft;
+import simplecraft.input.GameInputManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
@@ -125,6 +126,7 @@ public class PlayerHUD
 	private static final ColorRGBA COLOR_HOTBAR_BG = new ColorRGBA(0.1f, 0.1f, 0.1f, 0.7f);
 	private static final ColorRGBA COLOR_HOTBAR_EMPTY = new ColorRGBA(0.2f, 0.2f, 0.2f, 0.5f);
 	private static final ColorRGBA COLOR_HOTBAR_HIGHLIGHT = new ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
+	private static final ColorRGBA COLOR_HOTBAR_KEY_LABEL = new ColorRGBA(0.5f, 0.5f, 0.5f, 0.4f);
 	private static final ColorRGBA COLOR_DURABILITY_GREEN = new ColorRGBA(0.2f, 0.85f, 0.2f, 1.0f);
 	private static final ColorRGBA COLOR_DURABILITY_YELLOW = new ColorRGBA(0.9f, 0.85f, 0.2f, 1.0f);
 	private static final ColorRGBA COLOR_DURABILITY_RED = new ColorRGBA(0.9f, 0.2f, 0.2f, 1.0f);
@@ -190,6 +192,7 @@ public class PlayerHUD
 	private final BitmapText[] _hotbarCountShadow = new BitmapText[HOTBAR_SIZE];
 	private final Geometry[] _hotbarDurBar = new Geometry[HOTBAR_SIZE];
 	private final Material[] _hotbarDurMat = new Material[HOTBAR_SIZE];
+	private final BitmapText[] _hotbarKeyLabel = new BitmapText[HOTBAR_SIZE];
 	private Geometry _hotbarHighlight;
 	private Material _hotbarHighlightMat;
 	
@@ -413,6 +416,18 @@ public class PlayerHUD
 			_hotbarDurBar[i].setLocalTranslation(_hotbarSlotX[i], _hotbarSlotY, 0.2f);
 			_hotbarDurBar[i].setCullHint(Geometry.CullHint.Always);
 			_hudNode.attachChild(_hotbarDurBar[i]);
+			
+			// Key label (top-left of slot, shows the bound key name e.g. "1", "F5").
+			final GameInputManager gim = app.getGameInputManager();
+			final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i]));
+			_hotbarKeyLabel[i] = new BitmapText(_font);
+			_hotbarKeyLabel[i].setText(keyName);
+			_hotbarKeyLabel[i].setSize(_font.getCharSet().getRenderedSize() * 0.8f);
+			_hotbarKeyLabel[i].setColor(COLOR_HOTBAR_KEY_LABEL.clone());
+			final float keyX = _hotbarSlotX[i] + 2;
+			final float keyY = _hotbarSlotY + _hotbarSlotSize - 2;
+			_hotbarKeyLabel[i].setLocalTranslation(keyX, keyY, 0.3f);
+			_hudNode.attachChild(_hotbarKeyLabel[i]);
 		}
 		
 		// Selection highlight - bright border quad drawn behind the selected slot.

@@ -479,11 +479,13 @@ public class InventoryScreen implements ActionListener
 			_slotDurBar[i].setCullHint(Geometry.CullHint.Always);
 			_screenNode.attachChild(_slotDurBar[i]);
 			
-			// Hotbar slot numbers (1-9) shown faintly.
+			// Hotbar slot key labels shown faintly (displays current keybind).
 			if (i < Inventory.HOTBAR_SLOTS)
 			{
+				final GameInputManager gim = SimpleCraft.getInstance().getGameInputManager();
+				final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i]));
 				_hotbarNumbers[i] = new BitmapText(_font);
-				_hotbarNumbers[i].setText(String.valueOf(i + 1));
+				_hotbarNumbers[i].setText(keyName);
 				_hotbarNumbers[i].setSize(_font.getCharSet().getRenderedSize() * 0.8f);
 				_hotbarNumbers[i].setColor(COLOR_HOTBAR_LABEL.clone());
 				final float numX = _slotX[i] + 2;

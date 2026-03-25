@@ -24,6 +24,7 @@ import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
 
 import simplecraft.SimpleCraft;
+import simplecraft.input.GameInputManager;
 import simplecraft.item.DropManager;
 import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
@@ -99,7 +100,7 @@ public class FurnaceScreen implements ActionListener
 	private static final float OVERLAY_ALPHA = 0.6f;
 	
 	/** Slot background alpha (empty). */
-	private static final float SLOT_BG_ALPHA = 0.4f;
+	private static final float SLOT_BG_ALPHA = 0.85f;
 	
 	/** Font size for slot labels and count text. */
 	private static final int FONT_SIZE = 16;
@@ -110,15 +111,16 @@ public class FurnaceScreen implements ActionListener
 	/** Input action for furnace screen click. */
 	private static final String ACTION_FURNACE_CLICK = "FURNACE_CLICK";
 	
-	/** Z-depth layers for GUI elements. */
-	private static final float Z_OVERLAY = 0;
-	private static final float Z_SLOT_BG = 1;
-	private static final float Z_ICON = 2;
-	private static final float Z_LABEL = 3;
-	private static final float Z_PROGRESS = 2;
-	private static final float Z_PROGRESS_FILL = 3;
-	private static final float Z_TITLE = 5;
-	private static final float Z_CURSOR = 10;
+	/** Z-depth layers for GUI elements (offset by 10 so overlay covers gameplay HUD). */
+	private static final float Z_OVERLAY = 10;
+	private static final float Z_SLOT_BORDER = 10.5f;
+	private static final float Z_SLOT_BG = 11;
+	private static final float Z_ICON = 12;
+	private static final float Z_LABEL = 13;
+	private static final float Z_PROGRESS = 12;
+	private static final float Z_PROGRESS_FILL = 13;
+	private static final float Z_TITLE = 15;
+	private static final float Z_CURSOR = 20;
 	
 	// ========================================================
 	// Fields.
@@ -160,6 +162,9 @@ public class FurnaceScreen implements ActionListener
 	private final Geometry[] _invIcons = new Geometry[Inventory.TOTAL_SLOTS];
 	private final Material[] _invIconMats = new Material[Inventory.TOTAL_SLOTS];
 	private final BitmapText[] _invCountLabels = new BitmapText[Inventory.TOTAL_SLOTS];
+	
+	/** Hotbar slot key labels (displays current keybind for each hotbar slot). */
+	private final BitmapText[] _hotbarNumbers = new BitmapText[Inventory.HOTBAR_SLOTS];
 	
 	// Cursor item display.
 	private Geometry _cursorIcon;
@@ -495,7 +500,7 @@ public class FurnaceScreen implements ActionListener
 		// Layout calculations - furnace slots use doubled sizes.
 		final float furnacePanelW = FURNACE_SLOT_SIZE * 3 + SLOT_GAP * 2;
 		final float furnacePanelX = (screenW - furnacePanelW) / 2;
-		final float furnaceY = screenH * 0.6f;
+		final float furnaceY = screenH * 0.66f;
 		
 		// Title.
 		final BitmapText titleText = new BitmapText(titleFont);
@@ -505,9 +510,17 @@ public class FurnaceScreen implements ActionListener
 		titleText.setLocalTranslation(furnacePanelX + furnacePanelW / 2 - titleText.getLineWidth() / 2, furnaceY + FURNACE_SLOT_SIZE + 40, Z_TITLE);
 		_rootNode.attachChild(titleText);
 		
+		// Border thickness for furnace slot outlines.
+		final float borderPad = 3f;
+		final float borderSize = FURNACE_SLOT_SIZE + borderPad * 2;
+		final ColorRGBA borderColor = new ColorRGBA(0.45f, 0.45f, 0.45f, 0.9f);
+		
 		// Input slot (top-left of furnace area, doubled size).
 		_inputSlotX = furnacePanelX;
 		_inputSlotY = furnaceY;
+		final Geometry inputBorder = createQuad("InputBorder", borderSize, borderSize, borderColor);
+		inputBorder.setLocalTranslation(_inputSlotX - borderPad, _inputSlotY - borderPad, Z_SLOT_BORDER);
+		_rootNode.attachChild(inputBorder);
 		createFurnaceSlotBg("InputSlotBg", _inputSlotX, _inputSlotY);
 		_inputIconMat = createIconMaterial(app);
 		_inputIcon = createFurnaceIconGeometry("InputIcon", _inputIconMat, _inputSlotX + FURNACE_ICON_PAD, _inputSlotY + FURNACE_ICON_PAD);
@@ -516,6 +529,9 @@ public class FurnaceScreen implements ActionListener
 		// Fuel slot (below input, doubled size).
 		_fuelSlotX = furnacePanelX;
 		_fuelSlotY = furnaceY - FURNACE_SLOT_SIZE - SLOT_GAP * 2;
+		final Geometry fuelBorder = createQuad("FuelBorder", borderSize, borderSize, borderColor);
+		fuelBorder.setLocalTranslation(_fuelSlotX - borderPad, _fuelSlotY - borderPad, Z_SLOT_BORDER);
+		_rootNode.attachChild(fuelBorder);
 		createFurnaceSlotBg("FuelSlotBg", _fuelSlotX, _fuelSlotY);
 		_fuelIconMat = createIconMaterial(app);
 		_fuelIcon = createFurnaceIconGeometry("FuelIcon", _fuelIconMat, _fuelSlotX + FURNACE_ICON_PAD, _fuelSlotY + FURNACE_ICON_PAD);
@@ -524,6 +540,9 @@ public class FurnaceScreen implements ActionListener
 		// Output slot (right side, vertically centered between input and fuel, doubled size).
 		_outputSlotX = furnacePanelX + FURNACE_SLOT_SIZE * 2 + SLOT_GAP * 2;
 		_outputSlotY = furnaceY - (FURNACE_SLOT_SIZE + SLOT_GAP * 2) / 2;
+		final Geometry outputBorder = createQuad("OutputBorder", borderSize, borderSize, borderColor);
+		outputBorder.setLocalTranslation(_outputSlotX - borderPad, _outputSlotY - borderPad, Z_SLOT_BORDER);
+		_rootNode.attachChild(outputBorder);
 		createFurnaceSlotBg("OutputSlotBg", _outputSlotX, _outputSlotY);
 		_outputIconMat = createIconMaterial(app);
 		_outputIcon = createFurnaceIconGeometry("OutputIcon", _outputIconMat, _outputSlotX + FURNACE_ICON_PAD, _outputSlotY + FURNACE_ICON_PAD);
@@ -567,11 +586,14 @@ public class FurnaceScreen implements ActionListener
 		final float gridWidth = INV_COLS * SLOT_SIZE + (INV_COLS - 1) * SLOT_GAP;
 		final float gridCenterX = invStartX + gridWidth / 2;
 		
-		// Layout: Hotbar (action bar) ABOVE main inventory.
-		final float mainInvY = screenH * 0.08f; // Main inventory at bottom (slots 9-35).
-		final float hotbarY = mainInvY + (SLOT_SIZE + SLOT_GAP) * 3 + SLOT_GAP * 2; // Hotbar above main inventory.
+		// Section gap for labels between hotbar and main inventory (matches ChestScreen).
+		final float sectionGap = 30f;
 		
-		// Hotbar (slots 0-8) - now at the top of the inventory grid.
+		// Layout (bottom to top): hotbar -> Action Bar label -> main inventory -> Inventory label.
+		// Position raised well above the gameplay HUD hotbar at the screen bottom.
+		final float hotbarY = screenH * 0.24f;
+		
+		// Hotbar (slots 0-8) - bottom row.
 		for (int i = 0; i < Inventory.HOTBAR_SLOTS; i++)
 		{
 			_invSlotX[i] = invStartX + i * (SLOT_SIZE + SLOT_GAP);
@@ -580,9 +602,22 @@ public class FurnaceScreen implements ActionListener
 			_invIconMats[i] = createIconMaterial(app);
 			_invIcons[i] = createIconGeometry("InvIcon" + i, _invIconMats[i], _invSlotX[i] + ICON_PAD, _invSlotY[i] + ICON_PAD);
 			_invCountLabels[i] = createCountLabel(font, _invSlotX[i], _invSlotY[i]);
+			
+			// Hotbar slot key labels (displays current keybind).
+			final GameInputManager gim = app.getGameInputManager();
+			final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i]));
+			_hotbarNumbers[i] = new BitmapText(font);
+			_hotbarNumbers[i].setText(keyName);
+			_hotbarNumbers[i].setSize(font.getCharSet().getRenderedSize() * 0.8f);
+			_hotbarNumbers[i].setColor(new ColorRGBA(0.5f, 0.5f, 0.5f, 0.4f));
+			final float numX = _invSlotX[i] + 2;
+			final float numY = _invSlotY[i] + SLOT_SIZE - 2;
+			_hotbarNumbers[i].setLocalTranslation(numX, numY, Z_TITLE);
+			_rootNode.attachChild(_hotbarNumbers[i]);
 		}
 		
-		// Main inventory (slots 9-35) - now below the hotbar.
+		// Main inventory (slots 9-35) - 3 rows above hotbar with gap for Action Bar label.
+		final float mainInvY = hotbarY + SLOT_SIZE + SLOT_GAP + sectionGap;
 		for (int i = Inventory.HOTBAR_SLOTS; i < Inventory.TOTAL_SLOTS; i++)
 		{
 			final int row = (i - Inventory.HOTBAR_SLOTS) / INV_COLS;
@@ -596,44 +631,45 @@ public class FurnaceScreen implements ActionListener
 		}
 		
 		// ========================================================
-		// Action Bar and Inventory titles (like InventoryScreen)
+		// Action Bar and Inventory titles (matches ChestScreen layout)
 		// ========================================================
 		
-		// ----- "Action Bar" title (centered above hotbar) -----
-		final float actionBarY = _invSlotY[0] + SLOT_SIZE + 30; // Padding above hotbar
+		// ----- "Action Bar" label above the hotbar row -----
+		final float abLabelY = _invSlotY[0] + SLOT_SIZE + 4 + titleFont.getCharSet().getRenderedSize() + 2;
+		
+		BitmapText actionBarShadow = new BitmapText(titleFont);
+		actionBarShadow.setText("Action Bar");
+		actionBarShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
+		_rootNode.attachChild(actionBarShadow);
 		
 		BitmapText actionBarText = new BitmapText(titleFont);
 		actionBarText.setText("Action Bar");
 		actionBarText.setColor(ColorRGBA.White);
-		float actionBarWidth = actionBarText.getLineWidth();
-		float actionBarX = gridCenterX - actionBarWidth / 2f;
-		actionBarText.setLocalTranslation(actionBarX, actionBarY, Z_TITLE);
 		_rootNode.attachChild(actionBarText);
 		
-		// Shadow for Action Bar.
-		BitmapText actionBarShadow = new BitmapText(titleFont);
-		actionBarShadow.setText("Action Bar");
-		actionBarShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
-		actionBarShadow.setLocalTranslation(actionBarX + 1, actionBarY - 1, Z_TITLE - 0.1f);
-		_rootNode.attachChild(actionBarShadow);
+		float actionBarWidth = actionBarText.getLineWidth();
+		float actionBarX = gridCenterX - actionBarWidth / 2f;
+		actionBarText.setLocalTranslation(actionBarX, abLabelY, Z_TITLE);
+		actionBarShadow.setLocalTranslation(actionBarX + 1, abLabelY - 1, Z_TITLE - 0.1f);
 		
-		// ----- "Inventory" title (centered above main inventory) -----
-		final float invLabelY = _invSlotY[9] + SLOT_SIZE + 30; // Above top main inventory row
+		// ----- "Inventory" label above the top main inventory row -----
+		final float topMainInvY = _invSlotY[Inventory.HOTBAR_SLOTS]; // slot 9 = top-left of main inv
+		final float invLabelY = topMainInvY + SLOT_SIZE + 4 + titleFont.getCharSet().getRenderedSize() + 2;
+		
+		BitmapText invShadow = new BitmapText(titleFont);
+		invShadow.setText("Inventory");
+		invShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
+		_rootNode.attachChild(invShadow);
 		
 		BitmapText invText = new BitmapText(titleFont);
 		invText.setText("Inventory");
 		invText.setColor(ColorRGBA.White);
+		_rootNode.attachChild(invText);
+		
 		float invWidth = invText.getLineWidth();
 		float invX = gridCenterX - invWidth / 2f;
 		invText.setLocalTranslation(invX, invLabelY, Z_TITLE);
-		_rootNode.attachChild(invText);
-		
-		// Shadow for Inventory.
-		BitmapText invShadow = new BitmapText(titleFont);
-		invShadow.setText("Inventory");
-		invShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
 		invShadow.setLocalTranslation(invX + 1, invLabelY - 1, Z_TITLE - 0.1f);
-		_rootNode.attachChild(invShadow);
 		
 		// Cursor icon (follows mouse, hidden initially).
 		_cursorIconMat = createIconMaterial(app);
@@ -654,7 +690,7 @@ public class FurnaceScreen implements ActionListener
 	 */
 	private void createSlotBg(String name, float x, float y)
 	{
-		final Geometry bg = createQuad(name, SLOT_SIZE, SLOT_SIZE, new ColorRGBA(0.2f, 0.2f, 0.2f, SLOT_BG_ALPHA));
+		final Geometry bg = createQuad(name, SLOT_SIZE, SLOT_SIZE, new ColorRGBA(0.15f, 0.15f, 0.15f, SLOT_BG_ALPHA));
 		bg.setLocalTranslation(x, y, Z_SLOT_BG);
 		_rootNode.attachChild(bg);
 	}
@@ -731,7 +767,7 @@ public class FurnaceScreen implements ActionListener
 	 */
 	private void createFurnaceSlotBg(String name, float x, float y)
 	{
-		final Geometry bg = createQuad(name, FURNACE_SLOT_SIZE, FURNACE_SLOT_SIZE, new ColorRGBA(0.2f, 0.2f, 0.2f, SLOT_BG_ALPHA));
+		final Geometry bg = createQuad(name, FURNACE_SLOT_SIZE, FURNACE_SLOT_SIZE, new ColorRGBA(0.15f, 0.15f, 0.15f, SLOT_BG_ALPHA));
 		bg.setLocalTranslation(x, y, Z_SLOT_BG);
 		_rootNode.attachChild(bg);
 	}

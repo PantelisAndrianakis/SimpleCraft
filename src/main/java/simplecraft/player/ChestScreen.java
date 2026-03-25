@@ -468,12 +468,14 @@ public class ChestScreen implements ActionListener
 			_slotDurBar[i].setCullHint(Geometry.CullHint.Always);
 			_screenNode.attachChild(_slotDurBar[i]);
 			
-			// Hotbar slot numbers for player hotbar slots (display indices 27-35).
+			// Hotbar slot key labels for player hotbar slots (display indices 27-35).
 			if (i >= ChestTileEntity.CHEST_SLOTS && i < ChestTileEntity.CHEST_SLOTS + Inventory.HOTBAR_SLOTS)
 			{
 				final int hotbarIndex = i - ChestTileEntity.CHEST_SLOTS;
+				final GameInputManager gim = SimpleCraft.getInstance().getGameInputManager();
+				final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[hotbarIndex]));
 				_hotbarNumbers[hotbarIndex] = new BitmapText(_font);
-				_hotbarNumbers[hotbarIndex].setText(String.valueOf(hotbarIndex + 1));
+				_hotbarNumbers[hotbarIndex].setText(keyName);
 				_hotbarNumbers[hotbarIndex].setSize(_font.getCharSet().getRenderedSize() * 0.8f);
 				_hotbarNumbers[hotbarIndex].setColor(COLOR_HOTBAR_LABEL.clone());
 				final float numX = _slotX[i] + 2;
