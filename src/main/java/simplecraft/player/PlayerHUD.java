@@ -11,6 +11,7 @@ import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import com.jme3.scene.Spatial.CullHint;
 import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
 
@@ -1112,6 +1113,28 @@ public class PlayerHUD
 	public boolean isDeathScreenVisible()
 	{
 		return _deathScreenVisible;
+	}
+	
+	// ========================================================
+	// Visibility Toggle (for screenshot mode).
+	// ========================================================
+	
+	/**
+	 * Sets the visibility of the entire HUD (crosshair, health, hotbar, etc.).<br>
+	 * Used by the Hide HUD keybinding to allow clean screenshots.
+	 * @param visible true to show the HUD, false to hide it
+	 */
+	public void setVisible(boolean visible)
+	{
+		_hudNode.setCullHint(visible ? CullHint.Inherit : CullHint.Always);
+	}
+	
+	/**
+	 * Returns true if the HUD is currently visible.
+	 */
+	public boolean isVisible()
+	{
+		return _hudNode.getCullHint() != CullHint.Always;
 	}
 	
 	// ========================================================

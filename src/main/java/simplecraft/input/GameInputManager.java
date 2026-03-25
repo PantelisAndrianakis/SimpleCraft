@@ -74,6 +74,7 @@ public class GameInputManager
 	// UI actions.
 	public static final String PAUSE = "pause";
 	public static final String SCREENSHOT = "screenshot";
+	public static final String HIDE_HUD = "hide_hud";
 	public static final String UI_UP = "ui_up";
 	public static final String UI_DOWN = "ui_down";
 	public static final String UI_LEFT = "ui_left";
@@ -94,6 +95,7 @@ public class GameInputManager
 		{JUMP, "Jump / Swim Up", "Movement"},
 		{SWIM_DOWN, "Swim Down / Crouch", "Movement"},
 		{SCREENSHOT, "Screenshot", "Actions"},
+		{HIDE_HUD, "Hide HUD", "Actions"},
 		{PAUSE, "Pause / Menu", "Actions"},
 		{INVENTORY, "Inventory", "Actions"},
 		{HOTBAR_1, "Hotbar Slot 1", "Hotbar"},
@@ -146,6 +148,7 @@ public class GameInputManager
 		defaults.put(INVENTORY, KeyInput.KEY_TAB);
 		defaults.put(PAUSE, KeyInput.KEY_ESCAPE);
 		defaults.put(SCREENSHOT, KeyInput.KEY_F2);
+		defaults.put(HIDE_HUD, KeyInput.KEY_F3);
 		defaults.put(HOTBAR_1, KeyInput.KEY_1);
 		defaults.put(HOTBAR_2, KeyInput.KEY_2);
 		defaults.put(HOTBAR_3, KeyInput.KEY_3);

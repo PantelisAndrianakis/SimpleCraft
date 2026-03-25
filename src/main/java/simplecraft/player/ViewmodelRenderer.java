@@ -663,6 +663,20 @@ public class ViewmodelRenderer
 	}
 	
 	// ========================================================
+	// Visibility Toggle.
+	// ========================================================
+	
+	/**
+	 * Sets the visibility of the held item viewmodel.<br>
+	 * Used by the Hide HUD keybinding to allow clean screenshots.
+	 * @param visible true to show the viewmodel, false to hide it
+	 */
+	public void setVisible(boolean visible)
+	{
+		_handNode.setCullHint(visible ? CullHint.Never : CullHint.Always);
+	}
+	
+	// ========================================================
 	// Cleanup.
 	// ========================================================
 	

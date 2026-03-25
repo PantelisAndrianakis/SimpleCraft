@@ -97,6 +97,7 @@ public class PlayingState extends FadeableAppState
 {
 	private ActionListener _pauseListener;
 	private ActionListener _inventoryListener;
+	private ActionListener _hideHudListener;
 	private TextureAtlas _textureAtlas;
 	
 	/** The shared texture atlas material used for all block rendering and mini-cube drops. */
@@ -153,6 +154,9 @@ public class PlayingState extends FadeableAppState
 	
 	/** Whether the player is currently dead (death screen showing). */
 	private boolean _playerDead;
+	
+	/** Whether the HUD is hidden for screenshot mode (F3 toggle). */
+	private boolean _hudHidden;
 	
 	/** Whether the boss death has been processed (Recall Orb spawned, message shown). */
 	private boolean _bossDeathProcessed;
@@ -318,6 +322,13 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
+			// If HUD is hidden (screenshot mode), restore it instead of opening pause.
+			if (_hudHidden)
+			{
+				restoreHudVisibility();
+				return;
+			}
+			
 			// If inventory is open, close it instead of opening pause.
 			if (_inventoryScreen != null && _inventoryScreen.isOpen())
 			{
@@ -427,6 +438,42 @@ public class PlayingState extends FadeableAppState
 		};
 		
 		simpleCraft.getGameInputManager().addTrackedListener(_inventoryListener, GameInputManager.INVENTORY);
+		
+		// Register hide HUD listener (F3 key - toggles HUD visibility for screenshots).
+		_hideHudListener = (String name, boolean isPressed, float tpf) ->
+		{
+			if (!isPressed)
+			{
+				return;
+			}
+			
+			if (!GameInputManager.HIDE_HUD.equals(name))
+			{
+				return;
+			}
+			
+			// Only toggle during active gameplay (not loading, dead, paused, or in question dialog).
+			final GameStateManager gsm = simpleCraft.getGameStateManager();
+			if (gsm.getCurrentState() != GameState.PLAYING || _pendingSpawn || _waitingForGround || _playerDead || QuestionManager.isActive())
+			{
+				return;
+			}
+			
+			// Toggle HUD hidden state.
+			_hudHidden = !_hudHidden;
+			
+			if (_playerHUD != null)
+			{
+				_playerHUD.setVisible(!_hudHidden);
+			}
+			
+			if (_viewmodelRenderer != null)
+			{
+				_viewmodelRenderer.setVisible(!_hudHidden);
+			}
+		};
+		
+		simpleCraft.getGameInputManager().addTrackedListener(_hideHudListener, GameInputManager.HIDE_HUD);
 	}
 	
 	@Override
@@ -446,6 +493,13 @@ public class PlayingState extends FadeableAppState
 			_inventoryListener = null;
 		}
 		
+		// Remove the hide HUD listener.
+		if (_hideHudListener != null)
+		{
+			SimpleCraft.getInstance().getGameInputManager().removeTrackedListener(_hideHudListener);
+			_hideHudListener = null;
+		}
+		
 		// Safety net: destroy world if still alive when state is detached.
 		destroyWorld();
 	}
@@ -463,6 +517,7 @@ public class PlayingState extends FadeableAppState
 		{
 			// Reset paused flag so a subsequent onExitState (e.g. Return to Main Menu) does full teardown.
 			_paused = false;
+			_hudHidden = false;
 			app.getInputManager().setCursorVisible(false);
 			_playerController.registerInput();
 			_blockInteraction.registerInput();
@@ -2188,6 +2243,25 @@ public class PlayingState extends FadeableAppState
 	// ========================================================
 	
 	/**
+	 * Restores HUD and viewmodel visibility after screenshot mode.<br>
+	 * Called when pressing F3 again or ESC while the HUD is hidden.
+	 */
+	private void restoreHudVisibility()
+	{
+		_hudHidden = false;
+		
+		if (_playerHUD != null)
+		{
+			_playerHUD.setVisible(true);
+		}
+		
+		if (_viewmodelRenderer != null)
+		{
+			_viewmodelRenderer.setVisible(true);
+		}
+	}
+	
+	/**
 	 * Creates the player HUD, inventory screen, crafting screen and links them to the block interaction handler.
 	 */
 	private void createHUD()
@@ -2326,6 +2400,7 @@ public class PlayingState extends FadeableAppState
 		_pendingDragonArenaEntry = false;
 		_pendingShadowArenaEntry = false;
 		_playerDead = false;
+		_hudHidden = false;
 		_bossDeathProcessed = false;
 		_newWorldSpawn = false;
 		_waitingForGround = false;
