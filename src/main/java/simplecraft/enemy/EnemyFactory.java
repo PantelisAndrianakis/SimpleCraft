@@ -1,6 +1,8 @@
 package simplecraft.enemy;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 import com.jme3.asset.AssetManager;
@@ -52,6 +54,9 @@ public class EnemyFactory
 	
 	/** Random for noise generation. */
 	private static final Random NOISE_RANDOM = new Random();
+	
+	/** Cache of generated noise textures keyed by color, to avoid per-spawn allocations. */
+	private static final Map<ColorRGBA, Texture2D> NOISE_TEXTURE_CACHE = new HashMap<>();
 	
 	/**
 	 * Creates a fully configured enemy of the given type.
@@ -159,6 +164,12 @@ public class EnemyFactory
 	 */
 	private static Texture2D generateNoiseTexture(ColorRGBA baseColor)
 	{
+		final Texture2D cached = NOISE_TEXTURE_CACHE.get(baseColor);
+		if (cached != null)
+		{
+			return cached;
+		}
+		
 		final ByteBuffer buffer = BufferUtils.createByteBuffer(NOISE_SIZE * NOISE_SIZE * 4);
 		
 		for (int y = 0; y < NOISE_SIZE; y++)
@@ -181,7 +192,9 @@ public class EnemyFactory
 		
 		buffer.flip();
 		final Image image = new Image(Format.RGBA8, NOISE_SIZE, NOISE_SIZE, buffer, ColorSpace.sRGB);
-		return new Texture2D(image);
+		final Texture2D texture = new Texture2D(image);
+		NOISE_TEXTURE_CACHE.put(baseColor.clone(), texture);
+		return texture;
 	}
 	
 	// ========================================================
