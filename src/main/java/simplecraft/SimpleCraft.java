@@ -14,6 +14,7 @@ import simplecraft.input.GameInputManager;
 import simplecraft.item.CraftingRegistry;
 import simplecraft.item.ItemRegistry;
 import simplecraft.item.SmeltingRegistry;
+import simplecraft.settings.DiscordRichPresenceManager;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
 import simplecraft.settings.WindowIconManager;
@@ -42,6 +43,7 @@ public class SimpleCraft extends SimpleApplication
 	private GameStateManager _gameStateManager;
 	private AudioManager _audioManager;
 	private GameInputManager _gameInputManager;
+	private DiscordRichPresenceManager _discordPresence;
 	
 	// Active world (set when entering a world from WorldSelectState).
 	private WorldInfo _activeWorld;
@@ -138,6 +140,10 @@ public class SimpleCraft extends SimpleApplication
 		// Register all smelting recipes.
 		SmeltingRegistry.registerDefaults();
 		
+		// Discord Rich Presence (connects on background thread, fails silently if Discord is not running).
+		_discordPresence = new DiscordRichPresenceManager();
+		_discordPresence.connect();
+		
 		// Switch to initial splash state.
 		_gameStateManager.switchTo(GameState.INTRO);
 		
@@ -161,6 +167,18 @@ public class SimpleCraft extends SimpleApplication
 		
 		// Update message toast timer for auto-dismiss.
 		MessageManager.update(tpf);
+	}
+	
+	@Override
+	public void destroy()
+	{
+		// Disconnect Discord Rich Presence cleanly.
+		if (_discordPresence != null)
+		{
+			_discordPresence.disconnect();
+		}
+		
+		super.destroy();
 	}
 	
 	@Override
@@ -195,6 +213,11 @@ public class SimpleCraft extends SimpleApplication
 	public GameInputManager getGameInputManager()
 	{
 		return _gameInputManager;
+	}
+	
+	public DiscordRichPresenceManager getDiscordPresence()
+	{
+		return _discordPresence;
 	}
 	
 	/**
