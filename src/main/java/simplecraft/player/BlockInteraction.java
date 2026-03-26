@@ -288,9 +288,15 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_highlightUnbreakableMaterial.getAdditionalRenderState().setDepthTest(false);
 		
 		// Create crack overlay material (semi-transparent black).
+		// DepthWrite=false prevents the crack quad from writing to the depth buffer,
+		// which would occlude transparent/flat-panel geometry (glass panes, window panels)
+		// rendered in the same Transparent pass. The Translucent bucket ensures the crack
+		// always draws after the Transparent pass, so it appears on top of glass/panels
+		// regardless of bounding-box sort order.
 		_crackMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		_crackMaterial.setColor("Color", new ColorRGBA(0, 0, 0, 0));
 		_crackMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		_crackMaterial.getAdditionalRenderState().setDepthWrite(false);
 		
 		// Build highlight geometry.
 		final WireBox wireBox = new WireBox(0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND);

@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.material.RenderState.FaceCullMode;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
@@ -102,6 +103,7 @@ public class World
 	private final Node _worldNode = new Node("WorldNode");
 	private final Material _opaqueMaterial;
 	private final Material _transparentMaterial;
+	private final Material _waterMaterial;
 	private final Material _billboardMaterial;
 	private final long _seed;
 	
@@ -167,10 +169,25 @@ public class World
 		// Opaque material - used as-is for solid blocks.
 		_opaqueMaterial = sharedMaterial;
 		
-		// Transparent material - shared by all transparent geometry (water, leaves).
+		// Transparent material - shared by all transparent geometry (water, leaves, glass).
+		// No BlendMode.Alpha here: the shared material already has AlphaDiscardThreshold=0.5,
+		// so transparent pixels are discarded by the shader rather than alpha-blended.
+		// Keeping this in the Opaque render bucket (no explicit Bucket.Transparent below)
+		// ensures the transparent mesh is drawn BEFORE particle emitters. Particles are in
+		// Bucket.Translucent which renders after Opaque, so their depth test runs against
+		// the correct leaf/glass depths (solid pixels written, transparent holes never written).
 		_transparentMaterial = sharedMaterial.clone();
 		_transparentMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
-		_transparentMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		
+		// Water material: alpha-blended to restore semi-transparent water surface.
+		// Kept separate so leaves/glass/seaweed still use alpha discard in the opaque bucket.
+		_waterMaterial = sharedMaterial.clone();
+		_waterMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
+		_waterMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		
+		// Water must be alpha-blended (not alpha-cutout), otherwise most pixels are discarded.
+		_waterMaterial.setFloat("AlphaDiscardThreshold", 0.0f);
+		_waterMaterial.setColor("Color", new ColorRGBA(1f, 1f, 1f, 0.6f));
 		
 		// Billboard material - shared by all billboard geometry (flowers, torches).
 		_billboardMaterial = sharedMaterial.clone();
@@ -306,7 +323,7 @@ public class World
 						_regionLoader.setSavedRegionData(_savedRegionData);
 					}
 					
-					_savedRegionData.put(key, new SavedRegionData(unloadRegion.getRawBlockData(), new HashSet<>(unloadRegion.getPlayerPlacedSet()), new HashSet<>(unloadRegion.getPlayerRemovedSet())));
+					_savedRegionData.put(key, new SavedRegionData(unloadRegion.getRawBlockData(), new HashSet<>(unloadRegion.getPlayerPlacedSet()), new HashSet<>(unloadRegion.getPlayerRemovedSet()), new HashMap<>(unloadRegion.getBerryRespawnMap())));
 				}
 				
 				detachRegionGeometry(key);
@@ -610,7 +627,7 @@ public class World
 	}
 	
 	/**
-	 * Attaches up to three geometries (opaque, transparent, billboard) from a mesh result.<br>
+	 * Attaches up to four geometries (opaque, transparent, water, billboard) from a mesh result.<br>
 	 * Shared by both the background-data path and the remesh path.
 	 */
 	private void attachGeometries(Region region, RegionMeshResult meshResult)
@@ -621,7 +638,7 @@ public class World
 		final String regionName = "Region_" + cx + "_" + cz;
 		final Vector3f regionOffset = new Vector3f(cx * Region.SIZE_XZ, 0, cz * Region.SIZE_XZ);
 		
-		final List<Geometry> geometries = new ArrayList<>(3);
+		final List<Geometry> geometries = new ArrayList<>(4);
 		
 		// Opaque mesh (solid cubes: grass, dirt, stone, wood, sand, ores, etc.).
 		final Mesh opaqueMesh = meshResult.getOpaqueMesh();
@@ -634,16 +651,31 @@ public class World
 			geometries.add(opaqueGeometry);
 		}
 		
-		// Transparent mesh (leaves, water).
+		// Transparent mesh (leaves, water, glass, seaweed).
+		// Rendered in the Opaque bucket (default) using AlphaDiscardThreshold from the shared
+		// material. Transparent pixels are discarded by the shader; solid pixels write depth.
+		// This guarantees the mesh draws before particle emitters (Bucket.Translucent),
+		// so particles depth-test correctly through leaf alpha holes instead of being occluded.
 		final Mesh transparentMesh = meshResult.getTransparentMesh();
 		if (transparentMesh != null)
 		{
 			final Geometry transparentGeometry = new Geometry(regionName + "_Transparent", transparentMesh);
 			transparentGeometry.setMaterial(_transparentMaterial);
-			transparentGeometry.setQueueBucket(Bucket.Transparent);
 			transparentGeometry.setLocalTranslation(regionOffset);
 			_worldNode.attachChild(transparentGeometry);
 			geometries.add(transparentGeometry);
+		}
+		
+		// Water mesh only - rendered alpha-blended in the transparent bucket.
+		final Mesh waterMesh = meshResult.getWaterMesh();
+		if (waterMesh != null)
+		{
+			final Geometry waterGeometry = new Geometry(regionName + "_Water", waterMesh);
+			waterGeometry.setMaterial(_waterMaterial);
+			waterGeometry.setQueueBucket(Bucket.Transparent);
+			waterGeometry.setLocalTranslation(regionOffset);
+			_worldNode.attachChild(waterGeometry);
+			geometries.add(waterGeometry);
 		}
 		
 		// Billboard mesh (flowers, torches, campfires, berry bushes).

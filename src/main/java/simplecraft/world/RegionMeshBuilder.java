@@ -18,7 +18,7 @@ import simplecraft.world.entity.WindowTileEntity;
 
 /**
  * Static utility class that builds jME3 Mesh objects from region block data.<br>
- * Generates three separate meshes per region: opaque, transparent and billboard.<br>
+ * Generates four separate meshes per region: opaque, transparent, water and billboard.<br>
  * Includes per-vertex color data for sky-light-based lighting with directional face shading.<br>
  * Supports directional block placement: oriented tile entities (CHEST, FURNACE) have<br>
  * their front texture rotated to match the stored facing direction.<br>
@@ -284,19 +284,21 @@ public class RegionMeshBuilder
 	// ========================================================
 	
 	/**
-	 * Holds the three meshes generated from a region.<br>
+	 * Holds the four meshes generated from a region.<br>
 	 * Any mesh may be null if the region contains no blocks of that render mode.
 	 */
 	public static class RegionMeshResult
 	{
 		private final Mesh _opaqueMesh;
 		private final Mesh _transparentMesh;
+		private final Mesh _waterMesh;
 		private final Mesh _billboardMesh;
 		
-		public RegionMeshResult(Mesh opaqueMesh, Mesh transparentMesh, Mesh billboardMesh)
+		public RegionMeshResult(Mesh opaqueMesh, Mesh transparentMesh, Mesh waterMesh, Mesh billboardMesh)
 		{
 			_opaqueMesh = opaqueMesh;
 			_transparentMesh = transparentMesh;
+			_waterMesh = waterMesh;
 			_billboardMesh = billboardMesh;
 		}
 		
@@ -310,6 +312,11 @@ public class RegionMeshBuilder
 			return _transparentMesh;
 		}
 		
+		public Mesh getWaterMesh()
+		{
+			return _waterMesh;
+		}
+		
 		public Mesh getBillboardMesh()
 		{
 			return _billboardMesh;
@@ -321,7 +328,7 @@ public class RegionMeshBuilder
 	// ========================================================
 	
 	/**
-	 * Holds pre-built raw vertex arrays for a region's three meshes.<br>
+	 * Holds pre-built raw vertex arrays for a region's four meshes.<br>
 	 * Produced on a background thread by {@link #buildRegionMeshData}.<br>
 	 * Converted to jME3 Mesh objects on the main thread by {@link #createMeshes}.<br>
 	 * This split allows the expensive iteration and vertex building to run off-thread<br>
@@ -342,13 +349,19 @@ public class RegionMeshBuilder
 		private final float[] _transparentColors;
 		private final int[] _transparentIndices;
 		
+		private final float[] _waterPositions;
+		private final float[] _waterNormals;
+		private final float[] _waterTexCoords;
+		private final float[] _waterColors;
+		private final int[] _waterIndices;
+		
 		private final float[] _billboardPositions;
 		private final float[] _billboardNormals;
 		private final float[] _billboardTexCoords;
 		private final float[] _billboardColors;
 		private final int[] _billboardIndices;
 		
-		public RegionMeshData(float[] opaquePositions, float[] opaqueNormals, float[] opaqueTexCoords, float[] opaqueColors, int[] opaqueIndices, float[] transparentPositions, float[] transparentNormals, float[] transparentTexCoords, float[] transparentColors, int[] transparentIndices, float[] billboardPositions, float[] billboardNormals, float[] billboardTexCoords, float[] billboardColors, int[] billboardIndices)
+		public RegionMeshData(float[] opaquePositions, float[] opaqueNormals, float[] opaqueTexCoords, float[] opaqueColors, int[] opaqueIndices, float[] transparentPositions, float[] transparentNormals, float[] transparentTexCoords, float[] transparentColors, int[] transparentIndices, float[] waterPositions, float[] waterNormals, float[] waterTexCoords, float[] waterColors, int[] waterIndices, float[] billboardPositions, float[] billboardNormals, float[] billboardTexCoords, float[] billboardColors, int[] billboardIndices)
 		{
 			_opaquePositions = opaquePositions;
 			_opaqueNormals = opaqueNormals;
@@ -360,6 +373,11 @@ public class RegionMeshBuilder
 			_transparentTexCoords = transparentTexCoords;
 			_transparentColors = transparentColors;
 			_transparentIndices = transparentIndices;
+			_waterPositions = waterPositions;
+			_waterNormals = waterNormals;
+			_waterTexCoords = waterTexCoords;
+			_waterColors = waterColors;
+			_waterIndices = waterIndices;
 			_billboardPositions = billboardPositions;
 			_billboardNormals = billboardNormals;
 			_billboardTexCoords = billboardTexCoords;
@@ -375,6 +393,11 @@ public class RegionMeshBuilder
 		public boolean hasTransparent()
 		{
 			return _transparentIndices != null;
+		}
+		
+		public boolean hasWater()
+		{
+			return _waterIndices != null;
 		}
 		
 		public boolean hasBillboard()
@@ -444,7 +467,7 @@ public class RegionMeshBuilder
 	// ========================================================
 	
 	/**
-	 * Builds three separate meshes from the region's block data.<br>
+	 * Builds four separate meshes from the region's block data.<br>
 	 * Backward-compatible overload - no tile entity orientation support.
 	 */
 	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess)
@@ -453,13 +476,13 @@ public class RegionMeshBuilder
 	}
 	
 	/**
-	 * Builds three separate meshes from the region's block data.<br>
+	 * Builds four separate meshes from the region's block data.<br>
 	 * When a TileEntityManager is provided, oriented blocks (CHEST, FURNACE) have<br>
 	 * their front textures rotated to match the stored facing direction.
 	 * @param region the region to build
 	 * @param worldAccess optional cross-region block lookup (may be null)
 	 * @param tileEntityManager optional tile entity manager for orientation lookup (may be null)
-	 * @return the three meshes (opaque, transparent, billboard)
+	 * @return the four meshes (opaque, transparent, water, billboard)
 	 */
 	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess, TileEntityManager tileEntityManager)
 	{
@@ -515,7 +538,8 @@ public class RegionMeshBuilder
 		final int[] counts = countVertices(region, worldAccess, tileEntityManager);
 		final int opaqueVerts = counts[0];
 		final int transparentVerts = counts[1];
-		final int billboardVerts = counts[2];
+		final int waterVerts = counts[2];
+		final int billboardVerts = counts[3];
 		
 		// Pre-allocate exact-size arrays (null if no vertices).
 		// Color arrays have 4 components per vertex (RGBA).
@@ -530,6 +554,12 @@ public class RegionMeshBuilder
 		final float[] transUV = transparentVerts > 0 ? new float[transparentVerts * 2] : null;
 		final float[] transCol = transparentVerts > 0 ? new float[transparentVerts * 4] : null;
 		final int[] transIdx = transparentVerts > 0 ? new int[transparentVerts / 4 * 6] : null;
+		
+		final float[] waterPos = waterVerts > 0 ? new float[waterVerts * 3] : null;
+		final float[] waterNorm = waterVerts > 0 ? new float[waterVerts * 3] : null;
+		final float[] waterUV = waterVerts > 0 ? new float[waterVerts * 2] : null;
+		final float[] waterCol = waterVerts > 0 ? new float[waterVerts * 4] : null;
+		final int[] waterIdx = waterVerts > 0 ? new int[waterVerts / 4 * 6] : null;
 		
 		final float[] billPos = billboardVerts > 0 ? new float[billboardVerts * 3] : null;
 		final float[] billNorm = billboardVerts > 0 ? new float[billboardVerts * 3] : null;
@@ -547,6 +577,11 @@ public class RegionMeshBuilder
 		int transUPtr = 0;
 		int transCPtr = 0;
 		int transIPtr = 0;
+		
+		int waterVPtr = 0;
+		int waterUPtr = 0;
+		int waterCPtr = 0;
+		int waterIPtr = 0;
 		
 		int billVPtr = 0;
 		int billUPtr = 0;
@@ -625,11 +660,22 @@ public class RegionMeshBuilder
 									final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
 									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
 									
-									writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, face, block, r, g, b, transVPtr, transUPtr, transCPtr, transIPtr);
-									transVPtr += 4 * 3;
-									transUPtr += 4 * 2;
-									transCPtr += 4 * 4;
-									transIPtr += 6;
+									if (block == Block.WATER)
+									{
+										writeFace(waterPos, waterNorm, waterUV, waterCol, waterIdx, x, y, z, face, face, block, r, g, b, waterVPtr, waterUPtr, waterCPtr, waterIPtr);
+										waterVPtr += 4 * 3;
+										waterUPtr += 4 * 2;
+										waterCPtr += 4 * 4;
+										waterIPtr += 6;
+									}
+									else
+									{
+										writeFace(transPos, transNorm, transUV, transCol, transIdx, x, y, z, face, face, block, r, g, b, transVPtr, transUPtr, transCPtr, transIPtr);
+										transVPtr += 4 * 3;
+										transUPtr += 4 * 2;
+										transCPtr += 4 * 4;
+										transIPtr += 6;
+									}
 								}
 							}
 							break;
@@ -712,7 +758,7 @@ public class RegionMeshBuilder
 			}
 		}
 		
-		return new RegionMeshData(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, transPos, transNorm, transUV, transCol, transIdx, billPos, billNorm, billUV, billCol, billIdx);
+		return new RegionMeshData(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, transPos, transNorm, transUV, transCol, transIdx, waterPos, waterNorm, waterUV, waterCol, waterIdx, billPos, billNorm, billUV, billCol, billIdx);
 	}
 	
 	// ========================================================
@@ -923,6 +969,7 @@ public class RegionMeshBuilder
 	{
 		int opaque = 0;
 		int transparent = 0;
+		int water = 0;
 		int billboard = 0;
 		
 		final int regionWorldX = region.getWorldX();
@@ -959,7 +1006,14 @@ public class RegionMeshBuilder
 							{
 								if (isTransparentFaceVisible(region, x, y, z, face, block, worldAccess))
 								{
-									transparent += 4;
+									if (block == Block.WATER)
+									{
+										water += 4;
+									}
+									else
+									{
+										transparent += 4;
+									}
 								}
 							}
 							break;
@@ -995,6 +1049,7 @@ public class RegionMeshBuilder
 		{
 			opaque,
 			transparent,
+			water,
 			billboard
 		};
 	}
@@ -1383,14 +1438,15 @@ public class RegionMeshBuilder
 	 * Typically completes in under 1ms per region.<br>
 	 * Now includes Color buffer for vertex-color-based lighting.
 	 * @param data the pre-built mesh data from {@link #buildRegionMeshData}
-	 * @return a RegionMeshResult containing the three meshes (any may be null)
+	 * @return a RegionMeshResult containing the four meshes (any may be null)
 	 */
 	public static RegionMeshResult createMeshes(RegionMeshData data)
 	{
 		final Mesh opaqueMesh = data.hasOpaque() ? assembleFromArrays(data._opaquePositions, data._opaqueNormals, data._opaqueTexCoords, data._opaqueColors, data._opaqueIndices) : null;
 		final Mesh transparentMesh = data.hasTransparent() ? assembleFromArrays(data._transparentPositions, data._transparentNormals, data._transparentTexCoords, data._transparentColors, data._transparentIndices) : null;
+		final Mesh waterMesh = data.hasWater() ? assembleFromArrays(data._waterPositions, data._waterNormals, data._waterTexCoords, data._waterColors, data._waterIndices) : null;
 		final Mesh billboardMesh = data.hasBillboard() ? assembleFromArrays(data._billboardPositions, data._billboardNormals, data._billboardTexCoords, data._billboardColors, data._billboardIndices) : null;
-		return new RegionMeshResult(opaqueMesh, transparentMesh, billboardMesh);
+		return new RegionMeshResult(opaqueMesh, transparentMesh, waterMesh, billboardMesh);
 	}
 	
 	/**
