@@ -74,14 +74,14 @@ public class SmeltingRegistry
 		// ========================================================
 		registerRecipe("iron_ore", "iron_bar", 10.0f);
 		registerRecipe("sand", "glass", 8.0f);
-		registerRecipe("wood", "charcoal", 5.0f);
+		registerRecipe("wood", "coal", 5.0f);
 		
 		// ========================================================
 		// Fuel Burn Times.
 		// ========================================================
 		registerFuel("wood", 10.0f);
 		registerFuel("wood_plank", 8.0f);
-		registerFuel("charcoal", 60.0f);
+		registerFuel("coal", 60.0f);
 		registerFuel("leaves", 3.0f);
 		
 		System.out.println("SmeltingRegistry: Registered " + SMELT_RECIPES.size() + " recipes, " + FUEL_BURN_TIMES.size() + " fuels.");

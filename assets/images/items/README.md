@@ -85,10 +85,10 @@ By: Pantelis Andrianakis
 Created with: Paint.NET  
 File name: gold_shovel.png  
 
-## Charcoal
+## Coal
 By: Pantelis Andrianakis  
 Created with: Paint.NET  
-File name: charcoal.png  
+File name: coal.png  
 
 ## Meat
 By: Pantelis Andrianakis  

@@ -41,6 +41,7 @@ import simplecraft.player.BlockInteraction;
 import simplecraft.player.ChestScreen;
 import simplecraft.player.CraftingScreen;
 import simplecraft.player.FurnaceScreen;
+import simplecraft.player.HelpScreen;
 import simplecraft.player.InventoryScreen;
 import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
@@ -99,6 +100,7 @@ public class PlayingState extends FadeableAppState
 	private ActionListener _pauseListener;
 	private ActionListener _inventoryListener;
 	private ActionListener _hideHudListener;
+	private ActionListener _helpListener;
 	private TextureAtlas _textureAtlas;
 	
 	/** The shared texture atlas material used for all block rendering and mini-cube drops. */
@@ -114,6 +116,7 @@ public class PlayingState extends FadeableAppState
 	private CraftingScreen _craftingScreen;
 	private ChestScreen _chestScreen;
 	private FurnaceScreen _furnaceScreen;
+	private HelpScreen _helpScreen;
 	
 	/** Manages automatic enemy spawning, despawning and updates. */
 	private SpawnSystem _spawnSystem;
@@ -358,6 +361,13 @@ public class PlayingState extends FadeableAppState
 				return;
 			}
 			
+			// If help screen is open, close it instead of opening pause.
+			if (_helpScreen != null && _helpScreen.isOpen())
+			{
+				_helpScreen.close();
+				return;
+			}
+			
 			// Only open pause if we are currently in PLAYING state (not already paused) and not still loading or dead.
 			if (gsm.getCurrentState() == GameState.PLAYING && !_pendingSpawn && !_waitingForGround && !_playerDead && !QuestionManager.isActive())
 			{
@@ -421,6 +431,12 @@ public class PlayingState extends FadeableAppState
 						_furnaceScreen.close();
 					}
 					
+					// Close help screen if open before opening inventory.
+					if (_helpScreen != null && _helpScreen.isOpen())
+					{
+						_helpScreen.close();
+					}
+					
 					_inventoryScreen.open();
 				}
 			}
@@ -435,6 +451,10 @@ public class PlayingState extends FadeableAppState
 			else if (_furnaceScreen != null && _furnaceScreen.isOpen())
 			{
 				_furnaceScreen.close();
+			}
+			else if (_helpScreen != null && _helpScreen.isOpen())
+			{
+				_helpScreen.close();
 			}
 		};
 		
@@ -475,6 +495,62 @@ public class PlayingState extends FadeableAppState
 		};
 		
 		simpleCraft.getGameInputManager().addTrackedListener(_hideHudListener, GameInputManager.HIDE_HUD);
+		
+		// Register help screen toggle listener (F1 key).
+		_helpListener = (String name, boolean isPressed, float tpf) ->
+		{
+			if (!isPressed)
+			{
+				return;
+			}
+			
+			if (!GameInputManager.HELP_SCREEN.equals(name))
+			{
+				return;
+			}
+			
+			// Only toggle during active gameplay (not loading, dead, paused, or in question dialog).
+			final GameStateManager gsm = simpleCraft.getGameStateManager();
+			if (gsm.getCurrentState() != GameState.PLAYING || _pendingSpawn || _waitingForGround || _playerDead || QuestionManager.isActive())
+			{
+				return;
+			}
+			
+			if (_helpScreen != null)
+			{
+				if (_helpScreen.isOpen())
+				{
+					_helpScreen.close();
+				}
+				else
+				{
+					// Close other screens if open before opening help.
+					if (_inventoryScreen != null && _inventoryScreen.isOpen())
+					{
+						_inventoryScreen.close();
+					}
+					
+					if (_craftingScreen != null && _craftingScreen.isOpen())
+					{
+						_craftingScreen.close();
+					}
+					
+					if (_chestScreen != null && _chestScreen.isOpen())
+					{
+						_chestScreen.close();
+					}
+					
+					if (_furnaceScreen != null && _furnaceScreen.isOpen())
+					{
+						_furnaceScreen.close();
+					}
+					
+					_helpScreen.open();
+				}
+			}
+		};
+		
+		simpleCraft.getGameInputManager().addTrackedListener(_helpListener, GameInputManager.HELP_SCREEN);
 	}
 	
 	@Override
@@ -499,6 +575,13 @@ public class PlayingState extends FadeableAppState
 		{
 			SimpleCraft.getInstance().getGameInputManager().removeTrackedListener(_hideHudListener);
 			_hideHudListener = null;
+		}
+		
+		// Remove the help screen listener.
+		if (_helpListener != null)
+		{
+			SimpleCraft.getInstance().getGameInputManager().removeTrackedListener(_helpListener);
+			_helpListener = null;
 		}
 		
 		// Safety net: destroy world if still alive when state is detached.
@@ -2325,6 +2408,9 @@ public class PlayingState extends FadeableAppState
 		{
 			_blockInteraction.setFurnaceScreen(_furnaceScreen);
 		}
+		
+		// Create help screen (hidden initially, opened by pressing F1).
+		_helpScreen = new HelpScreen(_playerController, _blockInteraction);
 	}
 	
 	/**
@@ -2348,6 +2434,12 @@ public class PlayingState extends FadeableAppState
 		{
 			_furnaceScreen.cleanup();
 			_furnaceScreen = null;
+		}
+		
+		if (_helpScreen != null)
+		{
+			_helpScreen.cleanup();
+			_helpScreen = null;
 		}
 		
 		if (_inventoryScreen != null)

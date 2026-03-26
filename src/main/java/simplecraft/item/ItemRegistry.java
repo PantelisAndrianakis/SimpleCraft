@@ -111,7 +111,7 @@ public class ItemRegistry
 		// ========================================================
 		register(ItemTemplate.material("wood_plank", "Wood Plank", 1.0f));
 		register(ItemTemplate.material("stone_shard", "Stone Shard", 0.5f));
-		register(ItemTemplate.material("charcoal", "Charcoal", 0.5f));
+		register(ItemTemplate.material("coal", "Coal", 0.5f));
 		register(ItemTemplate.material("iron_bar", "Iron Bar", 0.5f));
 		register(ItemTemplate.material("gold_bar", "Gold Bar", 0.5f));
 		

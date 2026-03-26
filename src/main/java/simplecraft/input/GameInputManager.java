@@ -67,14 +67,22 @@ public class GameInputManager
 	/** Ordered array of all hotbar action constants (index 0 = slot 0). */
 	public static final String[] HOTBAR_ACTIONS =
 	{
-		HOTBAR_1, HOTBAR_2, HOTBAR_3, HOTBAR_4, HOTBAR_5,
-		HOTBAR_6, HOTBAR_7, HOTBAR_8, HOTBAR_9
+		HOTBAR_1,
+		HOTBAR_2,
+		HOTBAR_3,
+		HOTBAR_4,
+		HOTBAR_5,
+		HOTBAR_6,
+		HOTBAR_7,
+		HOTBAR_8,
+		HOTBAR_9
 	};
 	
 	// UI actions.
 	public static final String PAUSE = "pause";
 	public static final String SCREENSHOT = "screenshot";
 	public static final String HIDE_HUD = "hide_hud";
+	public static final String HELP_SCREEN = "help_screen";
 	public static final String UI_UP = "ui_up";
 	public static final String UI_DOWN = "ui_down";
 	public static final String UI_LEFT = "ui_left";
@@ -94,6 +102,7 @@ public class GameInputManager
 		{MOVE_RIGHT, "Move Right", "Movement"},
 		{JUMP, "Jump / Swim Up", "Movement"},
 		{SWIM_DOWN, "Swim Down / Crouch", "Movement"},
+		{HELP_SCREEN, "Help", "Actions"},
 		{SCREENSHOT, "Screenshot", "Actions"},
 		{HIDE_HUD, "Hide HUD", "Actions"},
 		{PAUSE, "Pause / Menu", "Actions"},
@@ -147,6 +156,7 @@ public class GameInputManager
 		defaults.put(SWIM_DOWN, KeyInput.KEY_LSHIFT);
 		defaults.put(INVENTORY, KeyInput.KEY_TAB);
 		defaults.put(PAUSE, KeyInput.KEY_ESCAPE);
+		defaults.put(HELP_SCREEN, KeyInput.KEY_F1);
 		defaults.put(SCREENSHOT, KeyInput.KEY_F2);
 		defaults.put(HIDE_HUD, KeyInput.KEY_F3);
 		defaults.put(HOTBAR_1, KeyInput.KEY_1);

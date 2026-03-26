@@ -208,7 +208,7 @@ public class CraftingRegistry
 		// ========================================================
 		// Utility / Furniture.
 		// ========================================================
-		register("torch", 1, ingredients("wood_plank", 1, "charcoal", 1));
+		register("torch", 1, ingredients("wood_plank", 1, "coal", 1));
 		register("campfire", 1, ingredients("wood", 2, "stone_shard", 4));
 		register("crafting_table", 1, ingredients("wood", 4));
 		register("chest", 1, ingredients("wood_plank", 10));
@@ -236,7 +236,7 @@ public class CraftingRegistry
 	
 	/**
 	 * Builds a paired ingredient map from alternating (itemId, count) varargs.<br>
-	 * Usage: {@code ingredients("wood_plank", 4, "charcoal", 1)}
+	 * Usage: {@code ingredients("wood_plank", 4, "coal", 1)}
 	 * @param args alternating item IDs (String) and counts (int)
 	 * @return a map of item ID -> required count
 	 */
