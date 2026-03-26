@@ -1519,7 +1519,14 @@ public class PlayingState extends FadeableAppState
 	{
 		if (_heldTorchLightPos != null && _world != null)
 		{
-			_world.removeBlockLight(_heldTorchLightPos[0], _heldTorchLightPos[1], _heldTorchLightPos[2]);
+			// Skip removal if a placed light-emitting block (torch, campfire) occupies this
+			// position — the held torch's light was absorbed by it and removing block light
+			// here would incorrectly erase the placed block's own light.
+			final Block block = _world.getBlock(_heldTorchLightPos[0], _heldTorchLightPos[1], _heldTorchLightPos[2]);
+			if (block.getLightLevel() <= 0)
+			{
+				_world.removeBlockLight(_heldTorchLightPos[0], _heldTorchLightPos[1], _heldTorchLightPos[2]);
+			}
 			_heldTorchLightPos = null;
 		}
 	}
