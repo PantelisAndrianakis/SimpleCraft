@@ -118,15 +118,15 @@ startScripts
 }
 
 // Create a custom distribution task.
-task createCustomDist(type: Zip)
-{
+task createCustomDist(type: Zip) {
 	archiveFileName = 'SimpleCraft.zip'
 	destinationDirectory = file('build/distributions')
 	
-	// Include SimpleCraft.bat at the root.
+	// Include launchers at the root.
 	from('src/main/resources')
 	{
 		include 'SimpleCraft.bat'
+		include 'SimpleCraft.sh'
 	}
 	
 	// Include assets folder (not bundled in JAR).
@@ -162,4 +162,62 @@ assembleDist
 build
 {
 	dependsOn createCustomDist
+}
+
+// ─── Standalone package (embedded JRE, no Java install required) ─────────────
+//
+// Usage:  gradlew standalonePackage
+// Output: build/dist/SimpleCraft/  (contains SimpleCraft.exe on Windows)
+//
+// Requires jpackage on PATH — included with JDK 14+.
+// Build on the TARGET platform: Windows .exe must be built on Windows,
+// Linux binary must be built on Linux. Cross-compilation is not supported.
+
+// Delete previous jpackage output so it doesn't merge with a stale build.
+task cleanPackage(type: Delete) {
+	delete "${buildDir}/packaged/SimpleCraft"
+}
+
+// Run jpackage to produce an app-image (directory, not an installer).
+// The bundled JRE means players do not need Java installed.
+task packageApp(type: Exec) {
+	dependsOn jar, cleanPackage
+
+	commandLine 'jpackage',
+		'--input',       "${buildDir}/libs",
+		'--main-jar',    "${project.name}.jar",
+		'--name',        'SimpleCraft',
+		'--type',        'app-image',
+		'--app-version', '1.0.0',
+		'--dest',        "${buildDir}/packaged",
+		// Required JVM flags — mirrored from the run task and SimpleCraft.bat.
+		'--java-options', '--add-opens=java.base/java.lang=ALL-UNNAMED',
+		'--java-options', '--add-opens=java.base/java.nio=ALL-UNNAMED',
+		'--java-options', '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+		'--java-options', '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+		// Icon: pick the right format for the current build platform.
+		'--icon', org.gradle.internal.os.OperatingSystem.current().isWindows() ? 'src/main/resources/icon.ico'
+		        : org.gradle.internal.os.OperatingSystem.current().isMacOsX()  ? 'src/main/resources/icon.icns'
+		        :                                                                  'src/main/resources/icon.png'
+}
+
+// Copy the assets folder next to the packaged executable.
+// jME3 loads assets from the working directory, not the classpath.
+task copyAssetsToPackage(type: Copy) {
+	dependsOn packageApp
+	from 'assets'
+	into "${buildDir}/packaged/SimpleCraft/assets"
+}
+
+// Top-level task: build fat JAR -> jpackage -> copy assets.
+task standalonePackage {
+	dependsOn copyAssetsToPackage
+	group = 'distribution'
+	description = 'Creates a self-contained app-image with bundled JRE — no Java install required.'
+	doLast
+	{
+		println ""
+		println "Standalone package created at: build/package/SimpleCraft/"
+		println "Copy that directory to any machine and run SimpleCraft.exe (Windows) or bin/SimpleCraft (Linux)."
+	}
 }

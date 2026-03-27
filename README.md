@@ -13,6 +13,7 @@
 ### Quick Start
 The easiest way to build and run SimpleCraft is to use the provided convenience scripts:
 
+**Windows**
 ```
 # Building
 Build.bat         # Build only.
@@ -23,6 +24,9 @@ Build.bat dist -o # Create package and open folder.
 # Running (requires building first)
 SimpleCraft.bat   # Runs the game (JAR must exist).
 
+# Standalone package with bundled JRE (no Java install required on target machine)
+Package.bat       # Creates a self-contained app-image in build/packaged/.
+
 # Clean up build artifacts
 Clean.bat         # Removes build directories.
 
@@ -30,12 +34,44 @@ Clean.bat         # Removes build directories.
 Help.bat          # Displays available scripts and system info.
 ```
 
+**Linux / macOS**
+
+> **First time only:** Make the scripts executable after cloning.
+> ```
+> chmod +x *.sh gradlew
+> ```
+
+```
+# Building
+./Build.sh         # Build only.
+./Build.sh run     # Build and run in one step.
+./Build.sh dist    # Create distribution package (ZIP).
+./Build.sh dist -o # Create package and open folder.
+
+# Running (requires building first)
+./SimpleCraft.sh   # Runs the game (JAR must exist).
+
+# Standalone package with bundled JRE (no Java install required on target machine)
+./Package.sh       # Creates a self-contained app-image in build/packaged/.
+
+# Clean up build artifacts
+./Clean.sh         # Removes build directories.
+
+# Get help and environment info
+./Help.sh          # Displays available scripts and system info.
+```
+
 ### Manual Build
 You can also use Gradle commands directly:
 
 ```
+# Windows
 gradlew.bat build
 gradlew.bat run
+
+# Linux / macOS
+./gradlew build
+./gradlew run
 ```
 
 ### Distribution Packages
@@ -48,7 +84,7 @@ Build.bat dist -o    # Build and open the output folder.
 
 The distribution package is available in the `build/distributions/` folder as `SimpleCraft.zip`.
 
-This package includes everything needed to run the game. Extract the zip file and use the included `SimpleCraft.bat` to launch the game.
+This package includes everything needed to run the game. Extract the zip file and use the included launcher to start the game (`SimpleCraft.bat` on Windows, `SimpleCraft.sh` on Linux/macOS).
 
 <br>
 
