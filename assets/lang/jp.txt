@@ -49,6 +49,7 @@ options.subtab_movement=移動
 options.subtab_actions=アクション
 options.subtab_mouse=マウス
 options.render_distance=描画距離
+options.sensitivity=感度
 options.block_highlight=ブロックハイライト
 options.show_crosshair=照準を表示
 options.show_stats=統計を表示

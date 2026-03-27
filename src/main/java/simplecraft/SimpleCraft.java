@@ -16,6 +16,7 @@ import simplecraft.item.ItemRegistry;
 import simplecraft.item.SmeltingRegistry;
 import simplecraft.settings.DiscordRichPresenceManager;
 import simplecraft.settings.LanguageManager;
+import simplecraft.settings.MouseSensitivityManager;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
 import simplecraft.settings.WindowIconManager;
@@ -107,6 +108,7 @@ public class SimpleCraft extends SimpleApplication
 		
 		// Initialize cursor manager to set custom cursor.
 		CursorManager.initialize(inputManager);
+		MouseSensitivityManager.initialize(inputManager);
 		
 		// Initialize core managers in order.
 		System.out.println("Initializing core managers...");
@@ -114,10 +116,10 @@ public class SimpleCraft extends SimpleApplication
 		// Language Manager (discovers and loads the saved language).
 		LanguageManager.discoverLanguages();
 		LanguageManager.loadLanguage(_settingsManager.getLanguage());
-
+		
 		// Pre-warm dialog fonts so first-use does not stall the render thread.
 		FontManager.warmup(assetManager, cam.getHeight());
-
+		
 		// Input Manager (sets up all input mappings).
 		_gameInputManager = new GameInputManager(inputManager);
 		

@@ -49,6 +49,7 @@ options.subtab_movement=Κίνηση
 options.subtab_actions=Ενέργειες
 options.subtab_mouse=Ποντίκι
 options.render_distance=Απόσταση
+options.sensitivity=Ευαισθησία
 options.block_highlight=Επισήμανση
 options.show_crosshair=Σταυρόνημα
 options.show_stats=Στατιστικά

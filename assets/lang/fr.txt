@@ -49,6 +49,7 @@ options.subtab_movement=Déplacement
 options.subtab_actions=Actions
 options.subtab_mouse=Souris
 options.render_distance=Distance
+options.sensitivity=Sensibilité
 options.block_highlight=Surbrillance
 options.show_crosshair=Réticule
 options.show_stats=Stats

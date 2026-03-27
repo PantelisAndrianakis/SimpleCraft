@@ -1019,11 +1019,12 @@ public class InventoryScreen implements ActionListener
 		if (_mouseDown)
 		{
 			final float deltaX = cx - _prevCursorX;
+			final float sensitivityScale = Math.max(0.05f, SimpleCraft.getInstance().getSettingsManager().getMouseSensitivity());
 			
 			// Only rotate if cursor is over the model display area (or drag started there).
 			if (cx >= _modelDisplayX && cx < _modelDisplayX + _modelDisplayWidth && cy >= _modelDisplayY && cy < _modelDisplayY + _modelDisplayHeight)
 			{
-				_modelRotation += deltaX * 0.01f;
+				_modelRotation += deltaX * 0.01f * sensitivityScale;
 			}
 		}
 		

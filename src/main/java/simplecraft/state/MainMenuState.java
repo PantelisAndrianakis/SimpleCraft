@@ -17,6 +17,7 @@ import simplecraft.audio.AudioManager;
 import simplecraft.audio.MusicManager;
 import simplecraft.input.MenuNavigationManager;
 import simplecraft.settings.LanguageManager;
+import simplecraft.settings.MouseSensitivityManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
@@ -72,6 +73,7 @@ public class MainMenuState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
 		System.out.println("MainMenuState entered.");
+		MouseSensitivityManager.setEnabled(true);
 		
 		// Screen dimensions.
 		final float screenWidth = app.getCamera().getWidth();
@@ -134,7 +136,7 @@ public class MainMenuState extends FadeableAppState
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(optionsButton, optionsAction));
 		
 		addButtonSpacer();
-		 
+		
 		// Exit button.
 		final Runnable exitAction = () ->
 		{
@@ -197,6 +199,7 @@ public class MainMenuState extends FadeableAppState
 	protected void onExitState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		MouseSensitivityManager.setEnabled(false);
 		
 		if (_navigation != null)
 		{

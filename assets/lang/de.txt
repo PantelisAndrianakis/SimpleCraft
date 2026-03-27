@@ -49,6 +49,7 @@ options.subtab_movement=Bewegung
 options.subtab_actions=Aktionen
 options.subtab_mouse=Maus
 options.render_distance=Sichtweite
+options.sensitivity=Empfindlichkeit
 options.block_highlight=Block-Highlight
 options.show_crosshair=Fadenkreuz
 options.show_stats=Statistiken

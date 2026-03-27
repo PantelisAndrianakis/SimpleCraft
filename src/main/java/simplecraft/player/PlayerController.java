@@ -85,7 +85,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	private float _moveSpeed = 4.3f;
 	
 	/** Mouse sensitivity - degrees per pixel of mouse movement. */
-	private float _mouseSensitivity = 0.2f;
+	private float _mouseSensitivity = 1.0f;
 	
 	// Movement flags set by key press/release.
 	private boolean _moveForward;

@@ -43,6 +43,7 @@ public class SettingsManager
 	private static final String KEY_SHOW_STATS = "showStats";
 	private static final String KEY_SHOW_FPS = "showFps";
 	private static final String KEY_LANGUAGE = "language";
+	private static final String KEY_MOUSE_SENSITIVITY = "mouseSensitivity";
 	
 	// Prefix for keybinding entries (e.g., "key.move_forward=17").
 	private static final String KEYBINDING_PREFIX = "key.";
@@ -55,6 +56,7 @@ public class SettingsManager
 	private static final float DEFAULT_MUSIC_VOLUME = 0.3f;
 	private static final float DEFAULT_SFX_VOLUME = 0.7f;
 	private static final int DEFAULT_RENDER_DISTANCE = 15;
+	private static final float DEFAULT_MOUSE_SENSITIVITY = 0.3f;
 	
 	/** Player-facing render distance range (1–15), internally offset by +5 to become 6–20 regions. */
 	public static final int MIN_RENDER_DISTANCE = 1;
@@ -142,6 +144,7 @@ public class SettingsManager
 	private float _musicVolume = DEFAULT_MUSIC_VOLUME;
 	private float _sfxVolume = DEFAULT_SFX_VOLUME;
 	private int _renderDistance = DEFAULT_RENDER_DISTANCE;
+	private float _mouseSensitivity = DEFAULT_MOUSE_SENSITIVITY;
 	private int _screenWidth = DEFAULT_SCREEN_WIDTH;
 	private int _screenHeight = DEFAULT_SCREEN_HEIGHT;
 	private boolean _fullscreen = DEFAULT_FULLSCREEN;
@@ -218,6 +221,11 @@ public class SettingsManager
 						case KEY_RENDER_DISTANCE:
 						{
 							_renderDistance = Math.clamp(Integer.parseInt(value), MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE);
+							break;
+						}
+						case KEY_MOUSE_SENSITIVITY:
+						{
+							_mouseSensitivity = Math.clamp(Float.parseFloat(value), 0.01f, 10.0f);
 							break;
 						}
 						case KEY_SCREEN_WIDTH:
@@ -323,6 +331,8 @@ public class SettingsManager
 				writer.newLine();
 				writer.write(KEY_RENDER_DISTANCE + "=" + _renderDistance);
 				writer.newLine();
+				writer.write(KEY_MOUSE_SENSITIVITY + "=" + _mouseSensitivity);
+				writer.newLine();
 				writer.write(KEY_SCREEN_WIDTH + "=" + _screenWidth);
 				writer.newLine();
 				writer.write(KEY_SCREEN_HEIGHT + "=" + _screenHeight);
@@ -372,6 +382,7 @@ public class SettingsManager
 		_musicVolume = DEFAULT_MUSIC_VOLUME;
 		_sfxVolume = DEFAULT_SFX_VOLUME;
 		_renderDistance = DEFAULT_RENDER_DISTANCE;
+		_mouseSensitivity = DEFAULT_MOUSE_SENSITIVITY;
 		_screenWidth = DEFAULT_SCREEN_WIDTH;
 		_screenHeight = DEFAULT_SCREEN_HEIGHT;
 		_fullscreen = DEFAULT_FULLSCREEN;
@@ -480,6 +491,16 @@ public class SettingsManager
 	public void setRenderDistance(int distance)
 	{
 		_renderDistance = Math.clamp(distance, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE);
+	}
+	
+	public float getMouseSensitivity()
+	{
+		return _mouseSensitivity;
+	}
+	
+	public void setMouseSensitivity(float mouseSensitivity)
+	{
+		_mouseSensitivity = Math.clamp(mouseSensitivity, 0.01f, 10.0f);
 	}
 	
 	public int getScreenWidth()

@@ -49,6 +49,7 @@ options.subtab_movement=Movimiento
 options.subtab_actions=Acciones
 options.subtab_mouse=Ratón
 options.render_distance=Distancia
+options.sensitivity=Sensibilidad
 options.block_highlight=Resaltado
 options.show_crosshair=Mira
 options.show_stats=Estadísticas

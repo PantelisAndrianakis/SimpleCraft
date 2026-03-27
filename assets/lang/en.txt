@@ -49,6 +49,7 @@ options.subtab_movement=Movement
 options.subtab_actions=Actions
 options.subtab_mouse=Mouse
 options.render_distance=Render Distance
+options.sensitivity=Sensitivity
 options.block_highlight=Block Highlight
 options.show_crosshair=Show Crosshair
 options.show_stats=Show Stats

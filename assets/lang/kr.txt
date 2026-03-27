@@ -49,6 +49,7 @@ options.subtab_movement=이동
 options.subtab_actions=행동
 options.subtab_mouse=마우스
 options.render_distance=렌더 거리
+options.sensitivity=감도
 options.block_highlight=블록 강조
 options.show_crosshair=조준점 표시
 options.show_stats=통계 표시

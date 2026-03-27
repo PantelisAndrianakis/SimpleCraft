@@ -50,6 +50,7 @@ import simplecraft.input.GameInputManager;
 import simplecraft.input.MenuNavigationManager;
 import simplecraft.input.MenuNavigationManager.NavigationSlot;
 import simplecraft.settings.LanguageManager;
+import simplecraft.settings.MouseSensitivityManager;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
 import simplecraft.ui.ButtonManager;
@@ -80,6 +81,9 @@ public class OptionsState extends FadeableAppState
 	private static final float VALUE_LABEL_WIDTH_PERCENT = 0.10f;
 	
 	private static final float SFX_TEST_INTERVAL = 0.4f;
+	private static final float SENSITIVITY_MIN = 0.01f;
+	private static final float SENSITIVITY_MAX = 10.0f;
+	private static final float SENSITIVITY_CURVE_EXPONENT = 2.2f;
 	
 	private static final ColorRGBA TAB_ACTIVE_COLOR = ColorRGBA.White;
 	private static final ColorRGBA TAB_INACTIVE_COLOR = new ColorRGBA(0.5f, 0.5f, 0.5f, 1f);
@@ -161,6 +165,9 @@ public class OptionsState extends FadeableAppState
 	private Slider _renderDistanceSlider;
 	private Label _renderDistanceValueLabel;
 	private VersionedReference<Double> _renderDistanceRef;
+	private Slider _mouseSensitivitySlider;
+	private Label _mouseSensitivityValueLabel;
+	private VersionedReference<Double> _mouseSensitivityRef;
 	private Button _showHighlightToggle;
 	private Button _showCrosshairToggle;
 	private Button _showStatsToggle;
@@ -229,6 +236,7 @@ public class OptionsState extends FadeableAppState
 	protected void onEnterState()
 	{
 		_navigation = new MenuNavigationManager();
+		MouseSensitivityManager.setEnabled(true);
 		
 		buildGui();
 		
@@ -240,6 +248,7 @@ public class OptionsState extends FadeableAppState
 	protected void onExitState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		MouseSensitivityManager.setEnabled(false);
 		
 		if (_navigation != null)
 		{
@@ -287,6 +296,10 @@ public class OptionsState extends FadeableAppState
 		else if (_activeTab == TAB_DISPLAY)
 		{
 			pollDisplaySliders(app);
+		}
+		else if (_activeTab == TAB_KEYBINDINGS && _activeSubTab == SUB_TAB_MOUSE)
+		{
+			pollMouseSensitivitySlider(app);
 		}
 	}
 	
@@ -396,7 +409,7 @@ public class OptionsState extends FadeableAppState
 		positionContentContainer(_audioContent, screenCenterX, screenHeight / 0.83f);
 		positionContentContainer(_keyMovementContent, screenCenterX, screenHeight / 0.78f);
 		positionContentContainer(_keyActionsContent, screenCenterX, screenHeight / 1.03f);
-		positionContentContainer(_keyMouseContent, screenCenterX, screenHeight / 0.78f);
+		positionContentContainer(_keyMouseContent, screenCenterX, screenHeight / 0.95f);
 		
 		// --- Button Row (Defaults + Back) ---
 		_buttonRow = new Container();
@@ -593,6 +606,9 @@ public class OptionsState extends FadeableAppState
 		_renderDistanceSlider = null;
 		_renderDistanceValueLabel = null;
 		_renderDistanceRef = null;
+		_mouseSensitivitySlider = null;
+		_mouseSensitivityValueLabel = null;
+		_mouseSensitivityRef = null;
 		_showHighlightToggle = null;
 		_showCrosshairToggle = null;
 		_showStatsToggle = null;
@@ -941,6 +957,30 @@ public class OptionsState extends FadeableAppState
 			_keyMouseContent.addChild(createFixedKeybindingRow(app, displayName, keyText));
 			addRowSpacer(_keyMouseContent);
 		}
+		
+		// Mouse sensitivity slider (placed at the bottom of Mouse sub-tab).
+		_mouseSensitivitySlider = new Slider(Axis.X);
+		_mouseSensitivitySlider.setPreferredSize(new Vector3f(app.getCamera().getWidth() * SLIDER_WIDTH_PERCENT, _sliderHeight, 0));
+		_mouseSensitivitySlider.getModel().setMinimum(1);
+		_mouseSensitivitySlider.getModel().setMaximum(300);
+		_mouseSensitivitySlider.getModel().setValue(sensitivityToSliderValue(app.getSettingsManager().getMouseSensitivity()));
+		_mouseSensitivityValueLabel = createValueLabel(String.format("%.2f", app.getSettingsManager().getMouseSensitivity()));
+		final Label sensitivityLabel = createNameLabel(app, LanguageManager.get("options.sensitivity"));
+		
+		// Push sensitivity lower so it sits around the middle/lower area of the Mouse sub-tab.
+		final Label sensitivitySpacer = new Label("");
+		sensitivitySpacer.setPreferredSize(new Vector3f(1, app.getCamera().getHeight() * 0.08f, 0));
+		_keyMouseContent.addChild(sensitivitySpacer);
+		
+		_keyMouseContent.addChild(createSliderRow(app, sensitivityLabel, _mouseSensitivitySlider, _mouseSensitivityValueLabel));
+		// @formatter:off
+		_keyMouseSlots.add(MenuNavigationManager.labelSlot(sensitivityLabel,
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_mouseSensitivitySlider, -1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_mouseSensitivitySlider, 1); },
+			null));
+		// @formatter:on
+		_mouseSensitivityRef = _mouseSensitivitySlider.getModel().createReference();
+		styleSliderComponents(_mouseSensitivitySlider);
 		
 		updateSubTabStyles();
 	}
@@ -1452,6 +1492,46 @@ public class OptionsState extends FadeableAppState
 				_renderDistanceSlider.getModel().setValue(value);
 			}
 		}
+	}
+	
+	/**
+	 * Poll the mouse sensitivity slider and apply in real-time.
+	 */
+	private void pollMouseSensitivitySlider(SimpleCraft app)
+	{
+		final SettingsManager settings = app.getSettingsManager();
+		
+		if (_mouseSensitivityRef != null && _mouseSensitivityRef.update())
+		{
+			final float value = sliderValueToSensitivity(_mouseSensitivityRef.get());
+			settings.setMouseSensitivity(value);
+			_mouseSensitivityValueLabel.setText(String.format("%.2f", value));
+			applyMouseSensitivityToPlayingState(app, value);
+		}
+	}
+	
+	/**
+	 * Convert slider value to sensitivity using a non-linear curve.
+	 */
+	private float sliderValueToSensitivity(double sliderValue)
+	{
+		final double sliderMin = _mouseSensitivitySlider.getModel().getMinimum();
+		final double sliderMax = _mouseSensitivitySlider.getModel().getMaximum();
+		final double normalized = Math.clamp((sliderValue - sliderMin) / (sliderMax - sliderMin), 0.0, 1.0);
+		final double curved = Math.pow(normalized, SENSITIVITY_CURVE_EXPONENT);
+		return (float) (SENSITIVITY_MIN + (SENSITIVITY_MAX - SENSITIVITY_MIN) * curved);
+	}
+	
+	/**
+	 * Convert saved sensitivity back to slider value (inverse of the non-linear curve).
+	 */
+	private double sensitivityToSliderValue(float sensitivity)
+	{
+		final double sliderMin = 1.0;
+		final double sliderMax = 300.0;
+		final double normalized = Math.clamp((sensitivity - SENSITIVITY_MIN) / (SENSITIVITY_MAX - SENSITIVITY_MIN), 0.0f, 1.0f);
+		final double linear = Math.pow(normalized, 1.0 / SENSITIVITY_CURVE_EXPONENT);
+		return sliderMin + linear * (sliderMax - sliderMin);
 	}
 	
 	// ========== UI FACTORY HELPERS ==========
@@ -2115,6 +2195,7 @@ public class OptionsState extends FadeableAppState
 		// Apply debug display immediately.
 		app.setDisplayStatView(settings.isShowStats());
 		app.setDisplayFps(settings.isShowFps());
+		applyMouseSensitivityToPlayingState(app, settings.getMouseSensitivity());
 		
 		// Reset keybindings.
 		cancelListening();
@@ -2123,6 +2204,18 @@ public class OptionsState extends FadeableAppState
 		
 		// Apply display settings (UI will rebuild via screen size detection).
 		WindowDisplayManager.applyCurrentSettings();
+	}
+	
+	/**
+	 * Apply mouse sensitivity immediately if a play session is active.
+	 */
+	private void applyMouseSensitivityToPlayingState(SimpleCraft app, float sensitivity)
+	{
+		final PlayingState playingState = app.getStateManager().getState(PlayingState.class);
+		if (playingState != null)
+		{
+			playingState.applyMouseSensitivity(sensitivity);
+		}
 	}
 	
 	// ========== LANGUAGE SELECTION ==========

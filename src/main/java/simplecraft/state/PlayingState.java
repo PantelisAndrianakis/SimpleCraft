@@ -47,9 +47,9 @@ import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
 import simplecraft.player.ViewmodelRenderer;
 import simplecraft.save.SaveManager;
-import simplecraft.settings.LanguageManager;
 import simplecraft.save.SaveManager.PlayerSaveData;
 import simplecraft.save.SaveManager.SavedRegionData;
+import simplecraft.settings.LanguageManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.FontManager;
 import simplecraft.ui.MessageManager;
@@ -724,6 +724,12 @@ public class PlayingState extends FadeableAppState
 	public void update(float tpf)
 	{
 		super.update(tpf);
+		
+		// Keep runtime look sensitivity synced to settings at all times.
+		if (_playerController != null)
+		{
+			_playerController.setMouseSensitivity(SimpleCraft.getInstance().getSettingsManager().getMouseSensitivity());
+		}
 		
 		// --- Pending arena entry: loading screen is visible, generate and enter arena. ---
 		if ((_pendingDragonArenaEntry || _pendingShadowArenaEntry) && _world != null && _playerController != null)
@@ -2159,6 +2165,7 @@ public class PlayingState extends FadeableAppState
 		
 		// Create and initialize the player controller with world reference for collision.
 		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world, app.getAudioManager());
+		_playerController.setMouseSensitivity(app.getSettingsManager().getMouseSensitivity());
 		
 		// Restore player state from save data if available.
 		if (_playerSaveData != null)
@@ -2356,6 +2363,17 @@ public class PlayingState extends FadeableAppState
 		if (_viewmodelRenderer != null)
 		{
 			_viewmodelRenderer.setVisible(true);
+		}
+	}
+	
+	/**
+	 * Apply mouse sensitivity to the active player controller, if available.
+	 */
+	public void applyMouseSensitivity(float sensitivity)
+	{
+		if (_playerController != null)
+		{
+			_playerController.setMouseSensitivity(sensitivity);
 		}
 	}
 	

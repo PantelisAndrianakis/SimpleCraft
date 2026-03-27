@@ -49,6 +49,7 @@ options.subtab_movement=移动
 options.subtab_actions=操作
 options.subtab_mouse=鼠标
 options.render_distance=渲染距离
+options.sensitivity=灵敏度
 options.block_highlight=方块高亮
 options.show_crosshair=显示准星
 options.show_stats=显示统计

@@ -14,6 +14,7 @@ import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.input.MenuNavigationManager;
 import simplecraft.settings.LanguageManager;
+import simplecraft.settings.MouseSensitivityManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
@@ -79,6 +80,7 @@ public class PauseMenuState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
 		System.out.println("PauseMenuState entered.");
+		MouseSensitivityManager.setEnabled(true);
 		
 		// Show cursor for menu interaction.
 		app.getInputManager().setCursorVisible(true);
@@ -90,6 +92,7 @@ public class PauseMenuState extends FadeableAppState
 	protected void onExitState()
 	{
 		System.out.println("PauseMenuState exited.");
+		MouseSensitivityManager.setEnabled(false);
 		
 		if (_navigation != null)
 		{

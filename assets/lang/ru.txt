@@ -49,6 +49,7 @@ options.subtab_movement=Движение
 options.subtab_actions=Действия
 options.subtab_mouse=Мышь
 options.render_distance=Дальность
+options.sensitivity=Чувствительность
 options.block_highlight=Подсветка
 options.show_crosshair=Прицел
 options.show_stats=Статистику
