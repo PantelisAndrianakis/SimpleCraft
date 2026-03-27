@@ -95,7 +95,8 @@ run
 		'--add-opens=java.base/java.lang=ALL-UNNAMED',
 		'--add-opens=java.base/java.nio=ALL-UNNAMED',
 		'--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
-		'--add-opens=java.base/java.lang.reflect=ALL-UNNAMED'
+		'--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+		'--enable-native-access=ALL-UNNAMED'
 	]
 }
 
@@ -195,6 +196,8 @@ task packageApp(type: Exec) {
 		'--java-options', '--add-opens=java.base/java.nio=ALL-UNNAMED',
 		'--java-options', '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
 		'--java-options', '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+		'--java-options', '--enable-native-access=ALL-UNNAMED',
+		'--java-options', '-XX:+UseZGC',
 		// Icon: pick the right format for the current build platform.
 		'--icon', org.gradle.internal.os.OperatingSystem.current().isWindows() ? 'src/main/resources/icon.ico'
 		        : org.gradle.internal.os.OperatingSystem.current().isMacOsX()  ? 'src/main/resources/icon.icns'

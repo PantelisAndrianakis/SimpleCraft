@@ -48,6 +48,7 @@ JVM_ARGS="--add-opens=java.base/java.lang=ALL-UNNAMED \
           --add-opens=java.base/java.nio=ALL-UNNAMED \
           --add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
           --add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
+          --enable-native-access=ALL-UNNAMED \
           -XX:+UseZGC"
 
 # Launch game.
