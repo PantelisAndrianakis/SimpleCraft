@@ -38,6 +38,7 @@ import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemTextureResolver;
 import simplecraft.item.ItemType;
+import simplecraft.settings.LanguageManager;
 import simplecraft.ui.FontManager;
 import simplecraft.world.World;
 import simplecraft.world.entity.ChestTileEntity;
@@ -136,11 +137,6 @@ public class ChestScreen implements ActionListener
 	private static final ColorRGBA COLOR_EYE_GREEN = new ColorRGBA(0.04f, 0.30f, 0.10f, 1.0f);
 	private static final ColorRGBA COLOR_EYE_WHITE = new ColorRGBA(0.92f, 0.92f, 0.92f, 1.0f);
 	private static final ColorRGBA COLOR_PANTS_BROWN = new ColorRGBA(0.35f, 0.25f, 0.15f, 1.0f);
-	
-	/** Armor slot label letters shown in empty armor slots. */
-	// @formatter:off
-	private static final String[] ARMOR_SLOT_LABELS = { "Head", "Chest", "Pants", "Boots" };
-	// @formatter:on
 	
 	/** Offscreen render texture dimensions. */
 	private static final int MODEL_TEX_WIDTH = 256;
@@ -314,10 +310,10 @@ public class ChestScreen implements ActionListener
 		
 		// Fonts.
 		final int fontSize = Math.max(10, (int) (_screenHeight * 0.016f));
-		_font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, fontSize);
+		_font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, fontSize);
 		
 		final int tooltipSize = Math.max(12, (int) (_screenHeight * 0.018f));
-		_tooltipFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, tooltipSize);
+		_tooltipFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, tooltipSize);
 		
 		// Build all UI elements.
 		_screenNode = new Node("ChestScreen");
@@ -522,7 +518,7 @@ public class ChestScreen implements ActionListener
 			_screenNode.attachChild(_armorSlotFill[i]);
 			
 			_armorSlotLabel[i] = new BitmapText(_font);
-			_armorSlotLabel[i].setText(ARMOR_SLOT_LABELS[i]);
+			_armorSlotLabel[i].setText(getArmorSlotLabel(i));
 			_armorSlotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
 			_armorSlotLabel[i].setColor(new ColorRGBA(0.5f, 0.5f, 0.55f, 0.5f));
 			final float labelWidth = _armorSlotLabel[i].getLineWidth();
@@ -536,6 +532,19 @@ public class ChestScreen implements ActionListener
 			_armorSlotDurBar[i].setCullHint(Geometry.CullHint.Always);
 			_screenNode.attachChild(_armorSlotDurBar[i]);
 		}
+	}
+	
+	private static String getArmorSlotLabel(int index)
+	{
+		final String[] keys =
+		{
+			"screen.armor_head",
+			"screen.armor_chest",
+			"screen.armor_pants",
+			"screen.armor_boots"
+		};
+		
+		return LanguageManager.get(keys[index]);
 	}
 	
 	/**
@@ -735,17 +744,17 @@ public class ChestScreen implements ActionListener
 	private void buildTitle(SimpleCraft app)
 	{
 		final int titleSize = Math.max(14, (int) (_screenHeight * 0.022f));
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, titleSize);
+		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, titleSize);
 		
 		// "Chest" title above the chest slot section.
 		_titleTextShadow = new BitmapText(titleFont);
-		_titleTextShadow.setText("Chest");
+		_titleTextShadow.setText(LanguageManager.get("screen.chest"));
 		_titleTextShadow.setSize(titleSize);
 		_titleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_titleTextShadow);
 		
 		_titleText = new BitmapText(titleFont);
-		_titleText.setText("Chest");
+		_titleText.setText(LanguageManager.get("screen.chest"));
 		_titleText.setSize(titleSize);
 		_titleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_titleText);
@@ -765,13 +774,13 @@ public class ChestScreen implements ActionListener
 		
 		// "Inventory" label above the player main inventory section.
 		_inventoryLabelShadow = new BitmapText(titleFont);
-		_inventoryLabelShadow.setText("Inventory");
+		_inventoryLabelShadow.setText(LanguageManager.get("screen.inventory"));
 		_inventoryLabelShadow.setSize(titleSize);
 		_inventoryLabelShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_inventoryLabelShadow);
 		
 		_inventoryLabel = new BitmapText(titleFont);
-		_inventoryLabel.setText("Inventory");
+		_inventoryLabel.setText(LanguageManager.get("screen.inventory"));
 		_inventoryLabel.setSize(titleSize);
 		_inventoryLabel.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_inventoryLabel);
@@ -786,13 +795,13 @@ public class ChestScreen implements ActionListener
 		
 		// "Action Bar" label above the hotbar row, below the inventory.
 		_actionBarLabelShadow = new BitmapText(titleFont);
-		_actionBarLabelShadow.setText("Action Bar");
+		_actionBarLabelShadow.setText(LanguageManager.get("screen.action_bar"));
 		_actionBarLabelShadow.setSize(titleSize);
 		_actionBarLabelShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_actionBarLabelShadow);
 		
 		_actionBarLabel = new BitmapText(titleFont);
-		_actionBarLabel.setText("Action Bar");
+		_actionBarLabel.setText(LanguageManager.get("screen.action_bar"));
 		_actionBarLabel.setSize(titleSize);
 		_actionBarLabel.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_actionBarLabel);
@@ -806,13 +815,13 @@ public class ChestScreen implements ActionListener
 		
 		// "Armor" label above the armor slots.
 		_armorTitleTextShadow = new BitmapText(titleFont);
-		_armorTitleTextShadow.setText("Armor");
+		_armorTitleTextShadow.setText(LanguageManager.get("screen.armor"));
 		_armorTitleTextShadow.setSize(titleSize);
 		_armorTitleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_armorTitleTextShadow);
 		
 		_armorTitleText = new BitmapText(titleFont);
-		_armorTitleText.setText("Armor");
+		_armorTitleText.setText(LanguageManager.get("screen.armor"));
 		_armorTitleText.setSize(titleSize);
 		_armorTitleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_armorTitleText);

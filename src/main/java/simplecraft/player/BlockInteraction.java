@@ -32,6 +32,7 @@ import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemType;
+import simplecraft.settings.LanguageManager;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.MessageManager;
 import simplecraft.util.Rnd;
@@ -833,7 +834,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				{
 					final String toolName = held.getTemplate().getDisplayName();
 					inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
-					MessageManager.show("Your " + toolName + " broke!");
+					MessageManager.show(LanguageManager.get("msg.tool_broke").replace("{0}", toolName));
 					System.out.println("Tool broke: " + toolName);
 				}
 			}
@@ -878,7 +879,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			{
 				final String toolName = heldItem.getTemplate().getDisplayName();
 				inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
-				MessageManager.show("Your " + toolName + " broke!");
+				MessageManager.show(LanguageManager.get("msg.tool_broke").replace("{0}", toolName));
 				System.out.println("Tool broke: " + toolName);
 				
 				// Tool broke mid-block-break - recalculate effective hits with bare hands.
@@ -995,7 +996,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 							if (campfire.isActivated())
 							{
 								_playerController.clearRespawnCampfire();
-								MessageManager.show("Respawn point lost! You will respawn at world origin.");
+								MessageManager.show(LanguageManager.get("msg.respawn_lost"));
 							}
 						}
 					}
@@ -1324,7 +1325,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				if (campfire.isActivated())
 				{
 					_playerController.clearRespawnCampfire();
-					MessageManager.show("Respawn point lost! You will respawn at world origin.");
+					MessageManager.show(LanguageManager.get("msg.respawn_lost"));
 				}
 			}
 			
@@ -1419,7 +1420,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			if (_playerController.isInBossArena())
 			{
-				MessageManager.show("The orb has no power here.");
+				MessageManager.show(LanguageManager.get("msg.orb_no_power"));
 				return true;
 			}
 			
@@ -1440,7 +1441,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			if (_playerController.isInBossArena())
 			{
-				MessageManager.show("The orb has no power here.");
+				MessageManager.show(LanguageManager.get("msg.orb_no_power"));
 				return true;
 			}
 			
@@ -1461,7 +1462,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			if (!_playerController.isInBossArena())
 			{
-				MessageManager.show("The orb glows faintly but does nothing.");
+				MessageManager.show(LanguageManager.get("msg.orb_faint"));
 				return true;
 			}
 			
@@ -1601,7 +1602,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Boss arena restriction: cannot place tile entity blocks (campfire, chest, crafting table, furnace).
 		if (_playerController.isInBossArena() && selectedBlock.isTileEntity())
 		{
-			MessageManager.show("You cannot place that here.");
+			MessageManager.show(LanguageManager.get("msg.cannot_place"));
 			System.out.println("Arena restriction: Cannot place " + selectedBlock.name() + " in boss arena.");
 			return;
 		}

@@ -31,6 +31,7 @@ import simplecraft.item.Inventory;
 import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemTextureResolver;
+import simplecraft.settings.LanguageManager;
 import simplecraft.ui.FontManager;
 
 /**
@@ -297,8 +298,8 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		final float screenH = cam.getHeight();
 		
 		// Load fonts.
-		_recipeFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, FONT_SIZE);
-		_titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, TITLE_FONT_SIZE);
+		_recipeFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, FONT_SIZE);
+		_titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, TITLE_FONT_SIZE);
 		
 		// ---- Full-screen dark overlay ----
 		final Quad overlayQuad = new Quad(screenW, screenH);
@@ -329,12 +330,12 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		
 		// ---- Title ----
 		final BitmapText titleShadow = new BitmapText(_titleFont);
-		titleShadow.setText("Crafting Table");
+		titleShadow.setText(LanguageManager.get("screen.crafting_table"));
 		titleShadow.setColor(COLOR_TEXT_SHADOW);
 		titleShadow.setSize(_titleFont.getCharSet().getRenderedSize());
 		
 		final BitmapText titleText = new BitmapText(_titleFont);
-		titleText.setText("Crafting Table");
+		titleText.setText(LanguageManager.get("screen.crafting_table"));
 		titleText.setColor(COLOR_TITLE);
 		titleText.setSize(_titleFont.getCharSet().getRenderedSize());
 		
@@ -347,7 +348,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		
 		// ---- Close hint at bottom ----
 		final BitmapText hintText = new BitmapText(_recipeFont);
-		hintText.setText("Press Escape or Tab to close");
+		hintText.setText(LanguageManager.get("screen.crafting_hint"));
 		hintText.setColor(COLOR_HINT);
 		hintText.setSize(_recipeFont.getCharSet().getRenderedSize());
 		final float hintX = _panelX + (_panelWidth - hintText.getLineWidth()) / 2;
@@ -450,13 +451,13 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			
 			// Ingredient list (line 2).
 			row.ingredientText = new BitmapText(_recipeFont);
-			row.ingredientText.setText("  Needs: " + recipe.getIngredientsDisplayString());
+			row.ingredientText.setText(LanguageManager.get("screen.crafting_needs") + " " + recipe.getIngredientsDisplayString());
 			row.ingredientText.setSize(_recipeFont.getCharSet().getRenderedSize());
 			_rootNode.attachChild(row.ingredientText);
 			
 			// [Craft] button text (right-aligned).
 			row.buttonText = new BitmapText(_recipeFont);
-			row.buttonText.setText("[Craft]");
+			row.buttonText.setText(LanguageManager.get("screen.craft_button"));
 			row.buttonText.setSize(_recipeFont.getCharSet().getRenderedSize());
 			row.buttonX = rightX - row.buttonText.getLineWidth();
 			_rootNode.attachChild(row.buttonText);
@@ -542,7 +543,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 				row.outputText.setColor(COLOR_CRAFTABLE_OUTPUT);
 				row.ingredientText.setColor(COLOR_CRAFTABLE_INGREDIENTS);
 				row.buttonText.setColor(COLOR_CRAFTABLE_BUTTON);
-				row.buttonText.setText("[Craft]");
+				row.buttonText.setText(LanguageManager.get("screen.craft_button"));
 				
 				// Icon at full brightness.
 				if (row.hasTexture)
@@ -555,7 +556,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 				row.outputText.setColor(COLOR_UNCRAFTABLE_OUTPUT);
 				row.ingredientText.setColor(COLOR_UNCRAFTABLE_INGREDIENTS);
 				row.buttonText.setColor(COLOR_UNCRAFTABLE_BUTTON);
-				row.buttonText.setText("[----]");
+				row.buttonText.setText(LanguageManager.get("screen.craft_empty"));
 				
 				// Icon dimmed.
 				if (row.hasTexture)

@@ -25,6 +25,8 @@ import com.jme3.texture.Texture2D;
 import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
 
+import simplecraft.settings.LanguageManager;
+
 /**
  * Generates crisp BitmapFont objects from TTF/OTF font files or system fonts at exact pixel sizes.<br>
  * Uses Java2D to render glyphs into a texture atlas, eliminating blurriness caused by scaling up low-resolution bitmap fonts.<br>
@@ -36,9 +38,25 @@ import com.jme3.util.BufferUtils;
  */
 public class FontManager
 {
-	// Public font paths.
+	// Static font paths - used only for intro screen and main menu game title.
 	public static final String BLUE_HIGHWAY_REGULAR_PATH = "fonts/blue_highway_rg.otf";
 	public static final String BLUE_HIGHWAY_LINOCUT_PATH = "fonts/blue_highway_linocut.otf";
+	
+	/**
+	 * Returns the regular UI font path for the current language. English uses Blue Highway; all other languages use Coolvetica.
+	 */
+	public static String getRegularPath()
+	{
+		return LanguageManager.get("font.regular");
+	}
+	
+	/**
+	 * Returns the title/heading font path for the current language. English uses Blue Highway Linocut; all other languages use Coolvetica Condensed.
+	 */
+	public static String getTitlePath()
+	{
+		return LanguageManager.get("font.title");
+	}
 	
 	private static final int CHARS_PER_ROW = 16;
 	private static final int START_CHAR = 32; // Space.
@@ -75,7 +93,8 @@ public class FontManager
 	 */
 	public static BitmapFont getFont(AssetManager assetManager, String assetPath, int style, int size)
 	{
-		final String key = assetPath + "_" + style + "_" + size;
+		final String langCode = LanguageManager.getCurrentCode();
+		final String key = langCode + "_" + assetPath + "_" + style + "_" + size;
 		
 		if (_cache.containsKey(key))
 		{
@@ -103,7 +122,7 @@ public class FontManager
 			awtFont = new Font("SansSerif", style, size);
 		}
 		
-		final BitmapFont font = generateFont(assetManager, awtFont, size);
+		final BitmapFont font = generateFont(assetManager, awtFont, size, LanguageManager.getUniqueChars());
 		_cache.put(key, font);
 		
 		return font;
@@ -120,7 +139,8 @@ public class FontManager
 	 */
 	public static BitmapFont getSystemFont(AssetManager assetManager, String fontName, int style, int size)
 	{
-		final String key = "system:" + fontName + "_" + style + "_" + size;
+		final String langCode = LanguageManager.getCurrentCode();
+		final String key = langCode + "_system:" + fontName + "_" + style + "_" + size;
 		
 		if (_cache.containsKey(key))
 		{
@@ -128,11 +148,28 @@ public class FontManager
 		}
 		
 		final Font awtFont = new Font(fontName, style, size);
-		final BitmapFont font = generateFont(assetManager, awtFont, size);
+		final BitmapFont font = generateFont(assetManager, awtFont, size, LanguageManager.getUniqueChars());
 		_cache.put(key, font);
 		
 		System.out.println("FontManager: Generated system font '" + fontName + "' style=" + style + " size=" + size + "px.");
 		return font;
+	}
+	
+	/**
+	 * Pre-warm fonts used by modal dialogs (QuestionManager, MessageManager) so their first appearance does not stall the render thread with atlas generation.<br>
+	 * Call this at startup after the language is loaded and after any language change.
+	 * @param assetManager The jME3 AssetManager
+	 * @param screenHeight Current screen height in pixels (used to compute button font sizes)
+	 */
+	public static void warmup(AssetManager assetManager, float screenHeight)
+	{
+		// QuestionManager question label - fixed size.
+		getFont(assetManager, getTitlePath(), Font.PLAIN, 32);
+		
+		// QuestionManager button font - ButtonManager formula: height * yPercent * fontRatio.
+		// BUTTON_HEIGHT_PERCENT=0.065, FONT_HEIGHT_RATIO=0.52 (ButtonManager constants).
+		final int questionButtonSize = Math.max(10, (int) (screenHeight * 0.065f * 0.52f));
+		getFont(assetManager, getTitlePath(), Font.PLAIN, questionButtonSize);
 	}
 	
 	/**
@@ -145,11 +182,11 @@ public class FontManager
 	
 	// --- Internal generation ---
 	
-	private static BitmapFont generateFont(AssetManager assetManager, Font awtFont, int size)
+	private static BitmapFont generateFont(AssetManager assetManager, Font awtFont, int size, char[] langChars)
 	{
-		// Build combined character list: ASCII range + extra Unicode symbols.
+		// Build combined character list: ASCII range + game symbols + language-specific chars.
 		final int asciiCount = END_CHAR - START_CHAR;
-		final int totalChars = asciiCount + EXTRA_CHARS.length;
+		final int totalChars = asciiCount + EXTRA_CHARS.length + langChars.length;
 		final char[] allChars = new char[totalChars];
 		
 		for (int i = 0; i < asciiCount; i++)
@@ -160,6 +197,11 @@ public class FontManager
 		for (int i = 0; i < EXTRA_CHARS.length; i++)
 		{
 			allChars[asciiCount + i] = EXTRA_CHARS[i];
+		}
+		
+		for (int i = 0; i < langChars.length; i++)
+		{
+			allChars[asciiCount + EXTRA_CHARS.length + i] = langChars[i];
 		}
 		
 		// Create a fallback system font for characters the primary font cannot display.

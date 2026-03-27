@@ -42,6 +42,7 @@ public class SettingsManager
 	private static final String KEY_SHOW_CROSSHAIR = "showCrosshair";
 	private static final String KEY_SHOW_STATS = "showStats";
 	private static final String KEY_SHOW_FPS = "showFps";
+	private static final String KEY_LANGUAGE = "language";
 	
 	// Prefix for keybinding entries (e.g., "key.move_forward=17").
 	private static final String KEYBINDING_PREFIX = "key.";
@@ -68,6 +69,7 @@ public class SettingsManager
 	private static final boolean DEFAULT_SHOW_CROSSHAIR = true;
 	private static final boolean DEFAULT_SHOW_STATS = false;
 	private static final boolean DEFAULT_SHOW_FPS = false;
+	private static final String DEFAULT_LANGUAGE = "en";
 	
 	// Native monitor refresh rate (used as frame rate cap fallback).
 	private static final int NATIVE_REFRESH_RATE;
@@ -147,6 +149,7 @@ public class SettingsManager
 	private boolean _showCrosshair = DEFAULT_SHOW_CROSSHAIR;
 	private boolean _showStats = DEFAULT_SHOW_STATS;
 	private boolean _showFps = DEFAULT_SHOW_FPS;
+	private String _language = DEFAULT_LANGUAGE;
 	
 	// Custom keybinding overrides (action name -> key code). Empty means all defaults.
 	private final Map<String, Integer> _keybindings = new LinkedHashMap<>();
@@ -252,6 +255,11 @@ public class SettingsManager
 							_showFps = Boolean.parseBoolean(value);
 							break;
 						}
+						case KEY_LANGUAGE:
+						{
+							_language = value;
+							break;
+						}
 						default:
 						{
 							// Check for keybinding entries (key.actionName=keyCode).
@@ -329,6 +337,8 @@ public class SettingsManager
 				writer.newLine();
 				writer.write(KEY_SHOW_FPS + "=" + _showFps);
 				writer.newLine();
+				writer.write(KEY_LANGUAGE + "=" + _language);
+				writer.newLine();
 				
 				// Write keybinding overrides.
 				for (Entry<String, Integer> entry : _keybindings.entrySet())
@@ -369,6 +379,7 @@ public class SettingsManager
 		_showCrosshair = DEFAULT_SHOW_CROSSHAIR;
 		_showStats = DEFAULT_SHOW_STATS;
 		_showFps = DEFAULT_SHOW_FPS;
+		_language = DEFAULT_LANGUAGE;
 		_keybindings.clear();
 		_mouseBindings.clear();
 	}
@@ -529,6 +540,16 @@ public class SettingsManager
 	public void setShowFps(boolean showFps)
 	{
 		_showFps = showFps;
+	}
+	
+	public String getLanguage()
+	{
+		return _language;
+	}
+	
+	public void setLanguage(String language)
+	{
+		_language = language;
 	}
 	
 	// --- Keybinding Accessors ---

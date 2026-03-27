@@ -1,0 +1,243 @@
+# 中文（简体）/ Chinese Simplified
+lang.name=中文
+
+# 字体
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# 主菜单
+menu.start=开始游戏
+menu.options=设置
+menu.exit=退出
+menu.exit_confirm=退出游戏？
+menu.yes=是
+menu.no=否
+
+# 暂停菜单
+menu.resume=继续
+menu.quit_to_menu=返回主菜单
+menu.quit_confirm=返回主菜单？
+
+# 世界选择
+menu.select_world=选择世界
+menu.no_worlds=暂无世界，请创建一个！
+menu.play=游玩
+menu.create_new_world=创建新世界
+menu.world_name=世界名称：
+menu.world_name_field=新世界
+menu.seed_label=种子（留空随机生成）：
+menu.create=创建
+menu.cancel=取消
+menu.back=返回
+menu.page=页
+menu.seed=种子：
+menu.delete_confirm=删除"{0}"？\n此操作无法撤销。
+menu.world_name_empty=世界名称不能为空。
+menu.world_name_exists=已存在名为"{0}"的世界。
+
+# 设置
+menu.options_title=设置
+options.tab_display=显示
+options.tab_audio=音频
+options.tab_keybindings=按键设置
+options.resolution=分辨率
+options.fullscreen=全屏
+options.master_volume=总音量
+options.music_volume=音乐音量
+options.sfx_volume=音效音量
+options.subtab_movement=移动
+options.subtab_actions=操作
+options.subtab_mouse=鼠标
+options.render_distance=渲染距离
+options.block_highlight=方块高亮
+options.show_crosshair=显示准星
+options.show_stats=显示统计
+options.show_fps=显示帧率
+options.on=开
+options.off=关
+options.defaults=默认
+options.reset_confirm=重置为默认设置？
+options.back=返回
+
+# HUD
+hud.hp=生命：
+hud.air=空气：
+hud.you_died=你死了
+hud.click_to_respawn=点击重生
+hud.block=方块
+hud.dragon=龙
+hud.shadow=影
+hud.died_fallback=你死了
+
+# 死亡原因
+death.fall=坠落身亡
+death.drown=溺水身亡
+
+# 物品栏界面
+screen.inventory=物品栏
+screen.action_bar=快捷栏
+screen.armor=护甲
+screen.armor_head=头部
+screen.armor_chest=胸部
+screen.armor_pants=腿部
+screen.armor_boots=脚部
+screen.tip=提示：右键点击4个木头方块可制作工作台。
+
+# 合成界面
+screen.crafting_table=工作台
+screen.crafting_hint=按 Escape 或 Tab 关闭
+screen.crafting_needs=  需要：
+screen.craft_button=[合成]
+screen.craft_empty=[----]
+
+# 熔炉界面
+screen.furnace=熔炉
+screen.recipes=配方
+screen.fuels=燃料
+screen.arrow=>
+
+# 箱子界面
+screen.chest=箱子
+
+# 帮助界面
+screen.help_title=游戏指南
+screen.help_hint=按 Escape 或 F1 关闭
+screen.controls=控制
+screen.game_tips=游戏技巧
+screen.control_move=移动
+screen.control_jump=跳跃
+screen.control_inventory=物品栏
+screen.control_attack=攻击
+screen.control_interact=互动
+help.step.1=砍树获取木头。
+help.step.2=放置工作台，制作铁锹和镐。
+help.step.3=挖掘以找到石头。
+help.step.4=制作石制工具和篝火。
+help.step.5=将重生点设置在篝火处。
+help.step.6=制作熔炉并用其生产煤炭。
+help.step.7=用煤炭制作火把。
+help.step.8=向更深处挖掘以找到铁矿。
+help.step.9=制作铁制护甲和武器。
+help.step.10=制作龙球并击败龙BOSS以获得金锭。
+help.step.11=制作金制护甲和武器。
+help.step.12=制作影球并击败最终BOSS影。
+help.tip.1=你可以按住 Shift 键分拆可堆叠物品。
+help.tip.2=右键点击4个木头方块可制作工作台。
+
+# 按键绑定
+keybind.move_forward=向前移动
+keybind.move_back=向后移动
+keybind.move_left=向左移动
+keybind.move_right=向右移动
+keybind.jump=跳跃 / 向上游泳
+keybind.swim_down=下潜 / 蹲下
+keybind.help_screen=帮助
+keybind.screenshot=截图
+keybind.hide_hud=隐藏HUD
+keybind.pause=暂停 / 菜单
+keybind.inventory=物品栏
+keybind.hotbar_1=快捷栏 1
+keybind.hotbar_2=快捷栏 2
+keybind.hotbar_3=快捷栏 3
+keybind.hotbar_4=快捷栏 4
+keybind.hotbar_5=快捷栏 5
+keybind.hotbar_6=快捷栏 6
+keybind.hotbar_7=快捷栏 7
+keybind.hotbar_8=快捷栏 8
+keybind.hotbar_9=快捷栏 9
+keybind.attack=攻击
+keybind.place_block=放置 / 互动
+keybind.block_scroll=滚动切换方块
+keybind.look_around=环顾四周
+
+# 消息
+msg.tool_broke=你的{0}坏了！
+msg.respawn_lost=重生点已失效！你将在世界原点重生。
+msg.orb_no_power=神球在此处没有力量。
+msg.orb_faint=神球微微发光，但什么都没发生。
+msg.cannot_place=你无法在此放置。
+
+# 方块名称
+block.air=
+block.grass=泥土
+block.dirt=泥土
+block.stone=石头
+block.sand=沙子
+block.wood=原木
+block.leaves=树叶
+block.water=水
+block.iron_ore=铁矿石
+block.bedrock=基岩
+block.berry_bush=浆果丛
+block.campfire=篝火
+block.chest=箱子
+block.crafting_table=工作台
+block.furnace=熔炉
+block.torch=火把
+block.tall_grass=高草丛
+block.red_poppy=红色虞美人
+block.dandelion=蒲公英
+block.blue_orchid=蓝色兰花
+block.white_daisy=白色雏菊
+block.tall_seaweed=高海草
+block.short_seaweed=短海草
+block.glass=玻璃
+block.window=窗户
+block.door_bottom=门
+block.door_top=门
+
+# 物品名称
+item.dirt=泥土
+item.grass=草方块
+item.stone=石头
+item.sand=沙子
+item.wood=原木
+item.leaves=树叶
+item.torch=火把
+item.red_poppy=红色虞美人
+item.dandelion=蒲公英
+item.blue_orchid=蓝色兰花
+item.white_daisy=白色雏菊
+item.campfire=篝火
+item.chest=箱子
+item.crafting_table=工作台
+item.furnace=熔炉
+item.iron_ore=铁矿石
+item.glass=玻璃
+item.window=窗户
+item.door=门
+item.wood_sword=木剑
+item.stone_sword=石剑
+item.iron_sword=铁剑
+item.gold_sword=金剑
+item.wood_pickaxe=木镐
+item.stone_pickaxe=石镐
+item.iron_pickaxe=铁镐
+item.gold_pickaxe=金镐
+item.wood_axe=木斧
+item.stone_axe=石斧
+item.iron_axe=铁斧
+item.gold_axe=金斧
+item.wood_shovel=木铲
+item.stone_shovel=石铲
+item.iron_shovel=铁铲
+item.gold_shovel=金铲
+item.iron_helmet=铁头盔
+item.iron_chestplate=铁胸甲
+item.iron_pants=铁护腿
+item.iron_boots=铁靴子
+item.gold_helmet=金头盔
+item.gold_chestplate=金胸甲
+item.gold_pants=金护腿
+item.gold_boots=金靴子
+item.health_potion=治疗药水
+item.meat=肉
+item.berries=浆果
+item.wood_plank=木板
+item.stone_shard=石片
+item.coal=煤炭
+item.iron_bar=铁锭
+item.gold_bar=金锭
+item.recall_orb=召回球
+item.dragon_orb=龙球
+item.shadow_orb=影球

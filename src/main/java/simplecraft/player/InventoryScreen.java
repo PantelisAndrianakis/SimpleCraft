@@ -39,6 +39,7 @@ import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemTextureResolver;
 import simplecraft.item.ItemType;
+import simplecraft.settings.LanguageManager;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
 import simplecraft.world.World;
@@ -125,11 +126,6 @@ public class InventoryScreen implements ActionListener
 	private static final ColorRGBA COLOR_EYE_GREEN = new ColorRGBA(0.04f, 0.30f, 0.10f, 1.0f);
 	private static final ColorRGBA COLOR_EYE_WHITE = new ColorRGBA(0.92f, 0.92f, 0.92f, 1.0f);
 	private static final ColorRGBA COLOR_PANTS_BROWN = new ColorRGBA(0.35f, 0.25f, 0.15f, 1.0f);
-	
-	/** Armor slot label letters shown in empty armor slots. */
-	// @formatter:off
-	private static final String[] ARMOR_SLOT_LABELS = { "Head", "Chest", "Pants", "Boots" };
-	// @formatter:on
 	
 	// ========================================================
 	// Colors.
@@ -328,10 +324,10 @@ public class InventoryScreen implements ActionListener
 		
 		// Fonts.
 		final int fontSize = Math.max(10, (int) (_screenHeight * 0.016f));
-		_font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, fontSize);
+		_font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, fontSize);
 		
 		final int tooltipSize = Math.max(12, (int) (_screenHeight * 0.018f));
-		_tooltipFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, tooltipSize);
+		_tooltipFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, tooltipSize);
 		
 		// Build all UI elements.
 		_screenNode = new Node("InventoryScreen");
@@ -517,7 +513,7 @@ public class InventoryScreen implements ActionListener
 			
 			// Label (H, C, P, B shown when empty).
 			_armorSlotLabel[i] = new BitmapText(_font);
-			_armorSlotLabel[i].setText(ARMOR_SLOT_LABELS[i]);
+			_armorSlotLabel[i].setText(getArmorSlotLabel(i));
 			_armorSlotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
 			_armorSlotLabel[i].setColor(new ColorRGBA(0.5f, 0.5f, 0.55f, 0.5f));
 			final float labelWidth = _armorSlotLabel[i].getLineWidth();
@@ -534,6 +530,19 @@ public class InventoryScreen implements ActionListener
 			_armorSlotDurBar[i].setCullHint(Geometry.CullHint.Always);
 			_screenNode.attachChild(_armorSlotDurBar[i]);
 		}
+	}
+	
+	private static String getArmorSlotLabel(int index)
+	{
+		final String[] keys =
+		{
+			"screen.armor_head",
+			"screen.armor_chest",
+			"screen.armor_pants",
+			"screen.armor_boots"
+		};
+		
+		return LanguageManager.get(keys[index]);
 	}
 	
 	/**
@@ -784,20 +793,20 @@ public class InventoryScreen implements ActionListener
 	private void buildTitle(SimpleCraft app)
 	{
 		final int titleSize = Math.max(14, (int) (_screenHeight * 0.022f));
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, titleSize);
+		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, titleSize);
 		
 		// Grid center X for label centering.
 		final float gridCenterX = (_slotX[0] + _slotX[8] + _slotSize) / 2f;
 		
 		// "Inventory" label above the top main inventory row.
 		_titleTextShadow = new BitmapText(titleFont);
-		_titleTextShadow.setText("Inventory");
+		_titleTextShadow.setText(LanguageManager.get("screen.inventory"));
 		_titleTextShadow.setSize(titleSize);
 		_titleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_titleTextShadow);
 		
 		_titleText = new BitmapText(titleFont);
-		_titleText.setText("Inventory");
+		_titleText.setText(LanguageManager.get("screen.inventory"));
 		_titleText.setSize(titleSize);
 		_titleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_titleText);
@@ -811,13 +820,13 @@ public class InventoryScreen implements ActionListener
 		
 		// "Action Bar" label between hotbar and inventory.
 		_actionBarTextShadow = new BitmapText(titleFont);
-		_actionBarTextShadow.setText("Action Bar");
+		_actionBarTextShadow.setText(LanguageManager.get("screen.action_bar"));
 		_actionBarTextShadow.setSize(titleSize);
 		_actionBarTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_actionBarTextShadow);
 		
 		_actionBarText = new BitmapText(titleFont);
-		_actionBarText.setText("Action Bar");
+		_actionBarText.setText(LanguageManager.get("screen.action_bar"));
 		_actionBarText.setSize(titleSize);
 		_actionBarText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_actionBarText);
@@ -831,13 +840,13 @@ public class InventoryScreen implements ActionListener
 		
 		// "Armor" label above the armor slots.
 		_armorTitleTextShadow = new BitmapText(titleFont);
-		_armorTitleTextShadow.setText("Armor");
+		_armorTitleTextShadow.setText(LanguageManager.get("screen.armor"));
 		_armorTitleTextShadow.setSize(titleSize);
 		_armorTitleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_armorTitleTextShadow);
 		
 		_armorTitleText = new BitmapText(titleFont);
-		_armorTitleText.setText("Armor");
+		_armorTitleText.setText(LanguageManager.get("screen.armor"));
 		_armorTitleText.setSize(titleSize);
 		_armorTitleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_armorTitleText);
@@ -851,17 +860,17 @@ public class InventoryScreen implements ActionListener
 		
 		// "TIP" note at bottom-right of the screen.
 		final int tipSize = Math.max(11, (int) (_screenHeight * 0.015f));
-		final BitmapFont tipFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, tipSize);
+		final BitmapFont tipFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, tipSize);
 		final ColorRGBA tipColor = new ColorRGBA(0.35f, 0.35f, 0.35f, 0.7f);
 		
 		_tipTextShadow = new BitmapText(tipFont);
-		_tipTextShadow.setText("TIP: You can right-click on 4 Wood blocks to create a Crafting Table.");
+		_tipTextShadow.setText(LanguageManager.get("screen.tip"));
 		_tipTextShadow.setSize(tipSize);
 		_tipTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_tipTextShadow);
 		
 		_tipText = new BitmapText(tipFont);
-		_tipText.setText("TIP: You can right-click on 4 Wood blocks to create a Crafting Table.");
+		_tipText.setText(LanguageManager.get("screen.tip"));
 		_tipText.setSize(tipSize);
 		_tipText.setColor(tipColor);
 		_screenNode.attachChild(_tipText);
@@ -1943,7 +1952,7 @@ public class InventoryScreen implements ActionListener
 				final ArmorSlot armorSlot = template.getArmorSlot();
 				if (armorSlot != null)
 				{
-					return ARMOR_SLOT_LABELS[armorSlot.getIndex()];
+					return getArmorSlotLabel(armorSlot.getIndex());
 				}
 				
 				return "A";

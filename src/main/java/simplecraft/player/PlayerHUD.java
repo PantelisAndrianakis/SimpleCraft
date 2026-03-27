@@ -21,6 +21,7 @@ import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemTextureResolver;
+import simplecraft.settings.LanguageManager;
 import simplecraft.state.PlayingState;
 import simplecraft.ui.FontManager;
 import simplecraft.world.Block;
@@ -262,7 +263,7 @@ public class PlayerHUD
 		
 		// Scale font size relative to screen height for resolution independence.
 		final int fontSize = Math.max(12, (int) (_screenHeight * 0.018f));
-		_font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, fontSize);
+		_font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, fontSize);
 		
 		// Compute hotbar slot size proportional to screen height.
 		_hotbarSlotSize = Math.max(32f, _screenHeight * 0.037f);
@@ -319,8 +320,8 @@ public class PlayerHUD
 		_hudNode.attachChild(_healthFill);
 		
 		// Text (shadow + foreground).
-		_healthTextShadow = createText("HP: 20/20", COLOR_TEXT_SHADOW);
-		_healthText = createText("HP: 20/20", COLOR_TEXT);
+		_healthTextShadow = createText(LanguageManager.get("hud.hp") + " 20/20", COLOR_TEXT_SHADOW);
+		_healthText = createText(LanguageManager.get("hud.hp") + " 20/20", COLOR_TEXT);
 		
 		positionBarText(_healthText, _healthTextShadow, barX, barY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT);
 		
@@ -347,8 +348,8 @@ public class PlayerHUD
 		_hudNode.attachChild(_airFill);
 		
 		// Text.
-		_airTextShadow = createText("Air: 10/10", COLOR_TEXT_SHADOW);
-		_airText = createText("Air: 10/10", COLOR_TEXT);
+		_airTextShadow = createText(LanguageManager.get("hud.air") + " 10/10", COLOR_TEXT_SHADOW);
+		_airText = createText(LanguageManager.get("hud.air") + " 10/10", COLOR_TEXT);
 		
 		positionBarText(_airText, _airTextShadow, barX, barY, AIR_BAR_WIDTH, AIR_BAR_HEIGHT);
 		
@@ -490,16 +491,16 @@ public class PlayerHUD
 		
 		// "You Died" title - large font.
 		final int titleSize = Math.max(24, (int) (_screenHeight * 0.06f));
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, titleSize);
+		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, titleSize);
 		
 		_deathTitleShadow = new BitmapText(titleFont);
-		_deathTitleShadow.setText("You Died");
+		_deathTitleShadow.setText(LanguageManager.get("hud.you_died"));
 		_deathTitleShadow.setSize(titleSize);
 		_deathTitleShadow.setColor(new ColorRGBA(0, 0, 0, 0.9f));
 		_deathScreenNode.attachChild(_deathTitleShadow);
 		
 		_deathTitle = new BitmapText(titleFont);
-		_deathTitle.setText("You Died");
+		_deathTitle.setText(LanguageManager.get("hud.you_died"));
 		_deathTitle.setSize(titleSize);
 		_deathTitle.setColor(COLOR_DEATH_TITLE);
 		_deathScreenNode.attachChild(_deathTitle);
@@ -514,7 +515,7 @@ public class PlayerHUD
 		
 		// Death cause text - smaller font below title.
 		final int causeSize = Math.max(14, (int) (_screenHeight * 0.025f));
-		final BitmapFont causeFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, causeSize);
+		final BitmapFont causeFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, causeSize);
 		
 		_deathCauseShadow = new BitmapText(causeFont);
 		_deathCauseShadow.setText("");
@@ -530,13 +531,13 @@ public class PlayerHUD
 		
 		// "Click to Respawn" prompt - below cause text.
 		_deathPromptShadow = new BitmapText(causeFont);
-		_deathPromptShadow.setText("Click to Respawn");
+		_deathPromptShadow.setText(LanguageManager.get("hud.click_to_respawn"));
 		_deathPromptShadow.setSize(causeSize);
 		_deathPromptShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
 		_deathScreenNode.attachChild(_deathPromptShadow);
 		
 		_deathPrompt = new BitmapText(causeFont);
-		_deathPrompt.setText("Click to Respawn");
+		_deathPrompt.setText(LanguageManager.get("hud.click_to_respawn"));
 		_deathPrompt.setSize(causeSize);
 		_deathPrompt.setColor(COLOR_DEATH_PROMPT);
 		_deathScreenNode.attachChild(_deathPrompt);
@@ -578,8 +579,8 @@ public class PlayerHUD
 		_bossBarNode.attachChild(_bossBarFill);
 		
 		// "Dragon" label - inside the bar, left side.
-		_bossBarNameShadow = createText("Dragon", COLOR_TEXT_SHADOW);
-		_bossBarName = createText("Dragon", COLOR_TEXT);
+		_bossBarNameShadow = createText(LanguageManager.get("hud.dragon"), COLOR_TEXT_SHADOW);
+		_bossBarName = createText(LanguageManager.get("hud.dragon"), COLOR_TEXT);
 		_bossBarNode.attachChild(_bossBarNameShadow);
 		_bossBarNode.attachChild(_bossBarName);
 		
@@ -636,7 +637,7 @@ public class PlayerHUD
 	 */
 	public void showBossHealthBar()
 	{
-		showBossHealthBar("Dragon");
+		showBossHealthBar(LanguageManager.get("hud.dragon"));
 	}
 	
 	/**
@@ -774,7 +775,7 @@ public class PlayerHUD
 		}
 		
 		// Update text.
-		final String text = "HP: " + (int) Math.ceil(health) + "/" + (int) maxHealth;
+		final String text = LanguageManager.get("hud.hp") + " " + (int) Math.ceil(health) + "/" + (int) maxHealth;
 		_healthText.setText(text);
 		_healthTextShadow.setText(text);
 	}
@@ -840,7 +841,7 @@ public class PlayerHUD
 		}
 		
 		// Update text.
-		final String text = "Air: " + (int) Math.ceil(air) + "/" + (int) maxAir;
+		final String text = LanguageManager.get("hud.air") + " " + (int) Math.ceil(air) + "/" + (int) maxAir;
 		_airText.setText(text);
 		_airTextShadow.setText(text);
 	}
@@ -1035,7 +1036,7 @@ public class PlayerHUD
 		
 		// Update text.
 		final Block targetBlock = SimpleCraft.getInstance().getStateManager().getState(PlayingState.class) != null ? getBreakingBlockFromInteraction() : Block.AIR;
-		final String blockName = targetBlock != null ? targetBlock.getDisplayName() : "Block";
+		final String blockName = targetBlock != null ? targetBlock.getDisplayName() : LanguageManager.get("hud.block");
 		final int remaining = hitsRequired - hitsDelivered;
 		final String text = blockName + " " + remaining + "/" + hitsRequired;
 		_breakText.setText(text);
@@ -1092,7 +1093,7 @@ public class PlayerHUD
 		_deathPromptPulse = 0;
 		
 		// Set cause text and center it.
-		final String cause = deathCause != null && !deathCause.isEmpty() ? deathCause : "You died";
+		final String cause = deathCause != null && !deathCause.isEmpty() ? deathCause : LanguageManager.get("hud.died_fallback");
 		_deathCauseText.setText(cause);
 		_deathCauseShadow.setText(cause);
 		

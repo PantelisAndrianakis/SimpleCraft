@@ -33,6 +33,7 @@ import com.simsilica.lemur.event.MouseEventControl;
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.input.MenuNavigationManager;
+import simplecraft.settings.LanguageManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
@@ -157,8 +158,8 @@ public class WorldSelectState extends FadeableAppState
 		_background.setCullHint(Spatial.CullHint.Never);
 		
 		// --- Title Label ---
-		_titleLabel = new Label("Select World");
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, 52));
+		_titleLabel = new Label(LanguageManager.get("menu.select_world"));
+		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, 52));
 		_titleLabel.setFontSize(52);
 		_titleLabel.setColor(ColorRGBA.White);
 		
@@ -314,8 +315,8 @@ public class WorldSelectState extends FadeableAppState
 		if (_worlds.isEmpty())
 		{
 			// Show empty message.
-			_emptyLabel = new Label("No worlds yet. Create one!");
-			_emptyLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 20));
+			_emptyLabel = new Label(LanguageManager.get("menu.no_worlds"));
+			_emptyLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 20));
 			_emptyLabel.setFontSize(20);
 			_emptyLabel.setColor(new ColorRGBA(0.8f, 0.8f, 0.8f, 0.9f));
 			
@@ -394,7 +395,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// World name label (column 0).
 		final Label nameLabel = new Label(" " + world.getName());
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 20));
+		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 20));
 		nameLabel.setFontSize(20);
 		nameLabel.setColor(ColorRGBA.White);
 		nameRow.addChild(nameLabel, 0, 0);
@@ -410,7 +411,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Delete symbol "■" (column 2) - gray, turns red on hover.
 		final Label deleteSymbol = new Label(FontManager.SYMBOL_SQUARE + " ");
-		deleteSymbol.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 12));
+		deleteSymbol.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 12));
 		deleteSymbol.setFontSize(12);
 		deleteSymbol.setColor(DELETE_SYMBOL_COLOR);
 		deleteSymbol.setBackground(null);
@@ -421,7 +422,7 @@ public class WorldSelectState extends FadeableAppState
 		final Runnable deleteAction = () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show("Delete \"" + world.getName() + "\"?\nThis cannot be undone.", () ->
+			QuestionManager.show(LanguageManager.get("menu.delete_confirm").replace("{0}", world.getName()), () ->
 			{
 				WorldInfo.delete(world);
 				rebuildNavigation();
@@ -465,8 +466,8 @@ public class WorldSelectState extends FadeableAppState
 		// --- Row 2: [Seed | Last played | Size] ---
 		final String lastPlayed = DATE_FORMAT.format(new Date(world.getLastPlayedAt()));
 		final String sizeText = formatDirectorySize(world.getWorldDirectory());
-		final Label infoLabel = new Label(" Seed: " + world.getSeed() + "  |  " + lastPlayed + "  |  " + sizeText);
-		infoLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 12));
+		final Label infoLabel = new Label(" " + LanguageManager.get("menu.seed") + " " + world.getSeed() + "  |  " + lastPlayed + "  |  " + sizeText);
+		infoLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 12));
 		infoLabel.setFontSize(12);
 		infoLabel.setColor(INFO_TEXT_COLOR);
 		infoLabel.setInsets(new Insets3f(0, 0, screenHeight * INFO_BOTTOM_PERCENT, 0));
@@ -492,7 +493,7 @@ public class WorldSelectState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			enterWorld(world);
 		};
-		final Panel playButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Play", PLAY_BUTTON_WIDTH_PERCENT, ENTRY_BUTTON_HEIGHT_PERCENT, playAction);
+		final Panel playButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.play"), PLAY_BUTTON_WIDTH_PERCENT, ENTRY_BUTTON_HEIGHT_PERCENT, playAction);
 		playRow.addChild(playButton, 0, 1);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(playButton, playAction));
 		
@@ -536,7 +537,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Left arrow.
 		_pageLeftArrow = new Label(FontManager.SYMBOL_ARROW_LEFT);
-		_pageLeftArrow.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 20));
+		_pageLeftArrow.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 20));
 		_pageLeftArrow.setFontSize(20);
 		_pageLeftArrow.setColor(_currentPage > 0 ? PAGE_ARROW_COLOR : PAGE_ARROW_DISABLED);
 		_pageLeftArrow.setInsets(new Insets3f(0, 10, 0, 10));
@@ -558,8 +559,8 @@ public class WorldSelectState extends FadeableAppState
 		});
 		
 		// Page text.
-		_pageLabel = new Label("Page " + (_currentPage + 1) + " / " + totalPages);
-		_pageLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 16));
+		_pageLabel = new Label(LanguageManager.get("menu.page") + " " + (_currentPage + 1) + " / " + totalPages);
+		_pageLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
 		_pageLabel.setFontSize(16);
 		_pageLabel.setColor(PAGE_TEXT_COLOR);
 		_pageLabel.setTextHAlignment(HAlignment.Center);
@@ -567,7 +568,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Right arrow.
 		_pageRightArrow = new Label(FontManager.SYMBOL_ARROW_RIGHT);
-		_pageRightArrow.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 20));
+		_pageRightArrow.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 20));
 		_pageRightArrow.setFontSize(20);
 		_pageRightArrow.setColor(_currentPage < totalPages - 1 ? PAGE_ARROW_COLOR : PAGE_ARROW_DISABLED);
 		_pageRightArrow.setInsets(new Insets3f(0, 10, 0, 10));
@@ -644,7 +645,7 @@ public class WorldSelectState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			showCreateDialog();
 		};
-		final Panel createButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Create New World", BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, createAction);
+		final Panel createButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.create_new_world"), BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, createAction);
 		_bottomBar.addChild(createButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(createButton, createAction));
 		
@@ -656,7 +657,7 @@ public class WorldSelectState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.MAIN_MENU, true);
 		};
-		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Back", BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, backAction);
+		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.back"), BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, backAction);
 		_bottomBar.addChild(backButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(backButton, backAction));
 		
@@ -759,8 +760,8 @@ public class WorldSelectState extends FadeableAppState
 		_dialogContainer.setInsets(new Insets3f(15, 20, 15, 20));
 		
 		// Dialog title.
-		final Label dialogTitle = new Label("Create New World");
-		dialogTitle.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 28));
+		final Label dialogTitle = new Label(LanguageManager.get("menu.create_new_world"));
+		dialogTitle.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 28));
 		dialogTitle.setFontSize(28);
 		dialogTitle.setColor(ColorRGBA.White);
 		dialogTitle.setTextHAlignment(HAlignment.Center);
@@ -770,16 +771,16 @@ public class WorldSelectState extends FadeableAppState
 		addDialogSpacer(DIALOG_FIELD_SPACING);
 		
 		// World Name label.
-		final Label nameLabel = new Label(" World Name:");
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 16));
+		final Label nameLabel = new Label(" " + LanguageManager.get("menu.world_name"));
+		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
 		nameLabel.setFontSize(16);
 		nameLabel.setColor(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f));
 		_dialogContainer.addChild(nameLabel);
 		
 		// World Name text field - visible background so it reads as an input box.
-		_nameField = new TextField("New World");
+		_nameField = new TextField(LanguageManager.get("menu.world_name_field"));
 		_nameField.setPreferredSize(new Vector3f(dialogWidth - 40, 28, 0));
-		_nameField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 16));
+		_nameField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
 		_nameField.setFontSize(16);
 		_nameField.setColor(FIELD_TEXT_COLOR);
 		_nameField.setBackground(new QuadBackgroundComponent(FIELD_BG_COLOR));
@@ -789,8 +790,8 @@ public class WorldSelectState extends FadeableAppState
 		addDialogSpacer(DIALOG_FIELD_SPACING);
 		
 		// Seed label.
-		final Label seedLabel = new Label(" Seed (leave empty for random):");
-		seedLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 16));
+		final Label seedLabel = new Label(" " + LanguageManager.get("menu.seed_label"));
+		seedLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
 		seedLabel.setFontSize(16);
 		seedLabel.setColor(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f));
 		_dialogContainer.addChild(seedLabel);
@@ -798,7 +799,7 @@ public class WorldSelectState extends FadeableAppState
 		// Seed text field - visible background.
 		_seedField = new TextField("");
 		_seedField.setPreferredSize(new Vector3f(dialogWidth - 40, 28, 0));
-		_seedField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 16));
+		_seedField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
 		_seedField.setFontSize(16);
 		_seedField.setColor(FIELD_TEXT_COLOR);
 		_seedField.setBackground(new QuadBackgroundComponent(FIELD_BG_COLOR));
@@ -817,7 +818,7 @@ public class WorldSelectState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			createWorld();
 		};
-		final Panel createBtn = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Create", 0.12f, 0.055f, confirmCreateAction);
+		final Panel createBtn = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.create"), 0.12f, 0.055f, confirmCreateAction);
 		dialogButtons.addChild(createBtn);
 		
 		// Small spacer between dialog buttons.
@@ -831,7 +832,7 @@ public class WorldSelectState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			dismissCreateDialog();
 		};
-		final Panel cancelBtn = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Cancel", 0.12f, 0.055f, cancelAction);
+		final Panel cancelBtn = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.cancel"), 0.12f, 0.055f, cancelAction);
 		dialogButtons.addChild(cancelBtn);
 		
 		_dialogContainer.addChild(dialogButtons);
@@ -893,7 +894,7 @@ public class WorldSelectState extends FadeableAppState
 		if (name.isEmpty())
 		{
 			System.err.println("WARNING: World name cannot be empty.");
-			MessageManager.show("World name cannot be empty.");
+			MessageManager.show(LanguageManager.get("menu.world_name_empty"));
 			return;
 		}
 		
@@ -901,7 +902,7 @@ public class WorldSelectState extends FadeableAppState
 		if (WorldInfo.worldExists(name))
 		{
 			System.err.println("WARNING: A world with the name \"" + name + "\" already exists.");
-			MessageManager.show("A world named \"" + name + "\" already exists.");
+			MessageManager.show(LanguageManager.get("menu.world_name_exists").replace("{0}", name));
 			return;
 		}
 		

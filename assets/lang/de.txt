@@ -1,0 +1,243 @@
+# Deutsch / German
+lang.name=Deutsch
+
+# Schriftarten
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Hauptmenü
+menu.start=Spiel starten
+menu.options=Optionen
+menu.exit=Beenden
+menu.exit_confirm=Spiel beenden?
+menu.yes=Ja
+menu.no=Nein
+
+# Pausenmenü
+menu.resume=Fortsetzen
+menu.quit_to_menu=Zum Hauptmenü
+menu.quit_confirm=Zum Hauptmenü?
+
+# Weltauswahl
+menu.select_world=Welt auswählen
+menu.no_worlds=Noch keine Welten. Erstelle eine!
+menu.play=Spielen
+menu.create_new_world=Neue Welt erstellen
+menu.world_name=Weltname:
+menu.world_name_field=Neue Welt
+menu.seed_label=Samen (leer für zufällig):
+menu.create=Erstellen
+menu.cancel=Abbrechen
+menu.back=Zurück
+menu.page=Seite
+menu.seed=Samen:
+menu.delete_confirm="{0}" löschen?\nDies kann nicht rückgängig gemacht werden.
+menu.world_name_empty=Weltname darf nicht leer sein.
+menu.world_name_exists=Eine Welt namens "{0}" existiert bereits.
+
+# Optionen
+menu.options_title=Optionen
+options.tab_display=Anzeige
+options.tab_audio=Audio
+options.tab_keybindings=Tastenbelegung
+options.resolution=Auflösung
+options.fullscreen=Vollbild
+options.master_volume=Gesamtlautstärke
+options.music_volume=Musiklautstärke
+options.sfx_volume=Effektlautstärke
+options.subtab_movement=Bewegung
+options.subtab_actions=Aktionen
+options.subtab_mouse=Maus
+options.render_distance=Sichtweite
+options.block_highlight=Block-Highlight
+options.show_crosshair=Fadenkreuz
+options.show_stats=Statistiken
+options.show_fps=FPS anzeigen
+options.on=An
+options.off=Aus
+options.defaults=Standard
+options.reset_confirm=Auf Standard zurücksetzen?
+options.back=Zurück
+
+# HUD
+hud.hp=LP:
+hud.air=Luft:
+hud.you_died=Du bist gestorben
+hud.click_to_respawn=Klicke zum Wiederbeleben
+hud.block=Block
+hud.dragon=Drache
+hud.shadow=Schatten
+hud.died_fallback=Du bist gestorben
+
+# Todesursachen
+death.fall=Gefallen
+death.drown=Ertrunken
+
+# Inventarbildschirm
+screen.inventory=Inventar
+screen.action_bar=Aktionsleiste
+screen.armor=Rüstung
+screen.armor_head=Kopf
+screen.armor_chest=Brust
+screen.armor_pants=Hose
+screen.armor_boots=Stiefel
+screen.tip=TIPP: Rechtsklick auf 4 Holzblöcke erstellt einen Crafting-Tisch.
+
+# Crafting-Bildschirm
+screen.crafting_table=Crafting-Tisch
+screen.crafting_hint=Escape oder Tab zum Schließen
+screen.crafting_needs=  Benötigt:
+screen.craft_button=[Herstellen]
+screen.craft_empty=[--------]
+
+# Schmelzofen-Bildschirm
+screen.furnace=Schmelzofen
+screen.recipes=Rezepte
+screen.fuels=Brennstoffe
+screen.arrow=>
+
+# Kisten-Bildschirm
+screen.chest=Truhe
+
+# Hilfe-Bildschirm
+screen.help_title=Wie man spielt
+screen.help_hint=Escape oder F1 zum Schließen
+screen.controls=Steuerung
+screen.game_tips=Spieltipps
+screen.control_move=Bewegen
+screen.control_jump=Springen
+screen.control_inventory=Inventar
+screen.control_attack=Angriff
+screen.control_interact=Interagieren
+help.step.1=Schlage einen Baum, um Holz zu sammeln.
+help.step.2=Platziere den Crafting-Tisch und stelle eine Schaufel und eine Spitzhacke her.
+help.step.3=Grabe, um Stein zu finden.
+help.step.4=Stelle Steinwerkzeug und ein Lagerfeuer her.
+help.step.5=Setze deinen Spawn-Punkt beim Lagerfeuer.
+help.step.6=Stelle einen Schmelzofen her und verwende ihn, um Kohle herzustellen.
+help.step.7=Verwende Kohle, um Fackeln herzustellen.
+help.step.8=Grabe tiefer, um Eisen zu finden.
+help.step.9=Stelle Eisenrüstung und -waffe her.
+help.step.10=Stelle einen Drachenkugel her und besiege den Drachen-Boss, um Goldbarren zu erhalten.
+help.step.11=Stelle Goldrüstung und -waffe her.
+help.step.12=Stelle eine Schattenkugel her und besiege den Schatten-Boss (Endgegner).
+help.tip.1=Mit der Umschalttaste kannst du stapelbare Gegenstände aufteilen.
+help.tip.2=Rechtsklick auf 4 Holzblöcke erstellt einen Crafting-Tisch.
+
+# Tastenbelegung – Aktionsnamen
+keybind.move_forward=Vorwärts bewegen
+keybind.move_back=Rückwärts bewegen
+keybind.move_left=Links bewegen
+keybind.move_right=Rechts bewegen
+keybind.jump=Springen / Aufschwimmen
+keybind.swim_down=Tauchen / Ducken
+keybind.help_screen=Hilfe
+keybind.screenshot=Screenshot
+keybind.hide_hud=HUD ausblenden
+keybind.pause=Pause / Menü
+keybind.inventory=Inventar
+keybind.hotbar_1=Schnellleiste 1
+keybind.hotbar_2=Schnellleiste 2
+keybind.hotbar_3=Schnellleiste 3
+keybind.hotbar_4=Schnellleiste 4
+keybind.hotbar_5=Schnellleiste 5
+keybind.hotbar_6=Schnellleiste 6
+keybind.hotbar_7=Schnellleiste 7
+keybind.hotbar_8=Schnellleiste 8
+keybind.hotbar_9=Schnellleiste 9
+keybind.attack=Angriff
+keybind.place_block=Platzieren / Interagieren
+keybind.block_scroll=Block scrollen
+keybind.look_around=Umsehen
+
+# Nachrichten (In-Game-Benachrichtigungen)
+msg.tool_broke=Dein(e) {0} ist kaputt!
+msg.respawn_lost=Spawn-Punkt verloren! Du wirst am Weltanfang erscheinen.
+msg.orb_no_power=Die Kugel hat hier keine Kraft.
+msg.orb_faint=Die Kugel leuchtet schwach, tut aber nichts.
+msg.cannot_place=Du kannst das hier nicht platzieren.
+
+# Block-Anzeigenamen
+block.air=
+block.grass=Erde
+block.dirt=Erde
+block.stone=Stein
+block.sand=Sand
+block.wood=Holz
+block.leaves=Blätter
+block.water=Wasser
+block.iron_ore=Eisenerz
+block.bedrock=Grundgestein
+block.berry_bush=Beerenstrauch
+block.campfire=Lagerfeuer
+block.chest=Truhe
+block.crafting_table=Crafting-Tisch
+block.furnace=Schmelzofen
+block.torch=Fackel
+block.tall_grass=Hohes Gras
+block.red_poppy=Roter Mohn
+block.dandelion=Löwenzahn
+block.blue_orchid=Blaue Orchidee
+block.white_daisy=Weiße Margerite
+block.tall_seaweed=Hohes Seegras
+block.short_seaweed=Kurzes Seegras
+block.glass=Glas
+block.window=Fenster
+block.door_bottom=Tür
+block.door_top=Tür
+
+# Gegenstands-Anzeigenamen
+item.dirt=Erde
+item.grass=Grasblock
+item.stone=Stein
+item.sand=Sand
+item.wood=Holz
+item.leaves=Blätter
+item.torch=Fackel
+item.red_poppy=Roter Mohn
+item.dandelion=Löwenzahn
+item.blue_orchid=Blaue Orchidee
+item.white_daisy=Weiße Margerite
+item.campfire=Lagerfeuer
+item.chest=Truhe
+item.crafting_table=Crafting-Tisch
+item.furnace=Schmelzofen
+item.iron_ore=Eisenerz
+item.glass=Glas
+item.window=Fenster
+item.door=Tür
+item.wood_sword=Holzschwert
+item.stone_sword=Steinschwert
+item.iron_sword=Eisenschwert
+item.gold_sword=Goldschwert
+item.wood_pickaxe=Holzspitzhacke
+item.stone_pickaxe=Steinspitzhacke
+item.iron_pickaxe=Eisenspitzhacke
+item.gold_pickaxe=Goldspitzhacke
+item.wood_axe=Holzaxt
+item.stone_axe=Steinaxt
+item.iron_axe=Eisenaxt
+item.gold_axe=Goldaxt
+item.wood_shovel=Holzschaufel
+item.stone_shovel=Steinschaufel
+item.iron_shovel=Eisenschaufel
+item.gold_shovel=Goldschaufel
+item.iron_helmet=Eisenhelm
+item.iron_chestplate=Eisenbrustplatte
+item.iron_pants=Eisenhose
+item.iron_boots=Eisenstiefel
+item.gold_helmet=Goldhelm
+item.gold_chestplate=Goldbrustplatte
+item.gold_pants=Goldhose
+item.gold_boots=Goldstiefel
+item.health_potion=Heiltrank
+item.meat=Fleisch
+item.berries=Beeren
+item.wood_plank=Holzplanke
+item.stone_shard=Steinsplitter
+item.coal=Kohle
+item.iron_bar=Eisenbarren
+item.gold_bar=Goldbarren
+item.recall_orb=Rückkehrkugel
+item.dragon_orb=Drachenkugel
+item.shadow_orb=Schattenkugel

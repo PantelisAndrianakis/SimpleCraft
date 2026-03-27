@@ -31,6 +31,7 @@ import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemTextureResolver;
 import simplecraft.item.SmeltingRegistry;
+import simplecraft.settings.LanguageManager;
 import simplecraft.ui.FontManager;
 import simplecraft.world.entity.FurnaceTileEntity;
 
@@ -521,8 +522,8 @@ public class FurnaceScreen implements ActionListener
 		
 		_rootNode = new Node("FurnaceScreen");
 		
-		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, FONT_SIZE);
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, TITLE_FONT_SIZE);
+		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, FONT_SIZE);
+		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, TITLE_FONT_SIZE);
 		
 		// Dark overlay.
 		final Geometry overlay = createQuad("FurnaceOverlay", screenW, screenH, new ColorRGBA(0, 0, 0, OVERLAY_ALPHA));
@@ -537,7 +538,7 @@ public class FurnaceScreen implements ActionListener
 		// Title.
 		final BitmapText titleText = new BitmapText(titleFont);
 		titleText.setSize(titleFont.getCharSet().getRenderedSize());
-		titleText.setText("Furnace");
+		titleText.setText(LanguageManager.get("screen.furnace"));
 		titleText.setColor(ColorRGBA.White);
 		titleText.setLocalTranslation(furnacePanelX + furnacePanelW / 2 - titleText.getLineWidth() / 2, furnaceY + FURNACE_SLOT_SIZE + 40, Z_TITLE);
 		_rootNode.attachChild(titleText);
@@ -675,12 +676,12 @@ public class FurnaceScreen implements ActionListener
 		final float abLabelY = _invSlotY[0] + SLOT_SIZE + 4 + titleFont.getCharSet().getRenderedSize() + 2;
 		
 		BitmapText actionBarShadow = new BitmapText(titleFont);
-		actionBarShadow.setText("Action Bar");
+		actionBarShadow.setText(LanguageManager.get("screen.action_bar"));
 		actionBarShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
 		_rootNode.attachChild(actionBarShadow);
 		
 		BitmapText actionBarText = new BitmapText(titleFont);
-		actionBarText.setText("Action Bar");
+		actionBarText.setText(LanguageManager.get("screen.action_bar"));
 		actionBarText.setColor(ColorRGBA.White);
 		_rootNode.attachChild(actionBarText);
 		
@@ -694,12 +695,12 @@ public class FurnaceScreen implements ActionListener
 		final float invLabelY = topMainInvY + SLOT_SIZE + 4 + titleFont.getCharSet().getRenderedSize() + 2;
 		
 		BitmapText invShadow = new BitmapText(titleFont);
-		invShadow.setText("Inventory");
+		invShadow.setText(LanguageManager.get("screen.inventory"));
 		invShadow.setColor(new ColorRGBA(0, 0, 0, 0.8f));
 		_rootNode.attachChild(invShadow);
 		
 		BitmapText invText = new BitmapText(titleFont);
-		invText.setText("Inventory");
+		invText.setText(LanguageManager.get("screen.inventory"));
 		invText.setColor(ColorRGBA.White);
 		_rootNode.attachChild(invText);
 		
@@ -927,7 +928,7 @@ public class FurnaceScreen implements ActionListener
 			// "Recipes" title.
 			final BitmapText recipeTitleText = new BitmapText(font);
 			recipeTitleText.setSize(font.getCharSet().getRenderedSize());
-			recipeTitleText.setText("Recipes");
+			recipeTitleText.setText(LanguageManager.get("screen.recipes"));
 			recipeTitleText.setColor(new ColorRGBA(0.9f, 0.7f, 0.3f, 1.0f));
 			recipeTitleText.setLocalTranslation(panelX, currentY + 12, Z_TITLE);
 			_rootNode.attachChild(recipeTitleText);
@@ -976,7 +977,7 @@ public class FurnaceScreen implements ActionListener
 				// Arrow ">".
 				final BitmapText arrowLabel = new BitmapText(font);
 				arrowLabel.setSize(font.getCharSet().getRenderedSize());
-				arrowLabel.setText(">");
+				arrowLabel.setText(LanguageManager.get("screen.arrow"));
 				arrowLabel.setColor(new ColorRGBA(0.6f, 0.6f, 0.6f, 1.0f));
 				arrowLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
 				_rootNode.attachChild(arrowLabel);
@@ -1037,7 +1038,7 @@ public class FurnaceScreen implements ActionListener
 			// "Fuels" title.
 			final BitmapText fuelTitleText = new BitmapText(font);
 			fuelTitleText.setSize(font.getCharSet().getRenderedSize());
-			fuelTitleText.setText("Fuels");
+			fuelTitleText.setText(LanguageManager.get("screen.fuels"));
 			fuelTitleText.setColor(new ColorRGBA(0.9f, 0.5f, 0.2f, 1.0f));
 			fuelTitleText.setLocalTranslation(panelX, currentY, Z_TITLE);
 			_rootNode.attachChild(fuelTitleText);

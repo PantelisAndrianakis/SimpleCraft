@@ -1,0 +1,243 @@
+# 한국어 / Korean
+lang.name=한국어
+
+# 폰트
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# 메인 메뉴
+menu.start=게임 시작
+menu.options=설정
+menu.exit=종료
+menu.exit_confirm=게임을 종료하시겠습니까?
+menu.yes=예
+menu.no=아니오
+
+# 일시정지 메뉴
+menu.resume=계속하기
+menu.quit_to_menu=메뉴로 돌아가기
+menu.quit_confirm=메뉴로 돌아가시겠습니까?
+
+# 세계 선택
+menu.select_world=세계 선택
+menu.no_worlds=세계가 없습니다. 하나 만드세요!
+menu.play=플레이
+menu.create_new_world=새 세계 만들기
+menu.world_name=세계 이름:
+menu.world_name_field=새 세계
+menu.seed_label=씨앗 (비워두면 무작위):
+menu.create=만들기
+menu.cancel=취소
+menu.back=뒤로
+menu.page=페이지
+menu.seed=씨앗:
+menu.delete_confirm="{0}"을(를) 삭제하시겠습니까?\n이 작업은 취소할 수 없습니다.
+menu.world_name_empty=세계 이름을 입력해주세요.
+menu.world_name_exists="{0}"이라는 이름의 세계가 이미 존재합니다.
+
+# 설정
+menu.options_title=설정
+options.tab_display=화면
+options.tab_audio=오디오
+options.tab_keybindings=키 설정
+options.resolution=해상도
+options.fullscreen=전체 화면
+options.master_volume=전체 볼륨
+options.music_volume=음악 볼륨
+options.sfx_volume=효과음 볼륨
+options.subtab_movement=이동
+options.subtab_actions=행동
+options.subtab_mouse=마우스
+options.render_distance=렌더 거리
+options.block_highlight=블록 강조
+options.show_crosshair=조준점 표시
+options.show_stats=통계 표시
+options.show_fps=FPS 표시
+options.on=켜기
+options.off=끄기
+options.defaults=기본값
+options.reset_confirm=기본값으로 초기화하시겠습니까?
+options.back=뒤로
+
+# HUD
+hud.hp=HP:
+hud.air=공기:
+hud.you_died=당신은 죽었습니다
+hud.click_to_respawn=클릭하여 부활
+hud.block=블록
+hud.dragon=드래곤
+hud.shadow=그림자
+hud.died_fallback=당신은 죽었습니다
+
+# 사망 원인
+death.fall=낙사
+death.drown=익사
+
+# 인벤토리 화면
+screen.inventory=인벤토리
+screen.action_bar=단축바
+screen.armor=방어구
+screen.armor_head=머리
+screen.armor_chest=상체
+screen.armor_pants=하체
+screen.armor_boots=발
+screen.tip=팁: 나무 블록 4개를 우클릭하면 제작대를 만들 수 있습니다.
+
+# 제작 화면
+screen.crafting_table=제작대
+screen.crafting_hint=Escape 또는 Tab을 눌러 닫기
+screen.crafting_needs=  필요:
+screen.craft_button=[제작]
+screen.craft_empty=[----]
+
+# 용광로 화면
+screen.furnace=용광로
+screen.recipes=레시피
+screen.fuels=연료
+screen.arrow=>
+
+# 상자 화면
+screen.chest=상자
+
+# 도움말 화면
+screen.help_title=게임 방법
+screen.help_hint=Escape 또는 F1을 눌러 닫기
+screen.controls=조작법
+screen.game_tips=게임 팁
+screen.control_move=이동
+screen.control_jump=점프
+screen.control_inventory=인벤토리
+screen.control_attack=공격
+screen.control_interact=상호작용
+help.step.1=나무를 쳐서 목재를 얻습니다.
+help.step.2=제작대를 놓고 삽과 곡괭이를 만듭니다.
+help.step.3=땅을 파서 돌을 찾습니다.
+help.step.4=돌 도구와 모닥불을 만듭니다.
+help.step.5=모닥불을 부활 지점으로 설정합니다.
+help.step.6=용광로를 만들어 석탄을 생산합니다.
+help.step.7=석탄으로 횃불을 만듭니다.
+help.step.8=더 깊이 파서 철을 찾습니다.
+help.step.9=철 방어구와 무기를 만듭니다.
+help.step.10=드래곤 오브를 만들고 드래곤 보스를 처치해 금 주괴를 얻습니다.
+help.step.11=금 방어구와 무기를 만듭니다.
+help.step.12=쉐도우 오브를 만들고 최종 보스 쉐도우를 처치합니다.
+help.tip.1=Shift 키를 사용하면 겹쳐진 아이템을 분리할 수 있습니다.
+help.tip.2=나무 블록 4개를 우클릭하면 제작대를 만들 수 있습니다.
+
+# 키 바인딩
+keybind.move_forward=앞으로 이동
+keybind.move_back=뒤로 이동
+keybind.move_left=왼쪽 이동
+keybind.move_right=오른쪽 이동
+keybind.jump=점프 / 위로 수영
+keybind.swim_down=잠수 / 웅크리기
+keybind.help_screen=도움말
+keybind.screenshot=스크린샷
+keybind.hide_hud=HUD 숨기기
+keybind.pause=일시정지 / 메뉴
+keybind.inventory=인벤토리
+keybind.hotbar_1=단축키 1
+keybind.hotbar_2=단축키 2
+keybind.hotbar_3=단축키 3
+keybind.hotbar_4=단축키 4
+keybind.hotbar_5=단축키 5
+keybind.hotbar_6=단축키 6
+keybind.hotbar_7=단축키 7
+keybind.hotbar_8=단축키 8
+keybind.hotbar_9=단축키 9
+keybind.attack=공격
+keybind.place_block=설치 / 상호작용
+keybind.block_scroll=블록 스크롤
+keybind.look_around=주위 둘러보기
+
+# 메시지
+msg.tool_broke={0}이(가) 부러졌습니다!
+msg.respawn_lost=부활 지점을 잃었습니다! 세계 원점에서 부활합니다.
+msg.orb_no_power=오브는 여기서 힘이 없습니다.
+msg.orb_faint=오브가 희미하게 빛나지만 아무것도 하지 않습니다.
+msg.cannot_place=여기에 배치할 수 없습니다.
+
+# 블록 이름
+block.air=
+block.grass=흙
+block.dirt=흙
+block.stone=돌
+block.sand=모래
+block.wood=원목
+block.leaves=잎사귀
+block.water=물
+block.iron_ore=철광석
+block.bedrock=암반
+block.berry_bush=베리 덤불
+block.campfire=모닥불
+block.chest=상자
+block.crafting_table=제작대
+block.furnace=용광로
+block.torch=횃불
+block.tall_grass=큰 잔디
+block.red_poppy=빨간 양귀비
+block.dandelion=민들레
+block.blue_orchid=파란 난초
+block.white_daisy=흰 데이지
+block.tall_seaweed=큰 해초
+block.short_seaweed=작은 해초
+block.glass=유리
+block.window=창문
+block.door_bottom=문
+block.door_top=문
+
+# 아이템 이름
+item.dirt=흙
+item.grass=잔디 블록
+item.stone=돌
+item.sand=모래
+item.wood=원목
+item.leaves=잎사귀
+item.torch=횃불
+item.red_poppy=빨간 양귀비
+item.dandelion=민들레
+item.blue_orchid=파란 난초
+item.white_daisy=흰 데이지
+item.campfire=모닥불
+item.chest=상자
+item.crafting_table=제작대
+item.furnace=용광로
+item.iron_ore=철광석
+item.glass=유리
+item.window=창문
+item.door=문
+item.wood_sword=나무 검
+item.stone_sword=돌 검
+item.iron_sword=철 검
+item.gold_sword=금 검
+item.wood_pickaxe=나무 곡괭이
+item.stone_pickaxe=돌 곡괭이
+item.iron_pickaxe=철 곡괭이
+item.gold_pickaxe=금 곡괭이
+item.wood_axe=나무 도끼
+item.stone_axe=돌 도끼
+item.iron_axe=철 도끼
+item.gold_axe=금 도끼
+item.wood_shovel=나무 삽
+item.stone_shovel=돌 삽
+item.iron_shovel=철 삽
+item.gold_shovel=금 삽
+item.iron_helmet=철 투구
+item.iron_chestplate=철 흉갑
+item.iron_pants=철 각반
+item.iron_boots=철 신발
+item.gold_helmet=금 투구
+item.gold_chestplate=금 흉갑
+item.gold_pants=금 각반
+item.gold_boots=금 신발
+item.health_potion=회복 물약
+item.meat=고기
+item.berries=베리
+item.wood_plank=나무 판자
+item.stone_shard=돌 파편
+item.coal=석탄
+item.iron_bar=철 주괴
+item.gold_bar=금 주괴
+item.recall_orb=귀환 오브
+item.dragon_orb=드래곤 오브
+item.shadow_orb=쉐도우 오브

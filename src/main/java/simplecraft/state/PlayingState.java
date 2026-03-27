@@ -47,6 +47,7 @@ import simplecraft.player.PlayerController;
 import simplecraft.player.PlayerHUD;
 import simplecraft.player.ViewmodelRenderer;
 import simplecraft.save.SaveManager;
+import simplecraft.settings.LanguageManager;
 import simplecraft.save.SaveManager.PlayerSaveData;
 import simplecraft.save.SaveManager.SavedRegionData;
 import simplecraft.state.GameStateManager.GameState;
@@ -757,7 +758,7 @@ public class PlayingState extends FadeableAppState
 			// Show boss health bar.
 			if (_playerHUD != null)
 			{
-				_playerHUD.showBossHealthBar(shadowArena ? "Shadow" : "Dragon");
+				_playerHUD.showBossHealthBar(LanguageManager.get(shadowArena ? "hud.shadow" : "hud.dragon"));
 			}
 			
 			// Reset boss death tracking.
@@ -1875,7 +1876,7 @@ public class PlayingState extends FadeableAppState
 		
 		// "Loading..." text centered on screen using linocut font.
 		final int fontSize = Math.max(20, (int) (screenHeight * 0.04f));
-		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, fontSize);
+		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, fontSize);
 		_loadingText = new BitmapText(font);
 		_loadingText.setText("Loading...");
 		_loadingText.setSize(fontSize);

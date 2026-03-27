@@ -17,10 +17,14 @@ import com.jme3.input.event.KeyInputEvent;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
+import com.jme3.material.Material;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.Spatial.CullHint;
+import com.jme3.scene.shape.Quad;
 import com.jme3.ui.Picture;
 
 import com.simsilica.lemur.Axis;
@@ -33,9 +37,11 @@ import com.simsilica.lemur.Panel;
 import com.simsilica.lemur.Slider;
 import com.simsilica.lemur.VAlignment;
 import com.simsilica.lemur.component.SpringGridLayout;
+import com.simsilica.lemur.component.TbtQuadBackgroundComponent;
 import com.simsilica.lemur.core.VersionedReference;
 import com.simsilica.lemur.event.CursorButtonEvent;
 import com.simsilica.lemur.event.CursorEventControl;
+import com.simsilica.lemur.event.CursorMotionEvent;
 import com.simsilica.lemur.event.DefaultCursorListener;
 
 import simplecraft.SimpleCraft;
@@ -43,6 +49,7 @@ import simplecraft.audio.AudioManager;
 import simplecraft.input.GameInputManager;
 import simplecraft.input.MenuNavigationManager;
 import simplecraft.input.MenuNavigationManager.NavigationSlot;
+import simplecraft.settings.LanguageManager;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
 import simplecraft.ui.ButtonManager;
@@ -85,6 +92,14 @@ public class OptionsState extends FadeableAppState
 	private static final int TAB_DISPLAY = 0;
 	private static final int TAB_AUDIO = 1;
 	private static final int TAB_KEYBINDINGS = 2;
+	
+	// Language flag button.
+	private static final int FLAG_WIDTH = 60;
+	private static final int FLAG_HEIGHT = 40;
+	private static final int FLAG_MARGIN = 10;
+	private static final int LANG_POPUP_GAP = 6;
+	private static final int LANG_POPUP_PADDING = 6;
+	private static final int LANG_ROW_SPACING = 12;
 	
 	// Keybinding sub-tab indices.
 	private static final int SUB_TAB_MOVEMENT = 0;
@@ -189,6 +204,11 @@ public class OptionsState extends FadeableAppState
 	
 	private MenuNavigationManager _navigation;
 	
+	// Language popup elements.
+	private Picture _flagButton;
+	private Geometry _languagePopupBackdrop;
+	private Container _languagePopup;
+	
 	public OptionsState()
 	{
 		setFadeIn(0.6f, new ColorRGBA(0, 0, 0, 1));
@@ -212,12 +232,7 @@ public class OptionsState extends FadeableAppState
 		
 		buildGui();
 		
-		_navigation.setBackAction(() ->
-		{
-			final SimpleCraft app = SimpleCraft.getInstance();
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			app.getGameStateManager().returnToPrevious(true);
-		});
+		_navigation.setBackAction(this::backAction);
 		_navigation.register();
 	}
 	
@@ -252,11 +267,7 @@ public class OptionsState extends FadeableAppState
 			_navigation.unregister();
 			detachAllGui();
 			_navigation = new MenuNavigationManager();
-			_navigation.setBackAction(() ->
-			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-				app.getGameStateManager().returnToPrevious(true);
-			});
+			_navigation.setBackAction(this::backAction);
 			buildGui();
 			_navigation.register();
 			return;
@@ -316,8 +327,8 @@ public class OptionsState extends FadeableAppState
 		_background.setCullHint(CullHint.Never);
 		
 		// --- Title ---
-		_titleLabel = new Label("Options");
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, _titleFontSize));
+		_titleLabel = new Label(LanguageManager.get("menu.options_title"));
+		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, _titleFontSize));
 		_titleLabel.setFontSize(_titleFontSize);
 		_titleLabel.setColor(ColorRGBA.White);
 		final float titleWidth = _titleLabel.getPreferredSize().x;
@@ -328,9 +339,9 @@ public class OptionsState extends FadeableAppState
 		_tabRow.setBackground(null);
 		_tabRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		_tabDisplayButton = createTabButton(app, "Display", TAB_DISPLAY);
-		_tabAudioButton = createTabButton(app, "Audio", TAB_AUDIO);
-		_tabKeybindingsButton = createTabButton(app, "Keybindings", TAB_KEYBINDINGS);
+		_tabDisplayButton = createTabButton(app, LanguageManager.get("options.tab_display"), TAB_DISPLAY);
+		_tabAudioButton = createTabButton(app, LanguageManager.get("options.tab_audio"), TAB_AUDIO);
+		_tabKeybindingsButton = createTabButton(app, LanguageManager.get("options.tab_keybindings"), TAB_KEYBINDINGS);
 		
 		_tabRow.addChild(_tabDisplayButton);
 		_tabRow.addChild(createTabSpacer());
@@ -358,9 +369,9 @@ public class OptionsState extends FadeableAppState
 		_keybindingsSubTabRow.setBackground(null);
 		_keybindingsSubTabRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		_subTabMovementButton = createSubTabButton(app, "Movement", SUB_TAB_MOVEMENT);
-		_subTabActionsButton = createSubTabButton(app, "Actions", SUB_TAB_ACTIONS);
-		_subTabMouseButton = createSubTabButton(app, "Mouse", SUB_TAB_MOUSE);
+		_subTabMovementButton = createSubTabButton(app, LanguageManager.get("options.subtab_movement"), SUB_TAB_MOVEMENT);
+		_subTabActionsButton = createSubTabButton(app, LanguageManager.get("options.subtab_actions"), SUB_TAB_ACTIONS);
+		_subTabMouseButton = createSubTabButton(app, LanguageManager.get("options.subtab_mouse"), SUB_TAB_MOUSE);
 		
 		_keybindingsSubTabRow.addChild(_subTabMovementButton);
 		_keybindingsSubTabRow.addChild(createSubTabSpacer());
@@ -392,10 +403,10 @@ public class OptionsState extends FadeableAppState
 		_buttonRow.setBackground(null);
 		_buttonRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		final Panel defaultsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Defaults", 0.15f, 0.065f, () ->
+		final Panel defaultsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("options.defaults"), 0.15f, 0.065f, () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show("Reset to defaults?", this::applyDefaults, null);
+			QuestionManager.show(LanguageManager.get("options.reset_confirm"), this::applyDefaults, null);
 		});
 		_buttonRow.addChild(defaultsButton);
 		_defaultsButton = defaultsButton;
@@ -404,7 +415,7 @@ public class OptionsState extends FadeableAppState
 		buttonSpacer.setPreferredSize(new Vector3f(screenWidth * 0.016f, 1, 0));
 		_buttonRow.addChild(buttonSpacer);
 		
-		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Back", 0.15f, 0.065f, () ->
+		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("options.back"), 0.15f, 0.065f, () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().returnToPrevious(true);
@@ -434,6 +445,33 @@ public class OptionsState extends FadeableAppState
 		app.getGuiNode().attachChild(_keyMouseContent);
 		app.getGuiNode().attachChild(_buttonRow);
 		
+		// --- Language Flag Button (upper-right) ---
+		_flagButton = new Picture("LangFlag");
+		_flagButton.setImage(app.getAssetManager(), LanguageManager.getFlagPath(LanguageManager.getCurrentCode()), true);
+		_flagButton.setWidth(FLAG_WIDTH);
+		_flagButton.setHeight(FLAG_HEIGHT);
+		_flagButton.setLocalTranslation(screenWidth - FLAG_WIDTH - FLAG_MARGIN, screenHeight - FLAG_HEIGHT - FLAG_MARGIN, 1f);
+		CursorEventControl.addListenersToSpatial(_flagButton, new DefaultCursorListener()
+		{
+			@Override
+			public void cursorButtonEvent(CursorButtonEvent event, Spatial target, Spatial capture)
+			{
+				event.setConsumed();
+				if (!event.isPressed())
+				{
+					if (_languagePopup != null)
+					{
+						hideLanguagePopup();
+					}
+					else
+					{
+						showLanguagePopup();
+					}
+				}
+			}
+		});
+		app.getGuiNode().attachChild(_flagButton);
+		
 		// Show only the active tab content.
 		showTab(_activeTab);
 		
@@ -442,6 +480,9 @@ public class OptionsState extends FadeableAppState
 		
 		// Assemble the flat focus list.
 		rebuildFocusList();
+		
+		// Pre-warm dialog fonts so language changes don't stall the next dialog open.
+		FontManager.warmup(app.getAssetManager(), screenHeight);
 	}
 	
 	/**
@@ -511,6 +552,24 @@ public class OptionsState extends FadeableAppState
 			_buttonRow = null;
 		}
 		
+		if (_languagePopupBackdrop != null)
+		{
+			app.getGuiNode().detachChild(_languagePopupBackdrop);
+			_languagePopupBackdrop = null;
+		}
+		
+		if (_languagePopup != null)
+		{
+			app.getGuiNode().detachChild(_languagePopup);
+			_languagePopup = null;
+		}
+		
+		if (_flagButton != null)
+		{
+			app.getGuiNode().detachChild(_flagButton);
+			_flagButton = null;
+		}
+		
 		_tabDisplayButton = null;
 		_tabAudioButton = null;
 		_tabKeybindingsButton = null;
@@ -575,7 +634,7 @@ public class OptionsState extends FadeableAppState
 			_resolutionIndex = SettingsManager.getAvailableResolutions().length - 1;
 		}
 		_resolutionValueLabel = createValueLabel(formatResolution(_resolutionIndex));
-		final Label resLabel = createNameLabel(app, "Resolution");
+		final Label resLabel = createNameLabel(app, LanguageManager.get("options.resolution"));
 		_displayContent.addChild(createResolutionRow(app, resLabel));
 		// @formatter:off
 		_displayContentSlots.add(MenuNavigationManager.labelSlot(resLabel,
@@ -595,7 +654,7 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_fullscreenToggle, newValue);
 			WindowDisplayManager.applyCurrentSettings();
 		});
-		final Label fsLabel = createNameLabel(app, "Fullscreen");
+		final Label fsLabel = createNameLabel(app, LanguageManager.get("options.fullscreen"));
 		_displayContent.addChild(createToggleRow(app, fsLabel, _fullscreenToggle));
 		final Runnable toggleFullscreen = () ->
 		{
@@ -615,7 +674,7 @@ public class OptionsState extends FadeableAppState
 		_renderDistanceSlider.getModel().setMaximum(SettingsManager.MAX_RENDER_DISTANCE);
 		_renderDistanceSlider.getModel().setValue(settings.getDisplayRenderDistance());
 		_renderDistanceValueLabel = createValueLabel(String.valueOf(settings.getDisplayRenderDistance()));
-		final Label rdLabel = createNameLabel(app, "Render Distance");
+		final Label rdLabel = createNameLabel(app, LanguageManager.get("options.render_distance"));
 		_displayContent.addChild(createSliderRow(app, rdLabel, _renderDistanceSlider, _renderDistanceValueLabel));
 		// @formatter:off
 		_displayContentSlots.add(MenuNavigationManager.labelSlot(rdLabel,
@@ -634,7 +693,7 @@ public class OptionsState extends FadeableAppState
 			settings.setShowHighlight(newValue);
 			updateToggleButton(_showHighlightToggle, newValue);
 		});
-		final Label wfLabel = createNameLabel(app, "Block Highlight");
+		final Label wfLabel = createNameLabel(app, LanguageManager.get("options.block_highlight"));
 		_displayContent.addChild(createToggleRow(app, wfLabel, _showHighlightToggle));
 		final Runnable toggleHighlight = () ->
 		{
@@ -655,7 +714,7 @@ public class OptionsState extends FadeableAppState
 			settings.setShowCrosshair(newValue);
 			updateToggleButton(_showCrosshairToggle, newValue);
 		});
-		final Label chLabel = createNameLabel(app, "Show Crosshair");
+		final Label chLabel = createNameLabel(app, LanguageManager.get("options.show_crosshair"));
 		_displayContent.addChild(createToggleRow(app, chLabel, _showCrosshairToggle));
 		final Runnable toggleCrosshair = () ->
 		{
@@ -677,7 +736,7 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_showStatsToggle, newValue);
 			app.setDisplayStatView(newValue);
 		});
-		final Label ssLabel = createNameLabel(app, "Show Stats");
+		final Label ssLabel = createNameLabel(app, LanguageManager.get("options.show_stats"));
 		_displayContent.addChild(createToggleRow(app, ssLabel, _showStatsToggle));
 		final Runnable toggleStats = () ->
 		{
@@ -700,7 +759,7 @@ public class OptionsState extends FadeableAppState
 			updateToggleButton(_showFpsToggle, newValue);
 			app.setDisplayFps(newValue);
 		});
-		final Label fpsLabel = createNameLabel(app, "Show FPS");
+		final Label fpsLabel = createNameLabel(app, LanguageManager.get("options.show_fps"));
 		_displayContent.addChild(createToggleRow(app, fpsLabel, _showFpsToggle));
 		final Runnable toggleFps = () ->
 		{
@@ -732,7 +791,7 @@ public class OptionsState extends FadeableAppState
 		_masterSlider.getModel().setMaximum(100);
 		_masterSlider.getModel().setValue(settings.getMasterVolume() * 100.0);
 		_masterValueLabel = createValueLabel(String.format("%.2f", settings.getMasterVolume()));
-		final Label masterLabel = createNameLabel(app, "Master Volume");
+		final Label masterLabel = createNameLabel(app, LanguageManager.get("options.master_volume"));
 		_audioContent.addChild(createSliderRow(app, masterLabel, _masterSlider, _masterValueLabel));
 		// @formatter:off
 		_audioContentSlots.add(MenuNavigationManager.labelSlot(masterLabel,
@@ -749,7 +808,7 @@ public class OptionsState extends FadeableAppState
 		_musicSlider.getModel().setMaximum(100);
 		_musicSlider.getModel().setValue(settings.getMusicVolume() * 100.0);
 		_musicValueLabel = createValueLabel(String.format("%.2f", settings.getMusicVolume()));
-		final Label musicLabel = createNameLabel(app, "Music Volume");
+		final Label musicLabel = createNameLabel(app, LanguageManager.get("options.music_volume"));
 		_audioContent.addChild(createSliderRow(app, musicLabel, _musicSlider, _musicValueLabel));
 		// @formatter:off
 		_audioContentSlots.add(MenuNavigationManager.labelSlot(musicLabel,
@@ -766,7 +825,7 @@ public class OptionsState extends FadeableAppState
 		_sfxSlider.getModel().setMaximum(100);
 		_sfxSlider.getModel().setValue(settings.getSfxVolume() * 100.0);
 		_sfxValueLabel = createValueLabel(String.format("%.2f", settings.getSfxVolume()));
-		final Label sfxLabel = createNameLabel(app, "SFX Volume");
+		final Label sfxLabel = createNameLabel(app, LanguageManager.get("options.sfx_volume"));
 		_audioContent.addChild(createSliderRow(app, sfxLabel, _sfxSlider, _sfxValueLabel));
 		// @formatter:off
 		_audioContentSlots.add(MenuNavigationManager.labelSlot(sfxLabel,
@@ -803,7 +862,7 @@ public class OptionsState extends FadeableAppState
 		for (String[] entry : GameInputManager.BINDABLE_ACTIONS)
 		{
 			final String action = entry[0];
-			final String displayName = entry[1];
+			final String displayName = LanguageManager.get("keybind." + action);
 			final String section = entry[2];
 			
 			// Determine which sub-tab container and slot list this action belongs to.
@@ -849,7 +908,7 @@ public class OptionsState extends FadeableAppState
 		for (String[] entry : GameInputManager.MOUSE_BINDABLE_ACTIONS)
 		{
 			final String action = entry[0];
-			final String displayName = entry[1];
+			final String displayName = LanguageManager.get("keybind." + action);
 			
 			final String buttonName = GameInputManager.getMouseButtonName(input.getMouseCode(action));
 			final Button mouseButton = createKeyButton(app, buttonName);
@@ -877,7 +936,7 @@ public class OptionsState extends FadeableAppState
 		// --- Fixed Mouse / System Bindings (styled but not clickable, no focus slots) ---
 		for (String[] entry : GameInputManager.FIXED_BINDINGS)
 		{
-			final String displayName = entry[0];
+			final String displayName = LanguageManager.get("keybind." + entry[0].toLowerCase().replace(" ", "_"));
 			final String keyText = entry[1];
 			_keyMouseContent.addChild(createFixedKeybindingRow(app, displayName, keyText));
 			addRowSpacer(_keyMouseContent);
@@ -1167,7 +1226,7 @@ public class OptionsState extends FadeableAppState
 	private Button createKeyButton(SimpleCraft app, String keyName)
 	{
 		final Button button = new Button(keyName);
-		button.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _valueFontSize));
+		button.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _valueFontSize));
 		button.setFontSize(_valueFontSize);
 		button.setColor(KEY_BUTTON_COLOR);
 		button.setBackground(null);
@@ -1212,7 +1271,7 @@ public class OptionsState extends FadeableAppState
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
 		final Label nameLabel = new Label(actionName);
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
+		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _labelFontSize));
 		nameLabel.setFontSize(_labelFontSize);
 		nameLabel.setColor(new ColorRGBA(0.7f, 0.7f, 0.7f, 1f));
 		nameLabel.setTextHAlignment(HAlignment.Right);
@@ -1225,7 +1284,7 @@ public class OptionsState extends FadeableAppState
 		row.addChild(gap);
 		
 		final Label keyLabel = new Label(keyText);
-		keyLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _valueFontSize));
+		keyLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _valueFontSize));
 		keyLabel.setFontSize(_valueFontSize);
 		keyLabel.setColor(FIXED_KEY_COLOR);
 		keyLabel.setTextHAlignment(HAlignment.Left);
@@ -1407,7 +1466,7 @@ public class OptionsState extends FadeableAppState
 	private Label createTabButton(SimpleCraft app, String text, int tabIndex)
 	{
 		final Label tab = new Label(text);
-		tab.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, _tabFontSize));
+		tab.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, _tabFontSize));
 		tab.setFontSize(_tabFontSize);
 		tab.setColor(TAB_INACTIVE_COLOR);
 		tab.setTextHAlignment(HAlignment.Center);
@@ -1436,7 +1495,7 @@ public class OptionsState extends FadeableAppState
 	{
 		final Label spacer = new Label("|");
 		final SimpleCraft app = SimpleCraft.getInstance();
-		spacer.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _tabFontSize));
+		spacer.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _tabFontSize));
 		spacer.setFontSize(_tabFontSize);
 		spacer.setColor(new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f));
 		spacer.setTextHAlignment(HAlignment.Center);
@@ -1455,7 +1514,7 @@ public class OptionsState extends FadeableAppState
 	{
 		final int subTabFontSize = Math.max(10, (int) (_tabFontSize * 0.85f));
 		final Label tab = new Label(text);
-		tab.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, subTabFontSize));
+		tab.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, subTabFontSize));
 		tab.setFontSize(subTabFontSize);
 		tab.setColor(TAB_INACTIVE_COLOR);
 		tab.setTextHAlignment(HAlignment.Center);
@@ -1485,7 +1544,7 @@ public class OptionsState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final int subTabFontSize = Math.max(10, (int) (_tabFontSize * 0.85f));
 		final Label spacer = new Label(FontManager.SYMBOL_DOT);
-		spacer.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, subTabFontSize));
+		spacer.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, subTabFontSize));
 		spacer.setFontSize(subTabFontSize);
 		spacer.setColor(new ColorRGBA(0.3f, 0.3f, 0.3f, 0.6f));
 		spacer.setTextHAlignment(HAlignment.Center);
@@ -1501,7 +1560,7 @@ public class OptionsState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final int thumbFontSize = Math.max(10, (int) (_sliderButtonFontSize * 0.45f));
-		final BitmapFont thumbFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, thumbFontSize);
+		final BitmapFont thumbFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, thumbFontSize);
 		
 		final Button thumbButton = slider.getThumbButton();
 		thumbButton.setText(FontManager.SYMBOL_SQUARE);
@@ -1532,7 +1591,7 @@ public class OptionsState extends FadeableAppState
 		row.setBackground(null);
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		final BitmapFont arrowFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _sliderButtonFontSize);
+		final BitmapFont arrowFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _sliderButtonFontSize);
 		
 		row.addChild(nameLabel);
 		
@@ -1594,7 +1653,7 @@ public class OptionsState extends FadeableAppState
 		row.setBackground(null);
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		final BitmapFont arrowFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _sliderButtonFontSize);
+		final BitmapFont arrowFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _sliderButtonFontSize);
 		
 		row.addChild(nameLabel);
 		
@@ -1665,7 +1724,7 @@ public class OptionsState extends FadeableAppState
 	private Label createNameLabel(SimpleCraft app, String text)
 	{
 		final Label label = new Label(text);
-		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
+		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _labelFontSize));
 		label.setFontSize(_labelFontSize);
 		label.setColor(ColorRGBA.White);
 		label.setTextHAlignment(HAlignment.Left);
@@ -1683,7 +1742,7 @@ public class OptionsState extends FadeableAppState
 	private Label createKeybindNameLabel(SimpleCraft app, String text)
 	{
 		final Label label = new Label(text);
-		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize));
+		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _labelFontSize));
 		label.setFontSize(_labelFontSize);
 		label.setColor(ColorRGBA.White);
 		label.setTextHAlignment(HAlignment.Right);
@@ -1700,9 +1759,9 @@ public class OptionsState extends FadeableAppState
 	private Button createToggleButton(boolean initialValue)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _labelFontSize);
+		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _labelFontSize);
 		
-		final Button button = new Button(initialValue ? "On" : "Off");
+		final Button button = new Button(initialValue ? LanguageManager.get("options.on") : LanguageManager.get("options.off"));
 		button.setFont(font);
 		button.setFontSize(_labelFontSize);
 		button.setColor(initialValue ? TOGGLE_ON_COLOR : TOGGLE_OFF_COLOR);
@@ -1718,7 +1777,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void updateToggleButton(Button button, boolean value)
 	{
-		button.setText(value ? "On" : "Off");
+		button.setText(value ? LanguageManager.get("options.on") : LanguageManager.get("options.off"));
 		button.setColor(value ? TOGGLE_ON_COLOR : TOGGLE_OFF_COLOR);
 	}
 	
@@ -1729,7 +1788,7 @@ public class OptionsState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final Label label = new Label(initialText);
-		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, _valueFontSize));
+		label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _valueFontSize));
 		label.setFontSize(_valueFontSize);
 		label.setColor(new ColorRGBA(0.9f, 0.9f, 0.9f, 1f));
 		label.setTextHAlignment(HAlignment.Right);
@@ -2064,5 +2123,171 @@ public class OptionsState extends FadeableAppState
 		
 		// Apply display settings (UI will rebuild via screen size detection).
 		WindowDisplayManager.applyCurrentSettings();
+	}
+	
+	// ========== LANGUAGE SELECTION ==========
+	
+	/**
+	 * Back action: close the language popup if open, otherwise return to previous state.
+	 */
+	private void backAction()
+	{
+		if (_languagePopup != null)
+		{
+			hideLanguagePopup();
+			return;
+		}
+		
+		final SimpleCraft app = SimpleCraft.getInstance();
+		app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+		app.getGameStateManager().returnToPrevious(true);
+	}
+	
+	/**
+	 * Show the language selection popup above the flag button.
+	 */
+	private void showLanguagePopup()
+	{
+		hideLanguagePopup();
+		
+		final SimpleCraft app = SimpleCraft.getInstance();
+		final Map<String, String> languages = LanguageManager.discoverLanguages();
+		if (languages.isEmpty())
+		{
+			return;
+		}
+		
+		_languagePopup = new Container();
+		_languagePopup.setBackground(null);
+		
+		// Top padding spacer so the first flag isn't flush against the backdrop edge.
+		final Label topSpacer = new Label("");
+		topSpacer.setPreferredSize(new Vector3f(FLAG_WIDTH, LANG_POPUP_PADDING, 0));
+		_languagePopup.addChild(topSpacer);
+		
+		boolean first = true;
+		for (Entry<String, String> entry : languages.entrySet())
+		{
+			if (!first)
+			{
+				final Label rowSpacer = new Label("");
+				rowSpacer.setPreferredSize(new Vector3f(1, LANG_ROW_SPACING, 0));
+				_languagePopup.addChild(rowSpacer);
+			}
+			
+			first = false;
+			
+			final String code = entry.getKey();
+			final boolean isCurrent = code.equals(LanguageManager.getCurrentCode());
+			final String flagPath = LanguageManager.getFlagPath(code);
+			
+			// Helper to create a fresh background instance (must not reuse - Lemur
+			// cannot reattach a component after it has been detached from a spatial).
+			final java.util.function.Supplier<TbtQuadBackgroundComponent> normalBgFactory = () -> TbtQuadBackgroundComponent.create(flagPath, 1f, 0, 0, 0, 0, 0f, false);
+			final java.util.function.Supplier<TbtQuadBackgroundComponent> hoverBgFactory = () ->
+			{
+				final TbtQuadBackgroundComponent bg = TbtQuadBackgroundComponent.create(flagPath, 1f, 0, 0, 0, 0, 0f, false);
+				bg.setColor(new ColorRGBA(1.0f, 0.85f, 0f, 1f));
+				return bg;
+			};
+			
+			// Use a Label - same as ButtonManager - to avoid Panel's default style
+			// overriding the background.
+			final Label flagLabel = new Label("");
+			flagLabel.setPreferredSize(new Vector3f(FLAG_WIDTH, FLAG_HEIGHT, 0));
+			flagLabel.setBackground(isCurrent ? hoverBgFactory.get() : normalBgFactory.get());
+			_languagePopup.addChild(flagLabel);
+			
+			final Runnable selectAction = () ->
+			{
+				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				LanguageManager.loadLanguage(code);
+				app.getSettingsManager().setLanguage(code);
+				app.getSettingsManager().save();
+				hideLanguagePopup();
+				_navigation.unregister();
+				detachAllGui();
+				_navigation = new MenuNavigationManager();
+				_navigation.setBackAction(this::backAction);
+				buildGui();
+				_navigation.register();
+			};
+			
+			CursorEventControl.addListenersToSpatial(flagLabel, new DefaultCursorListener()
+			{
+				@Override
+				public void cursorEntered(CursorMotionEvent event, Spatial target, Spatial capture)
+				{
+					flagLabel.setBackground(hoverBgFactory.get());
+				}
+				
+				@Override
+				public void cursorExited(CursorMotionEvent event, Spatial target, Spatial capture)
+				{
+					flagLabel.setBackground(isCurrent ? hoverBgFactory.get() : normalBgFactory.get());
+				}
+				
+				@Override
+				public void cursorButtonEvent(CursorButtonEvent event, Spatial target, Spatial capture)
+				{
+					event.setConsumed();
+					if (!event.isPressed())
+					{
+						selectAction.run();
+					}
+				}
+			});
+		}
+		
+		// Bottom padding spacer.
+		final Label bottomSpacer = new Label("");
+		bottomSpacer.setPreferredSize(new Vector3f(FLAG_WIDTH, LANG_POPUP_PADDING, 0));
+		_languagePopup.addChild(bottomSpacer);
+		
+		final float popupWidth = _languagePopup.getPreferredSize().x;
+		final float popupHeight = _languagePopup.getPreferredSize().y;
+		
+		// Flag is in the upper-right; popup drops down and extends left from the flag's right edge.
+		final float screenWidth = SimpleCraft.getInstance().getCamera().getWidth();
+		final float screenHeight = SimpleCraft.getInstance().getCamera().getHeight();
+		final float flagX = screenWidth - FLAG_WIDTH - FLAG_MARGIN;
+		final float flagBottom = screenHeight - FLAG_HEIGHT - FLAG_MARGIN;
+		final float popupX = flagX + FLAG_WIDTH - popupWidth;
+		
+		// Container top-left = just below the flag bottom.
+		final float popupY = flagBottom - LANG_POPUP_GAP;
+		_languagePopup.setLocalTranslation(popupX, popupY, 3.1f);
+		
+		// Dark backdrop behind the popup (Geometry = bottom-left corner).
+		final Quad quad = new Quad(popupWidth, popupHeight + LANG_POPUP_PADDING * 2);
+		_languagePopupBackdrop = new Geometry("LangPopupBackdrop", quad);
+		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		mat.setColor("Color", new ColorRGBA(0.05f, 0.05f, 0.05f, 0.92f));
+		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		_languagePopupBackdrop.setMaterial(mat);
+		_languagePopupBackdrop.setLocalTranslation(popupX, flagBottom - LANG_POPUP_GAP - popupHeight - LANG_POPUP_PADDING, 3f);
+		
+		app.getGuiNode().attachChild(_languagePopupBackdrop);
+		app.getGuiNode().attachChild(_languagePopup);
+	}
+	
+	/**
+	 * Remove the language popup from the scene.
+	 */
+	private void hideLanguagePopup()
+	{
+		final SimpleCraft app = SimpleCraft.getInstance();
+		
+		if (_languagePopupBackdrop != null)
+		{
+			app.getGuiNode().detachChild(_languagePopupBackdrop);
+			_languagePopupBackdrop = null;
+		}
+		
+		if (_languagePopup != null)
+		{
+			app.getGuiNode().detachChild(_languagePopup);
+			_languagePopup = null;
+		}
 	}
 }

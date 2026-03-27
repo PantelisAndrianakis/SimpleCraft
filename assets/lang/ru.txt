@@ -1,0 +1,243 @@
+# Русский / Russian
+lang.name=Русский
+
+# Шрифты
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Главное меню
+menu.start=Начать игру
+menu.options=Настройки
+menu.exit=Выйти
+menu.exit_confirm=Выйти из игры?
+menu.yes=Да
+menu.no=Нет
+
+# Меню паузы
+menu.resume=Продолжить
+menu.quit_to_menu=В главное меню
+menu.quit_confirm=В главное меню?
+
+# Выбор мира
+menu.select_world=Выбрать мир
+menu.no_worlds=Нет миров. Создайте один!
+menu.play=Выбрать
+menu.create_new_world=Создать новый мир
+menu.world_name=Название мира:
+menu.world_name_field=Новый мир
+menu.seed_label=Зерно (пусто для случайного):
+menu.create=Создать
+menu.cancel=Отмена
+menu.back=Назад
+menu.page=Страница
+menu.seed=Зерно:
+menu.delete_confirm=Удалить «{0}»?\nЭто действие нельзя отменить.
+menu.world_name_empty=Название мира не может быть пустым.
+menu.world_name_exists=Мир с названием «{0}» уже существует.
+
+# Настройки
+menu.options_title=Настройки
+options.tab_display=Экран
+options.tab_audio=Звук
+options.tab_keybindings=Управление
+options.resolution=Разрешение
+options.fullscreen=Полный экран
+options.master_volume=Общая
+options.music_volume=Музыки
+options.sfx_volume=Эффектов
+options.subtab_movement=Движение
+options.subtab_actions=Действия
+options.subtab_mouse=Мышь
+options.render_distance=Дальность
+options.block_highlight=Подсветка
+options.show_crosshair=Прицел
+options.show_stats=Статистику
+options.show_fps=Показать FPS
+options.on=Вкл
+options.off=Выкл
+options.defaults=По умолчанию
+options.reset_confirm=Сбросить настройки?
+options.back=Назад
+
+# HUD
+hud.hp=ОЗ:
+hud.air=Воздух:
+hud.you_died=Вы погибли
+hud.click_to_respawn=Нажмите для возрождения
+hud.block=Блок
+hud.dragon=Дракон
+hud.shadow=Тень
+hud.died_fallback=Вы погибли
+
+# Причины смерти
+death.fall=Погиб при падении
+death.drown=Утонул
+
+# Экран инвентаря
+screen.inventory=Инвентарь
+screen.action_bar=Панель действий
+screen.armor=Броня
+screen.armor_head=Голова
+screen.armor_chest=Грудь
+screen.armor_pants=Ноги
+screen.armor_boots=Ботинки
+screen.tip=СОВЕТ: Нажмите ПКМ на 4 блока дерева, чтобы создать верстак.
+
+# Экран крафта
+screen.crafting_table=Верстак
+screen.crafting_hint=Нажмите Escape или Tab для закрытия
+screen.crafting_needs=  Нужно:
+screen.craft_button=[Создать]
+screen.craft_empty=[--------]
+
+# Экран печи
+screen.furnace=Печь
+screen.recipes=Рецепты
+screen.fuels=Топливо
+screen.arrow=>
+
+# Экран сундука
+screen.chest=Сундук
+
+# Экран помощи
+screen.help_title=Как играть
+screen.help_hint=Нажмите Escape или F1 для закрытия
+screen.controls=Управление
+screen.game_tips=Советы
+screen.control_move=Движение
+screen.control_jump=Прыжок
+screen.control_inventory=Инвентарь
+screen.control_attack=Атака
+screen.control_interact=Взаимодействие
+help.step.1=Ударьте по дереву, чтобы собрать древесину.
+help.step.2=Поставьте верстак и создайте лопату и кирку.
+help.step.3=Копайте, чтобы найти камень.
+help.step.4=Создайте каменные инструменты и костёр.
+help.step.5=Установите точку возрождения у костра.
+help.step.6=Создайте печь и используйте её для получения угля.
+help.step.7=Используйте уголь для создания факелов.
+help.step.8=Копайте глубже, чтобы найти железо.
+help.step.9=Создайте железную броню и оружие.
+help.step.10=Создайте Сферу Дракона и победите босса Дракона, чтобы получить золотые слитки.
+help.step.11=Создайте золотую броню и оружие.
+help.step.12=Создайте Сферу Тени и победите финального босса Тень.
+help.tip.1=Вы можете использовать Shift для разделения складываемых предметов.
+help.tip.2=Нажмите ПКМ на 4 блока дерева, чтобы создать верстак.
+
+# Управление
+keybind.move_forward=Идти вперёд
+keybind.move_back=Идти назад
+keybind.move_left=Идти влево
+keybind.move_right=Идти вправо
+keybind.jump=Прыжок / Плыть вверх
+keybind.swim_down=Нырнуть / Присесть
+keybind.help_screen=Помощь
+keybind.screenshot=Скриншот
+keybind.hide_hud=Скрыть HUD
+keybind.pause=Пауза / Меню
+keybind.inventory=Инвентарь
+keybind.hotbar_1=Слот 1
+keybind.hotbar_2=Слот 2
+keybind.hotbar_3=Слот 3
+keybind.hotbar_4=Слот 4
+keybind.hotbar_5=Слот 5
+keybind.hotbar_6=Слот 6
+keybind.hotbar_7=Слот 7
+keybind.hotbar_8=Слот 8
+keybind.hotbar_9=Слот 9
+keybind.attack=Атака
+keybind.place_block=Поставить / Взаимодействовать
+keybind.block_scroll=Прокрутка блока
+keybind.look_around=Осмотреться
+
+# Сообщения
+msg.tool_broke=Ваш(а) {0} сломался(ась)!
+msg.respawn_lost=Точка возрождения потеряна! Вы возродитесь в начале мира.
+msg.orb_no_power=Сфера здесь не имеет силы.
+msg.orb_faint=Сфера слабо светится, но ничего не делает.
+msg.cannot_place=Вы не можете разместить это здесь.
+
+# Названия блоков
+block.air=
+block.grass=Земля
+block.dirt=Земля
+block.stone=Камень
+block.sand=Песок
+block.wood=Дерево
+block.leaves=Листья
+block.water=Вода
+block.iron_ore=Железная руда
+block.bedrock=Бедрок
+block.berry_bush=Ягодный куст
+block.campfire=Костёр
+block.chest=Сундук
+block.crafting_table=Верстак
+block.furnace=Печь
+block.torch=Факел
+block.tall_grass=Высокая трава
+block.red_poppy=Красный мак
+block.dandelion=Одуванчик
+block.blue_orchid=Голубая орхидея
+block.white_daisy=Белая ромашка
+block.tall_seaweed=Высокие водоросли
+block.short_seaweed=Низкие водоросли
+block.glass=Стекло
+block.window=Окно
+block.door_bottom=Дверь
+block.door_top=Дверь
+
+# Названия предметов
+item.dirt=Земля
+item.grass=Блок травы
+item.stone=Камень
+item.sand=Песок
+item.wood=Дерево
+item.leaves=Листья
+item.torch=Факел
+item.red_poppy=Красный мак
+item.dandelion=Одуванчик
+item.blue_orchid=Голубая орхидея
+item.white_daisy=Белая ромашка
+item.campfire=Костёр
+item.chest=Сундук
+item.crafting_table=Верстак
+item.furnace=Печь
+item.iron_ore=Железная руда
+item.glass=Стекло
+item.window=Окно
+item.door=Дверь
+item.wood_sword=Деревянный меч
+item.stone_sword=Каменный меч
+item.iron_sword=Железный меч
+item.gold_sword=Золотой меч
+item.wood_pickaxe=Деревянная кирка
+item.stone_pickaxe=Каменная кирка
+item.iron_pickaxe=Железная кирка
+item.gold_pickaxe=Золотая кирка
+item.wood_axe=Деревянный топор
+item.stone_axe=Каменный топор
+item.iron_axe=Железный топор
+item.gold_axe=Золотой топор
+item.wood_shovel=Деревянная лопата
+item.stone_shovel=Каменная лопата
+item.iron_shovel=Железная лопата
+item.gold_shovel=Золотая лопата
+item.iron_helmet=Железный шлем
+item.iron_chestplate=Железный нагрудник
+item.iron_pants=Железные поножи
+item.iron_boots=Железные ботинки
+item.gold_helmet=Золотой шлем
+item.gold_chestplate=Золотой нагрудник
+item.gold_pants=Золотые поножи
+item.gold_boots=Золотые ботинки
+item.health_potion=Зелье лечения
+item.meat=Мясо
+item.berries=Ягоды
+item.wood_plank=Деревянная доска
+item.stone_shard=Осколок камня
+item.coal=Уголь
+item.iron_bar=Железный слиток
+item.gold_bar=Золотой слиток
+item.recall_orb=Сфера возврата
+item.dragon_orb=Сфера Дракона
+item.shadow_orb=Сфера Тени

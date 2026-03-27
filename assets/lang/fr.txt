@@ -1,0 +1,243 @@
+# Français / French
+lang.name=Français
+
+# Polices
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Menu principal
+menu.start=Démarrer le jeu
+menu.options=Options
+menu.exit=Quitter
+menu.exit_confirm=Quitter le jeu ?
+menu.yes=Oui
+menu.no=Non
+
+# Menu pause
+menu.resume=Reprendre
+menu.quit_to_menu=Retour au menu
+menu.quit_confirm=Retour au menu ?
+
+# Sélection du monde
+menu.select_world=Choisir un monde
+menu.no_worlds=Aucun monde. Créez-en un !
+menu.play=Jouer
+menu.create_new_world=Créer un nouveau monde
+menu.world_name=Nom du monde :
+menu.world_name_field=Nouveau monde
+menu.seed_label=Graine (vide pour aléatoire) :
+menu.create=Créer
+menu.cancel=Annuler
+menu.back=Retour
+menu.page=Page
+menu.seed=Graine :
+menu.delete_confirm=Supprimer « {0} » ?\nCette action est irréversible.
+menu.world_name_empty=Le nom du monde ne peut pas être vide.
+menu.world_name_exists=Un monde nommé « {0} » existe déjà.
+
+# Options
+menu.options_title=Options
+options.tab_display=Affichage
+options.tab_audio=Audio
+options.tab_keybindings=Touches
+options.resolution=Résolution
+options.fullscreen=Plein écran
+options.master_volume=Volume général
+options.music_volume=Volume musique
+options.sfx_volume=Volume effets
+options.subtab_movement=Déplacement
+options.subtab_actions=Actions
+options.subtab_mouse=Souris
+options.render_distance=Distance
+options.block_highlight=Surbrillance
+options.show_crosshair=Réticule
+options.show_stats=Stats
+options.show_fps=FPS
+options.on=Oui
+options.off=Non
+options.defaults=Par défaut
+options.reset_confirm=Réinitialiser les paramètres ?
+options.back=Retour
+
+# HUD
+hud.hp=PV :
+hud.air=Air :
+hud.you_died=Vous êtes mort
+hud.click_to_respawn=Cliquez pour réapparaître
+hud.block=Bloc
+hud.dragon=Dragon
+hud.shadow=Ombre
+hud.died_fallback=Vous êtes mort
+
+# Causes de mort
+death.fall=Mort par chute
+death.drown=Noyé
+
+# Écran d'inventaire
+screen.inventory=Inventaire
+screen.action_bar=Barre d'action
+screen.armor=Armure
+screen.armor_head=Tête
+screen.armor_chest=Torse
+screen.armor_pants=Jambes
+screen.armor_boots=Bottes
+screen.tip=ASTUCE : Clic droit sur 4 blocs de bois pour créer un établi.
+
+# Écran de fabrication
+screen.crafting_table=Établi
+screen.crafting_hint=Appuyez sur Échap ou Tab pour fermer
+screen.crafting_needs=  Nécessite :
+screen.craft_button=[Fabriquer]
+screen.craft_empty=[--------]
+
+# Écran du four
+screen.furnace=Four
+screen.recipes=Recettes
+screen.fuels=Combustibles
+screen.arrow=>
+
+# Écran du coffre
+screen.chest=Coffre
+
+# Écran d'aide
+screen.help_title=Comment jouer
+screen.help_hint=Appuyez sur Échap ou F1 pour fermer
+screen.controls=Contrôles
+screen.game_tips=Conseils
+screen.control_move=Se déplacer
+screen.control_jump=Sauter
+screen.control_inventory=Inventaire
+screen.control_attack=Attaquer
+screen.control_interact=Interagir
+help.step.1=Frappez un arbre pour obtenir du bois.
+help.step.2=Placez l'établi et fabriquez une pelle et une pioche.
+help.step.3=Creusez pour trouver de la pierre.
+help.step.4=Fabriquez des outils en pierre et un feu de camp.
+help.step.5=Définissez votre point de réapparition sur le feu de camp.
+help.step.6=Fabriquez un four et utilisez-le pour obtenir du charbon.
+help.step.7=Utilisez le charbon pour fabriquer des torches.
+help.step.8=Creusez plus profond pour trouver du fer.
+help.step.9=Fabriquez une armure et une arme en fer.
+help.step.10=Fabriquez un Orbe du Dragon et battez le boss Dragon pour obtenir des lingots d'or.
+help.step.11=Fabriquez une armure et une arme en or.
+help.step.12=Fabriquez un Orbe des Ombres et battez le boss des Ombres (boss final).
+help.tip.1=Vous pouvez utiliser la touche Maj pour diviser les objets empilables.
+help.tip.2=Clic droit sur 4 blocs de bois pour créer un établi.
+
+# Touches
+keybind.move_forward=Avancer
+keybind.move_back=Reculer
+keybind.move_left=Aller à gauche
+keybind.move_right=Aller à droite
+keybind.jump=Sauter / Nager vers le haut
+keybind.swim_down=Plonger / S'accroupir
+keybind.help_screen=Aide
+keybind.screenshot=Capture d'écran
+keybind.hide_hud=Masquer le HUD
+keybind.pause=Pause / Menu
+keybind.inventory=Inventaire
+keybind.hotbar_1=Raccourci 1
+keybind.hotbar_2=Raccourci 2
+keybind.hotbar_3=Raccourci 3
+keybind.hotbar_4=Raccourci 4
+keybind.hotbar_5=Raccourci 5
+keybind.hotbar_6=Raccourci 6
+keybind.hotbar_7=Raccourci 7
+keybind.hotbar_8=Raccourci 8
+keybind.hotbar_9=Raccourci 9
+keybind.attack=Attaquer
+keybind.place_block=Placer / Interagir
+keybind.block_scroll=Défilement de bloc
+keybind.look_around=Regarder autour
+
+# Messages
+msg.tool_broke=Votre {0} est cassé !
+msg.respawn_lost=Point de réapparition perdu ! Vous réapparaîtrez à l'origine du monde.
+msg.orb_no_power=L'orbe n'a aucun pouvoir ici.
+msg.orb_faint=L'orbe brille faiblement mais ne fait rien.
+msg.cannot_place=Vous ne pouvez pas placer ça ici.
+
+# Noms des blocs
+block.air=
+block.grass=Terre
+block.dirt=Terre
+block.stone=Pierre
+block.sand=Sable
+block.wood=Bois
+block.leaves=Feuilles
+block.water=Eau
+block.iron_ore=Minerai de fer
+block.bedrock=Roche mère
+block.berry_bush=Buisson de baies
+block.campfire=Feu de camp
+block.chest=Coffre
+block.crafting_table=Établi
+block.furnace=Four
+block.torch=Torche
+block.tall_grass=Grande herbe
+block.red_poppy=Coquelicot rouge
+block.dandelion=Pissenlit
+block.blue_orchid=Orchidée bleue
+block.white_daisy=Marguerite blanche
+block.tall_seaweed=Grande algue
+block.short_seaweed=Petite algue
+block.glass=Verre
+block.window=Fenêtre
+block.door_bottom=Porte
+block.door_top=Porte
+
+# Noms des objets
+item.dirt=Terre
+item.grass=Bloc d'herbe
+item.stone=Pierre
+item.sand=Sable
+item.wood=Bois
+item.leaves=Feuilles
+item.torch=Torche
+item.red_poppy=Coquelicot rouge
+item.dandelion=Pissenlit
+item.blue_orchid=Orchidée bleue
+item.white_daisy=Marguerite blanche
+item.campfire=Feu de camp
+item.chest=Coffre
+item.crafting_table=Établi
+item.furnace=Four
+item.iron_ore=Minerai de fer
+item.glass=Verre
+item.window=Fenêtre
+item.door=Porte
+item.wood_sword=Épée en bois
+item.stone_sword=Épée en pierre
+item.iron_sword=Épée en fer
+item.gold_sword=Épée en or
+item.wood_pickaxe=Pioche en bois
+item.stone_pickaxe=Pioche en pierre
+item.iron_pickaxe=Pioche en fer
+item.gold_pickaxe=Pioche en or
+item.wood_axe=Hache en bois
+item.stone_axe=Hache en pierre
+item.iron_axe=Hache en fer
+item.gold_axe=Hache en or
+item.wood_shovel=Pelle en bois
+item.stone_shovel=Pelle en pierre
+item.iron_shovel=Pelle en fer
+item.gold_shovel=Pelle en or
+item.iron_helmet=Casque en fer
+item.iron_chestplate=Plastron en fer
+item.iron_pants=Jambières en fer
+item.iron_boots=Bottes en fer
+item.gold_helmet=Casque en or
+item.gold_chestplate=Plastron en or
+item.gold_pants=Jambières en or
+item.gold_boots=Bottes en or
+item.health_potion=Potion de soin
+item.meat=Viande
+item.berries=Baies
+item.wood_plank=Planche de bois
+item.stone_shard=Éclat de pierre
+item.coal=Charbon
+item.iron_bar=Lingot de fer
+item.gold_bar=Lingot d'or
+item.recall_orb=Orbe de rappel
+item.dragon_orb=Orbe du Dragon
+item.shadow_orb=Orbe des Ombres

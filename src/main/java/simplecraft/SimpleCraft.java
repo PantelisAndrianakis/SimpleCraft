@@ -15,6 +15,7 @@ import simplecraft.item.CraftingRegistry;
 import simplecraft.item.ItemRegistry;
 import simplecraft.item.SmeltingRegistry;
 import simplecraft.settings.DiscordRichPresenceManager;
+import simplecraft.settings.LanguageManager;
 import simplecraft.settings.SettingsManager;
 import simplecraft.settings.WindowDisplayManager;
 import simplecraft.settings.WindowIconManager;
@@ -27,6 +28,7 @@ import simplecraft.state.PauseMenuState;
 import simplecraft.state.PlayingState;
 import simplecraft.state.WorldSelectState;
 import simplecraft.ui.CursorManager;
+import simplecraft.ui.FontManager;
 import simplecraft.ui.MessageManager;
 import simplecraft.world.WorldInfo;
 
@@ -109,6 +111,13 @@ public class SimpleCraft extends SimpleApplication
 		// Initialize core managers in order.
 		System.out.println("Initializing core managers...");
 		
+		// Language Manager (discovers and loads the saved language).
+		LanguageManager.discoverLanguages();
+		LanguageManager.loadLanguage(_settingsManager.getLanguage());
+
+		// Pre-warm dialog fonts so first-use does not stall the render thread.
+		FontManager.warmup(assetManager, cam.getHeight());
+
 		// Input Manager (sets up all input mappings).
 		_gameInputManager = new GameInputManager(inputManager);
 		

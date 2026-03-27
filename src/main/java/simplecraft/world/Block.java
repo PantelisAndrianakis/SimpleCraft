@@ -9,6 +9,8 @@ import java.util.Set;
 
 import com.jme3.math.ColorRGBA;
 
+import simplecraft.settings.LanguageManager;
+
 /**
  * Defines all block types with their rendering, gameplay and atlas properties.<br>
  * Texture filenames are defined per block. Atlas indices are resolved dynamically by {@link TextureAtlas} during atlas building.
@@ -18,34 +20,34 @@ import com.jme3.math.ColorRGBA;
 public enum Block
 {
 	// @formatter:off
-	//               DisplayName                      RenderMode                   solid        transparent         liquid        tileEntity       decoration     faceSnap   hardness  tool             sideTexture                topTexture                    bottomTexture                    frontTexture
-	AIR              ("",                 RenderMode.CUBE_SOLID,       false, true,  false, false,  false,          false,    0,        ToolType.NONE,    null,                      null,                         null,                            null),
-	GRASS            ("Dirt",             RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    6,        ToolType.SHOVEL,  "grass_side.png",          "grass_top.png",              "dirt.png",                      null),
-	DIRT             ("Dirt",             RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    6,        ToolType.SHOVEL,  "dirt.png",                null,                         null,                            null),
-	STONE            ("Stone",            RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    12,       ToolType.PICKAXE, "stone.png",               null,                         null,                            null),
-	SAND             ("Sand",             RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    3,        ToolType.SHOVEL,  "sand.png",                null,                         null,                            null),
-	WOOD             ("Wood",             RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    9,        ToolType.AXE,     "wood_side.png",           "wood_top.png",               null,                            null),
-	LEAVES           ("Leaves",           RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  false,          false,    1,        ToolType.AXE,     "leaves.png",              null,                         null,                            null),
-	WATER            ("Water",            RenderMode.CUBE_TRANSPARENT, false, true,  true,  false,  false,          false,    -1,       ToolType.NONE,    "water.png",               null,                         null,                            null),
-	IRON_ORE         ("Iron Ore",         RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    15,       ToolType.PICKAXE, "iron_ore.png",            null,                         null,                            null),
-	BEDROCK          ("Bedrock",          RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    -1,       ToolType.NONE,    "bedrock.png",             null,                         null,                            null),
-	BERRY_BUSH       ("Berry Bush",       RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  false,          false,    1,        ToolType.AXE,     "berry_bush.png",          null,                         null,                            null),
-	CAMPFIRE         ("Campfire",         RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false,          false,    6,        ToolType.AXE,     "campfire.png",            null,                         null,                            null),
-	CHEST            ("Chest",            RenderMode.CUBE_SOLID,       true,  false, false, true,   false,          false,    6,        ToolType.AXE,     "chest_side.png",          "chest_top.png",              null,                            "chest_front.png"),
-	CRAFTING_TABLE   ("Crafting Table",   RenderMode.CUBE_SOLID,       true,  false, false, true,   false,          false,    6,        ToolType.PICKAXE, "crafting_table_side.png", "crafting_table_top.png",     "crafting_table_bottom.png",     null),
-	FURNACE          ("Furnace",          RenderMode.CUBE_SOLID,       true,  false, false, true,   false,          false,    12,       ToolType.PICKAXE, "furnace_side.png",        "furnace_top.png",            null,                            "furnace_front.png"),
-	TORCH            ("Torch",            RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false,          true,     1,        ToolType.NONE,    "torch.png",               null,                         null,                            null),
-	TALL_GRASS       ("Tall Grass",       RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "tall_grass.png",          null,                         null,                            null),
-	RED_POPPY        ("Red Poppy",        RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "red_poppy.png",           null,                         null,                            null),
-	DANDELION        ("Dandelion",        RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "dandelion.png",           null,                         null,                            null),
-	BLUE_ORCHID      ("Blue Orchid",      RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "blue_orchid.png",         null,                         null,                            null),
-	WHITE_DAISY      ("White Daisy",      RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "white_daisy.png",         null,                         null,                            null),
-	TALL_SEAWEED     ("Tall Seaweed",     RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "tall_seaweed.png",        "transparent.png",            "transparent.png",               null),
-	SHORT_SEAWEED    ("Short Seaweed",    RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "short_seaweed.png",       "transparent.png",            "transparent.png",               null),
-	GLASS            ("Glass",            RenderMode.CUBE_TRANSPARENT, true,  true,  false, false,  false,          false,    3,        ToolType.NONE,    "glass.png",               null,                         null,                            null),
-	WINDOW           ("Window",           RenderMode.FLAT_PANEL,       false, true,  false, true,   false,          true,     6,        ToolType.NONE,    "window.png",              null,                         null,                            null),
-	DOOR_BOTTOM      ("Door",             RenderMode.FLAT_PANEL,       false, true,  false, true,   false,          true,     9,        ToolType.AXE,     "door_bottom.png",         null,                         null,                            null),
-	DOOR_TOP         ("Door",             RenderMode.FLAT_PANEL,       false, true,  false, true,   false,          true,     9,        ToolType.AXE,     "door_top.png",            null,                         null,                            null);
+	//                RenderMode                   solid        transparent         liquid        tileEntity       decoration     faceSnap   hardness  tool             sideTexture                topTexture                    bottomTexture                    frontTexture
+	AIR              (RenderMode.CUBE_SOLID,       false, true,  false, false,  false,          false,    0,        ToolType.NONE,    null,                      null,                         null,                            null),
+	GRASS            (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    6,        ToolType.SHOVEL,  "grass_side.png",          "grass_top.png",              "dirt.png",                      null),
+	DIRT             (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    6,        ToolType.SHOVEL,  "dirt.png",                null,                         null,                            null),
+	STONE            (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    12,       ToolType.PICKAXE, "stone.png",               null,                         null,                            null),
+	SAND             (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    3,        ToolType.SHOVEL,  "sand.png",                null,                         null,                            null),
+	WOOD             (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    9,        ToolType.AXE,     "wood_side.png",           "wood_top.png",               null,                            null),
+	LEAVES           (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  false,          false,    1,        ToolType.AXE,     "leaves.png",              null,                         null,                            null),
+	WATER            (RenderMode.CUBE_TRANSPARENT, false, true,  true,  false,  false,          false,    -1,       ToolType.NONE,    "water.png",               null,                         null,                            null),
+	IRON_ORE         (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    15,       ToolType.PICKAXE, "iron_ore.png",            null,                         null,                            null),
+	BEDROCK          (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    -1,       ToolType.NONE,    "bedrock.png",             null,                         null,                            null),
+	BERRY_BUSH       (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  false,          false,    1,        ToolType.AXE,     "berry_bush.png",          null,                         null,                            null),
+	CAMPFIRE         (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false,          false,    6,        ToolType.AXE,     "campfire.png",            null,                         null,                            null),
+	CHEST            (RenderMode.CUBE_SOLID,       true,  false, false, true,   false,          false,    6,        ToolType.AXE,     "chest_side.png",          "chest_top.png",              null,                            "chest_front.png"),
+	CRAFTING_TABLE   (RenderMode.CUBE_SOLID,       true,  false, false, true,   false,          false,    6,        ToolType.PICKAXE, "crafting_table_side.png", "crafting_table_top.png",     "crafting_table_bottom.png",     null),
+	FURNACE          (RenderMode.CUBE_SOLID,       true,  false, false, true,   false,          false,    12,       ToolType.PICKAXE, "furnace_side.png",        "furnace_top.png",            null,                            "furnace_front.png"),
+	TORCH            (RenderMode.CROSS_BILLBOARD,  false, true,  false, true,   false,          true,     1,        ToolType.NONE,    "torch.png",               null,                         null,                            null),
+	TALL_GRASS       (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "tall_grass.png",          null,                         null,                            null),
+	RED_POPPY        (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "red_poppy.png",           null,                         null,                            null),
+	DANDELION        (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "dandelion.png",           null,                         null,                            null),
+	BLUE_ORCHID      (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "blue_orchid.png",         null,                         null,                            null),
+	WHITE_DAISY      (RenderMode.CROSS_BILLBOARD,  false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "white_daisy.png",         null,                         null,                            null),
+	TALL_SEAWEED     (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "tall_seaweed.png",        "transparent.png",            "transparent.png",               null),
+	SHORT_SEAWEED    (RenderMode.CUBE_TRANSPARENT, false, true,  false, false,  true,           false,    1,        ToolType.NONE,    "short_seaweed.png",       "transparent.png",            "transparent.png",               null),
+	GLASS            (RenderMode.CUBE_TRANSPARENT, true,  true,  false, false,  false,          false,    3,        ToolType.NONE,    "glass.png",               null,                         null,                            null),
+	WINDOW           (RenderMode.FLAT_PANEL,       false, true,  false, true,   false,          true,     6,        ToolType.NONE,    "window.png",              null,                         null,                            null),
+	DOOR_BOTTOM      (RenderMode.FLAT_PANEL,       false, true,  false, true,   false,          true,     9,        ToolType.AXE,     "door_bottom.png",         null,                         null,                            null),
+	DOOR_TOP         (RenderMode.FLAT_PANEL,       false, true,  false, true,   false,          true,     9,        ToolType.AXE,     "door_top.png",            null,                         null,                            null);
 	// @formatter:on
 	
 	// ========================================================
@@ -82,7 +84,6 @@ public enum Block
 	// Fields.
 	// ========================================================
 	
-	private final String _displayName;
 	private final RenderMode _renderMode;
 	private final boolean _solid;
 	private final boolean _transparent;
@@ -116,9 +117,8 @@ public enum Block
 	// Constructor.
 	// ========================================================
 	
-	Block(String displayName, RenderMode renderMode, boolean solid, boolean transparent, boolean liquid, boolean tileEntity, boolean decoration, boolean faceSnap, int hardness, ToolType bestTool, String sideTexture, String topTexture, String bottomTexture, String frontTexture)
+	Block(RenderMode renderMode, boolean solid, boolean transparent, boolean liquid, boolean tileEntity, boolean decoration, boolean faceSnap, int hardness, ToolType bestTool, String sideTexture, String topTexture, String bottomTexture, String frontTexture)
 	{
-		_displayName = displayName;
 		_renderMode = renderMode;
 		_solid = solid;
 		_transparent = transparent;
@@ -164,7 +164,7 @@ public enum Block
 	
 	public String getDisplayName()
 	{
-		return _displayName;
+		return LanguageManager.get("block." + name().toLowerCase());
 	}
 	
 	public boolean isTileEntity()

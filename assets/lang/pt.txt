@@ -1,0 +1,243 @@
+# Português / Portuguese
+lang.name=Português
+
+# Fontes
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Menu principal
+menu.start=Iniciar jogo
+menu.options=Opções
+menu.exit=Sair
+menu.exit_confirm=Sair do jogo?
+menu.yes=Sim
+menu.no=Não
+
+# Menu de pausa
+menu.resume=Continuar
+menu.quit_to_menu=Voltar ao menu
+menu.quit_confirm=Voltar ao menu?
+
+# Seleção de mundo
+menu.select_world=Selecionar mundo
+menu.no_worlds=Nenhum mundo. Crie um!
+menu.play=Jogar
+menu.create_new_world=Criar novo mundo
+menu.world_name=Nome do mundo:
+menu.world_name_field=Novo mundo
+menu.seed_label=Semente (vazio para aleatório):
+menu.create=Criar
+menu.cancel=Cancelar
+menu.back=Voltar
+menu.page=Página
+menu.seed=Semente:
+menu.delete_confirm=Excluir "{0}"?\nEsta ação não pode ser desfeita.
+menu.world_name_empty=O nome do mundo não pode estar vazio.
+menu.world_name_exists=Já existe um mundo chamado "{0}".
+
+# Opções
+menu.options_title=Opções
+options.tab_display=Tela
+options.tab_audio=Áudio
+options.tab_keybindings=Teclas
+options.resolution=Resolução
+options.fullscreen=Tela cheia
+options.master_volume=Geral
+options.music_volume=Música
+options.sfx_volume=Efeitos
+options.subtab_movement=Movimento
+options.subtab_actions=Ações
+options.subtab_mouse=Mouse
+options.render_distance=Distância
+options.block_highlight=Destaque
+options.show_crosshair=Mira
+options.show_stats=Estatísticas
+options.show_fps=Mostrar FPS
+options.on=Sim
+options.off=Não
+options.defaults=Padrão
+options.reset_confirm=Redefinir para os padrões?
+options.back=Voltar
+
+# HUD
+hud.hp=PV:
+hud.air=Ar:
+hud.you_died=Você morreu
+hud.click_to_respawn=Clique para renascer
+hud.block=Bloco
+hud.dragon=Dragão
+hud.shadow=Sombra
+hud.died_fallback=Você morreu
+
+# Causas de morte
+death.fall=Morreu por queda
+death.drown=Afogado
+
+# Tela de inventário
+screen.inventory=Inventário
+screen.action_bar=Barra de ação
+screen.armor=Armadura
+screen.armor_head=Cabeça
+screen.armor_chest=Peito
+screen.armor_pants=Calças
+screen.armor_boots=Botas
+screen.tip=DICA: Clique com o botão direito em 4 blocos de madeira para criar uma bancada.
+
+# Tela de criação
+screen.crafting_table=Bancada
+screen.crafting_hint=Pressione Escape ou Tab para fechar
+screen.crafting_needs=  Necessita:
+screen.craft_button=[Fabricar]
+screen.craft_empty=[--------]
+
+# Tela da fornalha
+screen.furnace=Fornalha
+screen.recipes=Receitas
+screen.fuels=Combustíveis
+screen.arrow=>
+
+# Tela do baú
+screen.chest=Baú
+
+# Tela de ajuda
+screen.help_title=Como jogar
+screen.help_hint=Pressione Escape ou F1 para fechar
+screen.controls=Controles
+screen.game_tips=Dicas
+screen.control_move=Mover
+screen.control_jump=Pular
+screen.control_inventory=Inventário
+screen.control_attack=Atacar
+screen.control_interact=Interagir
+help.step.1=Golpeie uma árvore para obter madeira.
+help.step.2=Coloque a bancada e crie uma pá e uma picareta.
+help.step.3=Cave para encontrar pedra.
+help.step.4=Crie ferramentas de pedra e uma fogueira.
+help.step.5=Defina seu ponto de renascimento na fogueira.
+help.step.6=Crie uma fornalha e use-a para produzir carvão.
+help.step.7=Use o carvão para criar tochas.
+help.step.8=Cave mais fundo para encontrar ferro.
+help.step.9=Crie armadura e arma de ferro.
+help.step.10=Crie um Orbe do Dragão e derrote o chefe Dragão para obter barras de ouro.
+help.step.11=Crie armadura e arma de ouro.
+help.step.12=Crie um Orbe da Sombra e derrote o chefe Sombra (chefe final).
+help.tip.1=Você pode usar a tecla Shift para dividir itens empilháveis.
+help.tip.2=Clique com o botão direito em 4 blocos de madeira para criar uma bancada.
+
+# Teclas
+keybind.move_forward=Avançar
+keybind.move_back=Recuar
+keybind.move_left=Mover para a esquerda
+keybind.move_right=Mover para a direita
+keybind.jump=Pular / Nadar para cima
+keybind.swim_down=Mergulhar / Agachar
+keybind.help_screen=Ajuda
+keybind.screenshot=Captura de tela
+keybind.hide_hud=Ocultar HUD
+keybind.pause=Pausa / Menu
+keybind.inventory=Inventário
+keybind.hotbar_1=Atalho 1
+keybind.hotbar_2=Atalho 2
+keybind.hotbar_3=Atalho 3
+keybind.hotbar_4=Atalho 4
+keybind.hotbar_5=Atalho 5
+keybind.hotbar_6=Atalho 6
+keybind.hotbar_7=Atalho 7
+keybind.hotbar_8=Atalho 8
+keybind.hotbar_9=Atalho 9
+keybind.attack=Atacar
+keybind.place_block=Colocar / Interagir
+keybind.block_scroll=Rolagem de bloco
+keybind.look_around=Olhar ao redor
+
+# Mensagens
+msg.tool_broke=Seu(a) {0} quebrou!
+msg.respawn_lost=Ponto de renascimento perdido! Você renascerá na origem do mundo.
+msg.orb_no_power=O orbe não tem poder aqui.
+msg.orb_faint=O orbe brilha fracamente mas não faz nada.
+msg.cannot_place=Você não pode colocar isso aqui.
+
+# Nomes dos blocos
+block.air=
+block.grass=Terra
+block.dirt=Terra
+block.stone=Pedra
+block.sand=Areia
+block.wood=Madeira
+block.leaves=Folhas
+block.water=Água
+block.iron_ore=Minério de ferro
+block.bedrock=Rocha-base
+block.berry_bush=Arbusto de frutas vermelhas
+block.campfire=Fogueira
+block.chest=Baú
+block.crafting_table=Bancada
+block.furnace=Fornalha
+block.torch=Tocha
+block.tall_grass=Grama alta
+block.red_poppy=Papoula vermelha
+block.dandelion=Dente-de-leão
+block.blue_orchid=Orquídea azul
+block.white_daisy=Margarida branca
+block.tall_seaweed=Alga alta
+block.short_seaweed=Alga curta
+block.glass=Vidro
+block.window=Janela
+block.door_bottom=Porta
+block.door_top=Porta
+
+# Nomes dos itens
+item.dirt=Terra
+item.grass=Bloco de grama
+item.stone=Pedra
+item.sand=Areia
+item.wood=Madeira
+item.leaves=Folhas
+item.torch=Tocha
+item.red_poppy=Papoula vermelha
+item.dandelion=Dente-de-leão
+item.blue_orchid=Orquídea azul
+item.white_daisy=Margarida branca
+item.campfire=Fogueira
+item.chest=Baú
+item.crafting_table=Bancada
+item.furnace=Fornalha
+item.iron_ore=Minério de ferro
+item.glass=Vidro
+item.window=Janela
+item.door=Porta
+item.wood_sword=Espada de madeira
+item.stone_sword=Espada de pedra
+item.iron_sword=Espada de ferro
+item.gold_sword=Espada de ouro
+item.wood_pickaxe=Picareta de madeira
+item.stone_pickaxe=Picareta de pedra
+item.iron_pickaxe=Picareta de ferro
+item.gold_pickaxe=Picareta de ouro
+item.wood_axe=Machado de madeira
+item.stone_axe=Machado de pedra
+item.iron_axe=Machado de ferro
+item.gold_axe=Machado de ouro
+item.wood_shovel=Pá de madeira
+item.stone_shovel=Pá de pedra
+item.iron_shovel=Pá de ferro
+item.gold_shovel=Pá de ouro
+item.iron_helmet=Elmo de ferro
+item.iron_chestplate=Peitoral de ferro
+item.iron_pants=Calças de ferro
+item.iron_boots=Botas de ferro
+item.gold_helmet=Elmo de ouro
+item.gold_chestplate=Peitoral de ouro
+item.gold_pants=Calças de ouro
+item.gold_boots=Botas de ouro
+item.health_potion=Poção de cura
+item.meat=Carne
+item.berries=Frutas vermelhas
+item.wood_plank=Tábua de madeira
+item.stone_shard=Fragmento de pedra
+item.coal=Carvão
+item.iron_bar=Barra de ferro
+item.gold_bar=Barra de ouro
+item.recall_orb=Orbe de retorno
+item.dragon_orb=Orbe do Dragão
+item.shadow_orb=Orbe da Sombra

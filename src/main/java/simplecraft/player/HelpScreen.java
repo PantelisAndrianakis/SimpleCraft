@@ -15,6 +15,7 @@ import com.jme3.scene.shape.Quad;
 
 import simplecraft.SimpleCraft;
 import simplecraft.input.GameInputManager;
+import simplecraft.settings.LanguageManager;
 import simplecraft.ui.FontManager;
 
 /**
@@ -72,29 +73,33 @@ public class HelpScreen
 	/** Extra vertical gap before the Controls section (pixels). */
 	private static final float SECTION_GAP = 32;
 	
-	/** Gameplay progression steps displayed in the help screen. */
-	private static final String[] HELP_STEPS =
-	{
-		"Hit a tree to gather wood.",
-		"Place the crafting table and create a shovel and a pickaxe.",
-		"Dig to find stone.",
-		"Create stone tools and a campfire.",
-		"Set your spawn to the campfire.",
-		"Create a furnace and use it to create coal.",
-		"Use coal to create torches.",
-		"Dig deeper to find iron.",
-		"Create iron armor and weapon.",
-		"Create a Dragon Orb and defeat the Dragon boss to gain gold bars.",
-		"Create gold armor and weapon.",
-		"Create a Shadow Orb and defeat the Shadow boss (final boss).",
-	};
+	/** Number of gameplay progression steps. */
+	private static final int HELP_STEP_COUNT = 12;
 	
-	/** Gameplay TIPS displayed in the help screen. */
-	private static final String[] TIPS =
+	/** Number of tips. */
+	private static final int TIPS_COUNT = 2;
+	
+	private static String[] getHelpSteps()
 	{
-		"You can use the Shift key to split stackable items.",
-		"You can right-click on 4 Wood blocks to create a Crafting Table.",
-	};
+		final String[] steps = new String[HELP_STEP_COUNT];
+		for (int i = 0; i < HELP_STEP_COUNT; i++)
+		{
+			steps[i] = LanguageManager.get("help.step." + (i + 1));
+		}
+		
+		return steps;
+	}
+	
+	private static String[] getTips()
+	{
+		final String[] tips = new String[TIPS_COUNT];
+		for (int i = 0; i < TIPS_COUNT; i++)
+		{
+			tips[i] = LanguageManager.get("help.tip." + (i + 1));
+		}
+		
+		return tips;
+	}
 	
 	// ========================================================
 	// Fields.
@@ -209,8 +214,8 @@ public class HelpScreen
 		final float screenH = cam.getHeight();
 		
 		// Load fonts.
-		final BitmapFont stepFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, FONT_SIZE);
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, TITLE_FONT_SIZE);
+		final BitmapFont stepFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, FONT_SIZE);
+		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, TITLE_FONT_SIZE);
 		
 		// ---- Full-screen dark overlay ----
 		final Quad overlayQuad = new Quad(screenW, screenH);
@@ -241,12 +246,12 @@ public class HelpScreen
 		
 		// ---- Title ----
 		final BitmapText titleShadow = new BitmapText(titleFont);
-		titleShadow.setText("How to Play");
+		titleShadow.setText(LanguageManager.get("screen.help_title"));
 		titleShadow.setColor(COLOR_TEXT_SHADOW);
 		titleShadow.setSize(titleFont.getCharSet().getRenderedSize());
 		
 		final BitmapText titleText = new BitmapText(titleFont);
-		titleText.setText("How to Play");
+		titleText.setText(LanguageManager.get("screen.help_title"));
 		titleText.setColor(COLOR_TITLE);
 		titleText.setSize(titleFont.getCharSet().getRenderedSize());
 		
@@ -259,7 +264,7 @@ public class HelpScreen
 		
 		// ---- Close hint at bottom ----
 		final BitmapText hintText = new BitmapText(stepFont);
-		hintText.setText("Press Escape or F1 to close");
+		hintText.setText(LanguageManager.get("screen.help_hint"));
 		hintText.setColor(COLOR_HINT);
 		hintText.setSize(stepFont.getCharSet().getRenderedSize());
 		final float hintX = panelX + (panelWidth - hintText.getLineWidth()) / 2;
@@ -275,14 +280,15 @@ public class HelpScreen
 		
 		// Measure the widest number string to right-align all numbers.
 		final BitmapText widestNumber = new BitmapText(stepFont);
-		widestNumber.setText(HELP_STEPS.length + ". ");
+		final String[] helpSteps = getHelpSteps();
+		widestNumber.setText(helpSteps.length + ". ");
 		widestNumber.setSize(stepFont.getCharSet().getRenderedSize());
 		final float numberColumnWidth = widestNumber.getLineWidth();
 		
 		// Fixed X where all step descriptions start (after the number column).
 		final float descriptionX = leftX + numberColumnWidth;
 		
-		for (int i = 0; i < HELP_STEPS.length; i++)
+		for (int i = 0; i < helpSteps.length; i++)
 		{
 			final float rowY = cursorY - i * ROW_HEIGHT;
 			final String numberStr = (i + 1) + ". ";
@@ -298,7 +304,7 @@ public class HelpScreen
 			
 			// Shadow.
 			final BitmapText stepShadow = new BitmapText(stepFont);
-			stepShadow.setText(HELP_STEPS[i]);
+			stepShadow.setText(helpSteps[i]);
 			stepShadow.setColor(COLOR_TEXT_SHADOW);
 			stepShadow.setSize(stepFont.getCharSet().getRenderedSize());
 			stepShadow.setLocalTranslation(descriptionX + 1, rowY - 1, Z_TEXT - 0.1f);
@@ -306,7 +312,7 @@ public class HelpScreen
 			
 			// Main text.
 			final BitmapText stepText = new BitmapText(stepFont);
-			stepText.setText(HELP_STEPS[i]);
+			stepText.setText(helpSteps[i]);
 			stepText.setColor(COLOR_STEP_TEXT);
 			stepText.setSize(stepFont.getCharSet().getRenderedSize());
 			stepText.setLocalTranslation(descriptionX, rowY, Z_TEXT);
@@ -314,7 +320,7 @@ public class HelpScreen
 		}
 		
 		// Advance cursor past all step rows.
-		cursorY -= HELP_STEPS.length * ROW_HEIGHT + SECTION_GAP;
+		cursorY -= helpSteps.length * ROW_HEIGHT + SECTION_GAP;
 		
 		// ---- Controls section ----
 		final GameInputManager gim = app.getGameInputManager();
@@ -325,35 +331,35 @@ public class HelpScreen
 		final String[][] controlEntries =
 		{
 			{
-				"Move",
+				LanguageManager.get("screen.control_move"),
 				moveKeys
 			},
 			{
-				"Jump",
+				LanguageManager.get("screen.control_jump"),
 				GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.JUMP))
 			},
 			{
-				"Inventory",
+				LanguageManager.get("screen.control_inventory"),
 				GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.INVENTORY))
 			},
 			{
-				"Attack",
+				LanguageManager.get("screen.control_attack"),
 				GameInputManager.getMouseButtonName(gim.getMouseCode(GameInputManager.ATTACK))
 			},
 			{
-				"Interact",
+				LanguageManager.get("screen.control_interact"),
 				GameInputManager.getMouseButtonName(gim.getMouseCode(GameInputManager.PLACE_BLOCK))
 			},
 		};
 		
 		// "Controls" header - same title font as "How to Play", centered.
 		final BitmapText controlsTitleShadow = new BitmapText(titleFont);
-		controlsTitleShadow.setText("Controls");
+		controlsTitleShadow.setText(LanguageManager.get("screen.controls"));
 		controlsTitleShadow.setColor(COLOR_TEXT_SHADOW);
 		controlsTitleShadow.setSize(titleFont.getCharSet().getRenderedSize());
 		
 		final BitmapText controlsTitleText = new BitmapText(titleFont);
-		controlsTitleText.setText("Controls");
+		controlsTitleText.setText(LanguageManager.get("screen.controls"));
 		controlsTitleText.setColor(COLOR_TITLE);
 		controlsTitleText.setSize(titleFont.getCharSet().getRenderedSize());
 		
@@ -418,12 +424,12 @@ public class HelpScreen
 		
 		// "Game Tips" header - same title font as "How to Play", centered.
 		final BitmapText tipsTitleShadow = new BitmapText(titleFont);
-		tipsTitleShadow.setText("Game Tips");
+		tipsTitleShadow.setText(LanguageManager.get("screen.game_tips"));
 		tipsTitleShadow.setColor(COLOR_TEXT_SHADOW);
 		tipsTitleShadow.setSize(titleFont.getCharSet().getRenderedSize());
 		
 		final BitmapText tipsTitleText = new BitmapText(titleFont);
-		tipsTitleText.setText("Game Tips");
+		tipsTitleText.setText(LanguageManager.get("screen.game_tips"));
 		tipsTitleText.setColor(COLOR_TITLE);
 		tipsTitleText.setSize(titleFont.getCharSet().getRenderedSize());
 		
@@ -436,7 +442,7 @@ public class HelpScreen
 		cursorY -= tipsTitleText.getLineHeight() + PANEL_PADDING * 0.3f;
 		
 		// Tip lines - white text (same color as step text), centered, no numbers.
-		for (String tip : TIPS)
+		for (String tip : getTips())
 		{
 			final BitmapText tipShadow = new BitmapText(stepFont);
 			tipShadow.setText(tip);

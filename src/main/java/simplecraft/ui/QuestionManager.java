@@ -20,6 +20,7 @@ import com.simsilica.lemur.component.SpringGridLayout;
 
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
+import simplecraft.settings.LanguageManager;
 
 /**
  * Utility class for displaying modal yes/no question dialogs.<br>
@@ -90,32 +91,9 @@ public class QuestionManager
 		_backdrop.setMaterial(backdropMaterial);
 		_backdrop.setLocalTranslation(0, 0, BACKDROP_Z);
 		
-		// --- Dialog container (holds question label and button row) ---
-		_dialogContainer = new Container();
-		_dialogContainer.setBackground(null);
-		
-		// Question label.
-		final Label questionLabel = new Label(question);
-		questionLabel.setFont(FontManager.getFont(assetManager, FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, QUESTION_FONT_SIZE));
-		questionLabel.setFontSize(QUESTION_FONT_SIZE);
-		questionLabel.setColor(ColorRGBA.White);
-		questionLabel.setTextHAlignment(HAlignment.Center);
-		_dialogContainer.addChild(questionLabel);
-		
-		// Spacer between question and buttons.
-		final Label spacer = new Label("");
-		spacer.setPreferredSize(new Vector3f(1, BUTTON_SPACING, 0));
-		_dialogContainer.addChild(spacer);
-		
-		// Button row container (horizontal layout).
-		final Container buttonRow = new Container();
-		buttonRow.setBackground(null);
-		buttonRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
-		
-		// Yes button with grace period check.
-		_yesButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "Yes", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
+		// Build yes/no buttons first so we can measure them for centering.
+		_yesButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.yes"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
 		{
-			// Ignore clicks within the grace period (prevents auto-click from previous mouse release).
 			if (System.currentTimeMillis() - _dialogOpenTime < CLICK_GRACE_PERIOD_MS)
 			{
 				return;
@@ -130,17 +108,9 @@ public class QuestionManager
 				action.run();
 			}
 		});
-		buttonRow.addChild(_yesButton);
 		
-		// Horizontal spacer between buttons.
-		final Label buttonSpacer = new Label("");
-		buttonSpacer.setPreferredSize(new Vector3f(BUTTON_SPACING, 1, 0));
-		buttonRow.addChild(buttonSpacer);
-		
-		// No button with grace period check.
-		_noButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, "No", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
+		_noButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.no"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, () ->
 		{
-			// Ignore clicks within the grace period (prevents auto-click from previous mouse release).
 			if (System.currentTimeMillis() - _dialogOpenTime < CLICK_GRACE_PERIOD_MS)
 			{
 				return;
@@ -155,12 +125,59 @@ public class QuestionManager
 				action.run();
 			}
 		});
+		
+		// --- Dialog container (holds question labels and button row) ---
+		_dialogContainer = new Container();
+		_dialogContainer.setBackground(null);
+		
+		// Question labels - split on \n so each line is its own label.
+		// This ensures getPreferredSize().x correctly reflects the widest line.
+		final com.jme3.font.BitmapFont questionFont = FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, QUESTION_FONT_SIZE);
+		for (final String line : question.split("\n", -1))
+		{
+			final Label questionLabel = new Label(line);
+			questionLabel.setFont(questionFont);
+			questionLabel.setFontSize(QUESTION_FONT_SIZE);
+			questionLabel.setColor(ColorRGBA.White);
+			questionLabel.setTextHAlignment(HAlignment.Center);
+			_dialogContainer.addChild(questionLabel);
+		}
+		
+		// Spacer between question and buttons.
+		final Label spacer = new Label("");
+		spacer.setPreferredSize(new Vector3f(1, BUTTON_SPACING, 0));
+		_dialogContainer.addChild(spacer);
+		
+		// Measure dialog width from question labels before adding the button row.
+		// The effective width is whichever is wider: question text or button row.
+		final float textWidth = _dialogContainer.getPreferredSize().x;
+		final float buttonContentWidth = _yesButton.getPreferredSize().x + BUTTON_SPACING + _noButton.getPreferredSize().x;
+		final float dialogWidth = Math.max(textWidth, buttonContentWidth);
+		final float buttonLeftPad = Math.max(0, (dialogWidth - buttonContentWidth) / 2f);
+		
+		// Button row container (horizontal layout).
+		final Container buttonRow = new Container();
+		buttonRow.setBackground(null);
+		buttonRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
+		
+		if (buttonLeftPad > 0)
+		{
+			final Label leftPadSpacer = new Label("");
+			leftPadSpacer.setPreferredSize(new Vector3f(buttonLeftPad, 1, 0));
+			buttonRow.addChild(leftPadSpacer);
+		}
+		
+		buttonRow.addChild(_yesButton);
+		
+		final Label buttonSpacer = new Label("");
+		buttonSpacer.setPreferredSize(new Vector3f(BUTTON_SPACING, 1, 0));
+		buttonRow.addChild(buttonSpacer);
+		
 		buttonRow.addChild(_noButton);
 		
 		_dialogContainer.addChild(buttonRow);
 		
 		// Center the dialog on screen.
-		final float dialogWidth = _dialogContainer.getPreferredSize().x;
 		final float dialogHeight = _dialogContainer.getPreferredSize().y;
 		final float dialogX = (screenWidth - dialogWidth) / 2f;
 		final float dialogY = (screenHeight + dialogHeight) / 2f;

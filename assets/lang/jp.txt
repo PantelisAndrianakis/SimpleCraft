@@ -1,0 +1,243 @@
+# 日本語 / Japanese
+lang.name=日本語
+
+# フォント
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# メインメニュー
+menu.start=ゲーム開始
+menu.options=設定
+menu.exit=終了
+menu.exit_confirm=ゲームを終了しますか？
+menu.yes=はい
+menu.no=いいえ
+
+# ポーズメニュー
+menu.resume=再開
+menu.quit_to_menu=メニューに戻る
+menu.quit_confirm=メニューに戻りますか？
+
+# ワールド選択
+menu.select_world=ワールド選択
+menu.no_worlds=ワールドがありません。作成してください！
+menu.play=プレイ
+menu.create_new_world=新規ワールド作成
+menu.world_name=ワールド名：
+menu.world_name_field=新しいワールド
+menu.seed_label=シード（空白でランダム）：
+menu.create=作成
+menu.cancel=キャンセル
+menu.back=戻る
+menu.page=ページ
+menu.seed=シード：
+menu.delete_confirm="{0}"を削除しますか？\nこの操作は元に戻せません。
+menu.world_name_empty=ワールド名は空にできません。
+menu.world_name_exists="{0}"という名前のワールドがすでに存在します。
+
+# 設定
+menu.options_title=設定
+options.tab_display=画面
+options.tab_audio=サウンド
+options.tab_keybindings=キー設定
+options.resolution=解像度
+options.fullscreen=フルスクリーン
+options.master_volume=マスター音量
+options.music_volume=音楽音量
+options.sfx_volume=効果音音量
+options.subtab_movement=移動
+options.subtab_actions=アクション
+options.subtab_mouse=マウス
+options.render_distance=描画距離
+options.block_highlight=ブロックハイライト
+options.show_crosshair=照準を表示
+options.show_stats=統計を表示
+options.show_fps=FPSを表示
+options.on=オン
+options.off=オフ
+options.defaults=デフォルト
+options.reset_confirm=デフォルトにリセットしますか？
+options.back=戻る
+
+# HUD
+hud.hp=HP：
+hud.air=空気：
+hud.you_died=あなたは死にました
+hud.click_to_respawn=クリックでリスポーン
+hud.block=ブロック
+hud.dragon=ドラゴン
+hud.shadow=シャドウ
+hud.died_fallback=あなたは死にました
+
+# 死因
+death.fall=落下死
+death.drown=溺死
+
+# インベントリ画面
+screen.inventory=インベントリ
+screen.action_bar=アクションバー
+screen.armor=防具
+screen.armor_head=頭
+screen.armor_chest=胴体
+screen.armor_pants=脚
+screen.armor_boots=足
+screen.tip=ヒント：木ブロック4つを右クリックでクラフト台を作成できます。
+
+# クラフト画面
+screen.crafting_table=クラフト台
+screen.crafting_hint=Escape または Tab で閉じる
+screen.crafting_needs=  必要：
+screen.craft_button=[作成]
+screen.craft_empty=[----]
+
+# かまど画面
+screen.furnace=かまど
+screen.recipes=レシピ
+screen.fuels=燃料
+screen.arrow=>
+
+# チェスト画面
+screen.chest=チェスト
+
+# ヘルプ画面
+screen.help_title=遊び方
+screen.help_hint=Escape または F1 で閉じる
+screen.controls=操作方法
+screen.game_tips=ゲームのヒント
+screen.control_move=移動
+screen.control_jump=ジャンプ
+screen.control_inventory=インベントリ
+screen.control_attack=攻撃
+screen.control_interact=インタラクト
+help.step.1=木を叩いて木材を集めます。
+help.step.2=クラフト台を置いて、シャベルとツルハシを作ります。
+help.step.3=掘り進めて石を見つけます。
+help.step.4=石製ツールとたき火を作ります。
+help.step.5=たき火にリスポーン地点を設定します。
+help.step.6=かまどを作り、石炭を生産します。
+help.step.7=石炭を使ってたいまつを作ります。
+help.step.8=さらに深く掘り進めて鉄を見つけます。
+help.step.9=鉄の防具と武器を作ります。
+help.step.10=ドラゴンオーブを作り、ドラゴンボスを倒して金のインゴットを得ます。
+help.step.11=金の防具と武器を作ります。
+help.step.12=シャドウオーブを作り、最終ボスのシャドウを倒します。
+help.tip.1=Shiftキーを使ってスタックアイテムを分割できます。
+help.tip.2=木ブロック4つを右クリックでクラフト台を作成できます。
+
+# キーバインド
+keybind.move_forward=前進
+keybind.move_back=後退
+keybind.move_left=左移動
+keybind.move_right=右移動
+keybind.jump=ジャンプ / 上泳ぎ
+keybind.swim_down=潜水 / しゃがむ
+keybind.help_screen=ヘルプ
+keybind.screenshot=スクリーンショット
+keybind.hide_hud=HUDを隠す
+keybind.pause=ポーズ / メニュー
+keybind.inventory=インベントリ
+keybind.hotbar_1=ホットバー 1
+keybind.hotbar_2=ホットバー 2
+keybind.hotbar_3=ホットバー 3
+keybind.hotbar_4=ホットバー 4
+keybind.hotbar_5=ホットバー 5
+keybind.hotbar_6=ホットバー 6
+keybind.hotbar_7=ホットバー 7
+keybind.hotbar_8=ホットバー 8
+keybind.hotbar_9=ホットバー 9
+keybind.attack=攻撃
+keybind.place_block=設置 / インタラクト
+keybind.block_scroll=ブロックスクロール
+keybind.look_around=周囲を見回す
+
+# メッセージ
+msg.tool_broke={0}が壊れました！
+msg.respawn_lost=リスポーン地点が失われました！ワールドの原点でリスポーンします。
+msg.orb_no_power=オーブはここでは力を持ちません。
+msg.orb_faint=オーブがかすかに輝いていますが、何も起こりません。
+msg.cannot_place=ここには配置できません。
+
+# ブロック名
+block.air=
+block.grass=土
+block.dirt=土
+block.stone=石
+block.sand=砂
+block.wood=原木
+block.leaves=葉
+block.water=水
+block.iron_ore=鉄鉱石
+block.bedrock=岩盤
+block.berry_bush=ベリーの茂み
+block.campfire=たき火
+block.chest=チェスト
+block.crafting_table=クラフト台
+block.furnace=かまど
+block.torch=たいまつ
+block.tall_grass=高い草
+block.red_poppy=赤いポピー
+block.dandelion=タンポポ
+block.blue_orchid=青いラン
+block.white_daisy=白いデイジー
+block.tall_seaweed=高い海草
+block.short_seaweed=短い海草
+block.glass=ガラス
+block.window=窓
+block.door_bottom=ドア
+block.door_top=ドア
+
+# アイテム名
+item.dirt=土
+item.grass=草ブロック
+item.stone=石
+item.sand=砂
+item.wood=原木
+item.leaves=葉
+item.torch=たいまつ
+item.red_poppy=赤いポピー
+item.dandelion=タンポポ
+item.blue_orchid=青いラン
+item.white_daisy=白いデイジー
+item.campfire=たき火
+item.chest=チェスト
+item.crafting_table=クラフト台
+item.furnace=かまど
+item.iron_ore=鉄鉱石
+item.glass=ガラス
+item.window=窓
+item.door=ドア
+item.wood_sword=木の剣
+item.stone_sword=石の剣
+item.iron_sword=鉄の剣
+item.gold_sword=金の剣
+item.wood_pickaxe=木のツルハシ
+item.stone_pickaxe=石のツルハシ
+item.iron_pickaxe=鉄のツルハシ
+item.gold_pickaxe=金のツルハシ
+item.wood_axe=木の斧
+item.stone_axe=石の斧
+item.iron_axe=鉄の斧
+item.gold_axe=金の斧
+item.wood_shovel=木のシャベル
+item.stone_shovel=石のシャベル
+item.iron_shovel=鉄のシャベル
+item.gold_shovel=金のシャベル
+item.iron_helmet=鉄のヘルメット
+item.iron_chestplate=鉄のチェストプレート
+item.iron_pants=鉄のレギンス
+item.iron_boots=鉄のブーツ
+item.gold_helmet=金のヘルメット
+item.gold_chestplate=金のチェストプレート
+item.gold_pants=金のレギンス
+item.gold_boots=金のブーツ
+item.health_potion=回復ポーション
+item.meat=肉
+item.berries=ベリー
+item.wood_plank=木材
+item.stone_shard=石の破片
+item.coal=石炭
+item.iron_bar=鉄インゴット
+item.gold_bar=金インゴット
+item.recall_orb=帰還オーブ
+item.dragon_orb=ドラゴンオーブ
+item.shadow_orb=シャドウオーブ

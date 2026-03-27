@@ -1,0 +1,243 @@
+# Italiano / Italian
+lang.name=Italiano
+
+# Font
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Menu principale
+menu.start=Avvia gioco
+menu.options=Opzioni
+menu.exit=Esci
+menu.exit_confirm=Uscire dal gioco?
+menu.yes=Sì
+menu.no=No
+
+# Menu di pausa
+menu.resume=Riprendi
+menu.quit_to_menu=Torna al menu
+menu.quit_confirm=Tornare al menu?
+
+# Selezione mondo
+menu.select_world=Seleziona mondo
+menu.no_worlds=Nessun mondo. Creane uno!
+menu.play=Gioca
+menu.create_new_world=Crea nuovo mondo
+menu.world_name=Nome del mondo:
+menu.world_name_field=Nuovo mondo
+menu.seed_label=Seme (vuoto per casuale):
+menu.create=Crea
+menu.cancel=Annulla
+menu.back=Indietro
+menu.page=Pagina
+menu.seed=Seme:
+menu.delete_confirm=Eliminare "{0}"?\nQuesta azione è irreversibile.
+menu.world_name_empty=Il nome del mondo non può essere vuoto.
+menu.world_name_exists=Esiste già un mondo chiamato "{0}".
+
+# Opzioni
+menu.options_title=Opzioni
+options.tab_display=Schermo
+options.tab_audio=Audio
+options.tab_keybindings=Tasti
+options.resolution=Risoluzione
+options.fullscreen=Schermo intero
+options.master_volume=Volume generale
+options.music_volume=Volume musica
+options.sfx_volume=Volume effetti
+options.subtab_movement=Movimento
+options.subtab_actions=Azioni
+options.subtab_mouse=Mouse
+options.render_distance=Distanza
+options.block_highlight=Evidenziazione
+options.show_crosshair=Mirino
+options.show_stats=Statistiche
+options.show_fps=FPS
+options.on=Sì
+options.off=No
+options.defaults=Predefinito
+options.reset_confirm=Ripristinare i valori predefiniti?
+options.back=Indietro
+
+# HUD
+hud.hp=PS:
+hud.air=Aria:
+hud.you_died=Sei morto
+hud.click_to_respawn=Clicca per rinascere
+hud.block=Blocco
+hud.dragon=Drago
+hud.shadow=Ombra
+hud.died_fallback=Sei morto
+
+# Cause di morte
+death.fall=Morto per caduta
+death.drown=Annegato
+
+# Schermata inventario
+screen.inventory=Inventario
+screen.action_bar=Barra delle azioni
+screen.armor=Armatura
+screen.armor_head=Testa
+screen.armor_chest=Petto
+screen.armor_pants=Pantaloni
+screen.armor_boots=Stivali
+screen.tip=SUGGERIMENTO: Clic destro su 4 blocchi di legno per creare un banco da lavoro.
+
+# Schermata di creazione
+screen.crafting_table=Banco da lavoro
+screen.crafting_hint=Premi Escape o Tab per chiudere
+screen.crafting_needs=  Necessita:
+screen.craft_button=[Crea]
+screen.craft_empty=[--------]
+
+# Schermata fornace
+screen.furnace=Fornace
+screen.recipes=Ricette
+screen.fuels=Combustibili
+screen.arrow=>
+
+# Schermata cassa
+screen.chest=Cassa
+
+# Schermata di aiuto
+screen.help_title=Come giocare
+screen.help_hint=Premi Escape o F1 per chiudere
+screen.controls=Controlli
+screen.game_tips=Suggerimenti
+screen.control_move=Muoversi
+screen.control_jump=Saltare
+screen.control_inventory=Inventario
+screen.control_attack=Attaccare
+screen.control_interact=Interagire
+help.step.1=Colpisci un albero per raccogliere legno.
+help.step.2=Posiziona il banco da lavoro e crea una pala e un piccone.
+help.step.3=Scava per trovare pietra.
+help.step.4=Crea strumenti di pietra e un falò.
+help.step.5=Imposta il tuo punto di rinascita al falò.
+help.step.6=Crea una fornace e usala per produrre carbone.
+help.step.7=Usa il carbone per creare torce.
+help.step.8=Scava più in profondità per trovare ferro.
+help.step.9=Crea armatura e arma di ferro.
+help.step.10=Crea un Globo del Drago e sconfiggi il boss Drago per ottenere lingotti d'oro.
+help.step.11=Crea armatura e arma d'oro.
+help.step.12=Crea un Globo dell'Ombra e sconfiggi il boss dell'Ombra (boss finale).
+help.tip.1=Puoi usare il tasto Maiusc per dividere gli oggetti impilabili.
+help.tip.2=Clic destro su 4 blocchi di legno per creare un banco da lavoro.
+
+# Tasti
+keybind.move_forward=Avanza
+keybind.move_back=Arretra
+keybind.move_left=Muovi a sinistra
+keybind.move_right=Muovi a destra
+keybind.jump=Salta / Nuota su
+keybind.swim_down=Tuffati / Accovacciati
+keybind.help_screen=Aiuto
+keybind.screenshot=Screenshot
+keybind.hide_hud=Nascondi HUD
+keybind.pause=Pausa / Menu
+keybind.inventory=Inventario
+keybind.hotbar_1=Slot rapido 1
+keybind.hotbar_2=Slot rapido 2
+keybind.hotbar_3=Slot rapido 3
+keybind.hotbar_4=Slot rapido 4
+keybind.hotbar_5=Slot rapido 5
+keybind.hotbar_6=Slot rapido 6
+keybind.hotbar_7=Slot rapido 7
+keybind.hotbar_8=Slot rapido 8
+keybind.hotbar_9=Slot rapido 9
+keybind.attack=Attacca
+keybind.place_block=Posiziona / Interagisci
+keybind.block_scroll=Scorrimento blocco
+keybind.look_around=Guarda intorno
+
+# Messaggi
+msg.tool_broke=Il tuo {0} si è rotto!
+msg.respawn_lost=Punto di rinascita perso! Riapparirai all'origine del mondo.
+msg.orb_no_power=Il globo non ha potere qui.
+msg.orb_faint=Il globo brilla debolmente ma non fa nulla.
+msg.cannot_place=Non puoi posizionare quello qui.
+
+# Nomi dei blocchi
+block.air=
+block.grass=Terra
+block.dirt=Terra
+block.stone=Pietra
+block.sand=Sabbia
+block.wood=Legno
+block.leaves=Foglie
+block.water=Acqua
+block.iron_ore=Minerale di ferro
+block.bedrock=Bedrock
+block.berry_bush=Cespuglio di bacche
+block.campfire=Falò
+block.chest=Cassa
+block.crafting_table=Banco da lavoro
+block.furnace=Fornace
+block.torch=Torcia
+block.tall_grass=Erba alta
+block.red_poppy=Papavero rosso
+block.dandelion=Tarassaco
+block.blue_orchid=Orchidea blu
+block.white_daisy=Margherita bianca
+block.tall_seaweed=Alga alta
+block.short_seaweed=Alga corta
+block.glass=Vetro
+block.window=Finestra
+block.door_bottom=Porta
+block.door_top=Porta
+
+# Nomi degli oggetti
+item.dirt=Terra
+item.grass=Blocco d'erba
+item.stone=Pietra
+item.sand=Sabbia
+item.wood=Legno
+item.leaves=Foglie
+item.torch=Torcia
+item.red_poppy=Papavero rosso
+item.dandelion=Tarassaco
+item.blue_orchid=Orchidea blu
+item.white_daisy=Margherita bianca
+item.campfire=Falò
+item.chest=Cassa
+item.crafting_table=Banco da lavoro
+item.furnace=Fornace
+item.iron_ore=Minerale di ferro
+item.glass=Vetro
+item.window=Finestra
+item.door=Porta
+item.wood_sword=Spada di legno
+item.stone_sword=Spada di pietra
+item.iron_sword=Spada di ferro
+item.gold_sword=Spada d'oro
+item.wood_pickaxe=Piccone di legno
+item.stone_pickaxe=Piccone di pietra
+item.iron_pickaxe=Piccone di ferro
+item.gold_pickaxe=Piccone d'oro
+item.wood_axe=Ascia di legno
+item.stone_axe=Ascia di pietra
+item.iron_axe=Ascia di ferro
+item.gold_axe=Ascia d'oro
+item.wood_shovel=Pala di legno
+item.stone_shovel=Pala di pietra
+item.iron_shovel=Pala di ferro
+item.gold_shovel=Pala d'oro
+item.iron_helmet=Elmo di ferro
+item.iron_chestplate=Corazza di ferro
+item.iron_pants=Gambali di ferro
+item.iron_boots=Stivali di ferro
+item.gold_helmet=Elmo d'oro
+item.gold_chestplate=Corazza d'oro
+item.gold_pants=Gambali d'oro
+item.gold_boots=Stivali d'oro
+item.health_potion=Pozione di cura
+item.meat=Carne
+item.berries=Bacche
+item.wood_plank=Tavola di legno
+item.stone_shard=Scheggia di pietra
+item.coal=Carbone
+item.iron_bar=Lingotto di ferro
+item.gold_bar=Lingotto d'oro
+item.recall_orb=Globo del richiamo
+item.dragon_orb=Globo del Drago
+item.shadow_orb=Globo dell'Ombra

@@ -113,7 +113,7 @@ public class MessageManager
 		
 		// Message label.
 		_label = new Label(message);
-		_label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 18));
+		_label.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 18));
 		_label.setFontSize(18);
 		_label.setColor(TEXT_COLOR);
 		_label.setTextHAlignment(HAlignment.Center);

@@ -16,6 +16,7 @@ import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;
 import simplecraft.item.ItemType;
 import simplecraft.player.PlayerCollision.CollisionResult;
+import simplecraft.settings.LanguageManager;
 import simplecraft.world.Block;
 import simplecraft.world.Region;
 import simplecraft.world.World;
@@ -417,7 +418,7 @@ public class PlayerController implements ActionListener, AnalogListener
 			else
 			{
 				final float damage = (fallDistance - FALL_DAMAGE_THRESHOLD) * FALL_DAMAGE_MULTIPLIER;
-				takeDamage(damage, "Fell to death");
+				takeDamage(damage, LanguageManager.get("death.fall"));
 				System.out.println("Fall damage! Distance: " + String.format("%.1f", fallDistance) + " blocks, Damage: " + String.format("%.1f", damage) + ", Health: " + String.format("%.1f", _health) + "/" + String.format("%.0f", _maxHealth));
 			}
 		}
@@ -431,7 +432,7 @@ public class PlayerController implements ActionListener, AnalogListener
 				_air = 0;
 				
 				// Drowning damage - continuous while suffocating.
-				takeDamage(DROWNING_DAMAGE_PER_SECOND * tpf, "Drowned");
+				takeDamage(DROWNING_DAMAGE_PER_SECOND * tpf, LanguageManager.get("death.drown"));
 				
 				if (!_drowningLogged)
 				{

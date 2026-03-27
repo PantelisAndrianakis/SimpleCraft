@@ -16,6 +16,7 @@ import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.audio.MusicManager;
 import simplecraft.input.MenuNavigationManager;
+import simplecraft.settings.LanguageManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
@@ -116,7 +117,7 @@ public class MainMenuState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.WORLD_SELECT, true);
 		};
-		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Start Game", 0.18f, 0.065f, startAction);
+		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.start"), 0.18f, 0.065f, startAction);
 		_buttonContainer.addChild(startButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(startButton, startAction));
 		
@@ -128,19 +129,19 @@ public class MainMenuState extends FadeableAppState
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.OPTIONS, true);
 		};
-		final Panel optionsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Options", 0.18f, 0.065f, optionsAction);
+		final Panel optionsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.options"), 0.18f, 0.065f, optionsAction);
 		_buttonContainer.addChild(optionsButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(optionsButton, optionsAction));
 		
 		addButtonSpacer();
-		
+		 
 		// Exit button.
 		final Runnable exitAction = () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show("Exit game?", () -> app.stop(), null);
+			QuestionManager.show(LanguageManager.get("menu.exit_confirm"), () -> app.stop(), null);
 		};
-		final Panel exitButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Exit", 0.18f, 0.065f, exitAction);
+		final Panel exitButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.exit"), 0.18f, 0.065f, exitAction);
 		_buttonContainer.addChild(exitButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(exitButton, exitAction));
 		
@@ -184,7 +185,7 @@ public class MainMenuState extends FadeableAppState
 		_navigation.setBackAction(() ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show("Exit game?", () -> app.stop(), null);
+			QuestionManager.show(LanguageManager.get("menu.exit_confirm"), () -> app.stop(), null);
 		});
 		_navigation.register();
 		

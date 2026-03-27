@@ -1,0 +1,243 @@
+# English
+lang.name=English
+
+# Fonts
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Main Menu
+menu.start=Start Game
+menu.options=Options
+menu.exit=Exit
+menu.exit_confirm=Exit game?
+menu.yes=Yes
+menu.no=No
+
+# Pause Menu
+menu.resume=Resume
+menu.quit_to_menu=Quit to Menu
+menu.quit_confirm=Quit to menu?
+
+# World Select
+menu.select_world=Select World
+menu.no_worlds=No worlds yet. Create one!
+menu.play=Play
+menu.create_new_world=Create New World
+menu.world_name=World Name:
+menu.world_name_field=New World
+menu.seed_label=Seed (leave empty for random):
+menu.create=Create
+menu.cancel=Cancel
+menu.back=Back
+menu.page=Page
+menu.seed=Seed:
+menu.delete_confirm=Delete "{0}"?\nThis cannot be undone.
+menu.world_name_empty=World name cannot be empty.
+menu.world_name_exists=A world named "{0}" already exists.
+
+# Options
+menu.options_title=Options
+options.tab_display=Display
+options.tab_audio=Audio
+options.tab_keybindings=Keybindings
+options.resolution=Resolution
+options.fullscreen=Fullscreen
+options.master_volume=Master Volume
+options.music_volume=Music Volume
+options.sfx_volume=SFX Volume
+options.subtab_movement=Movement
+options.subtab_actions=Actions
+options.subtab_mouse=Mouse
+options.render_distance=Render Distance
+options.block_highlight=Block Highlight
+options.show_crosshair=Show Crosshair
+options.show_stats=Show Stats
+options.show_fps=Show FPS
+options.on=On
+options.off=Off
+options.defaults=Defaults
+options.reset_confirm=Reset to defaults?
+options.back=Back
+
+# HUD
+hud.hp=HP:
+hud.air=Air:
+hud.you_died=You Died
+hud.click_to_respawn=Click to Respawn
+hud.block=Block
+hud.dragon=Dragon
+hud.shadow=Shadow
+hud.died_fallback=You died
+
+# Death causes
+death.fall=Fell to death
+death.drown=Drowned
+
+# Inventory Screen
+screen.inventory=Inventory
+screen.action_bar=Action Bar
+screen.armor=Armor
+screen.armor_head=Head
+screen.armor_chest=Chest
+screen.armor_pants=Pants
+screen.armor_boots=Boots
+screen.tip=TIP: You can right-click on 4 Wood blocks to create a Crafting Table.
+
+# Crafting Screen
+screen.crafting_table=Crafting Table
+screen.crafting_hint=Press Escape or Tab to close
+screen.crafting_needs=  Needs:
+screen.craft_button=[Craft]
+screen.craft_empty=[----]
+
+# Furnace Screen
+screen.furnace=Furnace
+screen.recipes=Recipes
+screen.fuels=Fuels
+screen.arrow=>
+
+# Chest Screen
+screen.chest=Chest
+
+# Help Screen
+screen.help_title=How to Play
+screen.help_hint=Press Escape or F1 to close
+screen.controls=Controls
+screen.game_tips=Game Tips
+screen.control_move=Move
+screen.control_jump=Jump
+screen.control_inventory=Inventory
+screen.control_attack=Attack
+screen.control_interact=Interact
+help.step.1=Hit a tree to gather wood.
+help.step.2=Place the crafting table and create a shovel and a pickaxe.
+help.step.3=Dig to find stone.
+help.step.4=Create stone tools and a campfire.
+help.step.5=Set your spawn to the campfire.
+help.step.6=Create a furnace and use it to create coal.
+help.step.7=Use coal to create torches.
+help.step.8=Dig deeper to find iron.
+help.step.9=Create iron armor and weapon.
+help.step.10=Create a Dragon Orb and defeat the Dragon boss to gain gold bars.
+help.step.11=Create gold armor and weapon.
+help.step.12=Create a Shadow Orb and defeat the Shadow boss (final boss).
+help.tip.1=You can use the Shift key to split stackable items.
+help.tip.2=You can right-click on 4 Wood blocks to create a Crafting Table.
+
+# Keybinding action names
+keybind.move_forward=Move Forward
+keybind.move_back=Move Back
+keybind.move_left=Move Left
+keybind.move_right=Move Right
+keybind.jump=Jump / Swim Up
+keybind.swim_down=Swim Down / Crouch
+keybind.help_screen=Help
+keybind.screenshot=Screenshot
+keybind.hide_hud=Hide HUD
+keybind.pause=Pause / Menu
+keybind.inventory=Inventory
+keybind.hotbar_1=Hotbar Slot 1
+keybind.hotbar_2=Hotbar Slot 2
+keybind.hotbar_3=Hotbar Slot 3
+keybind.hotbar_4=Hotbar Slot 4
+keybind.hotbar_5=Hotbar Slot 5
+keybind.hotbar_6=Hotbar Slot 6
+keybind.hotbar_7=Hotbar Slot 7
+keybind.hotbar_8=Hotbar Slot 8
+keybind.hotbar_9=Hotbar Slot 9
+keybind.attack=Attack
+keybind.place_block=Place / Interact
+keybind.block_scroll=Block Scroll
+keybind.look_around=Look Around
+
+# Messages (in-game notifications)
+msg.tool_broke=Your {0} broke!
+msg.respawn_lost=Respawn point lost! You will respawn at world origin.
+msg.orb_no_power=The orb has no power here.
+msg.orb_faint=The orb glows faintly but does nothing.
+msg.cannot_place=You cannot place that here.
+
+# Block display names
+block.air=
+block.grass=Dirt
+block.dirt=Dirt
+block.stone=Stone
+block.sand=Sand
+block.wood=Wood
+block.leaves=Leaves
+block.water=Water
+block.iron_ore=Iron Ore
+block.bedrock=Bedrock
+block.berry_bush=Berry Bush
+block.campfire=Campfire
+block.chest=Chest
+block.crafting_table=Crafting Table
+block.furnace=Furnace
+block.torch=Torch
+block.tall_grass=Tall Grass
+block.red_poppy=Red Poppy
+block.dandelion=Dandelion
+block.blue_orchid=Blue Orchid
+block.white_daisy=White Daisy
+block.tall_seaweed=Tall Seaweed
+block.short_seaweed=Short Seaweed
+block.glass=Glass
+block.window=Window
+block.door_bottom=Door
+block.door_top=Door
+
+# Item display names
+item.dirt=Dirt
+item.grass=Grass Block
+item.stone=Stone
+item.sand=Sand
+item.wood=Wood
+item.leaves=Leaves
+item.torch=Torch
+item.red_poppy=Red Poppy
+item.dandelion=Dandelion
+item.blue_orchid=Blue Orchid
+item.white_daisy=White Daisy
+item.campfire=Campfire
+item.chest=Chest
+item.crafting_table=Crafting Table
+item.furnace=Furnace
+item.iron_ore=Iron Ore
+item.glass=Glass
+item.window=Window
+item.door=Door
+item.wood_sword=Wood Sword
+item.stone_sword=Stone Sword
+item.iron_sword=Iron Sword
+item.gold_sword=Gold Sword
+item.wood_pickaxe=Wood Pickaxe
+item.stone_pickaxe=Stone Pickaxe
+item.iron_pickaxe=Iron Pickaxe
+item.gold_pickaxe=Gold Pickaxe
+item.wood_axe=Wood Axe
+item.stone_axe=Stone Axe
+item.iron_axe=Iron Axe
+item.gold_axe=Gold Axe
+item.wood_shovel=Wood Shovel
+item.stone_shovel=Stone Shovel
+item.iron_shovel=Iron Shovel
+item.gold_shovel=Gold Shovel
+item.iron_helmet=Iron Helmet
+item.iron_chestplate=Iron Chestplate
+item.iron_pants=Iron Pants
+item.iron_boots=Iron Boots
+item.gold_helmet=Gold Helmet
+item.gold_chestplate=Gold Chestplate
+item.gold_pants=Gold Pants
+item.gold_boots=Gold Boots
+item.health_potion=Health Potion
+item.meat=Meat
+item.berries=Berries
+item.wood_plank=Wood Plank
+item.stone_shard=Stone Shard
+item.coal=Coal
+item.iron_bar=Iron Bar
+item.gold_bar=Gold Bar
+item.recall_orb=Recall Orb
+item.dragon_orb=Dragon Orb
+item.shadow_orb=Shadow Orb

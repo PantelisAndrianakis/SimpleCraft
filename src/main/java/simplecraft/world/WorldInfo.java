@@ -370,11 +370,8 @@ public class WorldInfo
 		// Replace spaces with underscores.
 		String sanitized = name.replace(' ', '_');
 		
-		// Strip characters unsafe for directory names.
-		sanitized = sanitized.replaceAll("[^a-zA-Z0-9_\\-]", "");
-		
-		// Convert to lowercase for consistency.
-		sanitized = sanitized.toLowerCase();
+		// Strip characters unsafe for directory names (allow Unicode letters and digits).
+		sanitized = sanitized.replaceAll("[^\\p{L}\\p{N}_\\-]", "");
 		
 		// Ensure non-empty result.
 		if (sanitized.isEmpty())

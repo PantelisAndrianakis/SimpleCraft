@@ -1,0 +1,243 @@
+# Español / Spanish
+lang.name=Español
+
+# Fuentes
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Menú principal
+menu.start=Iniciar juego
+menu.options=Opciones
+menu.exit=Salir
+menu.exit_confirm=¿Salir del juego?
+menu.yes=Sí
+menu.no=No
+
+# Menú de pausa
+menu.resume=Continuar
+menu.quit_to_menu=Volver al menú
+menu.quit_confirm=¿Volver al menú?
+
+# Selección de mundo
+menu.select_world=Seleccionar mundo
+menu.no_worlds=Aún no hay mundos. ¡Crea uno!
+menu.play=Jugar
+menu.create_new_world=Crear nuevo mundo
+menu.world_name=Nombre del mundo:
+menu.world_name_field=Nuevo mundo
+menu.seed_label=Semilla (vacío para aleatoria):
+menu.create=Crear
+menu.cancel=Cancelar
+menu.back=Atrás
+menu.page=Página
+menu.seed=Semilla:
+menu.delete_confirm=¿Eliminar "{0}"?\nEsto no se puede deshacer.
+menu.world_name_empty=El nombre del mundo no puede estar vacío.
+menu.world_name_exists=Ya existe un mundo llamado "{0}".
+
+# Opciones
+menu.options_title=Opciones
+options.tab_display=Pantalla
+options.tab_audio=Audio
+options.tab_keybindings=Controles
+options.resolution=Resolución
+options.fullscreen=Pantalla completa
+options.master_volume=General
+options.music_volume=Música
+options.sfx_volume=Efectos
+options.subtab_movement=Movimiento
+options.subtab_actions=Acciones
+options.subtab_mouse=Ratón
+options.render_distance=Distancia
+options.block_highlight=Resaltado
+options.show_crosshair=Mira
+options.show_stats=Estadísticas
+options.show_fps=Mostrar FPS
+options.on=Sí
+options.off=No
+options.defaults=Predeterminado
+options.reset_confirm=¿Restablecer valores predeterminados?
+options.back=Atrás
+
+# HUD
+hud.hp=VP:
+hud.air=Aire:
+hud.you_died=Has muerto
+hud.click_to_respawn=Clic para revivir
+hud.block=Bloque
+hud.dragon=Dragón
+hud.shadow=Sombra
+hud.died_fallback=Has muerto
+
+# Causas de muerte
+death.fall=Caída mortal
+death.drown=Ahogado
+
+# Pantalla de inventario
+screen.inventory=Inventario
+screen.action_bar=Barra de acción
+screen.armor=Armadura
+screen.armor_head=Cabeza
+screen.armor_chest=Pecho
+screen.armor_pants=Pantalón
+screen.armor_boots=Botas
+screen.tip=CONSEJO: Haz clic derecho en 4 bloques de madera para crear una mesa de crafteo.
+
+# Pantalla de crafteo
+screen.crafting_table=Mesa de crafteo
+screen.crafting_hint=Pulsa Escape o Tab para cerrar
+screen.crafting_needs=  Necesita:
+screen.craft_button=[Fabricar]
+screen.craft_empty=[--------]
+
+# Pantalla del horno
+screen.furnace=Horno
+screen.recipes=Recetas
+screen.fuels=Combustibles
+screen.arrow=>
+
+# Pantalla del cofre
+screen.chest=Cofre
+
+# Pantalla de ayuda
+screen.help_title=Cómo jugar
+screen.help_hint=Pulsa Escape o F1 para cerrar
+screen.controls=Controles
+screen.game_tips=Consejos
+screen.control_move=Moverse
+screen.control_jump=Saltar
+screen.control_inventory=Inventario
+screen.control_attack=Atacar
+screen.control_interact=Interactuar
+help.step.1=Golpea un árbol para obtener madera.
+help.step.2=Coloca la mesa de crafteo y crea una pala y un pico.
+help.step.3=Excava para encontrar piedra.
+help.step.4=Crea herramientas de piedra y una hoguera.
+help.step.5=Establece tu reaparición en la hoguera.
+help.step.6=Crea un horno y úsalo para obtener carbón.
+help.step.7=Usa el carbón para crear antorchas.
+help.step.8=Excava más profundo para encontrar hierro.
+help.step.9=Crea armadura y arma de hierro.
+help.step.10=Crea un Orbe del Dragón y derrota al jefe Dragón para obtener barras de oro.
+help.step.11=Crea armadura y arma de oro.
+help.step.12=Crea un Orbe de Sombra y derrota al jefe Sombra (jefe final).
+help.tip.1=Puedes usar la tecla Mayús para dividir objetos apilables.
+help.tip.2=Haz clic derecho en 4 bloques de madera para crear una mesa de crafteo.
+
+# Controles de teclado
+keybind.move_forward=Avanzar
+keybind.move_back=Retroceder
+keybind.move_left=Moverse a la izquierda
+keybind.move_right=Moverse a la derecha
+keybind.jump=Saltar / Nadar hacia arriba
+keybind.swim_down=Bucear / Agacharse
+keybind.help_screen=Ayuda
+keybind.screenshot=Captura de pantalla
+keybind.hide_hud=Ocultar HUD
+keybind.pause=Pausa / Menú
+keybind.inventory=Inventario
+keybind.hotbar_1=Ranura rápida 1
+keybind.hotbar_2=Ranura rápida 2
+keybind.hotbar_3=Ranura rápida 3
+keybind.hotbar_4=Ranura rápida 4
+keybind.hotbar_5=Ranura rápida 5
+keybind.hotbar_6=Ranura rápida 6
+keybind.hotbar_7=Ranura rápida 7
+keybind.hotbar_8=Ranura rápida 8
+keybind.hotbar_9=Ranura rápida 9
+keybind.attack=Atacar
+keybind.place_block=Colocar / Interactuar
+keybind.block_scroll=Desplazar bloque
+keybind.look_around=Mirar alrededor
+
+# Mensajes
+msg.tool_broke=¡Tu {0} se rompió!
+msg.respawn_lost=¡Punto de reaparición perdido! Reaparecerás en el origen del mundo.
+msg.orb_no_power=El orbe no tiene poder aquí.
+msg.orb_faint=El orbe brilla débilmente pero no hace nada.
+msg.cannot_place=No puedes colocar eso aquí.
+
+# Nombres de bloques
+block.air=
+block.grass=Tierra
+block.dirt=Tierra
+block.stone=Piedra
+block.sand=Arena
+block.wood=Madera
+block.leaves=Hojas
+block.water=Agua
+block.iron_ore=Mineral de hierro
+block.bedrock=Roca base
+block.berry_bush=Arbusto de bayas
+block.campfire=Hoguera
+block.chest=Cofre
+block.crafting_table=Mesa de crafteo
+block.furnace=Horno
+block.torch=Antorcha
+block.tall_grass=Hierba alta
+block.red_poppy=Amapola roja
+block.dandelion=Diente de león
+block.blue_orchid=Orquídea azul
+block.white_daisy=Margarita blanca
+block.tall_seaweed=Alga alta
+block.short_seaweed=Alga corta
+block.glass=Vidrio
+block.window=Ventana
+block.door_bottom=Puerta
+block.door_top=Puerta
+
+# Nombres de objetos
+item.dirt=Tierra
+item.grass=Bloque de hierba
+item.stone=Piedra
+item.sand=Arena
+item.wood=Madera
+item.leaves=Hojas
+item.torch=Antorcha
+item.red_poppy=Amapola roja
+item.dandelion=Diente de león
+item.blue_orchid=Orquídea azul
+item.white_daisy=Margarita blanca
+item.campfire=Hoguera
+item.chest=Cofre
+item.crafting_table=Mesa de crafteo
+item.furnace=Horno
+item.iron_ore=Mineral de hierro
+item.glass=Vidrio
+item.window=Ventana
+item.door=Puerta
+item.wood_sword=Espada de madera
+item.stone_sword=Espada de piedra
+item.iron_sword=Espada de hierro
+item.gold_sword=Espada de oro
+item.wood_pickaxe=Pico de madera
+item.stone_pickaxe=Pico de piedra
+item.iron_pickaxe=Pico de hierro
+item.gold_pickaxe=Pico de oro
+item.wood_axe=Hacha de madera
+item.stone_axe=Hacha de piedra
+item.iron_axe=Hacha de hierro
+item.gold_axe=Hacha de oro
+item.wood_shovel=Pala de madera
+item.stone_shovel=Pala de piedra
+item.iron_shovel=Pala de hierro
+item.gold_shovel=Pala de oro
+item.iron_helmet=Casco de hierro
+item.iron_chestplate=Peto de hierro
+item.iron_pants=Pantalones de hierro
+item.iron_boots=Botas de hierro
+item.gold_helmet=Casco de oro
+item.gold_chestplate=Peto de oro
+item.gold_pants=Pantalones de oro
+item.gold_boots=Botas de oro
+item.health_potion=Poción de vida
+item.meat=Carne
+item.berries=Bayas
+item.wood_plank=Tabla de madera
+item.stone_shard=Fragmento de piedra
+item.coal=Carbón
+item.iron_bar=Lingote de hierro
+item.gold_bar=Lingote de oro
+item.recall_orb=Orbe de regreso
+item.dragon_orb=Orbe del Dragón
+item.shadow_orb=Orbe de Sombra

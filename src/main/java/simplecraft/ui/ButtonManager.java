@@ -107,7 +107,7 @@ public class ButtonManager
 	private static Panel createMenuButtonInternal(AssetManager assetManager, String text, int fontSize, float xSize, float ySize, Runnable action)
 	{
 		final Label button = new Label(text);
-		button.setFont(FontManager.getFont(assetManager, FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, fontSize));
+		button.setFont(FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, fontSize));
 		button.setFontSize(fontSize);
 		button.setTextHAlignment(HAlignment.Center);
 		button.setTextVAlignment(VAlignment.Center);

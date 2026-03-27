@@ -1,5 +1,6 @@
 package simplecraft.item;
 
+import simplecraft.settings.LanguageManager;
 import simplecraft.world.Block;
 import simplecraft.world.Block.ToolType;
 
@@ -166,7 +167,7 @@ public class ItemTemplate
 	 */
 	public String getDisplayName()
 	{
-		return _displayName;
+		return LanguageManager.get("item." + _id);
 	}
 	
 	public ItemType getType()

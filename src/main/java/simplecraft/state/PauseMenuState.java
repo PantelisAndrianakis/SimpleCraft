@@ -13,6 +13,7 @@ import com.simsilica.lemur.Panel;
 import simplecraft.SimpleCraft;
 import simplecraft.audio.AudioManager;
 import simplecraft.input.MenuNavigationManager;
+import simplecraft.settings.LanguageManager;
 import simplecraft.state.GameStateManager.GameState;
 import simplecraft.ui.ButtonManager;
 import simplecraft.ui.FontManager;
@@ -124,7 +125,7 @@ public class PauseMenuState extends FadeableAppState
 		// --- Title label (same as main menu) ---
 		final int titleFontSize = Math.max(24, Math.round(screenHeight * TITLE_FONT_RATIO));
 		_titleLabel = new Label("SimpleCraft");
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, titleFontSize));
+		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, titleFontSize));
 		_titleLabel.setFontSize(titleFontSize);
 		_titleLabel.setColor(ColorRGBA.White);
 		_titleLabel.setBackground(null);
@@ -165,14 +166,14 @@ public class PauseMenuState extends FadeableAppState
 		final Runnable quitAction = () ->
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show("Quit to menu?", this::quitToMenu, null);
+			QuestionManager.show(LanguageManager.get("menu.quit_confirm"), this::quitToMenu, null);
 		};
 		
 		// --- Buttons ---
 		_buttons = new Panel[BUTTON_COUNT];
-		_buttons[0] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Resume", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, resumeAction);
-		_buttons[1] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Options", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, optionsAction);
-		_buttons[2] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), "Quit to Menu", BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, quitAction);
+		_buttons[0] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.resume"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, resumeAction);
+		_buttons[1] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.options"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, optionsAction);
+		_buttons[2] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.quit_to_menu"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, quitAction);
 		
 		// Position buttons centered below the title.
 		final float buttonHeight = screenHeight * BUTTON_HEIGHT_PERCENT;

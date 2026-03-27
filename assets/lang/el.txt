@@ -1,0 +1,242 @@
+# Ελληνικά / Greek
+lang.name=Ελληνικά
+
+# Γραμματοσειρές
+font.regular=fonts/blue_highway_rg.otf
+font.title=fonts/blue_highway_linocut.otf
+
+# Κύριο μενού
+menu.start=Έναρξη
+menu.options=Επιλογές
+menu.exit=Έξοδος
+menu.exit_confirm=Έξοδος από το παιχνίδι;
+menu.yes=Ναι
+menu.no=Όχι
+
+# Μενού παύσης
+menu.resume=Συνέχεια
+menu.quit_to_menu=Έξοδος
+menu.quit_confirm=Έξοδος στο μενού;
+
+# Επιλογή κόσμου
+menu.select_world=Επιλογή κόσμου
+menu.no_worlds=Δεν υπάρχουν κόσμοι. Δημιουργήστε έναν!
+menu.play=Επιλογή
+menu.create_new_world=Δημιουργία νέου κόσμου
+menu.world_name=Όνομα κόσμου:
+menu.world_name_field=Νέος κόσμος
+menu.seed_label=Σπόρος (κενό για τυχαίο):
+menu.create=Δημιουργία
+menu.cancel=Ακύρωση
+menu.back=Πίσω
+menu.page=Σελίδα
+menu.seed=Σπόρος:
+menu.delete_confirm=Διαγραφή "{0}";\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+menu.world_name_empty=Το όνομα κόσμου δεν μπορεί να είναι κενό.
+menu.world_name_exists=Υπάρχει ήδη κόσμος με το όνομα "{0}".
+
+# Επιλογές
+menu.options_title=Επιλογές
+options.tab_display=Οθόνη
+options.tab_audio=Ήχος
+options.tab_keybindings=Πλήκτρα
+options.resolution=Ανάλυση
+options.fullscreen=Πλήρης οθόνη
+options.master_volume=Γενικά
+options.music_volume=Μουσική
+options.sfx_volume=Εφέ
+options.subtab_movement=Κίνηση
+options.subtab_actions=Ενέργειες
+options.subtab_mouse=Ποντίκι
+options.render_distance=Απόσταση
+options.block_highlight=Επισήμανση
+options.show_crosshair=Σταυρόνημα
+options.show_stats=Στατιστικά
+options.show_fps=Εμφάνιση FPS
+options.on=Ναι
+options.off=Όχι
+options.defaults=Προεπιλογή
+options.reset_confirm=Επαναφορά στις προεπιλογές;
+options.back=Πίσω
+
+# HUD
+hud.hp=ΖΩΗ:
+hud.air=Αέρας:
+hud.you_died=Πεθάνες
+hud.click_to_respawn=Κλικ για αναγέννηση
+hud.block=Μπλοκ
+hud.dragon=Δράκος
+hud.died_fallback=Πεθάνες
+
+# Αιτίες θανάτου
+death.fall=Πέθανες από πτώση
+death.drown=Πνίγηκε
+
+# Οθόνη αποθέματος
+screen.inventory=Απόθεμα
+screen.action_bar=Εξοπλισμένα
+screen.armor=Πανοπλία
+screen.armor_head=Κεφάλι
+screen.armor_chest=Πανοπλία
+screen.armor_pants=Παντελόνι
+screen.armor_boots=Μπότες
+screen.tip=ΣΥΜΒΟΥΛΗ: Δεξί κλικ σε 4 μπλοκ ξύλου για δημιουργία τραπεζιού κατασκευής.
+
+# Οθόνη κατασκευής
+screen.crafting_table=Τραπέζι κατασκευής
+screen.crafting_hint=Πατήστε Escape ή Tab για κλείσιμο
+screen.crafting_needs=  Χρειάζεται:
+screen.craft_button=[Κατασκευή]
+screen.craft_empty=[--------]
+
+# Οθόνη καμίνου
+screen.furnace=Κάμινος
+screen.recipes=Συνταγές
+screen.fuels=Καύσιμα
+screen.arrow=>
+
+# Οθόνη κιβωτίου
+screen.chest=Κιβώτιο
+
+# Οθόνη βοήθειας
+screen.help_title=Πώς να παίξετε
+screen.help_hint=Πατήστε Escape ή F1 για κλείσιμο
+screen.controls=Χειρισμός
+screen.game_tips=Συμβουλές
+screen.control_move=Κίνηση
+screen.control_jump=Άλμα
+screen.control_inventory=Απόθεμα
+screen.control_attack=Επίθεση
+screen.control_interact=Αλληλεπίδραση
+help.step.1=Χτυπήστε ένα δέντρο για να μαζέψετε ξύλο.
+help.step.2=Τοποθετήστε το τραπέζι κατασκευής και φτιάξτε φτυάρι και αξίνα.
+help.step.3=Σκάψτε για να βρείτε πέτρα.
+help.step.4=Φτιάξτε εργαλεία από πέτρα και φωτιά.
+help.step.5=Ορίστε το σημείο αναγέννησής σας στη φωτιά.
+help.step.6=Φτιάξτε κάμινο και χρησιμοποιήστε την για να φτιάξετε κάρβουνο.
+help.step.7=Χρησιμοποιήστε το κάρβουνο για να φτιάξετε πυρσούς.
+help.step.8=Σκάψτε βαθύτερα για να βρείτε σίδηρο.
+help.step.9=Φτιάξτε σιδερένια πανοπλία και όπλο.
+help.step.10=Φτιάξτε Σφαίρα Δράκου και νικήστε τον αφέντη Δράκο για χρυσές ράβδους.
+help.step.11=Φτιάξτε χρυσή πανοπλία και όπλο.
+help.step.12=Φτιάξτε Σφαίρα Σκιάς και νικήστε τον τελικό αφέντη Σκιά.
+help.tip.1=Μπορείτε να χρησιμοποιήσετε το Shift για να χωρίσετε συσσωρευμένα αντικείμενα.
+help.tip.2=Δεξί κλικ σε 4 μπλοκ ξύλου για δημιουργία τραπεζιού κατασκευής.
+
+# Πλήκτρα
+keybind.move_forward=Μπροστά
+keybind.move_back=Πίσω
+keybind.move_left=Αριστερά
+keybind.move_right=Δεξιά
+keybind.jump=Άλμα / Κολύμπι πάνω
+keybind.swim_down=Κατάδυση / Σκύψιμο
+keybind.help_screen=Βοήθεια
+keybind.screenshot=Στιγμιότυπο
+keybind.hide_hud=Απόκρυψη HUD
+keybind.pause=Παύση / Μενού
+keybind.inventory=Απόθεμα
+keybind.hotbar_1=Θέση 1
+keybind.hotbar_2=Θέση 2
+keybind.hotbar_3=Θέση 3
+keybind.hotbar_4=Θέση 4
+keybind.hotbar_5=Θέση 5
+keybind.hotbar_6=Θέση 6
+keybind.hotbar_7=Θέση 7
+keybind.hotbar_8=Θέση 8
+keybind.hotbar_9=Θέση 9
+keybind.attack=Επίθεση
+keybind.place_block=Αλληλεπίδραση
+keybind.block_scroll=Κύλιση μπλοκ
+keybind.look_around=Κοίταγμα γύρω
+
+# Μηνύματα
+msg.tool_broke=Το {0} σας έσπασε!
+msg.respawn_lost=Το σημείο αναγέννησης χάθηκε! Θα αναγεννηθείτε στην αρχή του κόσμου.
+msg.orb_no_power=Η σφαίρα δεν έχει δύναμη εδώ.
+msg.orb_faint=Η σφαίρα λάμπει αχνά αλλά δεν κάνει τίποτα.
+msg.cannot_place=Δεν μπορείτε να τοποθετήσετε αυτό εδώ.
+
+# Ονόματα μπλοκ
+block.air=
+block.grass=Χώμα
+block.dirt=Χώμα
+block.stone=Πέτρα
+block.sand=Άμμος
+block.wood=Ξύλο
+block.leaves=Φύλλα
+block.water=Νερό
+block.iron_ore=Σιδηρομετάλλευμα
+block.bedrock=Βασάλτης
+block.berry_bush=Θάμνος μούρων
+block.campfire=Φωτιά
+block.chest=Κιβώτιο
+block.crafting_table=Τραπέζι κατασκευής
+block.furnace=Κάμινος
+block.torch=Πυρσός
+block.tall_grass=Ψηλό γρασίδι
+block.red_poppy=Κόκκινη παπαρούνα
+block.dandelion=Πικραλίδα
+block.blue_orchid=Μπλε ορχιδέα
+block.white_daisy=Λευκή μαργαρίτα
+block.tall_seaweed=Ψηλό φύκι
+block.short_seaweed=Κοντό φύκι
+block.glass=Γυαλί
+block.window=Παράθυρο
+block.door_bottom=Πόρτα
+block.door_top=Πόρτα
+
+# Ονόματα αντικειμένων
+item.dirt=Χώμα
+item.grass=Μπλοκ γρασιδιού
+item.stone=Πέτρα
+item.sand=Άμμος
+item.wood=Ξύλο
+item.leaves=Φύλλα
+item.torch=Πυρσός
+item.red_poppy=Κόκκινη παπαρούνα
+item.dandelion=Πικραλίδα
+item.blue_orchid=Μπλε ορχιδέα
+item.white_daisy=Λευκή μαργαρίτα
+item.campfire=Φωτιά
+item.chest=Κιβώτιο
+item.crafting_table=Τραπέζι κατασκευής
+item.furnace=Κάμινος
+item.iron_ore=Σιδηρομετάλλευμα
+item.glass=Γυαλί
+item.window=Παράθυρο
+item.door=Πόρτα
+item.wood_sword=Ξύλινο σπαθί
+item.stone_sword=Πέτρινο σπαθί
+item.iron_sword=Σιδερένιο σπαθί
+item.gold_sword=Χρυσό σπαθί
+item.wood_pickaxe=Ξύλινη αξίνα
+item.stone_pickaxe=Πέτρινη αξίνα
+item.iron_pickaxe=Σιδερένια αξίνα
+item.gold_pickaxe=Χρυσή αξίνα
+item.wood_axe=Ξύλινο τσεκούρι
+item.stone_axe=Πέτρινο τσεκούρι
+item.iron_axe=Σιδερένιο τσεκούρι
+item.gold_axe=Χρυσό τσεκούρι
+item.wood_shovel=Ξύλινο φτυάρι
+item.stone_shovel=Πέτρινο φτυάρι
+item.iron_shovel=Σιδερένιο φτυάρι
+item.gold_shovel=Χρυσό φτυάρι
+item.iron_helmet=Σιδερένιο κράνος
+item.iron_chestplate=Σιδερένιος θώρακας
+item.iron_pants=Σιδερένιες κνημίδες
+item.iron_boots=Σιδερένιες μπότες
+item.gold_helmet=Χρυσό κράνος
+item.gold_chestplate=Χρυσός θώρακας
+item.gold_pants=Χρυσές κνημίδες
+item.gold_boots=Χρυσές μπότες
+item.health_potion=Φίλτρο θεραπείας
+item.meat=Κρέας
+item.berries=Μούρα
+item.wood_plank=Ξύλινη σανίδα
+item.stone_shard=Θραύσμα πέτρας
+item.coal=Κάρβουνο
+item.iron_bar=Ράβδος σιδήρου
+item.gold_bar=Χρυσή ράβδος
+item.recall_orb=Σφαίρα επιστροφής
+item.dragon_orb=Σφαίρα Δράκου
+item.shadow_orb=Σφαίρα Σκιάς
