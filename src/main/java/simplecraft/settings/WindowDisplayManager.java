@@ -17,6 +17,17 @@ import simplecraft.SimpleCraft;
  */
 public class WindowDisplayManager
 {
+	private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+	private static final boolean IS_WAYLAND = isWaylandSession();
+	private static volatile boolean waylandNoticeLogged;
+	
+	private static boolean isWaylandSession()
+	{
+		final String sessionType = System.getenv("XDG_SESSION_TYPE");
+		final String waylandDisplay = System.getenv("WAYLAND_DISPLAY");
+		return "wayland".equalsIgnoreCase(sessionType) || (waylandDisplay != null && !waylandDisplay.isBlank());
+	}
+	
 	/**
 	 * Apply borderless windowed fullscreen.<br>
 	 * Strips window decoration, sets always-on-top and covers the monitor.<br>
@@ -25,6 +36,7 @@ public class WindowDisplayManager
 	public static void applyBorderlessFullscreen()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		logWaylandNoticeIfNeeded();
 		
 		app.enqueue(() ->
 		{
@@ -39,11 +51,15 @@ public class WindowDisplayManager
 			final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(monitor);
 			final int monitorWidth = (vidMode != null) ? vidMode.width() : app.getSettingsManager().getScreenWidth();
 			final int monitorHeight = (vidMode != null) ? vidMode.height() : app.getSettingsManager().getScreenHeight();
-			final int windowHeight = monitorHeight + 1;
+			final int windowHeight = IS_WINDOWS ? monitorHeight + 1 : monitorHeight;
 			
 			GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
-			GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_FLOATING, GLFW.GLFW_TRUE);
-			GLFW.glfwSetWindowPos(windowHandle, 0, 0);
+			if (!IS_WAYLAND)
+			{
+				GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_FLOATING, GLFW.GLFW_TRUE);
+				GLFW.glfwSetWindowPos(windowHandle, 0, 0);
+			}
+			
 			GLFW.glfwSetWindowSize(windowHandle, monitorWidth, windowHeight);
 			
 			final AppSettings appSettings = app.getContext().getSettings();
@@ -68,6 +84,7 @@ public class WindowDisplayManager
 	public static void applyWindowed(int width, int height)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		logWaylandNoticeIfNeeded();
 		
 		app.enqueue(() ->
 		{
@@ -81,11 +98,15 @@ public class WindowDisplayManager
 			final long monitor = GLFW.glfwGetPrimaryMonitor();
 			final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(monitor);
 			
-			GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_FLOATING, GLFW.GLFW_FALSE);
+			if (!IS_WAYLAND)
+			{
+				GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_FLOATING, GLFW.GLFW_FALSE);
+			}
+			
 			GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_DECORATED, GLFW.GLFW_TRUE);
 			GLFW.glfwSetWindowSize(windowHandle, width, height);
 			
-			if (vidMode != null)
+			if (vidMode != null && !IS_WAYLAND)
 			{
 				final int posX = (vidMode.width() - width) / 2;
 				final int posY = (vidMode.height() - height) / 2;
@@ -119,6 +140,15 @@ public class WindowDisplayManager
 		else
 		{
 			applyWindowed(settingsManager.getScreenWidth(), settingsManager.getScreenHeight());
+		}
+	}
+	
+	private static void logWaylandNoticeIfNeeded()
+	{
+		if (IS_WAYLAND && !waylandNoticeLogged)
+		{
+			waylandNoticeLogged = true;
+			System.out.println("WindowDisplayManager: Wayland detected; floating/position hints are disabled by platform design.");
 		}
 	}
 }
