@@ -33,7 +33,9 @@ import simplecraft.enemy.EnemyAI;
 import simplecraft.enemy.EnemyLighting;
 import simplecraft.enemy.SpawnSystem;
 import simplecraft.input.GameInputManager;
+import simplecraft.item.ArmorSlot;
 import simplecraft.item.DropManager;
+import simplecraft.item.Inventory;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemTextureResolver;
 import simplecraft.item.ItemType;
@@ -1349,6 +1351,46 @@ public class PlayingState extends FadeableAppState
 				// If in boss arena, the arena stays visible behind the death screen.
 				// Arena exit happens later in performRespawn() when the player clicks Respawn.
 				_playerDead = true;
+				
+				// Drop all inventory items scattered around the death position.
+				if (_dropManager != null)
+				{
+					final Vector3f deathPos = _playerController.getPosition();
+					final Inventory inventory = _playerController.getInventory();
+					int dropIndex = 0;
+					
+					for (int i = 0; i < Inventory.TOTAL_SLOTS; i++)
+					{
+						final ItemInstance item = inventory.getSlot(i);
+						if (item != null)
+						{
+							final double angle = dropIndex * 2.39996; // golden angle (~137.5°) for even spread
+							final float radius = 0.25f + dropIndex * 0.07f;
+							final float ox = (float) (Math.cos(angle) * radius);
+							final float oz = (float) (Math.sin(angle) * radius);
+							_dropManager.spawnDrop(new Vector3f(deathPos.x + ox, deathPos.y, deathPos.z + oz), item.copy());
+							inventory.setSlot(i, null);
+							dropIndex++;
+						}
+					}
+					
+					for (final ArmorSlot slot : ArmorSlot.values())
+					{
+						final ItemInstance armor = inventory.getArmorSlot(slot);
+						if (armor != null)
+						{
+							final double angle = dropIndex * 2.39996;
+							final float radius = 0.25f + dropIndex * 0.07f;
+							final float ox = (float) (Math.cos(angle) * radius);
+							final float oz = (float) (Math.sin(angle) * radius);
+							_dropManager.spawnDrop(new Vector3f(deathPos.x + ox, deathPos.y, deathPos.z + oz), armor.copy());
+							inventory.setArmorSlot(slot, null);
+							dropIndex++;
+						}
+					}
+					
+					System.out.println("Player dropped " + dropIndex + " item stack(s) on death.");
+				}
 				
 				// Remove held torch light before death screen.
 				removeHeldTorchLight();
