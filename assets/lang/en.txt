@@ -158,6 +158,13 @@ msg.respawn_lost=Respawn point lost! You will respawn at world origin.
 msg.orb_no_power=The orb has no power here.
 msg.orb_faint=The orb glows faintly but does nothing.
 msg.cannot_place=You cannot place that here.
+msg.set_respawn_here=Set respawn point here?
+msg.respawn_point_set=Respawn point set!
+msg.already_respawn_point=This is your respawn point
+msg.reset_to_defaults=Reset to defaults?
+msg.screenshot_captured=Screenshot captured!
+msg.boss_slain=The {0} has been slain!
+msg.victory=You return victorious.
 
 # Block display names
 block.air=

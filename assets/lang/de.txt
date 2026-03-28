@@ -158,6 +158,13 @@ msg.respawn_lost=Spawn-Punkt verloren! Du wirst am Weltanfang erscheinen.
 msg.orb_no_power=Die Kugel hat hier keine Kraft.
 msg.orb_faint=Die Kugel leuchtet schwach, tut aber nichts.
 msg.cannot_place=Du kannst das hier nicht platzieren.
+msg.set_respawn_here=Hier als Spawnpunkt festlegen?
+msg.respawn_point_set=Spawnpunkt gesetzt!
+msg.already_respawn_point=Das ist dein Spawnpunkt
+msg.reset_to_defaults=Auf Standardwerte zurücksetzen?
+msg.screenshot_captured=Screenshot gemacht!
+msg.boss_slain=Der {0} wurde besiegt!
+msg.victory=Du kehrst siegreich zurück.
 
 # Block-Anzeigenamen
 block.air=

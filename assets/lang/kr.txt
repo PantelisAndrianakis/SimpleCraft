@@ -158,6 +158,13 @@ msg.respawn_lost=부활 지점을 잃었습니다! 세계 원점에서 부활합
 msg.orb_no_power=오브는 여기서 힘이 없습니다.
 msg.orb_faint=오브가 희미하게 빛나지만 아무것도 하지 않습니다.
 msg.cannot_place=여기에 배치할 수 없습니다.
+msg.set_respawn_here=여기에 부활 지점을 설정하시겠습니까?
+msg.respawn_point_set=부활 지점이 설정되었습니다!
+msg.already_respawn_point=여기가 당신의 부활 지점입니다
+msg.reset_to_defaults=기본값으로 초기화하시겠습니까?
+msg.screenshot_captured=스크린샷이 찍혔습니다!
+msg.boss_slain={0}이(가) 쓰러졌습니다!
+msg.victory=승리하여 돌아왔습니다.
 
 # 블록 이름
 block.air=

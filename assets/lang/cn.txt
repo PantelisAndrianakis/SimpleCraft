@@ -158,6 +158,13 @@ msg.respawn_lost=重生点已失效！你将在世界原点重生。
 msg.orb_no_power=神球在此处没有力量。
 msg.orb_faint=神球微微发光，但什么都没发生。
 msg.cannot_place=你无法在此放置。
+msg.set_respawn_here=在此处设置重生点？
+msg.respawn_point_set=重生点已设置！
+msg.already_respawn_point=这是你的重生点
+msg.reset_to_defaults=重置为默认设置？
+msg.screenshot_captured=截图已保存！
+msg.boss_slain={0}已被击败！
+msg.victory=你凯旋而归。
 
 # 方块名称
 block.air=

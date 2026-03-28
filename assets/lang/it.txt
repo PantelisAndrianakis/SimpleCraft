@@ -158,6 +158,13 @@ msg.respawn_lost=Punto di rinascita perso! Riapparirai all'origine del mondo.
 msg.orb_no_power=Il globo non ha potere qui.
 msg.orb_faint=Il globo brilla debolmente ma non fa nulla.
 msg.cannot_place=Non puoi posizionare quello qui.
+msg.set_respawn_here=Impostare il punto di rinascita qui?
+msg.respawn_point_set=Punto di rinascita impostato!
+msg.already_respawn_point=Questo è il tuo punto di rinascita
+msg.reset_to_defaults=Ripristinare i valori predefiniti?
+msg.screenshot_captured=Screenshot acquisito!
+msg.boss_slain={0} è stato sconfitto!
+msg.victory=Torni vittorioso.
 
 # Nomi dei blocchi
 block.air=

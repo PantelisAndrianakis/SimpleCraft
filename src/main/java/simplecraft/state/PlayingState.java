@@ -1318,7 +1318,7 @@ public class PlayingState extends FadeableAppState
 					}
 					
 					// Show victory message.
-					MessageManager.show("The " + (boss.getType() == EnemyType.DRAGON ? "Dragon" : "Shadow") + " has been slain!", 5.0f);
+					MessageManager.show(LanguageManager.get("msg.boss_slain").replace("{0}", LanguageManager.get(boss.getType() == EnemyType.DRAGON ? "hud.dragon" : "hud.shadow")), 5.0f);
 					
 					// Hide boss health bar.
 					if (_playerHUD != null)

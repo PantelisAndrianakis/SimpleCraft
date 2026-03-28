@@ -16,6 +16,7 @@ import com.jme3.scene.Node;
 import simplecraft.SimpleCraft;
 import simplecraft.player.PlayerController;
 import simplecraft.ui.MessageManager;
+import simplecraft.settings.LanguageManager;
 import simplecraft.ui.QuestionManager;
 import simplecraft.util.Vector3i;
 import simplecraft.world.Block;
@@ -127,7 +128,7 @@ public class CampfireTileEntity extends TileEntity
 		if (_activated)
 		{
 			// Already the active respawn point - just show a status message.
-			MessageManager.show("This is your respawn point");
+			MessageManager.show(LanguageManager.get("msg.already_respawn_point"));
 			return;
 		}
 		
@@ -148,7 +149,7 @@ public class CampfireTileEntity extends TileEntity
 		registerQuestionNavigation();
 		
 		// Show confirmation dialog using the shared QuestionManager.
-		QuestionManager.show("Set respawn point here?", () ->
+		QuestionManager.show(LanguageManager.get("msg.set_respawn_here"), () ->
 		{
 			// Yes - activate campfire and restore controls.
 			activate(player, world);
@@ -296,7 +297,7 @@ public class CampfireTileEntity extends TileEntity
 		applyParticleBrightness();
 		propagateLight(world);
 		
-		MessageManager.show("Respawn point set!");
+		MessageManager.show(LanguageManager.get("msg.respawn_point_set"));
 		System.out.println("Campfire activated at [" + _position.x + ", " + _position.y + ", " + _position.z + "]");
 	}
 	

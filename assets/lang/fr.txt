@@ -158,6 +158,13 @@ msg.respawn_lost=Point de réapparition perdu ! Vous réapparaîtrez à l'origin
 msg.orb_no_power=L'orbe n'a aucun pouvoir ici.
 msg.orb_faint=L'orbe brille faiblement mais ne fait rien.
 msg.cannot_place=Vous ne pouvez pas placer ça ici.
+msg.set_respawn_here=Définir le point de réapparition ici ?
+msg.respawn_point_set=Point de réapparition défini !
+msg.already_respawn_point=C'est votre point de réapparition
+msg.reset_to_defaults=Réinitialiser les paramètres par défaut ?
+msg.screenshot_captured=Capture d'écran prise !
+msg.boss_slain={0} a été vaincu !
+msg.victory=Vous revenez victorieux.
 
 # Noms des blocs
 block.air=

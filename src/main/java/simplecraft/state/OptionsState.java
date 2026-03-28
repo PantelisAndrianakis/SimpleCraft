@@ -2119,7 +2119,7 @@ public class OptionsState extends FadeableAppState
 		if (_bottomFocusIndex == 0)
 		{
 			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show("Reset to defaults?", this::applyDefaults, null);
+			QuestionManager.show(LanguageManager.get("msg.reset_to_defaults"), this::applyDefaults, null);
 		}
 		else
 		{

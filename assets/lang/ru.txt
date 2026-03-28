@@ -158,6 +158,13 @@ msg.respawn_lost=Точка возрождения потеряна! Вы воз
 msg.orb_no_power=Сфера здесь не имеет силы.
 msg.orb_faint=Сфера слабо светится, но ничего не делает.
 msg.cannot_place=Вы не можете разместить это здесь.
+msg.set_respawn_here=Установить точку возрождения здесь?
+msg.respawn_point_set=Точка возрождения установлена!
+msg.already_respawn_point=Это ваша точка возрождения
+msg.reset_to_defaults=Сбросить до настроек по умолчанию?
+msg.screenshot_captured=Скриншот сделан!
+msg.boss_slain={0} повержен!
+msg.victory=Вы возвращаетесь победителем.
 
 # Названия блоков
 block.air=

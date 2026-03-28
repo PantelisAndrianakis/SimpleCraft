@@ -342,7 +342,7 @@ public class BossArenaManager
 		if (victory)
 		{
 			player.setPosition(_mainWorldReturnPos.x, _mainWorldReturnPos.y, _mainWorldReturnPos.z);
-			MessageManager.show("You return victorious.", VICTORY_MESSAGE_DURATION);
+			MessageManager.show(LanguageManager.get("msg.victory"), VICTORY_MESSAGE_DURATION);
 			System.out.println("BossArenaManager: Exited arena (VICTORY). Player returned to main world.");
 		}
 		else

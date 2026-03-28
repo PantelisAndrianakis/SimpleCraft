@@ -158,6 +158,13 @@ msg.respawn_lost=Ponto de renascimento perdido! Você renascerá na origem do mu
 msg.orb_no_power=O orbe não tem poder aqui.
 msg.orb_faint=O orbe brilha fracamente mas não faz nada.
 msg.cannot_place=Você não pode colocar isso aqui.
+msg.set_respawn_here=Definir ponto de renascimento aqui?
+msg.respawn_point_set=Ponto de renascimento definido!
+msg.already_respawn_point=Este é o seu ponto de renascimento
+msg.reset_to_defaults=Redefinir para os padrões?
+msg.screenshot_captured=Captura de tela tirada!
+msg.boss_slain={0} foi derrotado!
+msg.victory=Você retorna vitorioso.
 
 # Nomes dos blocos
 block.air=

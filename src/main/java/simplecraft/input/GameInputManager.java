@@ -21,6 +21,7 @@ import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 
 import simplecraft.SimpleCraft;
+import simplecraft.settings.LanguageManager;
 import simplecraft.settings.SettingsManager;
 import simplecraft.ui.MessageManager;
 
@@ -476,7 +477,7 @@ public class GameInputManager
 					screenshotState.takeScreenshot();
 					
 					// Show confirmation message with a 0.5 second delay to avoid capturing it in the screenshot.
-					MessageManager.show("Screenshot captured!", 2f, 0.5f);
+					MessageManager.show(LanguageManager.get("msg.screenshot_captured"), 2f, 0.5f);
 				}
 			}
 		};

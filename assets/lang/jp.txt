@@ -158,6 +158,13 @@ msg.respawn_lost=リスポーン地点が失われました！ワールドの原
 msg.orb_no_power=オーブはここでは力を持ちません。
 msg.orb_faint=オーブがかすかに輝いていますが、何も起こりません。
 msg.cannot_place=ここには配置できません。
+msg.set_respawn_here=ここをリスポーン地点に設定しますか？
+msg.respawn_point_set=リスポーン地点を設定しました！
+msg.already_respawn_point=ここがあなたのリスポーン地点です
+msg.reset_to_defaults=デフォルトにリセットしますか？
+msg.screenshot_captured=スクリーンショットを撮りました！
+msg.boss_slain={0}を倒した！
+msg.victory=勝利して帰還しました。
 
 # ブロック名
 block.air=
