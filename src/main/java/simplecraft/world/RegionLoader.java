@@ -1,6 +1,8 @@
 package simplecraft.world;
 
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -106,6 +108,9 @@ public class RegionLoader
 	 */
 	private ConcurrentHashMap<Long, SavedRegionData> _savedRegionData;
 	
+	/** Current total in-game days, updated each frame by World. Used for berry respawn checks. */
+	private volatile double _currentTotalDays = 0.0;
+	
 	// ========================================================
 	// Constructor.
 	// ========================================================
@@ -203,10 +208,14 @@ public class RegionLoader
 					region.setRawBlockData(saved.getBlockData());
 					region.setPlayerPlacedSet(saved.getPlayerPlaced());
 					region.setPlayerRemovedSet(saved.getPlayerRemoved());
+					region.setBerryRespawnMap(saved.getBerryRespawnMap());
 					region.markModified();
 					hadSavedData = true;
 				}
 			}
+			
+			// Process any due berry bush respawns.
+			applyBerryRespawns(region);
 			
 			// Cache the region for potential future remesh.
 			_regionCache.put(key, region);
@@ -412,6 +421,84 @@ public class RegionLoader
 	{
 		final long key = regionKey(regionX, regionZ);
 		_regionCache.remove(key);
+	}
+	
+	// ========================================================
+	// Berry Bush Respawn.
+	// ========================================================
+	
+	/**
+	 * Updates the current total in-game days used for berry respawn checks.<br>
+	 * Called each frame by World so background threads always have the latest value.
+	 * @param totalDays current total in-game days from DayNightCycle
+	 */
+	public void setTotalDays(double totalDays)
+	{
+		_currentTotalDays = totalDays;
+	}
+	
+	/**
+	 * Processes any due berry bush respawns in the given region.<br>
+	 * For each entry where enough in-game days have passed:<br>
+	 * - If the position is AIR and the block below is non-player-placed DIRT or GRASS, places a BERRY_BUSH.<br>
+	 * - Either way, removes the entry from the map.<br>
+	 * Called on the background thread after saved data has been applied.
+	 * @param region the region to process
+	 */
+	private void applyBerryRespawns(Region region)
+	{
+		final Map<Long, Double> respawnMap = region.getBerryRespawnMap();
+		if (respawnMap.isEmpty())
+		{
+			return;
+		}
+		
+		final double now = _currentTotalDays;
+		final Iterator<Entry<Long, Double>> it = respawnMap.entrySet().iterator();
+		boolean anyPlaced = false;
+		
+		while (it.hasNext())
+		{
+			final Entry<Long, Double> entry = it.next();
+			if (now < entry.getValue())
+			{
+				continue; // Not yet due.
+			}
+			
+			// Unpack local position.
+			final long packed = entry.getKey();
+			final int localX = (int) ((packed >> 16) & 0xFF);
+			final int localY = (int) ((packed >> 8) & 0xFF);
+			final int localZ = (int) (packed & 0xFF);
+			
+			it.remove(); // Remove regardless of whether we actually place.
+			
+			// Position must be AIR (nothing else grew or was built there).
+			if (region.getBlock(localX, localY, localZ) != Block.AIR)
+			{
+				continue;
+			}
+			
+			// Support block below must be natural DIRT or GRASS (not player-placed).
+			if (localY <= 0)
+			{
+				continue;
+			}
+			
+			final Block below = region.getBlock(localX, localY - 1, localZ);
+			if ((below != Block.DIRT && below != Block.GRASS) || region.isPlayerPlaced(localX, localY - 1, localZ))
+			{
+				continue;
+			}
+			
+			region.setBlock(localX, localY, localZ, Block.BERRY_BUSH);
+			anyPlaced = true;
+		}
+		
+		if (anyPlaced)
+		{
+			region.markModified();
+		}
 	}
 	
 	// ========================================================

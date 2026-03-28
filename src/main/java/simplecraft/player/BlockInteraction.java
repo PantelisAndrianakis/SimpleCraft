@@ -916,6 +916,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				_particleManager.spawnBlockBreak(new Vector3f(_targetX, _targetY, _targetZ), block);
 			}
 			
+			// Record berry bush respawn before clearing player-placed flag (needs the original flag).
+			if (block == Block.BERRY_BUSH && !_world.isPlayerPlaced(_targetX, _targetY, _targetZ))
+			{
+				_world.addBerryRespawn(_targetX, _targetY, _targetZ);
+			}
+			
 			// Clear player-placed flag before removal.
 			_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
 			

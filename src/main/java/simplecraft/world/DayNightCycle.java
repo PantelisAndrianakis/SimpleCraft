@@ -195,6 +195,9 @@ public class DayNightCycle
 	/** Whether it was night on the previous frame (for terrain transition detection). */
 	private boolean _wasNight;
 	
+	/** Total complete in-game days elapsed since world creation. Incremented each time timeOfDay wraps. */
+	private double _totalDays = 0.0;
+	
 	// ------------------------------------------------------------------
 	// Constructor.
 	// ------------------------------------------------------------------
@@ -248,6 +251,7 @@ public class DayNightCycle
 		if (_timeOfDay >= 1.0f)
 		{
 			_timeOfDay -= 1.0f;
+			_totalDays++;
 		}
 		
 		// Update derived values.
@@ -537,6 +541,25 @@ public class DayNightCycle
 	public ColorRGBA getTerrainTint()
 	{
 		return _terrainTint;
+	}
+	
+	/**
+	 * Returns total in-game days elapsed (whole days + current timeOfDay fraction).<br>
+	 * Used by the berry bush respawn system. Only advances while the game is running.
+	 * @return total in-game days since world creation
+	 */
+	public double getTotalDays()
+	{
+		return _totalDays + _timeOfDay;
+	}
+	
+	/**
+	 * Restores the total days counter when loading a saved game.
+	 * @param totalDays the saved total days value
+	 */
+	public void setTotalDays(double totalDays)
+	{
+		_totalDays = Math.max(0.0, Math.floor(totalDays));
 	}
 	
 	/**

@@ -653,6 +653,10 @@ public class PlayingState extends FadeableAppState
 		// Initialize the day/night cycle. Use saved time if loading, otherwise start at early morning.
 		final float startTime = _playerSaveData != null ? _playerSaveData.getTimeOfDay() : STARTING_TIME_OF_DAY;
 		_dayNightCycle = new DayNightCycle(startTime);
+		if (_playerSaveData != null)
+		{
+			_dayNightCycle.setTotalDays(_playerSaveData.getTotalDays());
+		}
 		
 		// Set initial terrain lighting so regions built during loading use the correct values.
 		final ColorRGBA initialTint = _dayNightCycle.getTerrainTint();

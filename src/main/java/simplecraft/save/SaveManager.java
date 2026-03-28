@@ -4,13 +4,17 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
@@ -74,12 +78,14 @@ public class SaveManager
 		private final byte[] _blockData;
 		private final Set<Long> _playerPlaced;
 		private final Set<Long> _playerRemoved;
+		private final Map<Long, Double> _berryRespawnMap;
 		
-		public SavedRegionData(byte[] blockData, Set<Long> playerPlaced, Set<Long> playerRemoved)
+		public SavedRegionData(byte[] blockData, Set<Long> playerPlaced, Set<Long> playerRemoved, Map<Long, Double> berryRespawnMap)
 		{
 			_blockData = blockData;
 			_playerPlaced = playerPlaced;
 			_playerRemoved = playerRemoved;
+			_berryRespawnMap = berryRespawnMap;
 		}
 		
 		public byte[] getBlockData()
@@ -95,6 +101,11 @@ public class SaveManager
 		public Set<Long> getPlayerRemoved()
 		{
 			return _playerRemoved;
+		}
+		
+		public Map<Long, Double> getBerryRespawnMap()
+		{
+			return _berryRespawnMap;
 		}
 	}
 	
@@ -117,6 +128,7 @@ public class SaveManager
 		private float _campfireSpawnX;
 		private float _campfireSpawnY;
 		private float _campfireSpawnZ;
+		private double _totalDays;
 		
 		public float getPosX()
 		{
@@ -181,6 +193,11 @@ public class SaveManager
 		public float getCampfireSpawnZ()
 		{
 			return _campfireSpawnZ;
+		}
+		
+		public double getTotalDays()
+		{
+			return _totalDays;
 		}
 	}
 	
@@ -286,6 +303,15 @@ public class SaveManager
 				{
 					out.writeLong(packed);
 				}
+				
+				// Berry bush respawn entries (packed local pos -> respawn target in-game day).
+				final Map<Long, Double> berryRespawns = region.getBerryRespawnMap();
+				out.writeInt(berryRespawns.size());
+				for (Entry<Long, Double> entry : berryRespawns.entrySet())
+				{
+					out.writeLong(entry.getKey());
+					out.writeDouble(entry.getValue());
+				}
 			}
 			
 			System.out.println("SaveManager: Saved " + modifiedRegions.size() + " modified regions.");
@@ -323,6 +349,9 @@ public class SaveManager
 			
 			// Time of day.
 			out.writeFloat(dayNightCycle.getTimeOfDay());
+			
+			// Total in-game days (for berry bush respawn timing).
+			out.writeDouble(dayNightCycle.getTotalDays());
 			
 			// Initial spawn point.
 			out.writeFloat(player.getInitialSpawn().x);
@@ -422,6 +451,16 @@ public class SaveManager
 			
 			// Time of day.
 			data._timeOfDay = in.readFloat();
+			
+			// Total in-game days (berry bush respawn timing). Optional - old saves default to 0.
+			try
+			{
+				data._totalDays = in.readDouble();
+			}
+			catch (java.io.EOFException ignored)
+			{
+				data._totalDays = 0.0;
+			}
 			
 			// Initial spawn point.
 			data._initialSpawnX = in.readFloat();
@@ -541,8 +580,26 @@ public class SaveManager
 					playerRemoved.add(in.readLong());
 				}
 				
+				// Berry bush respawn entries.
+				Map<Long, Double> berryRespawns = null;
+				try
+				{
+					final int berryCount = in.readInt();
+					berryRespawns = new HashMap<>();
+					for (int j = 0; j < berryCount; j++)
+					{
+						final long pos = in.readLong();
+						final double respawnAt = in.readDouble();
+						berryRespawns.put(pos, respawnAt);
+					}
+				}
+				catch (EOFException ignored)
+				{
+					// No berry respawn data - leave null.
+				}
+				
 				final long key = World.packRegionKey(regionX, regionZ);
-				savedData.put(key, new SavedRegionData(blockData, playerPlaced, playerRemoved));
+				savedData.put(key, new SavedRegionData(blockData, playerPlaced, playerRemoved, berryRespawns));
 			}
 			
 			in.close();

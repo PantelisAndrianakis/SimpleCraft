@@ -280,6 +280,12 @@ public class World
 		// Process pending block changes (limited per frame).
 		processBlockChanges();
 		
+		// Keep RegionLoader's total-days value current so berry respawn checks are accurate.
+		if (_dayNightCycle != null)
+		{
+			_regionLoader.setTotalDays(_dayNightCycle.getTotalDays());
+		}
+		
 		// Static worlds (e.g. boss arena) skip dynamic region loading/unloading.
 		if (_staticWorld)
 		{
@@ -1277,6 +1283,42 @@ public class World
 		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
 		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
 		region.clearPlayerRemoved(localX, worldY, localZ);
+	}
+	
+	// ========================================================
+	// Berry Bush Respawn.
+	// ========================================================
+	
+	/** Number of in-game days before a destroyed natural berry bush may respawn. */
+	private static final double BERRY_RESPAWN_DAYS = 2.0;
+	
+	/**
+	 * Records a pending berry bush respawn at the given world coordinates.<br>
+	 * Called when a naturally-generated (non-player-placed) berry bush is destroyed.<br>
+	 * The bush will be eligible to respawn after {@value #BERRY_RESPAWN_DAYS} in-game days.
+	 * @param worldX world X of the destroyed bush
+	 * @param worldY world Y of the destroyed bush
+	 * @param worldZ world Z of the destroyed bush
+	 */
+	public void addBerryRespawn(int worldX, int worldY, int worldZ)
+	{
+		if (worldY < 0 || worldY >= Region.SIZE_Y || _dayNightCycle == null)
+		{
+			return;
+		}
+		
+		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
+		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
+		final Region region = _regions.get(regionKey(regionX, regionZ));
+		if (region == null)
+		{
+			return;
+		}
+		
+		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
+		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
+		region.addBerryRespawn(localX, worldY, localZ, _dayNightCycle.getTotalDays() + BERRY_RESPAWN_DAYS);
+		region.markModified();
 	}
 	
 	// ========================================================

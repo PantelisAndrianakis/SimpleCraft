@@ -1,6 +1,8 @@
 package simplecraft.world;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -59,6 +61,13 @@ public class Region
 	
 	/** Set of packed local positions of player-removed blocks (prevents enemy spawning). */
 	private final Set<Long> _playerRemovedBlocks = new HashSet<>();
+	
+	/**
+	 * Pending berry bush respawns for this region.<br>
+	 * Key = packed local position, value = total in-game days at which respawn becomes due.<br>
+	 * Only populated for naturally-generated (non-player-placed) berry bushes that were destroyed.
+	 */
+	private final Map<Long, Double> _berryRespawnMap = new HashMap<>();
 	
 	/**
 	 * Per-column sky light ceiling: the Y of the highest solid/leaf block.<br>
@@ -586,6 +595,49 @@ public class Region
 	public Set<Long> getPlayerRemovedSet()
 	{
 		return _playerRemovedBlocks;
+	}
+	
+	// ========================================================
+	// Berry Bush Respawn Tracking.
+	// ========================================================
+	
+	/**
+	 * Records a pending berry bush respawn at the given local coordinates.<br>
+	 * Called when a naturally-generated (non-player-placed) berry bush is destroyed.
+	 * @param x local X (0..15)
+	 * @param y local Y (0..127)
+	 * @param z local Z (0..15)
+	 * @param respawnAt the total in-game days value at which the bush may respawn
+	 */
+	public void addBerryRespawn(int x, int y, int z, double respawnAt)
+	{
+		if (isInBounds(x, y, z))
+		{
+			_berryRespawnMap.put(packLocalPos(x, y, z), respawnAt);
+		}
+	}
+	
+	/**
+	 * Returns the berry respawn map (packed local pos -> respawn timestamp).<br>
+	 * Used for serialization and respawn processing.
+	 */
+	public Map<Long, Double> getBerryRespawnMap()
+	{
+		return _berryRespawnMap;
+	}
+	
+	/**
+	 * Replaces the berry respawn map contents with the given map.<br>
+	 * Used for deserialization (load system).
+	 * @param map the loaded respawn map, or null to clear
+	 */
+	public void setBerryRespawnMap(Map<Long, Double> map)
+	{
+		_berryRespawnMap.clear();
+		if (map != null)
+		{
+			_berryRespawnMap.putAll(map);
+		}
 	}
 	
 	// ========================================================
