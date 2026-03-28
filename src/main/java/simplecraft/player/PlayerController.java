@@ -106,6 +106,12 @@ public class PlayerController implements ActionListener, AnalogListener
 	/** Eye height offset above foot position. */
 	private static final float EYE_HEIGHT = 1.6f;
 	
+	/** Visual-only Y offset applied to the camera during a step-up lerp. Starts negative, interpolates to 0. */
+	private float _stepLerpOffset;
+	
+	/** How fast the step-up offset lerps back to zero (units per second). */
+	private static final float STEP_LERP_SPEED = 8f;
+	
 	/** Maximum pitch angle in radians (±89 degrees). */
 	private static final float MAX_PITCH = 89f * FastMath.DEG_TO_RAD;
 	
@@ -469,8 +475,20 @@ public class PlayerController implements ActionListener, AnalogListener
 			_footstepTimer = FOOTSTEP_INTERVAL;
 		}
 		
-		// Update camera position (eye height above feet).
-		_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
+		// Step-up lerp: accumulate offset when a step occurs, then interpolate back to 0.
+		final float stepAmount = result.getStepAmount();
+		if (stepAmount > 0)
+		{
+			_stepLerpOffset -= stepAmount;
+		}
+		
+		if (_stepLerpOffset < 0)
+		{
+			_stepLerpOffset = Math.min(0, _stepLerpOffset + STEP_LERP_SPEED * tpf);
+		}
+		
+		// Update camera position (eye height above feet, plus transient step lerp offset).
+		_eyePos.set(_position.x, _position.y + EYE_HEIGHT + _stepLerpOffset, _position.z);
 		_camera.setLocation(_eyePos);
 	}
 	

@@ -115,17 +115,17 @@ public class WorldInfo
 	{
 		return _lastPlayedAt;
 	}
-
+	
 	public void setLastPlayedAt(long lastPlayedAt)
 	{
 		_lastPlayedAt = lastPlayedAt;
 	}
-
+	
 	public int getDayCount()
 	{
 		return _dayCount;
 	}
-
+	
 	public void setDayCount(int dayCount)
 	{
 		_dayCount = dayCount;

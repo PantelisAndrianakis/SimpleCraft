@@ -91,6 +91,7 @@ public class PlayerCollision
 		private boolean _inWater;
 		private boolean _headSubmerged;
 		private float _fallDistance;
+		private float _stepAmount;
 		
 		public boolean isOnGround()
 		{
@@ -114,6 +115,15 @@ public class PlayerCollision
 		public float getFallDistance()
 		{
 			return _fallDistance;
+		}
+		
+		/**
+		 * Returns the height stepped up this frame (positive value).<br>
+		 * Zero if no step-up occurred this frame.
+		 */
+		public float getStepAmount()
+		{
+			return _stepAmount;
 		}
 	}
 	
@@ -160,6 +170,7 @@ public class PlayerCollision
 		_result._inWater = false;
 		_result._headSubmerged = false;
 		_result._fallDistance = 0;
+		_result._stepAmount = 0;
 		
 		// Clamp time step to prevent tunneling on frame spikes.
 		tpf = Math.min(tpf, MAX_TPF);
@@ -188,6 +199,7 @@ public class PlayerCollision
 					final float steppedY = (float) Math.floor(position.y) + 1.0f;
 					if (!hasSolidCollision(position.x, steppedY, position.z, world))
 					{
+						_result._stepAmount += steppedY - position.y;
 						position.y = steppedY;
 						steppedUp = true;
 					}
@@ -213,6 +225,7 @@ public class PlayerCollision
 					final float steppedY = (float) Math.floor(position.y) + 1.0f;
 					if (!hasSolidCollision(position.x, steppedY, position.z, world))
 					{
+						_result._stepAmount += steppedY - position.y;
 						position.y = steppedY;
 						steppedUp = true;
 					}

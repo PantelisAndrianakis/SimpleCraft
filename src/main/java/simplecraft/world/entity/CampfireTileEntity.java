@@ -15,8 +15,8 @@ import com.jme3.scene.Node;
 
 import simplecraft.SimpleCraft;
 import simplecraft.player.PlayerController;
-import simplecraft.ui.MessageManager;
 import simplecraft.settings.LanguageManager;
+import simplecraft.ui.MessageManager;
 import simplecraft.ui.QuestionManager;
 import simplecraft.util.Vector3i;
 import simplecraft.world.Block;

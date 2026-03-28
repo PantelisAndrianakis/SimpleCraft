@@ -318,7 +318,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		placeholderMesh.updateBound();
 		_crackGeometry = new Geometry("CrackOverlay", placeholderMesh);
 		_crackGeometry.setMaterial(_crackMaterial);
-		_crackGeometry.setQueueBucket(Bucket.Translucent);
+		_crackGeometry.setQueueBucket(Bucket.Transparent);
 		_crackGeometry.setCullHint(Geometry.CullHint.Always); // Hidden initially.
 		_overlayNode.attachChild(_crackGeometry);
 		
