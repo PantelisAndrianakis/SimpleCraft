@@ -247,8 +247,9 @@ public class SaveManager
 		// Save tile entities.
 		saveTileEntityData(world.getTileEntityManager(), worldDir);
 		
-		// Update last played timestamp.
+		// Update last played timestamp and day count.
 		activeWorld.setLastPlayedAt(System.currentTimeMillis());
+		activeWorld.setDayCount((int) dayNightCycle.getTotalDays());
 		WorldInfo.save(activeWorld, worldDir);
 		
 		System.out.println("SaveManager: World saved to " + worldDir);
@@ -350,9 +351,6 @@ public class SaveManager
 			// Time of day.
 			out.writeFloat(dayNightCycle.getTimeOfDay());
 			
-			// Total in-game days (for berry bush respawn timing).
-			out.writeDouble(dayNightCycle.getTotalDays());
-			
 			// Initial spawn point.
 			out.writeFloat(player.getInitialSpawn().x);
 			out.writeFloat(player.getInitialSpawn().y);
@@ -367,6 +365,9 @@ public class SaveManager
 				out.writeFloat(player.getCampfireSpawn().y);
 				out.writeFloat(player.getCampfireSpawn().z);
 			}
+			
+			// Total in-game days (written last for backward compat with old saves).
+			out.writeDouble(dayNightCycle.getTotalDays());
 		}
 		catch (IOException e)
 		{
@@ -452,16 +453,6 @@ public class SaveManager
 			// Time of day.
 			data._timeOfDay = in.readFloat();
 			
-			// Total in-game days (berry bush respawn timing). Optional - old saves default to 0.
-			try
-			{
-				data._totalDays = in.readDouble();
-			}
-			catch (java.io.EOFException ignored)
-			{
-				data._totalDays = 0.0;
-			}
-			
 			// Initial spawn point.
 			data._initialSpawnX = in.readFloat();
 			data._initialSpawnY = in.readFloat();
@@ -474,6 +465,16 @@ public class SaveManager
 				data._campfireSpawnX = in.readFloat();
 				data._campfireSpawnY = in.readFloat();
 				data._campfireSpawnZ = in.readFloat();
+			}
+			
+			// Total in-game days (read last for backward compat - old saves default to 0).
+			try
+			{
+				data._totalDays = in.readDouble();
+			}
+			catch (java.io.EOFException ignored)
+			{
+				data._totalDays = 0.0;
 			}
 			
 			System.out.println("SaveManager: Loaded player data from " + file);

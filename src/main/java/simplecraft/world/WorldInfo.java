@@ -31,6 +31,7 @@ public class WorldInfo
 	private String _seed;
 	private long _createdAt;
 	private long _lastPlayedAt;
+	private int _dayCount;
 	
 	/**
 	 * Create a new WorldInfo with the given name and seed text.<br>
@@ -114,10 +115,20 @@ public class WorldInfo
 	{
 		return _lastPlayedAt;
 	}
-	
+
 	public void setLastPlayedAt(long lastPlayedAt)
 	{
 		_lastPlayedAt = lastPlayedAt;
+	}
+
+	public int getDayCount()
+	{
+		return _dayCount;
+	}
+
+	public void setDayCount(int dayCount)
+	{
+		_dayCount = dayCount;
 	}
 	
 	/**
@@ -183,6 +194,8 @@ public class WorldInfo
 				writer.newLine();
 				writer.write("lastPlayedAt=" + info.getLastPlayedAt());
 				writer.newLine();
+				writer.write("dayCount=" + info.getDayCount());
+				writer.newLine();
 			}
 			
 			System.out.println("Saved world info: " + info.getName() + " -> " + infoFile);
@@ -242,6 +255,11 @@ public class WorldInfo
 					case "lastPlayedAt":
 					{
 						info._lastPlayedAt = Long.parseLong(value);
+						break;
+					}
+					case "dayCount":
+					{
+						info._dayCount = Integer.parseInt(value);
 						break;
 					}
 				}

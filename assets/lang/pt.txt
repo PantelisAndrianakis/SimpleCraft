@@ -31,6 +31,7 @@ menu.cancel=Cancelar
 menu.back=Voltar
 menu.page=Página
 menu.seed=Semente:
+menu.day=Dia
 menu.delete_confirm=Excluir "{0}"?\nEsta ação não pode ser desfeita.
 menu.world_name_empty=O nome do mundo não pode estar vazio.
 menu.world_name_exists=Já existe um mundo chamado "{0}".

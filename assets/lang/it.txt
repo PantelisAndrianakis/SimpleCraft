@@ -31,6 +31,7 @@ menu.cancel=Annulla
 menu.back=Indietro
 menu.page=Pagina
 menu.seed=Seme:
+menu.day=Giorno
 menu.delete_confirm=Eliminare "{0}"?\nQuesta azione è irreversibile.
 menu.world_name_empty=Il nome del mondo non può essere vuoto.
 menu.world_name_exists=Esiste già un mondo chiamato "{0}".

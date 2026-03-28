@@ -31,6 +31,7 @@ menu.cancel=Cancel
 menu.back=Back
 menu.page=Page
 menu.seed=Seed:
+menu.day=Day
 menu.delete_confirm=Delete "{0}"?\nThis cannot be undone.
 menu.world_name_empty=World name cannot be empty.
 menu.world_name_exists=A world named "{0}" already exists.

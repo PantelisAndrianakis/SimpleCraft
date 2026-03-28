@@ -31,6 +31,7 @@ menu.cancel=Ακύρωση
 menu.back=Πίσω
 menu.page=Σελίδα
 menu.seed=Σπόρος:
+menu.day=Ημέρα
 menu.delete_confirm=Διαγραφή "{0}";\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί.
 menu.world_name_empty=Το όνομα κόσμου δεν μπορεί να είναι κενό.
 menu.world_name_exists=Υπάρχει ήδη κόσμος με το όνομα "{0}".

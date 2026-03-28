@@ -31,6 +31,7 @@ menu.cancel=取消
 menu.back=返回
 menu.page=页
 menu.seed=种子：
+menu.day=天
 menu.delete_confirm=删除"{0}"？\n此操作无法撤销。
 menu.world_name_empty=世界名称不能为空。
 menu.world_name_exists=已存在名为"{0}"的世界。

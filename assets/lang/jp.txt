@@ -31,6 +31,7 @@ menu.cancel=キャンセル
 menu.back=戻る
 menu.page=ページ
 menu.seed=シード：
+menu.day=日
 menu.delete_confirm="{0}"を削除しますか？\nこの操作は元に戻せません。
 menu.world_name_empty=ワールド名は空にできません。
 menu.world_name_exists="{0}"という名前のワールドがすでに存在します。

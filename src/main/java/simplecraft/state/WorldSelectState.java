@@ -466,7 +466,8 @@ public class WorldSelectState extends FadeableAppState
 		// --- Row 2: [Seed | Last played | Size] ---
 		final String lastPlayed = DATE_FORMAT.format(new Date(world.getLastPlayedAt()));
 		final String sizeText = formatDirectorySize(world.getWorldDirectory());
-		final Label infoLabel = new Label(" " + LanguageManager.get("menu.seed") + " " + world.getSeed() + "  |  " + lastPlayed + "  |  " + sizeText);
+		final String dayText = LanguageManager.get("menu.day") + " " + world.getDayCount();
+		final Label infoLabel = new Label(" " + dayText + "  |  " + LanguageManager.get("menu.seed") + " " + world.getSeed() + "  |  " + lastPlayed + "  |  " + sizeText);
 		infoLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 12));
 		infoLabel.setFontSize(12);
 		infoLabel.setColor(INFO_TEXT_COLOR);

@@ -31,6 +31,7 @@ menu.cancel=Отмена
 menu.back=Назад
 menu.page=Страница
 menu.seed=Зерно:
+menu.day=День
 menu.delete_confirm=Удалить «{0}»?\nЭто действие нельзя отменить.
 menu.world_name_empty=Название мира не может быть пустым.
 menu.world_name_exists=Мир с названием «{0}» уже существует.

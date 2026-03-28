@@ -31,6 +31,7 @@ menu.cancel=Abbrechen
 menu.back=Zurück
 menu.page=Seite
 menu.seed=Samen:
+menu.day=Tag
 menu.delete_confirm="{0}" löschen?\nDies kann nicht rückgängig gemacht werden.
 menu.world_name_empty=Weltname darf nicht leer sein.
 menu.world_name_exists=Eine Welt namens "{0}" existiert bereits.
