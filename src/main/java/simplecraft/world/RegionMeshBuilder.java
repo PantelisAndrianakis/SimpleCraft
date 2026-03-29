@@ -414,10 +414,18 @@ public class RegionMeshBuilder
 	 * Functional interface for looking up blocks at world coordinates.<br>
 	 * Used by the mesh builder to resolve neighbors across region boundaries.
 	 */
-	@FunctionalInterface
 	public interface WorldBlockAccess
 	{
 		Block getBlock(int worldX, int worldY, int worldZ);
+		
+		/**
+		 * Returns the block light level at the given world coordinates.<br>
+		 * Defaults to 0 for implementations that don't track block light (e.g. initial async builds).
+		 */
+		default int getBlockLight(int worldX, int worldY, int worldZ)
+		{
+			return 0;
+		}
 	}
 	
 	// ========================================================
@@ -625,7 +633,7 @@ public class RegionMeshBuilder
 									
 									// Blend sky light and block light for this face.
 									final float skyLight = buried ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
-									final float blockLight = getNeighborBlockLight(region, x, y, z, face);
+									final float blockLight = getNeighborBlockLight(region, x, y, z, face, worldAccess);
 									final float shade = FACE_SHADE[face.ordinal()];
 									final float skyB = skyLight * shade;
 									final float blkB = blockLight * shade;
@@ -662,7 +670,7 @@ public class RegionMeshBuilder
 									final boolean buriedTrans = nyT >= 0 && nyT < Region.SIZE_Y && isBuriedUnderground(region, worldAccess, nxT, nyT, nzT);
 									
 									final float skyLight = buriedTrans ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
-									final float blockLight = getNeighborBlockLight(region, x, y, z, face);
+									final float blockLight = getNeighborBlockLight(region, x, y, z, face, worldAccess);
 									final float shade = FACE_SHADE[face.ordinal()];
 									final float skyB = skyLight * shade;
 									final float blkB = blockLight * shade;
@@ -973,10 +981,10 @@ public class RegionMeshBuilder
 	/**
 	 * Returns the block light (artificial light) at the neighbor position for a given face.<br>
 	 * Parallel to {@link #getNeighborSkyLight} - samples the air space the face looks at.<br>
-	 * Returns the block's own block light for cross-region boundaries (minor seam).
+	 * When worldAccess is provided, cross-region neighbors are resolved from adjacent regions.
 	 * @return block light level normalized to [0.0, 1.0]
 	 */
-	private static float getNeighborBlockLight(Region region, int x, int y, int z, Face face)
+	private static float getNeighborBlockLight(Region region, int x, int y, int z, Face face, WorldBlockAccess worldAccess)
 	{
 		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
 		final int nx = x + offset[0];
@@ -993,8 +1001,15 @@ public class RegionMeshBuilder
 			return region.getBlockLight(nx, ny, nz) / 15.0f;
 		}
 		
-		// Cross-region boundary - fall back to block's own block light.
-		return region.getBlockLight(x, y, z) / 15.0f;
+		// Cross-region boundary - use world access for accurate block light lookup.
+		if (worldAccess != null)
+		{
+			final int worldX = region.getWorldX() + nx;
+			final int worldZ = region.getWorldZ() + nz;
+			return worldAccess.getBlockLight(worldX, ny, worldZ) / 15.0f;
+		}
+		
+		return 0.0f;
 	}
 	
 	/**

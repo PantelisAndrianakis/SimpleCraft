@@ -965,7 +965,22 @@ public class World
 	 */
 	private void rebuildRegionSync(long key, Region region)
 	{
-		final RegionMeshResult meshResult = RegionMeshBuilder.buildRegionMesh(region, this::getBlock, _tileEntityManager);
+		final RegionMeshBuilder.WorldBlockAccess worldAccess = new RegionMeshBuilder.WorldBlockAccess()
+		{
+			@Override
+			public Block getBlock(int worldX, int worldY, int worldZ)
+			{
+				return World.this.getBlock(worldX, worldY, worldZ);
+			}
+			
+			@Override
+			public int getBlockLight(int worldX, int worldY, int worldZ)
+			{
+				return World.this.getBlockLight(worldX, worldY, worldZ);
+			}
+		};
+		
+		final RegionMeshResult meshResult = RegionMeshBuilder.buildRegionMesh(region, worldAccess, _tileEntityManager);
 		detachRegionGeometry(key);
 		attachGeometries(region, meshResult);
 		region.markMeshClean();
