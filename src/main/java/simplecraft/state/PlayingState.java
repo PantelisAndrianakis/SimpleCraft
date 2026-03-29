@@ -1374,7 +1374,7 @@ public class PlayingState extends FadeableAppState
 						}
 					}
 					
-					for (final ArmorSlot slot : ArmorSlot.values())
+					for (ArmorSlot slot : ArmorSlot.values())
 					{
 						final ItemInstance armor = inventory.getArmorSlot(slot);
 						if (armor != null)

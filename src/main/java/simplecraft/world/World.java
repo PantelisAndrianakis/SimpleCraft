@@ -906,10 +906,33 @@ public class World
 		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
 		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
 		
+		final Block oldBlock = region.getBlock(localX, worldY, localZ);
+		
 		// Update block data.
 		region.setBlock(localX, worldY, localZ, block);
 		region.markModified();
 		_regionLoader.updateRegionCache(region);
+		
+		// When a solid block is removed, propagate block light into the new air space from neighboring lit blocks.
+		// Without this the new position keeps blockLight=0 and adjacent faces render black even when a torch is nearby.
+		if (oldBlock.isSolid() && !block.isSolid())
+		{
+			int maxNeighborLight = 0;
+			for (int[] dir : LIGHT_DIRS)
+			{
+				final int nl = getBlockLight(worldX + dir[0], worldY + dir[1], worldZ + dir[2]);
+				if (nl > maxNeighborLight)
+				{
+					maxNeighborLight = nl;
+				}
+			}
+			
+			if (maxNeighborLight > 1)
+			{
+				// propagateBlockLight rebuilds affected regions internally.
+				propagateBlockLight(worldX, worldY, worldZ, maxNeighborLight - 1);
+			}
+		}
 		
 		// Immediate synchronous mesh rebuild for the affected region.
 		rebuildRegionSync(key, region);

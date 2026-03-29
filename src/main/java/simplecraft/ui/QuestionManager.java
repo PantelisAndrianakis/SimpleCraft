@@ -133,7 +133,7 @@ public class QuestionManager
 		// Question labels - split on \n so each line is its own label.
 		// This ensures getPreferredSize().x correctly reflects the widest line.
 		final com.jme3.font.BitmapFont questionFont = FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, QUESTION_FONT_SIZE);
-		for (final String line : question.split("\n", -1))
+		for (String line : question.split("\n", -1))
 		{
 			final Label questionLabel = new Label(line);
 			questionLabel.setFont(questionFont);

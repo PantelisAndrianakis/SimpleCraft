@@ -24,7 +24,7 @@ public class Region
 	public static final int SIZE_XZ = 16;
 	public static final int SIZE_Y = 128;
 	
-	/** Light falloff per block below the sky ceiling. depth 1 = 0.75, depth 4+ = 0.05. */
+	/** Light falloff per block below the sky ceiling. depth 1 = 0.75, depth 2+ = dark. */
 	private static final float SKY_LIGHT_FALLOFF = 0.25f;
 	
 	/** Minimum sky light level for deep underground blocks. */

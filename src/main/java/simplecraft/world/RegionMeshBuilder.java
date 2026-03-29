@@ -616,8 +616,15 @@ public class RegionMeshBuilder
 							{
 								if (isFaceVisible(region, x, y, z, face, worldAccess))
 								{
+									// Check if the air space this face looks into is buried underground.
+									final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
+									final int nx = x + offset[0];
+									final int ny = y + offset[1];
+									final int nz = z + offset[2];
+									final boolean buried = ny >= 0 && ny < Region.SIZE_Y && isBuriedUnderground(region, worldAccess, nx, ny, nz);
+									
 									// Blend sky light and block light for this face.
-									final float skyLight = getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
+									final float skyLight = buried ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float blockLight = getNeighborBlockLight(region, x, y, z, face);
 									final float shade = FACE_SHADE[face.ordinal()];
 									final float skyB = skyLight * shade;
@@ -648,7 +655,13 @@ public class RegionMeshBuilder
 							{
 								if (isTransparentFaceVisible(region, x, y, z, face, block, worldAccess))
 								{
-									final float skyLight = getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
+									final int[] offsetT = NEIGHBOR_OFFSETS[face.ordinal()];
+									final int nxT = x + offsetT[0];
+									final int nyT = y + offsetT[1];
+									final int nzT = z + offsetT[2];
+									final boolean buriedTrans = nyT >= 0 && nyT < Region.SIZE_Y && isBuriedUnderground(region, worldAccess, nxT, nyT, nzT);
+									
+									final float skyLight = buriedTrans ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float blockLight = getNeighborBlockLight(region, x, y, z, face);
 									final float shade = FACE_SHADE[face.ordinal()];
 									final float skyB = skyLight * shade;
@@ -917,8 +930,44 @@ public class RegionMeshBuilder
 		}
 		
 		// Cross-region boundary - fall back to block's own sky light.
-		// Minor seam at region edges, but avoids needing cross-region sky light access.
 		return region.getSkyLight(x, y, z);
+	}
+	
+	/** Maximum upward distance to search for a solid ceiling that suppresses sky light. */
+	private static final int SKY_LIGHT_SOLID_DEPTH = 50;
+	
+	/**
+	 * Returns true if the block at (x, y, z) has a solid ceiling within {@value #SKY_LIGHT_SOLID_DEPTH} blocks above it, meaning sky light should not reach this enclosed air space directly.
+	 */
+	private static boolean isBuriedUnderground(Region region, WorldBlockAccess worldAccess, int x, int y, int z)
+	{
+		final int maxY = Math.min(y + SKY_LIGHT_SOLID_DEPTH, Region.SIZE_Y - 1);
+		final int worldX = region.getWorldX() + x;
+		final int worldZ = region.getWorldZ() + z;
+		
+		for (int checkY = y + 1; checkY <= maxY; checkY++)
+		{
+			final Block block;
+			if (region.isInBounds(x, checkY, z))
+			{
+				block = region.getBlock(x, checkY, z);
+			}
+			else if (worldAccess != null)
+			{
+				block = worldAccess.getBlock(worldX, checkY, worldZ);
+			}
+			else
+			{
+				block = Block.AIR;
+			}
+			
+			if (block.isSolid())
+			{
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	
 	/**
