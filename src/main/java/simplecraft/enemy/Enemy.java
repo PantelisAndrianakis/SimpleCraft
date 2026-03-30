@@ -72,10 +72,10 @@ public class Enemy
 	/** World position of this enemy (feet / base). */
 	private final Vector3f _position = new Vector3f();
 	
-	/** Current sky light level at enemy position (0-1) */
+	/** Current sky light level at enemy position (0-1). */
 	private float _skyLight = 1.0f;
 	
-	/** Whether enemy lighting needs to be updated */
+	/** Whether enemy lighting needs to be updated. */
 	private boolean _lightingDirty = true;
 	
 	/** The type of this enemy. */

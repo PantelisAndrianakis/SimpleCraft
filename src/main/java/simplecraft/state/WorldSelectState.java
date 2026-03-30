@@ -1,13 +1,12 @@
 package simplecraft.state;
 
 import java.awt.Font;
-import java.io.IOException;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Stream;
 
 import com.jme3.app.Application;
 import com.jme3.input.event.MouseButtonEvent;
@@ -978,25 +977,35 @@ public class WorldSelectState extends FadeableAppState
 			return 0;
 		}
 		
-		try (Stream<Path> walk = Files.walk(dir))
+		return calculateDirectorySize(dir.toFile());
+	}
+	
+	/**
+	 * Recursively calculates the total size of all files under a directory.
+	 * @param dir the directory to measure
+	 * @return total size in bytes
+	 */
+	private static long calculateDirectorySize(File dir)
+	{
+		long total = 0;
+		
+		final File[] files = dir.listFiles();
+		if (files != null)
 		{
-			return walk.filter(Files::isRegularFile).mapToLong(f ->
+			for (File file : files)
 			{
-				try
+				if (file.isFile())
 				{
-					return Files.size(f);
+					total += file.length();
 				}
-				catch (IOException e)
+				else if (file.isDirectory())
 				{
-					return 0;
+					total += calculateDirectorySize(file);
 				}
-				
-			}).sum();
+			}
 		}
-		catch (IOException e)
-		{
-			return 0;
-		}
+		
+		return total;
 	}
 	
 	/**

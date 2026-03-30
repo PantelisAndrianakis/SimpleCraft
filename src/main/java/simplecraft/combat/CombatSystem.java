@@ -1,5 +1,6 @@
 package simplecraft.combat;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.jme3.material.Material;
@@ -764,7 +765,7 @@ public class CombatSystem
 		}
 		
 		// Use the same attack logic but with a single-enemy list.
-		final java.util.ArrayList<Enemy> singleList = new java.util.ArrayList<>(1);
+		final List<Enemy> singleList = new ArrayList<>(1);
 		singleList.add(dragon);
 		return tryPlayerAttack(camera, singleList, world, playerController);
 	}

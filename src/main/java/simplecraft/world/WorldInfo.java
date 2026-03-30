@@ -2,6 +2,7 @@ package simplecraft.world;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -10,7 +11,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
  * Metadata about a saved world.<br>
@@ -336,28 +336,39 @@ public class WorldInfo
 			return false;
 		}
 		
-		try (Stream<Path> walk = Files.walk(worldDir))
+		deleteDirectory(worldDir.toFile());
+		System.out.println("Deleted world: " + info.getName());
+		return true;
+	}
+	
+	/**
+	 * Recursively deletes a directory and all its contents.
+	 * @param dir The directory to delete
+	 */
+	private static void deleteDirectory(File dir)
+	{
+		final File[] files = dir.listFiles();
+		if (files != null)
 		{
-			// Delete files first (deepest first), then directories.
-			walk.sorted(Comparator.reverseOrder()).forEach(path ->
+			for (File file : files)
 			{
-				try
+				if (file.isDirectory())
 				{
-					Files.delete(path);
+					deleteDirectory(file);
 				}
-				catch (IOException e)
+				else
 				{
-					System.err.println("ERROR: Failed to delete " + path + ": " + e.getMessage());
+					if (!file.delete())
+					{
+						System.err.println("ERROR: Failed to delete " + file.getPath());
+					}
 				}
-			});
-			
-			System.out.println("Deleted world: " + info.getName());
-			return true;
+			}
 		}
-		catch (IOException e)
+		
+		if (!dir.delete())
 		{
-			System.err.println("ERROR: Failed to delete world directory: " + e.getMessage());
-			return false;
+			System.err.println("ERROR: Failed to delete " + dir.getPath());
 		}
 	}
 	
