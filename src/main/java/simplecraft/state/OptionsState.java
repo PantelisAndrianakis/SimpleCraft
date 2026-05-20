@@ -165,6 +165,9 @@ public class OptionsState extends FadeableAppState
 	private Slider _renderDistanceSlider;
 	private Label _renderDistanceValueLabel;
 	private VersionedReference<Double> _renderDistanceRef;
+	private Slider _fovSlider;
+	private Label _fovValueLabel;
+	private VersionedReference<Double> _fovRef;
 	private Slider _mouseSensitivitySlider;
 	private Label _mouseSensitivityValueLabel;
 	private VersionedReference<Double> _mouseSensitivityRef;
@@ -606,6 +609,9 @@ public class OptionsState extends FadeableAppState
 		_renderDistanceSlider = null;
 		_renderDistanceValueLabel = null;
 		_renderDistanceRef = null;
+		_fovSlider = null;
+		_fovValueLabel = null;
+		_fovRef = null;
 		_mouseSensitivitySlider = null;
 		_mouseSensitivityValueLabel = null;
 		_mouseSensitivityRef = null;
@@ -699,7 +705,24 @@ public class OptionsState extends FadeableAppState
 			null));
 		// @formatter:on
 		addRowSpacer(_displayContent);
-		
+
+		// Field of View slider.
+		_fovSlider = new Slider(Axis.X);
+		_fovSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
+		_fovSlider.getModel().setMinimum(SettingsManager.MIN_FOV);
+		_fovSlider.getModel().setMaximum(SettingsManager.MAX_FOV);
+		_fovSlider.getModel().setValue(settings.getFov());
+		_fovValueLabel = createValueLabel(String.valueOf(Math.round(settings.getFov())));
+		final Label fovLabel = createNameLabel(app, LanguageManager.get("options.fov"));
+		_displayContent.addChild(createSliderRow(app, fovLabel, _fovSlider, _fovValueLabel));
+		// @formatter:off
+		_displayContentSlots.add(MenuNavigationManager.labelSlot(fovLabel,
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_fovSlider, -1); },
+			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_fovSlider, 1); },
+			null));
+		// @formatter:on
+		addRowSpacer(_displayContent);
+
 		// Show Highlight toggle.
 		_showHighlightToggle = createToggleButton(settings.isShowHighlight());
 		_showHighlightToggle.addClickCommands(source ->
@@ -791,6 +814,8 @@ public class OptionsState extends FadeableAppState
 		// Setup versioned references and style sliders.
 		_renderDistanceRef = _renderDistanceSlider.getModel().createReference();
 		styleSliderComponents(_renderDistanceSlider);
+		_fovRef = _fovSlider.getModel().createReference();
+		styleSliderComponents(_fovSlider);
 	}
 	
 	/**
@@ -1485,12 +1510,27 @@ public class OptionsState extends FadeableAppState
 			final int value = (int) Math.round(_renderDistanceRef.get());
 			settings.setRenderDistance(value);
 			_renderDistanceValueLabel.setText(String.valueOf(value));
-			
+
 			final double currentModelValue = _renderDistanceSlider.getModel().getValue();
 			if (Math.abs(currentModelValue - value) > 0.01)
 			{
 				_renderDistanceSlider.getModel().setValue(value);
 			}
+		}
+
+		if (_fovRef != null && _fovRef.update())
+		{
+			final int value = (int) Math.round(_fovRef.get());
+			settings.setFov(value);
+			_fovValueLabel.setText(String.valueOf(value));
+
+			final double currentModelValue = _fovSlider.getModel().getValue();
+			if (Math.abs(currentModelValue - value) > 0.01)
+			{
+				_fovSlider.getModel().setValue(value);
+			}
+
+			applyFovToPlayingState(app, value);
 		}
 	}
 	
@@ -2196,6 +2236,7 @@ public class OptionsState extends FadeableAppState
 		app.setDisplayStatView(settings.isShowStats());
 		app.setDisplayFps(settings.isShowFps());
 		applyMouseSensitivityToPlayingState(app, settings.getMouseSensitivity());
+		applyFovToPlayingState(app, settings.getFov());
 		
 		// Reset keybindings.
 		cancelListening();
@@ -2215,6 +2256,18 @@ public class OptionsState extends FadeableAppState
 		if (playingState != null)
 		{
 			playingState.applyMouseSensitivity(sensitivity);
+		}
+	}
+
+	/**
+	 * Apply FOV (degrees) immediately if a play session is active.
+	 */
+	private void applyFovToPlayingState(SimpleCraft app, float fov)
+	{
+		final PlayingState playingState = app.getStateManager().getState(PlayingState.class);
+		if (playingState != null)
+		{
+			playingState.applyFov(fov);
 		}
 	}
 	

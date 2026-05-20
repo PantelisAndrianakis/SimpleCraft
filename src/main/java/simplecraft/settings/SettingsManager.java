@@ -44,6 +44,7 @@ public class SettingsManager
 	private static final String KEY_SHOW_FPS = "showFps";
 	private static final String KEY_LANGUAGE = "language";
 	private static final String KEY_MOUSE_SENSITIVITY = "mouseSensitivity";
+	private static final String KEY_FOV = "fov";
 	
 	// Prefix for keybinding entries (e.g., "key.move_forward=17").
 	private static final String KEYBINDING_PREFIX = "key.";
@@ -57,6 +58,11 @@ public class SettingsManager
 	private static final float DEFAULT_SFX_VOLUME = 0.7f;
 	private static final int DEFAULT_RENDER_DISTANCE = 15;
 	private static final float DEFAULT_MOUSE_SENSITIVITY = 0.3f;
+	private static final float DEFAULT_FOV = 45f;
+
+	/** Player-facing field-of-view range (degrees). */
+	public static final float MIN_FOV = 30f;
+	public static final float MAX_FOV = 110f;
 	
 	/** Player-facing render distance range (1–15), internally offset by +5 to become 6–20 regions. */
 	public static final int MIN_RENDER_DISTANCE = 1;
@@ -145,6 +151,7 @@ public class SettingsManager
 	private float _sfxVolume = DEFAULT_SFX_VOLUME;
 	private int _renderDistance = DEFAULT_RENDER_DISTANCE;
 	private float _mouseSensitivity = DEFAULT_MOUSE_SENSITIVITY;
+	private float _fov = DEFAULT_FOV;
 	private int _screenWidth = DEFAULT_SCREEN_WIDTH;
 	private int _screenHeight = DEFAULT_SCREEN_HEIGHT;
 	private boolean _fullscreen = DEFAULT_FULLSCREEN;
@@ -226,6 +233,11 @@ public class SettingsManager
 						case KEY_MOUSE_SENSITIVITY:
 						{
 							_mouseSensitivity = Math.clamp(Float.parseFloat(value), 0.01f, 10.0f);
+							break;
+						}
+						case KEY_FOV:
+						{
+							_fov = Math.clamp(Float.parseFloat(value), MIN_FOV, MAX_FOV);
 							break;
 						}
 						case KEY_SCREEN_WIDTH:
@@ -333,6 +345,8 @@ public class SettingsManager
 				writer.newLine();
 				writer.write(KEY_MOUSE_SENSITIVITY + "=" + _mouseSensitivity);
 				writer.newLine();
+				writer.write(KEY_FOV + "=" + _fov);
+				writer.newLine();
 				writer.write(KEY_SCREEN_WIDTH + "=" + _screenWidth);
 				writer.newLine();
 				writer.write(KEY_SCREEN_HEIGHT + "=" + _screenHeight);
@@ -383,6 +397,7 @@ public class SettingsManager
 		_sfxVolume = DEFAULT_SFX_VOLUME;
 		_renderDistance = DEFAULT_RENDER_DISTANCE;
 		_mouseSensitivity = DEFAULT_MOUSE_SENSITIVITY;
+		_fov = DEFAULT_FOV;
 		_screenWidth = DEFAULT_SCREEN_WIDTH;
 		_screenHeight = DEFAULT_SCREEN_HEIGHT;
 		_fullscreen = DEFAULT_FULLSCREEN;
@@ -501,6 +516,16 @@ public class SettingsManager
 	public void setMouseSensitivity(float mouseSensitivity)
 	{
 		_mouseSensitivity = Math.clamp(mouseSensitivity, 0.01f, 10.0f);
+	}
+
+	public float getFov()
+	{
+		return _fov;
+	}
+
+	public void setFov(float fov)
+	{
+		_fov = Math.clamp(fov, MIN_FOV, MAX_FOV);
 	}
 	
 	public int getScreenWidth()

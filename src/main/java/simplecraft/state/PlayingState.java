@@ -2212,6 +2212,7 @@ public class PlayingState extends FadeableAppState
 		// Create and initialize the player controller with world reference for collision.
 		_playerController = new PlayerController(app.getCamera(), app.getInputManager(), _world, app.getAudioManager());
 		_playerController.setMouseSensitivity(app.getSettingsManager().getMouseSensitivity());
+		_playerController.setFov(app.getSettingsManager().getFov());
 		
 		// Restore player state from save data if available.
 		if (_playerSaveData != null)
@@ -2269,7 +2270,7 @@ public class PlayingState extends FadeableAppState
 		app.getRootNode().attachChild(_blockInteraction.getDestructionEffectsNode());
 		
 		// Create the viewmodel renderer (first-person held item sprite on GUI).
-		_viewmodelRenderer = new ViewmodelRenderer(app.getAssetManager(), app.getRootNode());
+		_viewmodelRenderer = new ViewmodelRenderer(app.getAssetManager(), app.getRenderManager(), app.getCamera());
 		
 		// Create the boss arena manager for teleportation.
 		_bossArenaManager = new BossArenaManager();
@@ -2420,6 +2421,17 @@ public class PlayingState extends FadeableAppState
 		if (_playerController != null)
 		{
 			_playerController.setMouseSensitivity(sensitivity);
+		}
+	}
+
+	/**
+	 * Apply field-of-view (degrees) to the active player controller, if available.
+	 */
+	public void applyFov(float fov)
+	{
+		if (_playerController != null)
+		{
+			_playerController.setFov(fov);
 		}
 	}
 	

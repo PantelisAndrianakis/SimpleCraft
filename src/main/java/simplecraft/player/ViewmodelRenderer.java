@@ -17,6 +17,8 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.RenderManager;
+import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -117,12 +119,18 @@ public class ViewmodelRenderer
 	private static final float FLAME_X = -SPRITE_SIZE * 0.475f;
 	private static final float FLAME_Y = SPRITE_SIZE * 0.8f;
 	private static final float FLAME_Z = 0.15f;
-	
+
+	/** Fixed vertical field-of-view (degrees) for the viewmodel viewport, independent of world FOV. */
+	private static final float VIEWMODEL_FOV = 45f;
+
 	// ========================================================
 	// Fields.
 	// ========================================================
-	
-	private final Node _rootNode;
+
+	private final RenderManager _renderManager;
+	private final Camera _viewmodelCamera;
+	private final ViewPort _viewport;
+	private final Node _scene;
 	private final AssetManager _assetManager;
 	
 	/** Parent node positioned at the hand each frame. */
@@ -173,18 +181,30 @@ public class ViewmodelRenderer
 	// Constructor.
 	// ========================================================
 	
-	public ViewmodelRenderer(AssetManager assetManager, Node rootNode)
+	public ViewmodelRenderer(AssetManager assetManager, RenderManager renderManager, Camera worldCamera)
 	{
 		_assetManager = assetManager;
-		_rootNode = rootNode;
-		
+		_renderManager = renderManager;
+
+		// Dedicated camera and viewport for the held item so its FOV stays fixed
+		// regardless of the world FOV. The world view renders first, then the
+		// viewmodel viewport clears the depth buffer and draws on top.
+		_viewmodelCamera = worldCamera.clone();
+		_viewmodelCamera.setFrustumPerspective(VIEWMODEL_FOV, (float) _viewmodelCamera.getWidth() / _viewmodelCamera.getHeight(), 0.1f, 1000f);
+
+		_viewport = renderManager.createMainView("ViewmodelView", _viewmodelCamera);
+		_viewport.setClearFlags(false, true, false);
+
+		_scene = new Node("ViewmodelScene");
+		_viewport.attachScene(_scene);
+
 		_baseRot.fromAngles(FastMath.DEG_TO_RAD * BASE_PITCH, FastMath.DEG_TO_RAD * BASE_YAW, FastMath.DEG_TO_RAD * BASE_ROLL);
 		_baseBlockRot.fromAngles(FastMath.DEG_TO_RAD * -15f, FastMath.DEG_TO_RAD * -10f, 0);
-		
+
 		// Parent node - positioned and rotated each frame.
 		_handNode = new Node("ViewmodelHand");
 		_handNode.setCullHint(CullHint.Never);
-		rootNode.attachChild(_handNode);
+		_scene.attachChild(_handNode);
 		
 		// Block geometry - small cube, hidden initially.
 		final Box box = new Box(BLOCK_HALF_SIZE, BLOCK_HALF_SIZE, BLOCK_HALF_SIZE);
@@ -237,7 +257,13 @@ public class ViewmodelRenderer
 		
 		// Start with fist.
 		updateSprite(FIST_ID);
-		
+
+		// Initialize the scene's transforms/bounds so the first render pass — which
+		// may fire before our first update() — has valid state. Without this, jME3
+		// throws "Scene graph is not properly updated for rendering" on frame 1.
+		_scene.updateLogicalState(0f);
+		_scene.updateGeometricState();
+
 		System.out.println("ViewmodelRenderer: Initialized.");
 	}
 	
@@ -248,7 +274,13 @@ public class ViewmodelRenderer
 	public void update(Camera camera, Inventory inventory, boolean isMoving, float tpf)
 	{
 		_isMoving = isMoving;
-		
+
+		// Mirror world camera position/rotation onto the viewmodel camera, but keep
+		// our fixed FOV so changing world FOV no longer stretches the held item.
+		_viewmodelCamera.setLocation(camera.getLocation());
+		_viewmodelCamera.setRotation(camera.getRotation());
+		_viewmodelCamera.setFrustumPerspective(VIEWMODEL_FOV, (float) _viewmodelCamera.getWidth() / _viewmodelCamera.getHeight(), 0.1f, 1000f);
+
 		// --- Item change detection ---
 		final ItemInstance held = inventory.getSelectedItem();
 		final String newId = (held != null) ? held.getTemplate().getId() : FIST_ID;
@@ -358,12 +390,18 @@ public class ViewmodelRenderer
 		_pos.z += _dir.z * FORWARD + _left.z * r + _up.z * d;
 		
 		_handNode.setLocalTranslation(_pos);
-		
+
 		// --- Rotation: camera * base tilt (no swing here - swing is on geometry) ---
 		final Quaternion baseRot = _showingBlock ? _baseBlockRot : _baseRot;
 		_worldRot.set(camera.getRotation());
 		_worldRot.multLocal(baseRot);
 		_handNode.setLocalRotation(_worldRot);
+
+		// The viewmodel scene is outside the main app's root-node hierarchy, so we
+		// must drive its logical/geometric state ourselves each frame; otherwise
+		// transforms, bounds, and particles won't update.
+		_scene.updateLogicalState(tpf);
+		_scene.updateGeometricState();
 	}
 	
 	// ========================================================
@@ -687,7 +725,7 @@ public class ViewmodelRenderer
 			_flameEmitter.killAllParticles();
 		}
 		
-		_rootNode.detachChild(_handNode);
+		_renderManager.removeMainView(_viewport);
 		_materialCache.clear();
 	}
 }

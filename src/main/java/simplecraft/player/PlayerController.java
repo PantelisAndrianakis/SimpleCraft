@@ -86,6 +86,9 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/** Mouse sensitivity - degrees per pixel of mouse movement. */
 	private float _mouseSensitivity = 1.0f;
+
+	/** Vertical field-of-view in degrees, used when (re)building the camera frustum. */
+	private float _fov = 45f;
 	
 	// Movement flags set by key press/release.
 	private boolean _moveForward;
@@ -216,7 +219,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		// projection matrix cleanly - earlier attempts using setFrustumNear alone
 		// caused distortion because they only modified one frustum parameter.
 		final float aspect = (float) _camera.getWidth() / _camera.getHeight();
-		_camera.setFrustumPerspective(45f, aspect, 0.1f, 1000f);
+		_camera.setFrustumPerspective(_fov, aspect, 0.1f, 1000f);
 		
 		// Give starting inventory.
 		initStartingInventory();
@@ -805,6 +808,22 @@ public class PlayerController implements ActionListener, AnalogListener
 	public void setMouseSensitivity(float mouseSensitivity)
 	{
 		_mouseSensitivity = mouseSensitivity;
+	}
+
+	public float getFov()
+	{
+		return _fov;
+	}
+
+	/**
+	 * Apply a new vertical field-of-view (degrees) by rebuilding the camera frustum.<br>
+	 * Preserves the existing near/far clip planes and current aspect ratio.
+	 */
+	public void setFov(float fov)
+	{
+		_fov = fov;
+		final float aspect = (float) _camera.getWidth() / _camera.getHeight();
+		_camera.setFrustumPerspective(_fov, aspect, 0.1f, 1000f);
 	}
 	
 	public float getHealth()
