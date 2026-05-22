@@ -259,15 +259,45 @@ public class SaveManager
 	
 	/**
 	 * Saves modified region data to world.dat (GZip compressed).<br>
+	 * Writes both currently-loaded modified regions AND unloaded saved region data<br>
+	 * (regions that were loaded from disk but never re-applied, or modified mid-session<br>
+	 * and then unloaded when the player moved away). Without including the unloaded set,<br>
+	 * the overwrite would drop those modifications from disk and they would regenerate<br>
+	 * from seed on next load.<br>
 	 * Format: [int regionCount] then per region:<br>
 	 * [int regionX][int regionZ][byte[16*128*16] blockData]<br>
 	 * [int playerPlacedCount][long... packedPositions]<br>
-	 * [int playerRemovedCount][long... packedPositions]
+	 * [int playerRemovedCount][long... packedPositions]<br>
+	 * [int berryRespawnCount][(long packedPos, double respawnAt)...]
 	 */
 	private static void saveWorldData(World world, Path worldDir)
 	{
 		final List<Region> modifiedRegions = world.getModifiedRegions();
-		if (modifiedRegions.isEmpty())
+		final ConcurrentHashMap<Long, SavedRegionData> unloadedSaved = world.getSavedRegionData();
+		
+		// Track which region keys come from currently-loaded regions so the unloaded
+		// map cannot overwrite a fresher in-memory entry. They should be mutually
+		// exclusive in normal flow (loading removes from the map) - this is defensive.
+		final Set<Long> loadedKeys = new HashSet<>();
+		for (Region region : modifiedRegions)
+		{
+			loadedKeys.add(World.packRegionKey(region.getRegionX(), region.getRegionZ()));
+		}
+		
+		int unloadedCount = 0;
+		if (unloadedSaved != null)
+		{
+			for (Long key : unloadedSaved.keySet())
+			{
+				if (!loadedKeys.contains(key))
+				{
+					unloadedCount++;
+				}
+			}
+		}
+		
+		final int totalRegions = modifiedRegions.size() + unloadedCount;
+		if (totalRegions == 0)
 		{
 			System.out.println("SaveManager: No modified regions to save.");
 			return;
@@ -279,8 +309,9 @@ public class SaveManager
 			GZIPOutputStream gzip = new GZIPOutputStream(os);
 			DataOutputStream out = new DataOutputStream(gzip))
 		{
-			out.writeInt(modifiedRegions.size());
+			out.writeInt(totalRegions);
 			
+			// Write currently-loaded modified regions.
 			for (Region region : modifiedRegions)
 			{
 				// Region coordinates.
@@ -317,7 +348,63 @@ public class SaveManager
 				}
 			}
 			
-			System.out.println("SaveManager: Saved " + modifiedRegions.size() + " modified regions.");
+			// Write unloaded saved regions. Without this, modifications in regions that
+			// were stashed at unload time (or loaded from disk and never revisited) get
+			// dropped by the file overwrite and the player sees blocks regenerate.
+			if (unloadedSaved != null)
+			{
+				for (Entry<Long, SavedRegionData> entry : unloadedSaved.entrySet())
+				{
+					final long key = entry.getKey();
+					if (loadedKeys.contains(key))
+					{
+						continue;
+					}
+					
+					final SavedRegionData saved = entry.getValue();
+					
+					// Region coordinates (unpacked from key).
+					out.writeInt(World.regionKeyX(key));
+					out.writeInt(World.regionKeyZ(key));
+					
+					// Raw block data.
+					out.write(saved.getBlockData());
+					
+					// Player-placed positions.
+					final Set<Long> playerPlaced = saved.getPlayerPlaced();
+					out.writeInt(playerPlaced.size());
+					for (long packed : playerPlaced)
+					{
+						out.writeLong(packed);
+					}
+					
+					// Player-removed positions.
+					final Set<Long> playerRemoved = saved.getPlayerRemoved();
+					out.writeInt(playerRemoved.size());
+					for (long packed : playerRemoved)
+					{
+						out.writeLong(packed);
+					}
+					
+					// Berry bush respawn entries.
+					final Map<Long, Double> berryRespawns = saved.getBerryRespawnMap();
+					if (berryRespawns == null)
+					{
+						out.writeInt(0);
+					}
+					else
+					{
+						out.writeInt(berryRespawns.size());
+						for (Entry<Long, Double> berryEntry : berryRespawns.entrySet())
+						{
+							out.writeLong(berryEntry.getKey());
+							out.writeDouble(berryEntry.getValue());
+						}
+					}
+				}
+			}
+			
+			System.out.println("SaveManager: Saved " + totalRegions + " modified regions (" + modifiedRegions.size() + " loaded, " + unloadedCount + " unloaded).");
 		}
 		catch (IOException e)
 		{

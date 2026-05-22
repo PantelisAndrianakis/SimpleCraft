@@ -250,17 +250,19 @@ public class World
 	}
 	
 	/**
-	 * Extracts the regionX (upper 32 bits) from a packed region key.
+	 * Extracts the regionX (upper 32 bits) from a packed region key.<br>
+	 * Public so SaveManager can unpack keys from the saved-region-data map.
 	 */
-	private static int regionKeyX(long key)
+	public static int regionKeyX(long key)
 	{
 		return (int) (key >> 32);
 	}
 	
 	/**
-	 * Extracts the regionZ (lower 32 bits) from a packed region key.
+	 * Extracts the regionZ (lower 32 bits) from a packed region key.<br>
+	 * Public so SaveManager can unpack keys from the saved-region-data map.
 	 */
-	private static int regionKeyZ(long key)
+	public static int regionKeyZ(long key)
 	{
 		return (int) key;
 	}
@@ -1880,6 +1882,18 @@ public class World
 	{
 		_savedRegionData = savedData;
 		_regionLoader.setSavedRegionData(_savedRegionData);
+	}
+	
+	/**
+	 * Returns the map of unloaded saved region data.<br>
+	 * Contains entries for regions that were either loaded from disk but never re-applied,<br>
+	 * or were modified mid-session and then unloaded when the player moved away.<br>
+	 * Used by SaveManager to persist modifications that are not in currently-loaded regions.
+	 * @return the saved region data map, or null if none exists
+	 */
+	public ConcurrentHashMap<Long, SavedRegionData> getSavedRegionData()
+	{
+		return _savedRegionData;
 	}
 	
 	// ========================================================
