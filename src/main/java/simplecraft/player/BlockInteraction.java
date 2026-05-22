@@ -2104,8 +2104,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Prefer the face the player actually clicked - the support block is opposite
 		// to the entry face direction. E.g. clicking the EAST face of a block places
 		// the torch one block to the east; the support block is to the WEST of the torch.
+		// TOP attachment is never allowed: torches do not hang from ceilings.
 		final Face preferred = oppositeFace(clickedFace);
-		if (isAttachableFace(x, y, z, preferred))
+		if (preferred != Face.TOP && isAttachableFace(x, y, z, preferred))
 		{
 			return preferred;
 		}
