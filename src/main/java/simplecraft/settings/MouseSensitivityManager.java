@@ -8,6 +8,7 @@ import com.jme3.input.event.KeyInputEvent;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
+import com.jme3.renderer.Camera;
 
 import simplecraft.SimpleCraft;
 
@@ -59,20 +60,23 @@ public final class MouseSensitivityManager
 					return;
 				}
 				
-				final int scaledDx = Math.round(event.getDX() * multiplier);
-				final int scaledDy = Math.round(event.getDY() * multiplier);
-				if (scaledDx == event.getDX() && scaledDy == event.getDY())
+				final int dx = event.getDX();
+				final int dy = event.getDY();
+				final int scaledDx = Math.round(dx * multiplier);
+				final int scaledDy = Math.round(dy * multiplier);
+				if (scaledDx == dx && scaledDy == dy)
 				{
 					return;
 				}
 				
 				final SimpleCraft app = SimpleCraft.getInstance();
-				final int maxX = Math.max(1, app.getCamera().getWidth() - 1);
-				final int maxY = Math.max(1, app.getCamera().getHeight() - 1);
+				final Camera camera = app.getCamera();
+				final int maxX = Math.max(1, camera.getWidth() - 1);
+				final int maxY = Math.max(1, camera.getHeight() - 1);
 				
 				// Scale from the event's previous position, not the current cursor state, to avoid double-applying motion.
-				final int prevX = event.getX() - event.getDX();
-				final int prevY = event.getY() - event.getDY();
+				final int prevX = event.getX() - dx;
+				final int prevY = event.getY() - dy;
 				final int scaledX = Math.clamp(prevX + scaledDx, 0, maxX);
 				final int scaledY = Math.clamp(prevY + scaledDy, 0, maxY);
 				

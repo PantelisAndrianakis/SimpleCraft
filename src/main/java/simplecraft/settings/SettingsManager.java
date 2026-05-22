@@ -59,7 +59,7 @@ public class SettingsManager
 	private static final int DEFAULT_RENDER_DISTANCE = 15;
 	private static final float DEFAULT_MOUSE_SENSITIVITY = 0.3f;
 	private static final float DEFAULT_FOV = 45f;
-
+	
 	/** Player-facing field-of-view range (degrees). */
 	public static final float MIN_FOV = 30f;
 	public static final float MAX_FOV = 110f;
@@ -517,12 +517,12 @@ public class SettingsManager
 	{
 		_mouseSensitivity = Math.clamp(mouseSensitivity, 0.01f, 10.0f);
 	}
-
+	
 	public float getFov()
 	{
 		return _fov;
 	}
-
+	
 	public void setFov(float fov)
 	{
 		_fov = Math.clamp(fov, MIN_FOV, MAX_FOV);

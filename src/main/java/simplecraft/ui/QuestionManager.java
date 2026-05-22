@@ -3,11 +3,14 @@ package simplecraft.ui;
 import java.awt.Font;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.font.BitmapFont;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 
 import com.simsilica.lemur.Axis;
@@ -69,8 +72,9 @@ public class QuestionManager
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final AssetManager assetManager = app.getAssetManager();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		
 		// Record dialog open time for click grace period.
 		_dialogOpenTime = System.currentTimeMillis();
@@ -132,7 +136,7 @@ public class QuestionManager
 		
 		// Question labels - split on \n so each line is its own label.
 		// This ensures getPreferredSize().x correctly reflects the widest line.
-		final com.jme3.font.BitmapFont questionFont = FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, QUESTION_FONT_SIZE);
+		final BitmapFont questionFont = FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, QUESTION_FONT_SIZE);
 		for (String line : question.split("\n", -1))
 		{
 			final Label questionLabel = new Label(line);
@@ -184,8 +188,9 @@ public class QuestionManager
 		_dialogContainer.setLocalTranslation(dialogX, dialogY, DIALOG_Z);
 		
 		// Attach to GUI node (backdrop first, then dialog on top).
-		app.getGuiNode().attachChild(_backdrop);
-		app.getGuiNode().attachChild(_dialogContainer);
+		final Node guiNode = app.getGuiNode();
+		guiNode.attachChild(_backdrop);
+		guiNode.attachChild(_dialogContainer);
 	}
 	
 	/**
@@ -195,16 +200,17 @@ public class QuestionManager
 	public static void dismiss()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = app.getGuiNode();
 		
 		if (_backdrop != null)
 		{
-			app.getGuiNode().detachChild(_backdrop);
+			guiNode.detachChild(_backdrop);
 			_backdrop = null;
 		}
 		
 		if (_dialogContainer != null)
 		{
-			app.getGuiNode().detachChild(_dialogContainer);
+			guiNode.detachChild(_dialogContainer);
 			_dialogContainer = null;
 		}
 		

@@ -8,6 +8,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
 import simplecraft.SimpleCraft;
+import simplecraft.item.DropManager;
 import simplecraft.item.ItemInstance;
 import simplecraft.item.ItemRegistry;
 import simplecraft.item.ItemTemplate;
@@ -428,7 +429,7 @@ public class FurnaceTileEntity extends TileEntity
 	 * Called when the furnace block is broken.
 	 * @param dropManager the drop manager for spawning world drops
 	 */
-	public void dropContents(simplecraft.item.DropManager dropManager)
+	public void dropContents(DropManager dropManager)
 	{
 		if (dropManager == null)
 		{

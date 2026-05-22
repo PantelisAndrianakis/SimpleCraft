@@ -1502,7 +1502,8 @@ public class World
 			// Resolve region and local coordinates.
 			final int rx = Math.floorDiv(x, Region.SIZE_XZ);
 			final int rz = Math.floorDiv(z, Region.SIZE_XZ);
-			final Region region = _regions.get(regionKey(rx, rz));
+			final long key = regionKey(rx, rz);
+			final Region region = _regions.get(key);
 			if (region == null)
 			{
 				continue;
@@ -1527,7 +1528,7 @@ public class World
 			region.setBlockLight(lx, y, lz, light);
 			region.markMeshDirty();
 			_regionLoader.updateRegionCache(region);
-			_batchDirtyRegions.add(regionKey(rx, rz));
+			_batchDirtyRegions.add(key);
 			
 			// Propagate to 6 neighbors with decay.
 			if (light > 1)
@@ -1615,7 +1616,8 @@ public class World
 			
 			final int crx = Math.floorDiv(x, Region.SIZE_XZ);
 			final int crz = Math.floorDiv(z, Region.SIZE_XZ);
-			final Region region = _regions.get(regionKey(crx, crz));
+			final long cKey = regionKey(crx, crz);
+			final Region region = _regions.get(cKey);
 			if (region == null)
 			{
 				continue;
@@ -1631,7 +1633,7 @@ public class World
 				region.setBlockLight(lx, y, lz, 0);
 				region.markMeshDirty();
 				_regionLoader.updateRegionCache(region);
-				_batchDirtyRegions.add(regionKey(crx, crz));
+				_batchDirtyRegions.add(cKey);
 				
 				// Continue clearing outward.
 				if (expectedLight > 1)
@@ -1690,7 +1692,8 @@ public class World
 				
 				final int nrx = Math.floorDiv(nx, Region.SIZE_XZ);
 				final int nrz = Math.floorDiv(nz, Region.SIZE_XZ);
-				final Region nRegion = _regions.get(regionKey(nrx, nrz));
+				final long nKey = regionKey(nrx, nrz);
+				final Region nRegion = _regions.get(nKey);
 				if (nRegion == null)
 				{
 					continue;
@@ -1707,7 +1710,7 @@ public class World
 						nRegion.setBlockLight(nlx, ny, nlz, nextLight);
 						nRegion.markMeshDirty();
 						_regionLoader.updateRegionCache(nRegion);
-						_batchDirtyRegions.add(regionKey(nrx, nrz));
+						_batchDirtyRegions.add(nKey);
 						repropQueue.add(new int[]
 						{
 							nx,

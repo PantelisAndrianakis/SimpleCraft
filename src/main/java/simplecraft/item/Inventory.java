@@ -224,9 +224,10 @@ public class Inventory
 				return true;
 			}
 			
-			if (_slots[i] != null && _slots[i].canStackWith(stack))
+			final ItemInstance slot = _slots[i];
+			if (slot != null && slot.canStackWith(stack))
 			{
-				remaining = _slots[i].add(remaining);
+				remaining = slot.add(remaining);
 			}
 		}
 		
@@ -272,9 +273,10 @@ public class Inventory
 				break;
 			}
 			
-			if (_slots[i] != null && _slots[i].getTemplate().getId().equals(itemId))
+			final ItemInstance slot = _slots[i];
+			if (slot != null && slot.getTemplate().getId().equals(itemId))
 			{
-				final int available = _slots[i].getCount();
+				final int available = slot.getCount();
 				if (available <= remaining)
 				{
 					remaining -= available;
@@ -282,7 +284,7 @@ public class Inventory
 				}
 				else
 				{
-					_slots[i].remove(remaining);
+					slot.remove(remaining);
 					remaining = 0;
 				}
 			}
@@ -302,9 +304,10 @@ public class Inventory
 		int total = 0;
 		for (int i = 0; i < TOTAL_SLOTS; i++)
 		{
-			if (_slots[i] != null && _slots[i].getTemplate().getId().equals(itemId))
+			final ItemInstance slot = _slots[i];
+			if (slot != null && slot.getTemplate().getId().equals(itemId))
 			{
-				total += _slots[i].getCount();
+				total += slot.getCount();
 				if (total >= count)
 				{
 					return true;

@@ -209,7 +209,8 @@ public class DayNightCycle
 	public DayNightCycle(float startTime)
 	{
 		_timeOfDay = Math.max(0f, Math.min(1f, startTime));
-		_wasNight = isNight();
+		final boolean night = isNight();
+		_wasNight = night;
 		
 		// Compute initial values.
 		updateSkyBrightness();
@@ -217,7 +218,7 @@ public class DayNightCycle
 		updateSkyColor();
 		
 		// Set initial terrain values instantly (no transition on first load).
-		if (isNight())
+		if (night)
 		{
 			_terrainBrightness = TERRAIN_BRIGHTNESS_NIGHT;
 			_terrainTint.set(TERRAIN_TINT_NIGHT);
@@ -232,7 +233,7 @@ public class DayNightCycle
 		_terrainTintTarget.set(_terrainTint);
 		_lastTerrainRebuildBrightness = _terrainBrightness;
 		
-		System.out.println("DayNightCycle initialized. Time: " + _timeOfDay + ", Brightness: " + _skyBrightness + ", Night: " + isNight() + ", TerrainBrightness: " + _terrainBrightness);
+		System.out.println("DayNightCycle initialized. Time: " + _timeOfDay + ", Brightness: " + _skyBrightness + ", Night: " + night + ", TerrainBrightness: " + _terrainBrightness);
 	}
 	
 	// ------------------------------------------------------------------
@@ -261,14 +262,15 @@ public class DayNightCycle
 		
 		// Detect day/night phase change - start a gradual terrain transition.
 		_phaseChanged = false;
-		if (isNight() != _wasNight)
+		final boolean night = isNight();
+		if (night != _wasNight)
 		{
 			startTerrainTransition();
 			_phaseChanged = true;
-			System.out.println("DayNightCycle: Phase transition started to " + (isNight() ? "NIGHT" : "DAY") + ". Target brightness: " + _terrainBrightnessTarget);
+			System.out.println("DayNightCycle: Phase transition started to " + (night ? "NIGHT" : "DAY") + ". Target brightness: " + _terrainBrightnessTarget);
 		}
 		
-		_wasNight = isNight();
+		_wasNight = night;
 		
 		// Advance terrain transition (lerp brightness and tint toward target).
 		updateTerrainTransition(tpf);

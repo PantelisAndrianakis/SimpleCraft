@@ -139,10 +139,17 @@ public class Pathfinder
 			}
 			
 			// Explore neighbors (8 directions).
+			final int currentX = current._x;
+			final int currentZ = current._z;
+			final int currentGroundY = current._groundY;
+			final float currentG = current._g;
 			for (int d = 0; d < DIRECTIONS.length; d++)
 			{
-				final int nx = current._x + DIRECTIONS[d][0];
-				final int nz = current._z + DIRECTIONS[d][1];
+				final int[] dir = DIRECTIONS[d];
+				final int dirX = dir[0];
+				final int dirZ = dir[1];
+				final int nx = currentX + dirX;
+				final int nz = currentZ + dirZ;
 				
 				// Range check - don't search too far from start.
 				final int distFromStart = Math.max(Math.abs(nx - startX), Math.abs(nz - startZ));
@@ -154,26 +161,26 @@ public class Pathfinder
 				// Diagonal corner-cutting prevention: both adjacent cardinals must be passable.
 				if (d >= 4) // Diagonal directions.
 				{
-					final int adjX = current._x + DIRECTIONS[d][0];
-					final int adjZ = current._z;
-					final int adj2X = current._x;
-					final int adj2Z = current._z + DIRECTIONS[d][1];
+					final int adjX = currentX + dirX;
+					final int adjZ = currentZ;
+					final int adj2X = currentX;
+					final int adj2Z = currentZ + dirZ;
 					
-					if (!isColumnPassable(world, adjX, adjZ, current._groundY, headroom) || !isColumnPassable(world, adj2X, adj2Z, current._groundY, headroom))
+					if (!isColumnPassable(world, adjX, adjZ, currentGroundY, headroom) || !isColumnPassable(world, adj2X, adj2Z, currentGroundY, headroom))
 					{
 						continue;
 					}
 				}
 				
 				// Find ground at neighbor.
-				final int neighborGroundY = findGroundY(world, nx, nz, current._groundY);
+				final int neighborGroundY = findGroundY(world, nx, nz, currentGroundY);
 				if (neighborGroundY < 0)
 				{
 					continue; // No valid ground.
 				}
 				
 				// Check step constraints.
-				final int heightDiff = neighborGroundY - current._groundY;
+				final int heightDiff = neighborGroundY - currentGroundY;
 				if (heightDiff > MAX_STEP_UP)
 				{
 					continue; // Wall too high.
@@ -208,7 +215,7 @@ public class Pathfinder
 				
 				// Penalize step-ups slightly to prefer flat paths.
 				final float stepPenalty = (heightDiff > 0) ? 0.5f : 0;
-				final float newG = current._g + moveCost + stepPenalty;
+				final float newG = currentG + moveCost + stepPenalty;
 				
 				final long key = packKey(nx, nz);
 				final PathNode existing = allNodes.get(key);

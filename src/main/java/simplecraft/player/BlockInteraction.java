@@ -1414,12 +1414,18 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	{
 		final Inventory inventory = _playerController.getInventory();
 		final ItemInstance selectedItem = inventory.getSelectedItem();
-		if (selectedItem == null || selectedItem.getTemplate().getType() != ItemType.CONSUMABLE)
+		if (selectedItem == null)
 		{
 			return false;
 		}
 		
-		final String itemId = selectedItem.getTemplate().getId();
+		final ItemTemplate selectedTemplate = selectedItem.getTemplate();
+		if (selectedTemplate.getType() != ItemType.CONSUMABLE)
+		{
+			return false;
+		}
+		
+		final String itemId = selectedTemplate.getId();
 		
 		// Dragon Orb - teleport to arena.
 		if ("dragon_orb".equals(itemId))
@@ -1509,22 +1515,28 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	{
 		final Inventory inventory = _playerController.getInventory();
 		final ItemInstance selectedItem = inventory.getSelectedItem();
-		if (selectedItem == null || selectedItem.getTemplate().getType() != ItemType.CONSUMABLE)
+		if (selectedItem == null)
+		{
+			return false;
+		}
+		
+		final ItemTemplate selectedTemplate = selectedItem.getTemplate();
+		if (selectedTemplate.getType() != ItemType.CONSUMABLE)
 		{
 			return false;
 		}
 		
 		// Special orb items are handled separately (not regular consumables).
-		final String itemId = selectedItem.getTemplate().getId();
+		final String itemId = selectedTemplate.getId();
 		if ("dragon_orb".equals(itemId) || "shadow_orb".equals(itemId) || "recall_orb".equals(itemId))
 		{
 			return false;
 		}
 		
-		final float healAmount = selectedItem.getTemplate().getHealAmount();
+		final float healAmount = selectedTemplate.getHealAmount();
 		_playerController.heal(healAmount);
 		inventory.consumeSelectedItem();
-		System.out.println("Used " + selectedItem.getTemplate().getDisplayName() + "! +" + String.format("%.1f", healAmount) + " HP (Health: " + String.format("%.1f", _playerController.getHealth()) + "/" + String.format("%.0f", _playerController.getMaxHealth()) + ")");
+		System.out.println("Used " + selectedTemplate.getDisplayName() + "! +" + String.format("%.1f", healAmount) + " HP (Health: " + String.format("%.1f", _playerController.getHealth()) + "/" + String.format("%.0f", _playerController.getMaxHealth()) + ")");
 		return true;
 	}
 	

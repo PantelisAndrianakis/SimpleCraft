@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Supplier;
 
 import com.jme3.app.Application;
 import com.jme3.font.BitmapFont;
@@ -21,7 +22,9 @@ import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.Spatial.CullHint;
 import com.jme3.scene.shape.Quad;
@@ -450,16 +453,17 @@ public class OptionsState extends FadeableAppState
 		_sfxTestCooldown = 0f;
 		
 		// Attach to GUI node.
-		app.getGuiNode().attachChild(_background);
-		app.getGuiNode().attachChild(_titleLabel);
-		app.getGuiNode().attachChild(_tabRow);
-		app.getGuiNode().attachChild(_displayContent);
-		app.getGuiNode().attachChild(_audioContent);
-		app.getGuiNode().attachChild(_keybindingsSubTabRow);
-		app.getGuiNode().attachChild(_keyMovementContent);
-		app.getGuiNode().attachChild(_keyActionsContent);
-		app.getGuiNode().attachChild(_keyMouseContent);
-		app.getGuiNode().attachChild(_buttonRow);
+		final Node guiNode = app.getGuiNode();
+		guiNode.attachChild(_background);
+		guiNode.attachChild(_titleLabel);
+		guiNode.attachChild(_tabRow);
+		guiNode.attachChild(_displayContent);
+		guiNode.attachChild(_audioContent);
+		guiNode.attachChild(_keybindingsSubTabRow);
+		guiNode.attachChild(_keyMovementContent);
+		guiNode.attachChild(_keyActionsContent);
+		guiNode.attachChild(_keyMouseContent);
+		guiNode.attachChild(_buttonRow);
 		
 		// --- Language Flag Button (upper-right) ---
 		_flagButton = new Picture("LangFlag");
@@ -507,82 +511,83 @@ public class OptionsState extends FadeableAppState
 	private void detachAllGui()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = app.getGuiNode();
 		
 		if (_background != null)
 		{
-			app.getGuiNode().detachChild(_background);
+			guiNode.detachChild(_background);
 			_background = null;
 		}
 		
 		if (_titleLabel != null)
 		{
-			app.getGuiNode().detachChild(_titleLabel);
+			guiNode.detachChild(_titleLabel);
 			_titleLabel = null;
 		}
 		
 		if (_tabRow != null)
 		{
-			app.getGuiNode().detachChild(_tabRow);
+			guiNode.detachChild(_tabRow);
 			_tabRow = null;
 		}
 		
 		if (_displayContent != null)
 		{
-			app.getGuiNode().detachChild(_displayContent);
+			guiNode.detachChild(_displayContent);
 			_displayContent = null;
 		}
 		
 		if (_audioContent != null)
 		{
-			app.getGuiNode().detachChild(_audioContent);
+			guiNode.detachChild(_audioContent);
 			_audioContent = null;
 		}
 		
 		if (_keybindingsSubTabRow != null)
 		{
-			app.getGuiNode().detachChild(_keybindingsSubTabRow);
+			guiNode.detachChild(_keybindingsSubTabRow);
 			_keybindingsSubTabRow = null;
 		}
 		
 		if (_keyMovementContent != null)
 		{
-			app.getGuiNode().detachChild(_keyMovementContent);
+			guiNode.detachChild(_keyMovementContent);
 			_keyMovementContent = null;
 		}
 		
 		if (_keyActionsContent != null)
 		{
-			app.getGuiNode().detachChild(_keyActionsContent);
+			guiNode.detachChild(_keyActionsContent);
 			_keyActionsContent = null;
 		}
 		
 		if (_keyMouseContent != null)
 		{
-			app.getGuiNode().detachChild(_keyMouseContent);
+			guiNode.detachChild(_keyMouseContent);
 			_keyMouseContent = null;
 		}
 		
 		if (_buttonRow != null)
 		{
-			app.getGuiNode().detachChild(_buttonRow);
+			guiNode.detachChild(_buttonRow);
 			_buttonRow = null;
 		}
 		
 		if (_languagePopupBackdrop != null)
 		{
-			app.getGuiNode().detachChild(_languagePopupBackdrop);
+			guiNode.detachChild(_languagePopupBackdrop);
 			_languagePopupBackdrop = null;
 		}
 		
 		if (_languagePopup != null)
 		{
-			app.getGuiNode().detachChild(_languagePopup);
+			guiNode.detachChild(_languagePopup);
 			_languagePopup = null;
 		}
 		
 		if (_flagButton != null)
 		{
-			app.getGuiNode().detachChild(_flagButton);
+			guiNode.detachChild(_flagButton);
 			_flagButton = null;
 		}
 		
@@ -705,7 +710,7 @@ public class OptionsState extends FadeableAppState
 			null));
 		// @formatter:on
 		addRowSpacer(_displayContent);
-
+		
 		// Field of View slider.
 		_fovSlider = new Slider(Axis.X);
 		_fovSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
@@ -722,7 +727,7 @@ public class OptionsState extends FadeableAppState
 			null));
 		// @formatter:on
 		addRowSpacer(_displayContent);
-
+		
 		// Show Highlight toggle.
 		_showHighlightToggle = createToggleButton(settings.isShowHighlight());
 		_showHighlightToggle.addClickCommands(source ->
@@ -1510,26 +1515,26 @@ public class OptionsState extends FadeableAppState
 			final int value = (int) Math.round(_renderDistanceRef.get());
 			settings.setRenderDistance(value);
 			_renderDistanceValueLabel.setText(String.valueOf(value));
-
+			
 			final double currentModelValue = _renderDistanceSlider.getModel().getValue();
 			if (Math.abs(currentModelValue - value) > 0.01)
 			{
 				_renderDistanceSlider.getModel().setValue(value);
 			}
 		}
-
+		
 		if (_fovRef != null && _fovRef.update())
 		{
 			final int value = (int) Math.round(_fovRef.get());
 			settings.setFov(value);
 			_fovValueLabel.setText(String.valueOf(value));
-
+			
 			final double currentModelValue = _fovSlider.getModel().getValue();
 			if (Math.abs(currentModelValue - value) > 0.01)
 			{
 				_fovSlider.getModel().setValue(value);
 			}
-
+			
 			applyFovToPlayingState(app, value);
 		}
 	}
@@ -2258,7 +2263,7 @@ public class OptionsState extends FadeableAppState
 			playingState.applyMouseSensitivity(sensitivity);
 		}
 	}
-
+	
 	/**
 	 * Apply FOV (degrees) immediately if a play session is active.
 	 */
@@ -2329,8 +2334,8 @@ public class OptionsState extends FadeableAppState
 			
 			// Helper to create a fresh background instance (must not reuse - Lemur
 			// cannot reattach a component after it has been detached from a spatial).
-			final java.util.function.Supplier<TbtQuadBackgroundComponent> normalBgFactory = () -> TbtQuadBackgroundComponent.create(flagPath, 1f, 0, 0, 0, 0, 0f, false);
-			final java.util.function.Supplier<TbtQuadBackgroundComponent> hoverBgFactory = () ->
+			final Supplier<TbtQuadBackgroundComponent> normalBgFactory = () -> TbtQuadBackgroundComponent.create(flagPath, 1f, 0, 0, 0, 0, 0f, false);
+			final Supplier<TbtQuadBackgroundComponent> hoverBgFactory = () ->
 			{
 				final TbtQuadBackgroundComponent bg = TbtQuadBackgroundComponent.create(flagPath, 1f, 0, 0, 0, 0, 0f, false);
 				bg.setColor(new ColorRGBA(1.0f, 0.85f, 0f, 1f));
@@ -2394,8 +2399,9 @@ public class OptionsState extends FadeableAppState
 		final float popupHeight = _languagePopup.getPreferredSize().y;
 		
 		// Flag is in the upper-right; popup drops down and extends left from the flag's right edge.
-		final float screenWidth = SimpleCraft.getInstance().getCamera().getWidth();
-		final float screenHeight = SimpleCraft.getInstance().getCamera().getHeight();
+		final Camera popupCamera = SimpleCraft.getInstance().getCamera();
+		final float screenWidth = popupCamera.getWidth();
+		final float screenHeight = popupCamera.getHeight();
 		final float flagX = screenWidth - FLAG_WIDTH - FLAG_MARGIN;
 		final float flagBottom = screenHeight - FLAG_HEIGHT - FLAG_MARGIN;
 		final float popupX = flagX + FLAG_WIDTH - popupWidth;

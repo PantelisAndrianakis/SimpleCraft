@@ -397,16 +397,19 @@ public class FurnaceScreen implements ActionListener
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
 		// Update furnace slot icons.
-		updateSlotIcon(_inputIcon, _inputIconMat, _inputCountLabel, _furnace.getInputSlot(), _lastInputTemplate, app);
-		_lastInputTemplate = _furnace.getInputSlot() != null ? _furnace.getInputSlot().getTemplate() : null;
+		final ItemInstance inputSlot = _furnace.getInputSlot();
+		updateSlotIcon(_inputIcon, _inputIconMat, _inputCountLabel, inputSlot, _lastInputTemplate, app);
+		_lastInputTemplate = inputSlot != null ? inputSlot.getTemplate() : null;
 		syncFurnaceCountShadow(_inputCountLabel, _inputCountShadow, _inputSlotX, _inputSlotY);
 		
-		updateSlotIcon(_fuelIcon, _fuelIconMat, _fuelCountLabel, _furnace.getFuelSlot(), _lastFuelTemplate, app);
-		_lastFuelTemplate = _furnace.getFuelSlot() != null ? _furnace.getFuelSlot().getTemplate() : null;
+		final ItemInstance fuelSlot = _furnace.getFuelSlot();
+		updateSlotIcon(_fuelIcon, _fuelIconMat, _fuelCountLabel, fuelSlot, _lastFuelTemplate, app);
+		_lastFuelTemplate = fuelSlot != null ? fuelSlot.getTemplate() : null;
 		syncFurnaceCountShadow(_fuelCountLabel, _fuelCountShadow, _fuelSlotX, _fuelSlotY);
 		
-		updateSlotIcon(_outputIcon, _outputIconMat, _outputCountLabel, _furnace.getOutputSlot(), _lastOutputTemplate, app);
-		_lastOutputTemplate = _furnace.getOutputSlot() != null ? _furnace.getOutputSlot().getTemplate() : null;
+		final ItemInstance outputSlot = _furnace.getOutputSlot();
+		updateSlotIcon(_outputIcon, _outputIconMat, _outputCountLabel, outputSlot, _lastOutputTemplate, app);
+		_lastOutputTemplate = outputSlot != null ? outputSlot.getTemplate() : null;
 		syncFurnaceCountShadow(_outputCountLabel, _outputCountShadow, _outputSlotX, _outputSlotY);
 		
 		// Update player inventory slot icons.
@@ -420,7 +423,8 @@ public class FurnaceScreen implements ActionListener
 			// Reposition count label and shadow to bottom-right of slot (matching ChestScreen).
 			if (item != null && item.getCount() > 1)
 			{
-				final String countStr = String.valueOf(item.getCount());
+				final int itemCount = item.getCount();
+				final String countStr = String.valueOf(itemCount);
 				_invCountShadows[i].setText(countStr);
 				
 				final float countWidth = _invCountLabels[i].getLineWidth();
@@ -1210,9 +1214,10 @@ public class FurnaceScreen implements ActionListener
 				if (slotItem == null || slotItem.isEmpty())
 				{
 					// Check if cursor item is smeltable
-					if (!SmeltingRegistry.isSmeltable(_cursorItem.getTemplate().getId()))
+					final ItemTemplate cursorTemplate = _cursorItem.getTemplate();
+					if (!SmeltingRegistry.isSmeltable(cursorTemplate.getId()))
 					{
-						System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not smeltable.");
+						System.out.println("FurnaceScreen: Item '" + cursorTemplate.getDisplayName() + "' is not smeltable.");
 						return;
 					}
 					
@@ -1222,7 +1227,7 @@ public class FurnaceScreen implements ActionListener
 					if (keep > 0)
 					{
 						_cursorItem.setCount(keep);
-						_furnace.setInputSlot(new ItemInstance(_cursorItem.getTemplate(), put));
+						_furnace.setInputSlot(new ItemInstance(cursorTemplate, put));
 					}
 					else
 					{
@@ -1249,9 +1254,10 @@ public class FurnaceScreen implements ActionListener
 		else
 		{
 			// Validate: only smeltable items can go in the input slot.
-			if (!SmeltingRegistry.isSmeltable(_cursorItem.getTemplate().getId()))
+			final ItemTemplate cursorTemplate = _cursorItem.getTemplate();
+			if (!SmeltingRegistry.isSmeltable(cursorTemplate.getId()))
 			{
-				System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not smeltable.");
+				System.out.println("FurnaceScreen: Item '" + cursorTemplate.getDisplayName() + "' is not smeltable.");
 				return;
 			}
 			
@@ -1320,9 +1326,10 @@ public class FurnaceScreen implements ActionListener
 				if (slotItem == null || slotItem.isEmpty())
 				{
 					// Check if cursor item is fuel
-					if (!SmeltingRegistry.isFuel(_cursorItem.getTemplate().getId()))
+					final ItemTemplate cursorTemplate = _cursorItem.getTemplate();
+					if (!SmeltingRegistry.isFuel(cursorTemplate.getId()))
 					{
-						System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not a valid fuel.");
+						System.out.println("FurnaceScreen: Item '" + cursorTemplate.getDisplayName() + "' is not a valid fuel.");
 						return;
 					}
 					
@@ -1332,7 +1339,7 @@ public class FurnaceScreen implements ActionListener
 					if (keep > 0)
 					{
 						_cursorItem.setCount(keep);
-						_furnace.setFuelSlot(new ItemInstance(_cursorItem.getTemplate(), put));
+						_furnace.setFuelSlot(new ItemInstance(cursorTemplate, put));
 					}
 					else
 					{
@@ -1357,9 +1364,10 @@ public class FurnaceScreen implements ActionListener
 		else
 		{
 			// Validate: only fuel items can go in the fuel slot.
-			if (!SmeltingRegistry.isFuel(_cursorItem.getTemplate().getId()))
+			final ItemTemplate cursorTemplate = _cursorItem.getTemplate();
+			if (!SmeltingRegistry.isFuel(cursorTemplate.getId()))
 			{
-				System.out.println("FurnaceScreen: Item '" + _cursorItem.getTemplate().getDisplayName() + "' is not a valid fuel.");
+				System.out.println("FurnaceScreen: Item '" + cursorTemplate.getDisplayName() + "' is not a valid fuel.");
 				return;
 			}
 			

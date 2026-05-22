@@ -5,6 +5,7 @@ import java.awt.Font;
 import com.jme3.app.Application;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
 
@@ -76,8 +77,9 @@ public class MainMenuState extends FadeableAppState
 		MouseSensitivityManager.setEnabled(true);
 		
 		// Screen dimensions.
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		
 		// --- Background Image (stretched to fill screen) ---
@@ -94,8 +96,9 @@ public class MainMenuState extends FadeableAppState
 		_titleLabel.setFontSize(72);
 		_titleLabel.setColor(ColorRGBA.White);
 		
-		final float titleWidth = _titleLabel.getPreferredSize().x;
-		final float titleHeight = _titleLabel.getPreferredSize().y;
+		final Vector3f titleSize = _titleLabel.getPreferredSize();
+		final float titleWidth = titleSize.x;
+		final float titleHeight = titleSize.y;
 		
 		// --- Logo ---
 		_logo = new Picture("Menu Logo");
@@ -147,8 +150,9 @@ public class MainMenuState extends FadeableAppState
 		_buttonContainer.addChild(exitButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(exitButton, exitAction));
 		
-		final float buttonContainerWidth = _buttonContainer.getPreferredSize().x;
-		final float buttonContainerHeight = _buttonContainer.getPreferredSize().y;
+		final Vector3f buttonContainerSize = _buttonContainer.getPreferredSize();
+		final float buttonContainerWidth = buttonContainerSize.x;
+		final float buttonContainerHeight = buttonContainerSize.y;
 		
 		// --- Layout ---
 		// Title group: positioned in upper portion of screen.
@@ -172,8 +176,9 @@ public class MainMenuState extends FadeableAppState
 		_versionLabel.setFontSize(14);
 		_versionLabel.setColor(new ColorRGBA(0.6f, 0.6f, 0.6f, 0.8f));
 		
-		final float versionWidth = _versionLabel.getPreferredSize().x;
-		final float versionHeight = _versionLabel.getPreferredSize().y;
+		final Vector3f versionSize = _versionLabel.getPreferredSize();
+		final float versionWidth = versionSize.x;
+		final float versionHeight = versionSize.y;
 		_versionLabel.setLocalTranslation(screenWidth - versionWidth - VERSION_MARGIN, versionHeight + VERSION_MARGIN, 0);
 		
 		// Attach all elements to the GUI node (background first so it's behind everything).

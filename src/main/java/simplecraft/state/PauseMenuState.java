@@ -4,6 +4,8 @@ import java.awt.Font;
 
 import com.jme3.app.Application;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
 
@@ -112,8 +114,9 @@ public class PauseMenuState extends FadeableAppState
 	private void buildGui()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final int screenWidth = app.getCamera().getWidth();
-		final int screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final int screenWidth = camera.getWidth();
+		final int screenHeight = camera.getHeight();
 		final float centerX = screenWidth / 2f;
 		
 		// --- Background Image (stretched to fill screen) ---
@@ -133,8 +136,9 @@ public class PauseMenuState extends FadeableAppState
 		_titleLabel.setColor(ColorRGBA.White);
 		_titleLabel.setBackground(null);
 		
-		final float titleWidth = _titleLabel.getPreferredSize().x;
-		final float titleHeight = _titleLabel.getPreferredSize().y;
+		final Vector3f titleSize = _titleLabel.getPreferredSize();
+		final float titleWidth = titleSize.x;
+		final float titleHeight = titleSize.y;
 		
 		// --- Logo (to the right of title, same as main menu) ---
 		_logo = new Picture("Pause Logo");

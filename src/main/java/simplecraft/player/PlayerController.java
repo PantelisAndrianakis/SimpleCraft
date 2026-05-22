@@ -86,7 +86,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/** Mouse sensitivity - degrees per pixel of mouse movement. */
 	private float _mouseSensitivity = 1.0f;
-
+	
 	/** Vertical field-of-view in degrees, used when (re)building the camera frustum. */
 	private float _fov = 45f;
 	
@@ -759,9 +759,11 @@ public class PlayerController implements ActionListener, AnalogListener
 		if (selected != null)
 		{
 			final ItemTemplate template = selected.getTemplate();
-			if ((template.getType() == ItemType.WEAPON || template.getType() == ItemType.TOOL) && template.getWeaponDamage() > 0)
+			final ItemType templateType = template.getType();
+			final float weaponDamage = template.getWeaponDamage();
+			if ((templateType == ItemType.WEAPON || templateType == ItemType.TOOL) && weaponDamage > 0)
 			{
-				return template.getWeaponDamage();
+				return weaponDamage;
 			}
 		}
 		
@@ -779,9 +781,11 @@ public class PlayerController implements ActionListener, AnalogListener
 		if (selected != null)
 		{
 			final ItemTemplate template = selected.getTemplate();
-			if ((template.getType() == ItemType.WEAPON || template.getType() == ItemType.TOOL) && template.getWeaponSpeed() > 0)
+			final ItemType templateType = template.getType();
+			final float weaponSpeed = template.getWeaponSpeed();
+			if ((templateType == ItemType.WEAPON || templateType == ItemType.TOOL) && weaponSpeed > 0)
 			{
-				return template.getWeaponSpeed();
+				return weaponSpeed;
 			}
 		}
 		
@@ -809,12 +813,12 @@ public class PlayerController implements ActionListener, AnalogListener
 	{
 		_mouseSensitivity = mouseSensitivity;
 	}
-
+	
 	public float getFov()
 	{
 		return _fov;
 	}
-
+	
 	/**
 	 * Apply a new vertical field-of-view (degrees) by rebuilding the camera frustum.<br>
 	 * Preserves the existing near/far clip planes and current aspect ratio.

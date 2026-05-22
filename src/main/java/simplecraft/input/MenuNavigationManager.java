@@ -349,8 +349,9 @@ public class MenuNavigationManager
 	{
 		if (_focusIndex >= 0)
 		{
-			_focusIndex = Math.min(_focusIndex, _slots.size() - 1);
-			if (_focusIndex >= 0 && _focusIndex < _slots.size())
+			final int slotCount = _slots.size();
+			_focusIndex = Math.min(_focusIndex, slotCount - 1);
+			if (_focusIndex >= 0 && _focusIndex < slotCount)
 			{
 				_slots.get(_focusIndex).onFocus();
 			}

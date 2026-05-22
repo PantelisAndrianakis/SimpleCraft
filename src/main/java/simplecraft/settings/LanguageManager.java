@@ -22,7 +22,7 @@ public class LanguageManager
 	private static final String LANG_NAME_KEY = "lang.name";
 	
 	public static final String DEFAULT_LANGUAGE = "en";
-	 
+	
 	// Currently active language code.
 	private static String _currentCode = DEFAULT_LANGUAGE;
 	
@@ -137,15 +137,13 @@ public class LanguageManager
 	}
 	
 	/**
-	 * Collect all unique characters from the current language's translations that fall outside
-	 * the standard ASCII range (32–126). Used by FontManager to extend the glyph atlas so
-	 * non-Latin scripts (Cyrillic, Greek, CJK, Hangul, etc.) render correctly.
+	 * Collect all unique characters from the current language's translations that fall outside the standard ASCII range (32–126). Used by FontManager to extend the glyph atlas so non-Latin scripts (Cyrillic, Greek, CJK, Hangul, etc.) render correctly.
 	 * @return Sorted array of unique non-ASCII characters used in the active language
 	 */
 	public static char[] getUniqueChars()
 	{
 		final TreeSet<Character> set = new TreeSet<>();
-
+		
 		for (String value : _translations.values())
 		{
 			for (int i = 0; i < value.length(); i++)
@@ -157,17 +155,17 @@ public class LanguageManager
 				}
 			}
 		}
-
+		
 		final char[] result = new char[set.size()];
 		int i = 0;
 		for (char c : set)
 		{
 			result[i++] = c;
 		}
-
+		
 		return result;
 	}
-
+	
 	/**
 	 * Get the asset path to the flag image for a given language code.
 	 * @param code Language code (e.g. "en")

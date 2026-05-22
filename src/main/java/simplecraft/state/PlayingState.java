@@ -16,6 +16,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.post.FilterPostProcessor;
 import com.jme3.post.filters.FogFilter;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -1112,12 +1113,13 @@ public class PlayingState extends FadeableAppState
 				RegionMeshBuilder.setDayNightParams(_dayNightCycle.getTerrainBrightness(), terrainTint.r, terrainTint.g, terrainTint.b);
 				
 				// Apply viewport background sky color from cycle.
-				app.getViewPort().setBackgroundColor(_dayNightCycle.getSkyColor());
+				final ColorRGBA skyColor = _dayNightCycle.getSkyColor();
+				app.getViewPort().setBackgroundColor(skyColor);
 				
 				// Update fog color to match sky for seamless blending.
 				if (_fogFilter != null)
 				{
-					_fogFilter.setFogColor(_dayNightCycle.getSkyColor());
+					_fogFilter.setFogColor(skyColor);
 				}
 				
 				// Rebuild all visible region meshes when terrain brightness changes enough during transition.
@@ -1910,8 +1912,9 @@ public class PlayingState extends FadeableAppState
 	private void showLoadingScreen()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final int screenWidth = app.getCamera().getWidth();
-		final int screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final int screenWidth = camera.getWidth();
+		final int screenHeight = camera.getHeight();
 		
 		_loadingScreenNode = new Node("LoadingScreen");
 		
@@ -1969,8 +1972,9 @@ public class PlayingState extends FadeableAppState
 		
 		// Re-center (width changes as dots change).
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final int screenWidth = app.getCamera().getWidth();
-		final int screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final int screenWidth = camera.getWidth();
+		final int screenHeight = camera.getHeight();
 		final float textWidth = _loadingText.getLineWidth();
 		final float textHeight = _loadingText.getLineHeight();
 		_loadingText.setLocalTranslation((screenWidth - textWidth) / 2f, (screenHeight + textHeight) / 2f, 1);
@@ -2423,7 +2427,7 @@ public class PlayingState extends FadeableAppState
 			_playerController.setMouseSensitivity(sensitivity);
 		}
 	}
-
+	
 	/**
 	 * Apply field-of-view (degrees) to the active player controller, if available.
 	 */

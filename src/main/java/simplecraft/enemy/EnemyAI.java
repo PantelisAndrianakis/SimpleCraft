@@ -5,6 +5,7 @@ import java.util.List;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
+import com.jme3.scene.Node;
 
 import simplecraft.effects.ParticleManager;
 import simplecraft.enemy.Enemy.EnemyType;
@@ -202,8 +203,9 @@ public class EnemyAI
 		// Advance state timer.
 		enemy.setStateTimer(enemy.getStateTimer() + tpf);
 		
-		final float distToPlayer = horizontalDistance(enemy.getPosition(), playerPos);
-		final float verticalDist = Math.abs(enemy.getPosition().y - playerPos.y);
+		final Vector3f enemyPos = enemy.getPosition();
+		final float distToPlayer = horizontalDistance(enemyPos, playerPos);
+		final float verticalDist = Math.abs(enemyPos.y - playerPos.y);
 		final float detectionRange = enemy.getDetectionRange();
 		final float attackRange = enemy.getAttackRange();
 		
@@ -572,7 +574,8 @@ public class EnemyAI
 		// Advance state timer.
 		enemy.setStateTimer(enemy.getStateTimer() + tpf);
 		
-		final float distToPlayer = enemy.getPosition().distance(playerPos);
+		final Vector3f enemyPos = enemy.getPosition();
+		final float distToPlayer = enemyPos.distance(playerPos);
 		final float detectionRange = enemy.getDetectionRange();
 		final float attackRange = enemy.getAttackRange();
 		
@@ -847,6 +850,7 @@ public class EnemyAI
 		// --- Phase transitions ---
 		final float hpRatio = enemy.getHealth() / enemy.getMaxHealth();
 		final int currentPhase = enemy.getBossPhase();
+		final EnemyType enemyType = enemy.getType();
 		
 		if (currentPhase == 1 && hpRatio <= DRAGON_PHASE2_HP_RATIO)
 		{
@@ -1012,7 +1016,7 @@ public class EnemyAI
 		
 		// --- Tail swipe check (Dragon only) ---
 		// If player is within tail range and behind the dragon.
-		if (enemy.getType() == EnemyType.DRAGON && distToPlayer <= DRAGON_TAIL_RANGE && enemy.getTailSwipeCooldown() >= 3.0f)
+		if (enemyType == EnemyType.DRAGON && distToPlayer <= DRAGON_TAIL_RANGE && enemy.getTailSwipeCooldown() >= 3.0f)
 		{
 			if (isPlayerBehind(enemy, playerPos, tailRearArc))
 			{
@@ -1542,10 +1546,11 @@ public class EnemyAI
 		TEMP_QUAT.fromAngleAxis(angle, Vector3f.UNIT_Y);
 		
 		// Slerp from current rotation toward target.
-		SLERP_QUAT.set(enemy.getNode().getLocalRotation());
+		final Node node = enemy.getNode();
+		SLERP_QUAT.set(node.getLocalRotation());
 		final float t = Math.min(1.0f, TURN_SPEED * _tpf);
 		SLERP_QUAT.slerp(TEMP_QUAT, t);
-		enemy.getNode().setLocalRotation(SLERP_QUAT);
+		node.setLocalRotation(SLERP_QUAT);
 	}
 	
 	/**

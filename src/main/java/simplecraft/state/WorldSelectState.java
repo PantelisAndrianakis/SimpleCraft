@@ -13,6 +13,7 @@ import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
 
@@ -144,8 +145,9 @@ public class WorldSelectState extends FadeableAppState
 		_currentPage = 0;
 		
 		// Screen dimensions.
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		
 		// --- Background Image ---
@@ -162,8 +164,9 @@ public class WorldSelectState extends FadeableAppState
 		_titleLabel.setFontSize(52);
 		_titleLabel.setColor(ColorRGBA.White);
 		
-		final float titleWidth = _titleLabel.getPreferredSize().x;
-		final float titleHeight = _titleLabel.getPreferredSize().y;
+		final Vector3f titleSize = _titleLabel.getPreferredSize();
+		final float titleWidth = titleSize.x;
+		final float titleHeight = titleSize.y;
 		
 		// --- Logo ---
 		_logo = new Picture("WorldSelect Logo");
@@ -287,8 +290,9 @@ public class WorldSelectState extends FadeableAppState
 	private void refreshWorldList()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		
 		// Clear existing list.
@@ -377,8 +381,9 @@ public class WorldSelectState extends FadeableAppState
 	private Container createWorldEntry(WorldInfo world)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float entryInnerWidth = screenWidth * LIST_WIDTH_PERCENT - 20;
 		
 		// Outer entry container with dark background and percentage-based padding.
@@ -528,8 +533,9 @@ public class WorldSelectState extends FadeableAppState
 	private void buildPageBar(int totalPages)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		
 		_pageBar = new Container(new SpringGridLayout(Axis.Y, Axis.X, FillMode.None, FillMode.None));
@@ -632,8 +638,9 @@ public class WorldSelectState extends FadeableAppState
 	private void buildBottomBar()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		
 		_bottomBar = new Container();

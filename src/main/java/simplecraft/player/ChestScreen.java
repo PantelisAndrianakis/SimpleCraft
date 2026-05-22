@@ -1097,9 +1097,10 @@ public class ChestScreen implements ActionListener
 		}
 		
 		// Count.
-		if (stack.getCount() > 1)
+		final int stackCount = stack.getCount();
+		if (stackCount > 1)
 		{
-			final String countStr = String.valueOf(stack.getCount());
+			final String countStr = String.valueOf(stackCount);
 			_slotCount[index].setText(countStr);
 			_slotCountShadow[index].setText(countStr);
 			
@@ -1165,10 +1166,11 @@ public class ChestScreen implements ActionListener
 			return;
 		}
 		
-		String text = stack.getTemplate().getDisplayName();
+		final ItemTemplate tooltipTemplate = stack.getTemplate();
+		String text = tooltipTemplate.getDisplayName();
 		if (stack.hasDurability())
 		{
-			text += " [" + stack.getDurability() + "/" + stack.getTemplate().getMaxDurability() + "]";
+			text += " [" + stack.getDurability() + "/" + tooltipTemplate.getMaxDurability() + "]";
 		}
 		
 		_tooltipText.setText(text);
@@ -1218,7 +1220,8 @@ public class ChestScreen implements ActionListener
 		final float heldX = cx - heldSize / 2f;
 		final float heldY = cy - heldSize / 2f;
 		
-		final Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
+		final ItemTemplate heldTemplate = _heldStack.getTemplate();
+		final Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), heldTemplate);
 		
 		if (heldTexture != null)
 		{
@@ -1229,10 +1232,10 @@ public class ChestScreen implements ActionListener
 		else
 		{
 			_heldQuadMat.clearParam("ColorMap");
-			final ColorRGBA color = InventoryScreen.getItemColor(_heldStack.getTemplate());
+			final ColorRGBA color = InventoryScreen.getItemColor(heldTemplate);
 			_heldQuadMat.setColor("Color", color);
 			
-			final String label = InventoryScreen.getItemLabel(_heldStack.getTemplate());
+			final String label = InventoryScreen.getItemLabel(heldTemplate);
 			if (label != null && !label.isEmpty())
 			{
 				_heldLabel.setText(label);
@@ -1250,15 +1253,17 @@ public class ChestScreen implements ActionListener
 		_heldQuad.setLocalTranslation(heldX, heldY, Z_HELD);
 		_heldQuad.setCullHint(Geometry.CullHint.Never);
 		
-		if (_heldStack.getCount() > 1)
+		final int heldCount = _heldStack.getCount();
+		if (heldCount > 1)
 		{
-			final String countStr = String.valueOf(_heldStack.getCount());
+			final String countStr = String.valueOf(heldCount);
 			_heldCount.setText(countStr);
 			_heldCountShadow.setText(countStr);
 			
 			final float countWidth = _heldCount.getLineWidth();
-			_heldCount.setLocalTranslation(heldX + heldSize - countWidth - 1, heldY + _heldCount.getLineHeight() + 1, Z_HELD + 0.1f);
-			_heldCountShadow.setLocalTranslation(heldX + heldSize - countWidth, heldY + _heldCount.getLineHeight(), Z_HELD + 0.05f);
+			final float countLineHeight = _heldCount.getLineHeight();
+			_heldCount.setLocalTranslation(heldX + heldSize - countWidth - 1, heldY + countLineHeight + 1, Z_HELD + 0.1f);
+			_heldCountShadow.setLocalTranslation(heldX + heldSize - countWidth, heldY + countLineHeight, Z_HELD + 0.05f);
 			_heldCount.setCullHint(BitmapText.CullHint.Never);
 			_heldCountShadow.setCullHint(BitmapText.CullHint.Never);
 		}

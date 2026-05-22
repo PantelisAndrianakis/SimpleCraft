@@ -3,6 +3,8 @@ package simplecraft.ui;
 import java.awt.Font;
 
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 
 import com.simsilica.lemur.Container;
 import com.simsilica.lemur.HAlignment;
@@ -102,8 +104,9 @@ public class MessageManager
 	private static void showImmediately(String message, float duration)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		
 		// Build container.
@@ -120,8 +123,9 @@ public class MessageManager
 		_container.addChild(_label);
 		
 		// Position centered horizontally, lower-center of screen.
-		final float containerWidth = _container.getPreferredSize().x;
-		final float containerHeight = _container.getPreferredSize().y;
+		final Vector3f containerSize = _container.getPreferredSize();
+		final float containerWidth = containerSize.x;
+		final float containerHeight = containerSize.y;
 		final float posX = screenCenterX - (containerWidth / 2f);
 		final float posY = (screenHeight * VERTICAL_POSITION) + (containerHeight / 2f);
 		_container.setLocalTranslation(posX, posY, 100); // z=100 to render above everything.

@@ -467,6 +467,37 @@ for (int i = 0; i < 1000; i++)
 final String result = sb.toString();
 ```
 
+### Cache Repeated Getter Calls
+
+When the same getter (or any side-effect-free zero-arg call: `getX()`, `isX()`, `size()`, `length()`, `name()`, ...) is invoked **more than once in the same scope** - same method, same loop body, same `if` branch, same `case` - assign it to a `final` local on first use and reuse the local.
+
+```java
+// WRONG - three calls, hides the invariant that size doesn't change.
+if (player.getInventory().getSize() > 0)
+{
+	sendMessage(player.getInventory().getSize() + " items");
+	process(player.getInventory().getSize());
+}
+
+// CORRECT - one call, intent explicit, JIT-friendly.
+final int inventorySize = player.getInventory().getSize();
+if (inventorySize > 0)
+{
+	sendMessage(inventorySize + " items");
+	process(inventorySize);
+}
+```
+
+**Why?**
+- Repeated invocations are wasted work - even cheap getters cost an invoke and may defeat inlining at megamorphic call sites.
+- It makes the invariant explicit. A reader has to verify "does this value change between calls?" only once, not every line.
+- It shrinks the diff and makes the intent obvious.
+
+**Exceptions:**
+- Different receiver (`a.getId()` vs `b.getId()`) - these are not the same call.
+- Methods that return fresh state or mutate (iterator `next()`, `poll()`, time-of-day) - do NOT cache.
+- Volatile fields where the freshest read is required.
+
 ### Prefer Primitives Over Objects
 
 Avoid wrapper objects when primitives suffice. Be mindful of autoboxing.
@@ -596,6 +627,7 @@ Before submitting code, verify:
 - [ ] **No single-use constants/helpers**
 - [ ] **Always use braces** on switch/if/else/loops
 - [ ] **StringBuilder** for string concatenation
+- [ ] **Cache repeated getters** - same `getX()` called 2+ times in one scope must be stored in a `final` local
 
 ---
 

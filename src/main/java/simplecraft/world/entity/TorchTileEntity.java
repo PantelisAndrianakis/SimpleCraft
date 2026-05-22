@@ -1,5 +1,6 @@
 package simplecraft.world.entity;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.effect.ParticleEmitter;
 import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
@@ -369,8 +370,9 @@ public class TorchTileEntity extends TileEntity
 	{
 		_flameEmitter = new ParticleEmitter("TorchFlame", ParticleMesh.Type.Triangle, 8);
 		
-		final Material mat = new Material(SimpleCraft.getInstance().getAssetManager(), "Common/MatDefs/Misc/Particle.j3md");
-		mat.setTexture("Texture", SimpleCraft.getInstance().getAssetManager().loadTexture(FLAME_IMAGE_PATH));
+		final AssetManager assetManager = SimpleCraft.getInstance().getAssetManager();
+		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Particle.j3md");
+		mat.setTexture("Texture", assetManager.loadTexture(FLAME_IMAGE_PATH));
 		mat.getAdditionalRenderState().setBlendMode(BlendMode.Additive);
 		_flameEmitter.setMaterial(mat);
 		_flameEmitter.setQueueBucket(Bucket.Transparent);

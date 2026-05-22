@@ -754,7 +754,7 @@ public class EnemyAnimator
 	private static void animateDragonDeath(Enemy enemy, float tpf)
 	{
 		// Kill fire breath particles if dying mid-breath (Shadow only).
-		final com.jme3.effect.ParticleEmitter breathEmitter = enemy.getFireBreathEmitter();
+		final ParticleEmitter breathEmitter = enemy.getFireBreathEmitter();
 		if (breathEmitter != null)
 		{
 			breathEmitter.setParticlesPerSec(0);
@@ -786,55 +786,63 @@ public class EnemyAnimator
 		
 		// Legs buckle outward.
 		final float legBuckle = eased * 45.0f * FastMath.DEG_TO_RAD;
-		if (enemy.getLeftLeg() != null)
+		final Node leftLeg = enemy.getLeftLeg();
+		if (leftLeg != null)
 		{
 			TEMP_QUAT.fromAngleAxis(-legBuckle, Vector3f.UNIT_Z);
-			enemy.getLeftLeg().setLocalRotation(TEMP_QUAT);
+			leftLeg.setLocalRotation(TEMP_QUAT);
 		}
 		
-		if (enemy.getRightLeg() != null)
+		final Node rightLeg = enemy.getRightLeg();
+		if (rightLeg != null)
 		{
 			TEMP_QUAT.fromAngleAxis(legBuckle, Vector3f.UNIT_Z);
-			enemy.getRightLeg().setLocalRotation(TEMP_QUAT);
+			rightLeg.setLocalRotation(TEMP_QUAT);
 		}
 		
-		if (enemy.getLeftArm() != null)
+		final Node leftArm = enemy.getLeftArm();
+		if (leftArm != null)
 		{
 			TEMP_QUAT.fromAngleAxis(-legBuckle * 0.8f, Vector3f.UNIT_Z);
-			enemy.getLeftArm().setLocalRotation(TEMP_QUAT);
+			leftArm.setLocalRotation(TEMP_QUAT);
 		}
 		
-		if (enemy.getRightArm() != null)
+		final Node rightArm = enemy.getRightArm();
+		if (rightArm != null)
 		{
 			TEMP_QUAT.fromAngleAxis(legBuckle * 0.8f, Vector3f.UNIT_Z);
-			enemy.getRightArm().setLocalRotation(TEMP_QUAT);
+			rightArm.setLocalRotation(TEMP_QUAT);
 		}
 		
 		// Head drops.
-		if (enemy.getHead() != null)
+		final Node head = enemy.getHead();
+		if (head != null)
 		{
 			final float headDrop = eased * 30.0f * FastMath.DEG_TO_RAD;
 			TEMP_QUAT.fromAngleAxis(-headDrop, Vector3f.UNIT_X);
-			enemy.getHead().setLocalRotation(TEMP_QUAT);
+			head.setLocalRotation(TEMP_QUAT);
 		}
 		
 		// Tail goes limp (droop).
-		if (enemy.getTail1() != null)
+		final Node tail1 = enemy.getTail1();
+		if (tail1 != null)
 		{
 			TEMP_QUAT.fromAngleAxis(-eased * 20.0f * FastMath.DEG_TO_RAD, Vector3f.UNIT_X);
-			enemy.getTail1().setLocalRotation(TEMP_QUAT);
+			tail1.setLocalRotation(TEMP_QUAT);
 		}
 		
-		if (enemy.getTail2() != null)
+		final Node tail2 = enemy.getTail2();
+		if (tail2 != null)
 		{
 			TEMP_QUAT.fromAngleAxis(-eased * 15.0f * FastMath.DEG_TO_RAD, Vector3f.UNIT_X);
-			enemy.getTail2().setLocalRotation(TEMP_QUAT);
+			tail2.setLocalRotation(TEMP_QUAT);
 		}
 		
-		if (enemy.getTail3() != null)
+		final Node tail3 = enemy.getTail3();
+		if (tail3 != null)
 		{
 			TEMP_QUAT.fromAngleAxis(-eased * 10.0f * FastMath.DEG_TO_RAD, Vector3f.UNIT_X);
-			enemy.getTail3().setLocalRotation(TEMP_QUAT);
+			tail3.setLocalRotation(TEMP_QUAT);
 		}
 		
 		// Slight scale-down for fade effect.

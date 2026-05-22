@@ -138,15 +138,17 @@ public class DroppedItem
 		_lifetime = MAX_LIFETIME;
 		_animTimer = 0;
 		
-		final String itemId = instance.getTemplate().getId();
+		final ItemTemplate template = instance.getTemplate();
+		final String itemId = template.getId();
 		_node = new Node("DroppedItem_" + itemId);
 		
 		// ------------------------------------------------------------------
 		// Priority 1: Mini textured cube for block items with atlas textures.
 		// Block-type items always render as spinning 3D cubes, never billboards.
 		// ------------------------------------------------------------------
-		final Block placedBlock = instance.getTemplate().getType() == ItemType.BLOCK ? instance.getTemplate().getPlacesBlock() : null;
-		if (placedBlock != null && atlasMaterial != null && placedBlock.getAtlasIndex() >= 0 && placedBlock.getRenderMode() != RenderMode.CROSS_BILLBOARD && placedBlock.getRenderMode() != RenderMode.FLAT_PANEL)
+		final Block placedBlock = template.getType() == ItemType.BLOCK ? template.getPlacesBlock() : null;
+		final RenderMode placedBlockRenderMode = placedBlock != null ? placedBlock.getRenderMode() : null;
+		if (placedBlock != null && atlasMaterial != null && placedBlock.getAtlasIndex() >= 0 && placedBlockRenderMode != RenderMode.CROSS_BILLBOARD && placedBlockRenderMode != RenderMode.FLAT_PANEL)
 		{
 			_isBillboard = false;
 			
@@ -162,7 +164,7 @@ public class DroppedItem
 		// ------------------------------------------------------------------
 		// Priority 2: Billboard sprite for non-block items (Images/drops/ then Images/items/).
 		// ------------------------------------------------------------------
-		final Texture spriteTexture = ItemTextureResolver.resolve(assetManager, instance.getTemplate());
+		final Texture spriteTexture = ItemTextureResolver.resolve(assetManager, template);
 		if (spriteTexture != null)
 		{
 			_isBillboard = true;

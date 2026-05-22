@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import com.jme3.math.Vector3f;
+
 import simplecraft.SimpleCraft;
 import simplecraft.player.PlayerController;
 import simplecraft.world.Block;
@@ -337,9 +339,10 @@ public class SaveManager
 			DataOutputStream out = new DataOutputStream(os))
 		{
 			// Position.
-			out.writeFloat(player.getPosition().x);
-			out.writeFloat(player.getPosition().y);
-			out.writeFloat(player.getPosition().z);
+			final Vector3f position = player.getPosition();
+			out.writeFloat(position.x);
+			out.writeFloat(position.y);
+			out.writeFloat(position.z);
 			
 			// Health.
 			out.writeFloat(player.getHealth());
@@ -352,18 +355,20 @@ public class SaveManager
 			out.writeFloat(dayNightCycle.getTimeOfDay());
 			
 			// Initial spawn point.
-			out.writeFloat(player.getInitialSpawn().x);
-			out.writeFloat(player.getInitialSpawn().y);
-			out.writeFloat(player.getInitialSpawn().z);
+			final Vector3f initialSpawn = player.getInitialSpawn();
+			out.writeFloat(initialSpawn.x);
+			out.writeFloat(initialSpawn.y);
+			out.writeFloat(initialSpawn.z);
 			
 			// Campfire spawn point.
-			final boolean hasCampfire = player.getCampfireSpawn() != null;
+			final Vector3f campfireSpawn = player.getCampfireSpawn();
+			final boolean hasCampfire = campfireSpawn != null;
 			out.writeBoolean(hasCampfire);
 			if (hasCampfire)
 			{
-				out.writeFloat(player.getCampfireSpawn().x);
-				out.writeFloat(player.getCampfireSpawn().y);
-				out.writeFloat(player.getCampfireSpawn().z);
+				out.writeFloat(campfireSpawn.x);
+				out.writeFloat(campfireSpawn.y);
+				out.writeFloat(campfireSpawn.z);
 			}
 			
 			// Total in-game days (written last for backward compat with old saves).
@@ -472,7 +477,7 @@ public class SaveManager
 			{
 				data._totalDays = in.readDouble();
 			}
-			catch (java.io.EOFException ignored)
+			catch (EOFException ignored)
 			{
 				data._totalDays = 0.0;
 			}

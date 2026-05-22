@@ -157,8 +157,9 @@ public class CombatSystem
 		_guiNode = app.getGuiNode();
 		_audioManager = audioManager;
 		
-		final int screenWidth = app.getCamera().getWidth();
-		final int screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final int screenWidth = camera.getWidth();
+		final int screenHeight = camera.getHeight();
 		
 		// Build full-screen flash quad (hidden initially).
 		final Quad flashQuad = new Quad(screenWidth, screenHeight);
@@ -254,16 +255,19 @@ public class CombatSystem
 			{
 				// Verify the player is actually within attack range
 				// (3D distance so enemies can't hit through floors or tall pillars).
-				final float dist = enemy.getPosition().distance(player.getPosition());
+				final Vector3f enemyPos = enemy.getPosition();
+				final Vector3f playerPos = player.getPosition();
+				final float dist = enemyPos.distance(playerPos);
 				if (dist <= enemy.getAttackRange() * 1.2f)
 				{
 					// Line-of-sight check: enemies cannot hit through walls.
-					if (isLineOfSightBlocked(enemy.getPosition(), ENEMY_CENTER_OFFSET, player.getPosition(), ENEMY_CENTER_OFFSET, world))
+					if (isLineOfSightBlocked(enemyPos, ENEMY_CENTER_OFFSET, playerPos, ENEMY_CENTER_OFFSET, world))
 					{
 						continue;
 					}
 					
-					final String source = "Killed by " + formatEnemyName(enemy.getType());
+					final String enemyName = formatEnemyName(enemy.getType());
+					final String source = "Killed by " + enemyName;
 					final float rawDamage = enemy.getAttackDamage();
 					final float finalDamage = applyDamageWithArmor(player, rawDamage, source);
 					
@@ -278,7 +282,7 @@ public class CombatSystem
 						_audioManager.playSfx(AudioManager.SFX_PLAYER_DEATH);
 					}
 					
-					System.out.println(formatEnemyName(enemy.getType()) + " hit player for " + String.format("%.1f", rawDamage) + " raw damage (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
+					System.out.println(enemyName + " hit player for " + String.format("%.1f", rawDamage) + " raw damage (" + String.format("%.1f", finalDamage) + " after armor). HP: " + String.format("%.1f", player.getHealth()) + "/" + String.format("%.0f", player.getMaxHealth()));
 				}
 			}
 		}
@@ -340,8 +344,9 @@ public class CombatSystem
 			// Calculate enemy center mass position (feet + vertical offset).
 			// Boss enemies (Dragon, Shadow) are much larger - higher center mass and wider hit box.
 			final Vector3f enemyPos = enemy.getPosition();
-			final boolean isBoss = (enemy.getType() == EnemyType.DRAGON || enemy.getType() == EnemyType.SHADOW);
-			final float centerOffset = isBoss ? (enemy.getType() == EnemyType.SHADOW ? 1.8f : 1.6f) : ENEMY_CENTER_OFFSET;
+			final EnemyType enemyType = enemy.getType();
+			final boolean isBoss = (enemyType == EnemyType.DRAGON || enemyType == EnemyType.SHADOW);
+			final float centerOffset = isBoss ? (enemyType == EnemyType.SHADOW ? 1.8f : 1.6f) : ENEMY_CENTER_OFFSET;
 			final float hitRadius = isBoss ? 1.5f : PLAYER_HIT_RADIUS;
 			final float closeRange = isBoss ? 3.5f : CLOSE_RANGE_RADIUS;
 			final float centerX = enemyPos.x;

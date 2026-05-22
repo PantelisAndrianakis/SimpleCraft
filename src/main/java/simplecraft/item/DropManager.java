@@ -100,7 +100,8 @@ public class DropManager
 		_drops.add(drop);
 		_dropNode.attachChild(drop.getNode());
 		
-		System.out.println("DropManager: Spawned " + instance.getCount() + "x " + instance.getTemplate().getDisplayName() + " at [" + String.format("%.1f", position.x) + ", " + String.format("%.1f", position.y) + ", " + String.format("%.1f", position.z) + "]");
+		final ItemTemplate template = instance.getTemplate();
+		System.out.println("DropManager: Spawned " + instance.getCount() + "x " + template.getDisplayName() + " at [" + String.format("%.1f", position.x) + ", " + String.format("%.1f", position.y) + ", " + String.format("%.1f", position.z) + "]");
 	}
 	
 	/**
@@ -128,15 +129,17 @@ public class DropManager
 			}
 			
 			// Check pickup range (3D distance).
-			final float dx = playerPos.x - drop.getPosition().x;
-			final float dy = playerPos.y - drop.getPosition().y;
-			final float dz = playerPos.z - drop.getPosition().z;
+			final Vector3f dropPos = drop.getPosition();
+			final float dx = playerPos.x - dropPos.x;
+			final float dy = playerPos.y - dropPos.y;
+			final float dz = playerPos.z - dropPos.z;
 			final float distSq = dx * dx + dy * dy + dz * dz;
 			
 			if (distSq <= PICKUP_RANGE_SQ)
 			{
 				// Attempt to add to inventory.
-				final boolean added = inventory.addItem(drop.getInstance());
+				final ItemInstance dropInstance = drop.getInstance();
+				final boolean added = inventory.addItem(dropInstance);
 				if (added)
 				{
 					_dropNode.detachChild(drop.getNode());
@@ -148,7 +151,7 @@ public class DropManager
 						_audioManager.playSfx(SFX_ITEM_PICKUP);
 					}
 					
-					System.out.println("Picked up " + drop.getInstance().getCount() + "x " + drop.getInstance().getTemplate().getDisplayName());
+					System.out.println("Picked up " + dropInstance.getCount() + "x " + dropInstance.getTemplate().getDisplayName());
 				}
 				
 				// If inventory is full, leave the drop on the ground.

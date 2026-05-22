@@ -963,9 +963,10 @@ public class PlayerHUD
 		}
 		
 		// Count (shown if count > 1).
-		if (stack.getCount() > 1)
+		final int stackCount = stack.getCount();
+		if (stackCount > 1)
 		{
-			final String countStr = String.valueOf(stack.getCount());
+			final String countStr = String.valueOf(stackCount);
 			_hotbarCount[index].setText(countStr);
 			_hotbarCountShadow[index].setText(countStr);
 			

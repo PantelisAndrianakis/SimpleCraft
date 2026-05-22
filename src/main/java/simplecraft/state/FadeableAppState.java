@@ -4,6 +4,7 @@ import com.jme3.app.state.BaseAppState;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Quad;
 
@@ -264,8 +265,9 @@ public abstract class FadeableAppState extends BaseAppState
 		removeFadeOverlay();
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float width = app.getCamera().getWidth();
-		final float height = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float width = camera.getWidth();
+		final float height = camera.getHeight();
 		
 		final Quad quad = new Quad(width, height);
 		_fadeOverlay = new Geometry("FadeOverlay", quad);

@@ -1140,9 +1140,10 @@ public class InventoryScreen implements ActionListener
 		}
 		
 		// Count (shown if count > 1).
-		if (stack.getCount() > 1)
+		final int stackCount = stack.getCount();
+		if (stackCount > 1)
 		{
-			final String countStr = String.valueOf(stack.getCount());
+			final String countStr = String.valueOf(stackCount);
 			_slotCount[index].setText(countStr);
 			_slotCountShadow[index].setText(countStr);
 			
@@ -1387,7 +1388,8 @@ public class InventoryScreen implements ActionListener
 		final float heldY = cy - heldSize / 2f;
 		
 		// Try to resolve a sprite texture for the held item.
-		final Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), _heldStack.getTemplate());
+		final ItemTemplate heldTemplate = _heldStack.getTemplate();
+		final Texture heldTexture = ItemTextureResolver.resolve(SimpleCraft.getInstance().getAssetManager(), heldTemplate);
 		
 		if (heldTexture != null)
 		{
@@ -1398,11 +1400,11 @@ public class InventoryScreen implements ActionListener
 		else
 		{
 			_heldQuadMat.clearParam("ColorMap");
-			final ColorRGBA color = getItemColor(_heldStack.getTemplate());
+			final ColorRGBA color = getItemColor(heldTemplate);
 			_heldQuadMat.setColor("Color", color);
 			
 			// Label.
-			final String label = getItemLabel(_heldStack.getTemplate());
+			final String label = getItemLabel(heldTemplate);
 			if (label != null && !label.isEmpty())
 			{
 				_heldLabel.setText(label);
@@ -1421,15 +1423,17 @@ public class InventoryScreen implements ActionListener
 		_heldQuad.setCullHint(Geometry.CullHint.Never);
 		
 		// Count.
-		if (_heldStack.getCount() > 1)
+		final int heldCount = _heldStack.getCount();
+		if (heldCount > 1)
 		{
-			final String countStr = String.valueOf(_heldStack.getCount());
+			final String countStr = String.valueOf(heldCount);
 			_heldCount.setText(countStr);
 			_heldCountShadow.setText(countStr);
 			
 			final float countWidth = _heldCount.getLineWidth();
-			_heldCount.setLocalTranslation(heldX + heldSize - countWidth - 1, heldY + _heldCount.getLineHeight() + 1, Z_HELD + 0.1f);
-			_heldCountShadow.setLocalTranslation(heldX + heldSize - countWidth, heldY + _heldCount.getLineHeight(), Z_HELD + 0.05f);
+			final float countLineHeight = _heldCount.getLineHeight();
+			_heldCount.setLocalTranslation(heldX + heldSize - countWidth - 1, heldY + countLineHeight + 1, Z_HELD + 0.1f);
+			_heldCountShadow.setLocalTranslation(heldX + heldSize - countWidth, heldY + countLineHeight, Z_HELD + 0.05f);
 			_heldCount.setCullHint(BitmapText.CullHint.Never);
 			_heldCountShadow.setCullHint(BitmapText.CullHint.Never);
 		}

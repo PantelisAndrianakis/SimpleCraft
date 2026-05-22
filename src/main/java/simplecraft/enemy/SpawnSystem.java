@@ -650,12 +650,13 @@ public class SpawnSystem
 							}
 						}
 						
-						enemy.setStateTimer(enemy.getStateTimer() + tpf);
+						final float newStateTimer = enemy.getStateTimer() + tpf;
+						enemy.setStateTimer(newStateTimer);
 						
 						// Update hit flash fade-out and death scale-down animation.
 						enemy.updateVisuals(tpf);
 						
-						if (enemy.getStateTimer() >= DEATH_LINGER_TIME)
+						if (newStateTimer >= DEATH_LINGER_TIME)
 						{
 							_enemyNode.detachChild(enemy.getNode());
 							point.activeEnemy = null;
@@ -761,9 +762,10 @@ public class SpawnSystem
 		// Start spawn-in animation.
 		enemy.setSpawning(true);
 		enemy.setSpawnTimer(0);
-		enemy.getNode().setLocalScale(0);
+		final Node node = enemy.getNode();
+		node.setLocalScale(0);
 		
-		_enemyNode.attachChild(enemy.getNode());
+		_enemyNode.attachChild(node);
 		point.activeEnemy = enemy;
 		point.deathProcessed = false;
 		_activeCount++;

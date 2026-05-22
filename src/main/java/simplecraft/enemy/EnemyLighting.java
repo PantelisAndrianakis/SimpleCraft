@@ -97,12 +97,13 @@ public class EnemyLighting
 		}
 		
 		final float skyLight = Math.max(enemy.getSkyLight(), MIN_BRIGHTNESS);
+		final Node enemyNode = enemy.getNode();
 		
 		// Sample block light from the world at the enemy's foot position.
 		float blockLight = 0;
 		if (_world != null)
 		{
-			final Vector3f pos = enemy.getNode().getLocalTranslation();
+			final Vector3f pos = enemyNode.getLocalTranslation();
 			blockLight = _world.getBlockLight((int) pos.x, (int) pos.y, (int) pos.z) / 15.0f;
 		}
 		
@@ -115,7 +116,7 @@ public class EnemyLighting
 		final float g = finalB * lerp(_tintG, WARM_TINT_G, blkRatio);
 		final float b = finalB * lerp(_tintB, WARM_TINT_B, blkRatio);
 		
-		applyColorToNode(enemy.getNode(), r, g, b);
+		applyColorToNode(enemyNode, r, g, b);
 		enemy.setLightingDirty(false);
 	}
 	

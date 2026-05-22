@@ -139,14 +139,16 @@ public class EnemyDropTable
 				}
 				
 				// Roll quantity within the min-max range (inclusive).
+				final int minCount = entry.minCount;
+				final int maxCount = entry.maxCount;
 				final int count;
-				if (entry.minCount >= entry.maxCount)
+				if (minCount >= maxCount)
 				{
-					count = entry.minCount;
+					count = minCount;
 				}
 				else
 				{
-					count = entry.minCount + rng.nextInt(entry.maxCount - entry.minCount + 1);
+					count = minCount + rng.nextInt(maxCount - minCount + 1);
 				}
 				
 				results.add(new ItemInstance(template, count));

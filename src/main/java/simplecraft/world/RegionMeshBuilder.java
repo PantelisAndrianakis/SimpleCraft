@@ -625,7 +625,8 @@ public class RegionMeshBuilder
 								if (isFaceVisible(region, x, y, z, face, worldAccess))
 								{
 									// Check if the air space this face looks into is buried underground.
-									final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
+									final int faceOrdinal = face.ordinal();
+									final int[] offset = NEIGHBOR_OFFSETS[faceOrdinal];
 									final int nx = x + offset[0];
 									final int ny = y + offset[1];
 									final int nz = z + offset[2];
@@ -634,7 +635,7 @@ public class RegionMeshBuilder
 									// Blend sky light and block light for this face.
 									final float skyLight = buried ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float blockLight = getNeighborBlockLight(region, x, y, z, face, worldAccess);
-									final float shade = FACE_SHADE[face.ordinal()];
+									final float shade = FACE_SHADE[faceOrdinal];
 									final float skyB = skyLight * shade;
 									final float blkB = blockLight * shade;
 									final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
@@ -663,7 +664,8 @@ public class RegionMeshBuilder
 							{
 								if (isTransparentFaceVisible(region, x, y, z, face, block, worldAccess))
 								{
-									final int[] offsetT = NEIGHBOR_OFFSETS[face.ordinal()];
+									final int faceOrdinal = face.ordinal();
+									final int[] offsetT = NEIGHBOR_OFFSETS[faceOrdinal];
 									final int nxT = x + offsetT[0];
 									final int nyT = y + offsetT[1];
 									final int nzT = z + offsetT[2];
@@ -671,7 +673,7 @@ public class RegionMeshBuilder
 									
 									final float skyLight = buriedTrans ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float blockLight = getNeighborBlockLight(region, x, y, z, face, worldAccess);
-									final float shade = FACE_SHADE[face.ordinal()];
+									final float shade = FACE_SHADE[faceOrdinal];
 									final float skyB = skyLight * shade;
 									final float blkB = blockLight * shade;
 									final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
@@ -1603,7 +1605,8 @@ public class RegionMeshBuilder
 	 */
 	public static boolean isTransparentFaceVisible(Region region, int x, int y, int z, Face face, Block block, WorldBlockAccess worldAccess)
 	{
-		final int[] offset = NEIGHBOR_OFFSETS[face.ordinal()];
+		final int faceOrdinal = face.ordinal();
+		final int[] offset = NEIGHBOR_OFFSETS[faceOrdinal];
 		final int nx = x + offset[0];
 		final int ny = y + offset[1];
 		final int nz = z + offset[2];
@@ -1645,7 +1648,7 @@ public class RegionMeshBuilder
 		// Positive-direction face (TOP/NORTH/EAST) renders, negative is culled.
 		if (neighbor == block)
 		{
-			return POSITIVE_FACE[face.ordinal()];
+			return POSITIVE_FACE[faceOrdinal];
 		}
 		
 		// Adjacent to air or other non-solid - always render.
@@ -1766,8 +1769,9 @@ public class RegionMeshBuilder
 	
 	private static float[] toFloatArray(List<Float> list)
 	{
-		final float[] array = new float[list.size()];
-		for (int i = 0; i < list.size(); i++)
+		final int size = list.size();
+		final float[] array = new float[size];
+		for (int i = 0; i < size; i++)
 		{
 			array[i] = list.get(i);
 		}
@@ -1777,8 +1781,9 @@ public class RegionMeshBuilder
 	
 	private static int[] toIntArray(List<Integer> list)
 	{
-		final int[] array = new int[list.size()];
-		for (int i = 0; i < list.size(); i++)
+		final int size = list.size();
+		final int[] array = new int[size];
+		for (int i = 0; i < size; i++)
 		{
 			array[i] = list.get(i);
 		}

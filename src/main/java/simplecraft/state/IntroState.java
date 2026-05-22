@@ -5,6 +5,8 @@ import java.awt.Font;
 import com.jme3.app.Application;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
@@ -67,8 +69,9 @@ public class IntroState extends FadeableAppState
 	protected void onEnterState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		
 		// Calculate resolution scale factor (using average of width/height ratios for balanced scaling).
 		final float widthScale = screenWidth / REFERENCE_WIDTH;
@@ -114,8 +117,9 @@ public class IntroState extends FadeableAppState
 		_titleLabel.setColor(TEXT_COLOR);
 		
 		// Center the label.
-		final float labelWidth = _titleLabel.getPreferredSize().x;
-		final float labelHeight = _titleLabel.getPreferredSize().y;
+		final Vector3f labelSize = _titleLabel.getPreferredSize();
+		final float labelWidth = labelSize.x;
+		final float labelHeight = labelSize.y;
 		final float x = (screenWidth - labelWidth) / 2f;
 		final float y = (screenHeight + labelHeight) / 3.5f;
 		_titleLabel.setLocalTranslation(x, y, 0);

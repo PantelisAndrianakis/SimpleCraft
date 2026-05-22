@@ -1,5 +1,6 @@
 package simplecraft.world.boss;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.effect.ParticleEmitter;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
@@ -109,33 +110,34 @@ public class BossArenaManager
 		}
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node rootNode = app.getRootNode();
 		
 		// Store main world state.
 		_mainWorld = state.getWorld();
 		_mainWorldReturnPos = player.getPosition().clone();
 		
 		// Detach main world scene nodes.
-		app.getRootNode().detachChild(_mainWorld.getWorldNode());
+		rootNode.detachChild(_mainWorld.getWorldNode());
 		
 		final TileEntityManager mainTileEntityManager = _mainWorld.getTileEntityManager();
 		if (mainTileEntityManager != null)
 		{
 			_mainWorldTileEntityNode = mainTileEntityManager.getNode();
-			app.getRootNode().detachChild(_mainWorldTileEntityNode);
+			rootNode.detachChild(_mainWorldTileEntityNode);
 		}
 		
 		// Detach main world enemy node (prevents main world enemies from rendering in arena).
 		_mainWorldEnemyNode = state.getEnemyNode();
 		if (_mainWorldEnemyNode != null)
 		{
-			app.getRootNode().detachChild(_mainWorldEnemyNode);
+			rootNode.detachChild(_mainWorldEnemyNode);
 		}
 		
 		// Detach main world drop node (prevents main world drops from rendering in arena).
 		_mainWorldDropNode = state.getDropNode();
 		if (_mainWorldDropNode != null)
 		{
-			app.getRootNode().detachChild(_mainWorldDropNode);
+			rootNode.detachChild(_mainWorldDropNode);
 		}
 		
 		// Generate the arena world using the same atlas material.
@@ -148,13 +150,13 @@ public class BossArenaManager
 		_arenaWorld.rebuildAllLoadedRegions();
 		
 		// Attach arena world scene nodes.
-		app.getRootNode().attachChild(_arenaWorld.getWorldNode());
+		rootNode.attachChild(_arenaWorld.getWorldNode());
 		
 		final TileEntityManager arenaTileEntityManager = _arenaWorld.getTileEntityManager();
 		if (arenaTileEntityManager != null)
 		{
 			_arenaTileEntityNode = arenaTileEntityManager.getNode();
-			app.getRootNode().attachChild(_arenaTileEntityNode);
+			rootNode.attachChild(_arenaTileEntityNode);
 		}
 		
 		// Set the global tile entity manager for mesh building.
@@ -170,8 +172,9 @@ public class BossArenaManager
 		
 		// --- Spawn the Boss ---
 		final SimpleCraft spawnApp = SimpleCraft.getInstance();
-		_boss = EnemyFactory.createEnemy(shadowArena ? EnemyType.SHADOW : EnemyType.DRAGON, spawnApp.getAssetManager());
-		_boss.initCombat(spawnApp.getAssetManager());
+		final AssetManager spawnAssetManager = spawnApp.getAssetManager();
+		_boss = EnemyFactory.createEnemy(shadowArena ? EnemyType.SHADOW : EnemyType.DRAGON, spawnAssetManager);
+		_boss.initCombat(spawnAssetManager);
 		
 		// Position at arena center, same floor height as the player spawn.
 		final float bossX = ArenaGenerator.ARENA_SIZE_X / 2f;
@@ -187,7 +190,8 @@ public class BossArenaManager
 		// Create arena enemy node and attach boss.
 		_arenaEnemyNode = new Node("ArenaEnemies");
 		_arenaEnemyNode.attachChild(_boss.getNode());
-		spawnApp.getRootNode().attachChild(_arenaEnemyNode);
+		final Node spawnRootNode = spawnApp.getRootNode();
+		spawnRootNode.attachChild(_arenaEnemyNode);
 		
 		// Attach fire breath emitter outside the enemy node hierarchy.
 		// EnemyLighting recursively traverses enemy.getNode() and crashes on ParticleEmitter
@@ -196,19 +200,19 @@ public class BossArenaManager
 		_fireBreathEmitter = _boss.getFireBreathEmitter();
 		if (_fireBreathEmitter != null)
 		{
-			spawnApp.getRootNode().attachChild(_fireBreathEmitter);
+			spawnRootNode.attachChild(_fireBreathEmitter);
 		}
 		
 		// Attach ambient smoke emitter for Shadow boss (same reason as fire breath).
 		_smokeEmitter = _boss.getSmokeEmitter();
 		if (_smokeEmitter != null)
 		{
-			spawnApp.getRootNode().attachChild(_smokeEmitter);
+			spawnRootNode.attachChild(_smokeEmitter);
 		}
 		
 		// Create arena drop manager for Recall Orb drop.
-		_arenaDropManager = new DropManager(spawnApp.getAssetManager(), spawnApp.getAudioManager(), state.getAtlasMaterial());
-		spawnApp.getRootNode().attachChild(_arenaDropManager.getNode());
+		_arenaDropManager = new DropManager(spawnAssetManager, spawnApp.getAudioManager(), state.getAtlasMaterial());
+		spawnRootNode.attachChild(_arenaDropManager.getNode());
 		
 		// Wire arena drop manager to combat system.
 		if (state.getCombatSystem() != null)
@@ -256,42 +260,43 @@ public class BossArenaManager
 		}
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node rootNode = app.getRootNode();
 		
 		// Detach arena world scene nodes.
 		if (_arenaWorld != null)
 		{
-			app.getRootNode().detachChild(_arenaWorld.getWorldNode());
+			rootNode.detachChild(_arenaWorld.getWorldNode());
 		}
 		
 		if (_arenaTileEntityNode != null)
 		{
-			app.getRootNode().detachChild(_arenaTileEntityNode);
+			rootNode.detachChild(_arenaTileEntityNode);
 			_arenaTileEntityNode = null;
 		}
 		
 		// Reattach main world scene nodes.
-		app.getRootNode().attachChild(_mainWorld.getWorldNode());
+		rootNode.attachChild(_mainWorld.getWorldNode());
 		
 		if (_mainWorldTileEntityNode != null)
 		{
-			app.getRootNode().attachChild(_mainWorldTileEntityNode);
+			rootNode.attachChild(_mainWorldTileEntityNode);
 		}
 		
 		// Reattach enemy and drop nodes.
 		if (_mainWorldEnemyNode != null)
 		{
-			app.getRootNode().attachChild(_mainWorldEnemyNode);
+			rootNode.attachChild(_mainWorldEnemyNode);
 		}
 		
 		if (_mainWorldDropNode != null)
 		{
-			app.getRootNode().attachChild(_mainWorldDropNode);
+			rootNode.attachChild(_mainWorldDropNode);
 		}
 		
 		// Detach and clean up arena enemy node (boss).
 		if (_arenaEnemyNode != null)
 		{
-			app.getRootNode().detachChild(_arenaEnemyNode);
+			rootNode.detachChild(_arenaEnemyNode);
 			_arenaEnemyNode = null;
 		}
 		
@@ -299,7 +304,7 @@ public class BossArenaManager
 		if (_fireBreathEmitter != null)
 		{
 			_fireBreathEmitter.killAllParticles();
-			app.getRootNode().detachChild(_fireBreathEmitter);
+			rootNode.detachChild(_fireBreathEmitter);
 			_fireBreathEmitter = null;
 		}
 		
@@ -307,7 +312,7 @@ public class BossArenaManager
 		if (_smokeEmitter != null)
 		{
 			_smokeEmitter.killAllParticles();
-			app.getRootNode().detachChild(_smokeEmitter);
+			rootNode.detachChild(_smokeEmitter);
 			_smokeEmitter = null;
 		}
 		
@@ -315,7 +320,7 @@ public class BossArenaManager
 		if (_arenaDropManager != null)
 		{
 			_arenaDropManager.cleanup();
-			app.getRootNode().detachChild(_arenaDropManager.getNode());
+			rootNode.detachChild(_arenaDropManager.getNode());
 			_arenaDropManager = null;
 		}
 		
@@ -436,12 +441,12 @@ public class BossArenaManager
 			// Sync fire breath emitter world transform to the boss.
 			// The emitter lives outside the enemy node hierarchy (to avoid EnemyLighting crash)
 			// so we manually position it each frame.
-			if (_fireBreathEmitter != null && _boss.getHead() != null)
+			final Node head = _boss.getHead();
+			if (_fireBreathEmitter != null && head != null)
 			{
 				// Force world transform update so getWorldTranslation() reflects the current frame's AI rotation (not the previous frame's cached value).
 				_boss.getNode().updateGeometricState();
 				
-				final Node head = _boss.getHead();
 				final Quaternion headWorldRot = head.getWorldRotation();
 				
 				if (_boss.getType() == EnemyType.DRAGON)
@@ -473,14 +478,15 @@ public class BossArenaManager
 			
 			// Sync smoke emitter to the boss body (torso area, slightly above center).
 			// Stop emitting when the boss starts dying - particles fade out naturally.
-			if (_smokeEmitter != null && _boss.getBody() != null)
+			final Node smokeBody = _boss.getBody();
+			if (_smokeEmitter != null && smokeBody != null)
 			{
 				if (_boss.isDying())
 				{
 					_smokeEmitter.setParticlesPerSec(0);
 				}
 				
-				final Vector3f bodyWorldPos = _boss.getBody().getWorldTranslation();
+				final Vector3f bodyWorldPos = smokeBody.getWorldTranslation();
 				_smokeEmitter.setLocalTranslation(bodyWorldPos.x, bodyWorldPos.y + 0.5f, bodyWorldPos.z);
 			}
 		}
@@ -508,12 +514,13 @@ public class BossArenaManager
 		
 		// Stop and detach particle emitters (smoke lingers visually after death otherwise).
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node rootNode = app.getRootNode();
 		
 		if (_smokeEmitter != null)
 		{
 			_smokeEmitter.setParticlesPerSec(0);
 			_smokeEmitter.killAllParticles();
-			app.getRootNode().detachChild(_smokeEmitter);
+			rootNode.detachChild(_smokeEmitter);
 			_smokeEmitter = null;
 		}
 		
@@ -521,7 +528,7 @@ public class BossArenaManager
 		{
 			_fireBreathEmitter.setParticlesPerSec(0);
 			_fireBreathEmitter.killAllParticles();
-			app.getRootNode().detachChild(_fireBreathEmitter);
+			rootNode.detachChild(_fireBreathEmitter);
 			_fireBreathEmitter = null;
 		}
 		
@@ -535,6 +542,7 @@ public class BossArenaManager
 	public void cleanup()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node rootNode = app.getRootNode();
 		
 		if (_arenaWorld != null)
 		{
@@ -544,28 +552,28 @@ public class BossArenaManager
 		
 		if (_arenaEnemyNode != null)
 		{
-			app.getRootNode().detachChild(_arenaEnemyNode);
+			rootNode.detachChild(_arenaEnemyNode);
 			_arenaEnemyNode = null;
 		}
 		
 		if (_fireBreathEmitter != null)
 		{
 			_fireBreathEmitter.killAllParticles();
-			app.getRootNode().detachChild(_fireBreathEmitter);
+			rootNode.detachChild(_fireBreathEmitter);
 			_fireBreathEmitter = null;
 		}
 		
 		if (_smokeEmitter != null)
 		{
 			_smokeEmitter.killAllParticles();
-			app.getRootNode().detachChild(_smokeEmitter);
+			rootNode.detachChild(_smokeEmitter);
 			_smokeEmitter = null;
 		}
 		
 		if (_arenaDropManager != null)
 		{
 			_arenaDropManager.cleanup();
-			app.getRootNode().detachChild(_arenaDropManager.getNode());
+			rootNode.detachChild(_arenaDropManager.getNode());
 			_arenaDropManager = null;
 		}
 		

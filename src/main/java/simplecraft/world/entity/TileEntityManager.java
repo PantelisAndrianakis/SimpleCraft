@@ -65,17 +65,22 @@ public class TileEntityManager
 		
 		// Remove existing entity at this position if any.
 		final TileEntity existing = _entities.remove(key);
-		if (existing != null && existing.getVisualNode() != null)
+		if (existing != null)
 		{
-			_node.detachChild(existing.getVisualNode());
+			final Node existingVisual = existing.getVisualNode();
+			if (existingVisual != null)
+			{
+				_node.detachChild(existingVisual);
+			}
 		}
 		
 		_entities.put(key, entity);
 		
 		// Attach visual node if present.
-		if (entity.getVisualNode() != null)
+		final Node visual = entity.getVisualNode();
+		if (visual != null)
 		{
-			_node.attachChild(entity.getVisualNode());
+			_node.attachChild(visual);
 		}
 	}
 	
@@ -88,9 +93,13 @@ public class TileEntityManager
 	{
 		final long key = packPosition(pos);
 		final TileEntity entity = _entities.remove(key);
-		if (entity != null && entity.getVisualNode() != null)
+		if (entity != null)
 		{
-			_node.detachChild(entity.getVisualNode());
+			final Node visual = entity.getVisualNode();
+			if (visual != null)
+			{
+				_node.detachChild(visual);
+			}
 		}
 		
 		return entity;

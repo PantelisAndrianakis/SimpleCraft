@@ -323,7 +323,8 @@ public class GameInputManager
 		_currentMouseCodes.putAll(DEFAULT_MOUSE_CODES);
 		
 		// Apply any saved overrides from SettingsManager.
-		final Map<String, Integer> savedKeys = SimpleCraft.getInstance().getSettingsManager().getKeybindings();
+		final SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
+		final Map<String, Integer> savedKeys = settings.getKeybindings();
 		for (Entry<String, Integer> entry : savedKeys.entrySet())
 		{
 			if (DEFAULT_KEY_CODES.containsKey(entry.getKey()))
@@ -332,7 +333,7 @@ public class GameInputManager
 			}
 		}
 		
-		final Map<String, Integer> savedMouse = SimpleCraft.getInstance().getSettingsManager().getMouseBindings();
+		final Map<String, Integer> savedMouse = settings.getMouseBindings();
 		for (Entry<String, Integer> entry : savedMouse.entrySet())
 		{
 			if (DEFAULT_MOUSE_CODES.containsKey(entry.getKey()))
