@@ -338,6 +338,8 @@ String name = switch (blockType)
 };
 ```
 
+**Why?** The new switch expression hides control flow behind syntactic sugar - you lose explicit `break` statements, brace-scoped variable declarations, and the visual symmetry that lets a reader scan branches at a glance. It also silently forbids fallthrough, so the moment two cases need to share logic you're stuck duplicating code.
+
 **Only use braces when declaring variables inside a case.**
 
 ### Loops
