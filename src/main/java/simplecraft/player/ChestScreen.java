@@ -1568,40 +1568,67 @@ public class ChestScreen implements ActionListener
 			return true;
 		}
 		
-		int remaining = stack.getCount();
-		
-		// Phase 1: Merge with existing matching stacks.
+		final int maxStackSize = stack.getTemplate().getMaxStackSize();
+		final int amount = stack.getCount();
+
+		// Pass 1: Verify the whole stack fits before mutating anything. A partial merge followed by a
+		// false return would let the caller keep the source stack, duplicating the items already merged.
+		int capacity = 0;
+		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
+		{
+			final ItemInstance existing = _activeChest.getSlot(i);
+			if (existing == null)
+			{
+				capacity += maxStackSize;
+			}
+			else if (existing.canStackWith(stack))
+			{
+				capacity += maxStackSize - existing.getCount();
+			}
+
+			if (capacity >= amount)
+			{
+				break;
+			}
+		}
+
+		if (capacity < amount)
+		{
+			return false;
+		}
+
+		// Pass 2: Commit. Merge into existing matching stacks first, then fill empty slots.
+		int remaining = amount;
 		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
 		{
 			if (remaining <= 0)
 			{
 				return true;
 			}
-			
+
 			final ItemInstance existing = _activeChest.getSlot(i);
 			if (existing != null && existing.canStackWith(stack))
 			{
 				remaining = existing.add(remaining);
 			}
 		}
-		
-		// Phase 2: Fill first empty slot.
-		if (remaining > 0)
+
+		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
 		{
-			for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
+			if (remaining <= 0)
 			{
-				if (_activeChest.getSlot(i) == null)
-				{
-					_activeChest.setSlot(i, new ItemInstance(stack.getTemplate(), remaining));
-					return true;
-				}
+				return true;
 			}
-			
-			// Chest is full.
-			return false;
+
+			if (_activeChest.getSlot(i) == null)
+			{
+				final int placed = Math.min(remaining, maxStackSize);
+				_activeChest.setSlot(i, new ItemInstance(stack.getTemplate(), placed));
+				remaining -= placed;
+			}
 		}
-		
-		return true;
+
+		return remaining <= 0;
 	}
 	
 	// ========================================================

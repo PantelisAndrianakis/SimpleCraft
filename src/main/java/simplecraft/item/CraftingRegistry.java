@@ -133,7 +133,18 @@ public class CraftingRegistry
 				inventory.removeItem(_ingredientIds[i], _ingredientCounts[i]);
 			}
 			
-			inventory.addItem(new ItemInstance(_output, _outputCount));
+			// Removing ingredients frees slots, so the output usually fits. If it still does not, refund the
+			// ingredients so crafting stays all-or-nothing instead of consuming ingredients and losing the output.
+			if (!inventory.addItem(new ItemInstance(_output, _outputCount)))
+			{
+				for (int i = 0; i < _ingredientIds.length; i++)
+				{
+					inventory.addItem(new ItemInstance(ItemRegistry.get(_ingredientIds[i]), _ingredientCounts[i]));
+				}
+
+				return false;
+			}
+
 			return true;
 		}
 	}

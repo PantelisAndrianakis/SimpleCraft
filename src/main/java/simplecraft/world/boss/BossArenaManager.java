@@ -358,7 +358,7 @@ public class BossArenaManager
 			for (int i = 0; i < 36; i++) // 36 total slots: 0-8 hotbar, 9-35 main.
 			{
 				final ItemInstance item = inventory.getSlot(i);
-				if (item != null && "golden_orb".equals(item.getTemplate().getId()))
+				if (item != null && "recall_orb".equals(item.getTemplate().getId()))
 				{
 					inventory.setSlot(i, null);
 					System.out.println("BossArenaManager: Removed Recall Orb from slot " + i + " on death exit.");

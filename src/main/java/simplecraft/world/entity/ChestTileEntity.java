@@ -155,6 +155,7 @@ public class ChestTileEntity extends TileEntity
 				sb.append("slot_").append(i).append('=');
 				sb.append(_contents[i].getTemplate().getId());
 				sb.append(':').append(_contents[i].getCount());
+				sb.append(':').append(_contents[i].getDurability());
 			}
 			else
 			{
@@ -241,6 +242,20 @@ public class ChestTileEntity extends TileEntity
 			}
 			
 			final ItemInstance instance = new ItemInstance(template, count);
+
+			// Restore saved durability for tools/weapons (parts[2]); older saves without it keep max durability.
+			if (parts.length >= 3 && instance.hasDurability())
+			{
+				try
+				{
+					instance.setDurability(Integer.parseInt(parts[2]));
+				}
+				catch (NumberFormatException e)
+				{
+					// Leave durability at max if the saved value is malformed.
+				}
+			}
+
 			_contents[slotIndex] = instance;
 		}
 	}

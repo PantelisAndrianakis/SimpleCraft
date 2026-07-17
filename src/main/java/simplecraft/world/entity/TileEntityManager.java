@@ -237,11 +237,19 @@ public class TileEntityManager
 				continue;
 			}
 			
-			final TileEntity entity = TileEntity.deserialize(trimmed);
-			if (entity != null)
+			try
 			{
-				entity.onPlaced(world);
-				register(entity);
+				final TileEntity entity = TileEntity.deserialize(trimmed);
+				if (entity != null)
+				{
+					entity.onPlaced(world);
+					register(entity);
+				}
+			}
+			catch (RuntimeException e)
+			{
+				// One malformed record must not abort loading the rest (e.g. a bad parseInt in a slot line).
+				System.err.println("TileEntityManager: Skipped malformed tile entity record: " + e.getMessage());
 			}
 		}
 	}

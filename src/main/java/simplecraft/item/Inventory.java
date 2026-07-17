@@ -214,40 +214,67 @@ public class Inventory
 			return true;
 		}
 		
-		int remaining = stack.getCount();
-		
-		// Phase 1: Try to merge with existing matching stacks.
+		final int maxStackSize = stack.getTemplate().getMaxStackSize();
+		final int amount = stack.getCount();
+
+		// Pass 1: Verify the whole stack fits before mutating anything. A partial merge followed by a
+		// false return would let the caller re-drop the source, duplicating the items already merged.
+		int capacity = 0;
+		for (int i = 0; i < TOTAL_SLOTS; i++)
+		{
+			final ItemInstance slot = _slots[i];
+			if (slot == null)
+			{
+				capacity += maxStackSize;
+			}
+			else if (slot.canStackWith(stack))
+			{
+				capacity += maxStackSize - slot.getCount();
+			}
+
+			if (capacity >= amount)
+			{
+				break;
+			}
+		}
+
+		if (capacity < amount)
+		{
+			return false;
+		}
+
+		// Pass 2: Commit. Merge into existing matching stacks first, then fill empty slots.
+		int remaining = amount;
 		for (int i = 0; i < TOTAL_SLOTS; i++)
 		{
 			if (remaining <= 0)
 			{
 				return true;
 			}
-			
+
 			final ItemInstance slot = _slots[i];
 			if (slot != null && slot.canStackWith(stack))
 			{
 				remaining = slot.add(remaining);
 			}
 		}
-		
-		// Phase 2: Fill first empty slot with whatever remains.
-		if (remaining > 0)
+
+		for (int i = 0; i < TOTAL_SLOTS; i++)
 		{
-			for (int i = 0; i < TOTAL_SLOTS; i++)
+			if (remaining <= 0)
 			{
-				if (_slots[i] == null)
-				{
-					_slots[i] = new ItemInstance(stack.getTemplate(), remaining);
-					return true;
-				}
+				return true;
 			}
-			
-			// Inventory is full - could not place all items.
-			return false;
+
+			if (_slots[i] == null)
+			{
+				final int placed = Math.min(remaining, maxStackSize);
+				_slots[i] = new ItemInstance(stack.getTemplate(), placed);
+				remaining -= placed;
+			}
 		}
-		
-		return true;
+
+		return remaining <= 0;
 	}
 	
 	/**

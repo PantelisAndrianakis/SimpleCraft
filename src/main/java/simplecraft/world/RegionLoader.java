@@ -180,61 +180,70 @@ public class RegionLoader
 		
 		_executor.submit(() ->
 		{
-			// Check if still pending (may have been cancelled while queued).
-			if (!_pendingKeys.contains(key))
+			try
 			{
-				return;
-			}
-			
-			// Heavy work 1: Generate terrain and trees.
-			final Region region = new Region(regionX, regionZ);
-			TerrainGenerator.generateRegion(region, _seed);
-			TreeGenerator.generateTrees(region, _seed);
-			
-			// Check again after terrain gen (cancel may have arrived).
-			if (!_pendingKeys.contains(key))
-			{
-				return;
-			}
-			
-			// Apply saved data BEFORE mesh building so the first mesh is correct.
-			// Uses ConcurrentHashMap.remove for atomic check-and-take (thread-safe).
-			boolean hadSavedData = false;
-			if (_savedRegionData != null)
-			{
-				final SavedRegionData saved = _savedRegionData.remove(key);
-				if (saved != null)
+				// Check if still pending (may have been cancelled while queued).
+				if (!_pendingKeys.contains(key))
 				{
-					region.setRawBlockData(saved.getBlockData());
-					region.setPlayerPlacedSet(saved.getPlayerPlaced());
-					region.setPlayerRemovedSet(saved.getPlayerRemoved());
-					region.setBerryRespawnMap(saved.getBerryRespawnMap());
-					region.markModified();
-					hadSavedData = true;
+					return;
 				}
+
+				// Heavy work 1: Generate terrain and trees.
+				final Region region = new Region(regionX, regionZ);
+				TerrainGenerator.generateRegion(region, _seed);
+				TreeGenerator.generateTrees(region, _seed);
+
+				// Check again after terrain gen (cancel may have arrived).
+				if (!_pendingKeys.contains(key))
+				{
+					return;
+				}
+
+				// Apply saved data BEFORE mesh building so the first mesh is correct.
+				// Uses ConcurrentHashMap.remove for atomic check-and-take (thread-safe).
+				boolean hadSavedData = false;
+				if (_savedRegionData != null)
+				{
+					final SavedRegionData saved = _savedRegionData.remove(key);
+					if (saved != null)
+					{
+						region.setRawBlockData(saved.getBlockData());
+						region.setPlayerPlacedSet(saved.getPlayerPlaced());
+						region.setPlayerRemovedSet(saved.getPlayerRemoved());
+						region.setBerryRespawnMap(saved.getBerryRespawnMap());
+						region.markModified();
+						hadSavedData = true;
+					}
+				}
+
+				// Process any due berry bush respawns.
+				applyBerryRespawns(region);
+
+				// Cache the region for potential future remesh.
+				_regionCache.put(key, region);
+
+				// Heavy work 2: Build mesh vertex arrays using thread-safe cache for cross-region lookups.
+				// Neighbors already in the cache get correct boundary faces on the first build.
+				// Neighbors not yet cached return AIR (same as before), fixed by later remesh.
+				final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
+
+				// Check if all cardinal neighbors were available during the build.
+				// If yes, boundary faces are correct - mark clean so no remesh is needed.
+				// If no, leave dirty (Region constructor sets _meshDirty = true).
+				final boolean allNeighborsCached = _regionCache.containsKey(regionKey(regionX - 1, regionZ)) && _regionCache.containsKey(regionKey(regionX + 1, regionZ)) && _regionCache.containsKey(regionKey(regionX, regionZ - 1)) && _regionCache.containsKey(regionKey(regionX, regionZ + 1));
+				if (allNeighborsCached)
+				{
+					region.markMeshClean();
+				}
+
+				_readyQueue.add(new ReadyRegion(region, meshData, hadSavedData, region.getMeshVersion()));
 			}
-			
-			// Process any due berry bush respawns.
-			applyBerryRespawns(region);
-			
-			// Cache the region for potential future remesh.
-			_regionCache.put(key, region);
-			
-			// Heavy work 2: Build mesh vertex arrays using thread-safe cache for cross-region lookups.
-			// Neighbors already in the cache get correct boundary faces on the first build.
-			// Neighbors not yet cached return AIR (same as before), fixed by later remesh.
-			final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
-			
-			// Check if all cardinal neighbors were available during the build.
-			// If yes, boundary faces are correct - mark clean so no remesh is needed.
-			// If no, leave dirty (Region constructor sets _meshDirty = true).
-			final boolean allNeighborsCached = _regionCache.containsKey(regionKey(regionX - 1, regionZ)) && _regionCache.containsKey(regionKey(regionX + 1, regionZ)) && _regionCache.containsKey(regionKey(regionX, regionZ - 1)) && _regionCache.containsKey(regionKey(regionX, regionZ + 1));
-			if (allNeighborsCached)
+			catch (RuntimeException e)
 			{
-				region.markMeshClean();
+				// Generation failed - clear the pending marker so the region can be requested again instead of leaving a permanent hole.
+				_pendingKeys.remove(key);
+				System.err.println("RegionLoader: Region generation failed at " + regionX + ", " + regionZ + ": " + e.getMessage());
 			}
-			
-			_readyQueue.add(new ReadyRegion(region, meshData, hadSavedData, region.getMeshVersion()));
 		});
 		
 		return true;
@@ -282,18 +291,27 @@ public class RegionLoader
 		
 		_executor.submit(() ->
 		{
-			// Check if still pending (may have been cancelled while queued).
-			if (!_pendingKeys.contains(key))
+			try
 			{
-				return;
+				// Check if still pending (may have been cancelled while queued).
+				if (!_pendingKeys.contains(key))
+				{
+					return;
+				}
+
+				// Build mesh vertex arrays using thread-safe cache for cross-region lookups.
+				final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
+
+				// Do NOT mark clean here - main thread marks clean when the result is polled.
+				// This avoids a race where background markMeshClean overwrites a main-thread markMeshDirty.
+				_readyQueue.add(new ReadyRegion(region, meshData, false, versionAtSubmit));
 			}
-			
-			// Build mesh vertex arrays using thread-safe cache for cross-region lookups.
-			final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
-			
-			// Do NOT mark clean here - main thread marks clean when the result is polled.
-			// This avoids a race where background markMeshClean overwrites a main-thread markMeshDirty.
-			_readyQueue.add(new ReadyRegion(region, meshData, false, versionAtSubmit));
+			catch (RuntimeException e)
+			{
+				// Generation failed - clear the pending marker so the region can be requested again instead of leaving a permanent hole.
+				_pendingKeys.remove(key);
+				System.err.println("RegionLoader: Region generation failed at " + regionX + ", " + regionZ + ": " + e.getMessage());
+			}
 		});
 		
 		return true;
