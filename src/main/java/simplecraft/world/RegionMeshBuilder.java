@@ -1388,8 +1388,8 @@ public class RegionMeshBuilder
 		// appears correctly from the player's perspective:
 		// - Closed: knob on player's left (SOUTH and WEST facings need flip)
 		// - Open: knob on free edge (SOUTH and EAST facings need flip)
-		// When the panel swings 90°, the vertex ordering changes axis, so the
-		// flip condition is different for the open vs closed state.
+		// When the panel swings 90°, the vertex ordering changes axis,
+		// so the flip condition is different for the open vs closed state.
 		final boolean flipU;
 		if (!isOpen)
 		{

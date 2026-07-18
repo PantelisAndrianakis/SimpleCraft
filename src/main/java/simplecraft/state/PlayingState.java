@@ -762,8 +762,8 @@ public class PlayingState extends FadeableAppState
 			}
 
 			// Force one PlayerController update so the camera snaps to the spawn position
-			// BEFORE the loading screen is removed. Without this, the camera is still at
-			// the old main-world coordinates for one frame, briefly showing a tower interior.
+			// BEFORE the loading screen is removed. Without this,
+			// the camera is still at the old main-world coordinates for one frame, briefly showing a tower interior.
 			_playerController.update(0);
 
 			hideLoadingScreen();
@@ -854,8 +854,8 @@ public class PlayingState extends FadeableAppState
 
 			// --- Safe surface search for new worlds only. ---
 			// Multi-step spiral search per frame: find a 9×9 area of GRASS blocks all at the same Y level.
-			// Gate on center region loaded rather than spawnY - the spawn column may be
-			// underwater (spawnY rejected above) but loaded regions still exist to search.
+			// Gate on center region loaded rather than spawnY - the spawn column
+			// may be underwater (spawnY rejected above) but loaded regions still exist to search.
 			final boolean centerRegionLoaded = _world.getRegion(Math.floorDiv(SPAWN_X, Region.SIZE_XZ), Math.floorDiv(SPAWN_Z, Region.SIZE_XZ)) != null;
 			if (_newWorldSpawn && centerRegionLoaded)
 			{
@@ -876,8 +876,8 @@ public class PlayingState extends FadeableAppState
 					// PAUSE if regions aren't loaded around this position.
 					// Without this, getBlock() returns garbage/unloaded data.
 					// Don't advance _spawnSearchStep - retry this position next frame
-					// when the region is likely loaded. Since regions load outward from
-					// the center, positions beyond this one are also unlikely to be ready.
+					// when the region is likely loaded.
+					// Since regions load outward from the center, positions beyond this one are also unlikely to be ready.
 					if (!areRegionsLoadedAround(checkX, checkZ, REGION_RADIUS_NEEDED))
 					{
 						break; // Stop this frame's search - retry same position next frame.
@@ -1574,8 +1574,8 @@ public class PlayingState extends FadeableAppState
 	{
 		if (_heldTorchLightPos != null && _world != null)
 		{
-			// Skip removal if a placed light-emitting block (torch, campfire) occupies this
-			// position — the held torch's light was absorbed by it and removing block light
+			// Skip removal if a placed light-emitting block (torch, campfire) occupies
+			// this position — the held torch's light was absorbed by it and removing block light
 			// here would incorrectly erase the placed block's own light.
 			final Block block = _world.getBlock(_heldTorchLightPos[0], _heldTorchLightPos[1], _heldTorchLightPos[2]);
 			if (block.getLightLevel() <= 0)
@@ -1602,8 +1602,8 @@ public class PlayingState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 
 		// If dying in the boss arena, exit the arena first to restore the main world.
-		// This happens here (on respawn click) instead of on death detection, so the
-		// death screen shows the arena behind it rather than the normal world.
+		// This happens here (on respawn click) instead of on death detection,
+		// so the death screen shows the arena behind it rather than the normal world.
 		if (_bossArenaManager != null && _bossArenaManager.isInArena())
 		{
 			_bossArenaManager.exitArena(_playerController, this, false);
@@ -1660,8 +1660,8 @@ public class PlayingState extends FadeableAppState
 		app.getInputManager().setCursorVisible(false);
 
 		// Kick off region loading around the respawn position immediately,
-		// so background threads start generating terrain this frame rather than
-		// waiting until the first iteration of the pending spawn loop.
+		// so background threads start generating terrain this frame
+		// rather than waiting until the first iteration of the pending spawn loop.
 		final int renderDistance = app.getSettingsManager().getRenderDistance();
 		_world.update(new Vector3f(_spawnTargetX, _spawnFallbackY, _spawnTargetZ), renderDistance);
 
@@ -1877,8 +1877,8 @@ public class PlayingState extends FadeableAppState
 			_bossArenaManager.exitArena(_playerController, this, false);
 
 			// Restore the player's position to their respawn point before saving.
-			// Without this, the arena coordinates (200, 2, 145) would be saved as the
-			// main world position, causing the player to spawn underground on next load.
+			// Without this, the arena coordinates (200, 2, 145) would be saved
+			// as the main world position, causing the player to spawn underground on next load.
 			if (_playerController != null)
 			{
 				final Vector3f respawnPoint = _playerController.getActiveRespawnPoint();

@@ -346,8 +346,8 @@ public class AudioManager
 		}
 		
 		// Settle any in-progress crossfade before starting a new one.
-		// This ensures the previous outgoing track is properly paused into the
-		// suspended map rather than being abandoned (which would cause a position reset).
+		// This ensures the previous outgoing track is properly paused into the suspended map
+		// rather than being abandoned (which would cause a position reset).
 		stopActiveCrossfade();
 		
 		// Determine the incoming track: resume from map or load fresh.
@@ -379,8 +379,8 @@ public class AudioManager
 			}
 		}
 		
-		// Capture the outgoing track's path before overwriting (needed when the
-		// fade completes and the track is stored in the suspended map).
+		// Capture the outgoing track's path before overwriting
+		// (needed when the fade completes and the track is stored in the suspended map).
 		_suspendingPath = _currentMusicPath;
 		
 		// Setup crossfade: old track fades to 0 then pauses, new track fades in.

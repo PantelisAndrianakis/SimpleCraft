@@ -249,8 +249,8 @@ public class CombatSystem
 			}
 			
 			// Detect attack cooldown fire: EnemyAI resets attackTimer to exactly 0
-			// when cooldown expires. The stateTimer check avoids false positives on
-			// the first frame of entering ATTACK state (both timers are 0 then).
+			// when cooldown expires. The stateTimer check avoids false positives
+			// on the first frame of entering ATTACK state (both timers are 0 then).
 			if (enemy.getAttackTimer() == 0f && enemy.getStateTimer() > 0.1f)
 			{
 				// Verify the player is actually within attack range

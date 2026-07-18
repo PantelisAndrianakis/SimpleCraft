@@ -187,8 +187,8 @@ public class ViewmodelRenderer
 		_renderManager = renderManager;
 		
 		// Dedicated camera and viewport for the held item so its FOV stays fixed
-		// regardless of the world FOV. The world view renders first, then the
-		// viewmodel viewport clears the depth buffer and draws on top.
+		// regardless of the world FOV. The world view renders first,
+		// then the viewmodel viewport clears the depth buffer and draws on top.
 		_viewmodelCamera = worldCamera.clone();
 		_viewmodelCamera.setFrustumPerspective(VIEWMODEL_FOV, (float) _viewmodelCamera.getWidth() / _viewmodelCamera.getHeight(), 0.1f, 1000f);
 		
@@ -258,8 +258,8 @@ public class ViewmodelRenderer
 		// Start with fist.
 		updateSprite(FIST_ID);
 		
-		// Initialize the scene's transforms/bounds so the first render pass — which
-		// may fire before our first update() — has valid state. Without this, jME3
+		// Initialize the scene's transforms/bounds so the first render pass
+		// — which may fire before our first update() — has valid state. Without this, jME3
 		// throws "Scene graph is not properly updated for rendering" on frame 1.
 		_scene.updateLogicalState(0f);
 		_scene.updateGeometricState();
@@ -397,9 +397,9 @@ public class ViewmodelRenderer
 		_worldRot.multLocal(baseRot);
 		_handNode.setLocalRotation(_worldRot);
 		
-		// The viewmodel scene is outside the main app's root-node hierarchy, so we
-		// must drive its logical/geometric state ourselves each frame; otherwise
-		// transforms, bounds, and particles won't update.
+		// The viewmodel scene is outside the main app's root-node hierarchy,
+		// so we must drive its logical/geometric state ourselves each frame;
+		// otherwise transforms, bounds, and particles won't update.
 		_scene.updateLogicalState(tpf);
 		_scene.updateGeometricState();
 	}

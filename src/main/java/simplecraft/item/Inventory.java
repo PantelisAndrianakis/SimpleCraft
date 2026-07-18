@@ -217,8 +217,8 @@ public class Inventory
 		final int maxStackSize = stack.getTemplate().getMaxStackSize();
 		final int amount = stack.getCount();
 
-		// Pass 1: Verify the whole stack fits before mutating anything. A partial merge followed by a
-		// false return would let the caller re-drop the source, duplicating the items already merged.
+		// Pass 1: Verify the whole stack fits before mutating anything.
+		// A partial merge followed by a false return would let the caller re-drop the source, duplicating the items already merged.
 		int capacity = 0;
 		for (int i = 0; i < TOTAL_SLOTS; i++)
 		{

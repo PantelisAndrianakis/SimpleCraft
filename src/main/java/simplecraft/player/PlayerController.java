@@ -393,8 +393,8 @@ public class PlayerController implements ActionListener, AnalogListener
 		final boolean hasMovementInput = _moveForward || _moveBack || _moveLeft || _moveRight || _moveUp || _moveDown;
 		_isSwimming = _inWater && hasMovementInput;
 		
-		// Resolve collision. Pass swim input flags so the collision system can
-		// handle swim-up (Space) and swim-down (Shift) when in water.
+		// Resolve collision. Pass swim input flags
+		// so the collision system can handle swim-up (Space) and swim-down (Shift) when in water.
 		// Don't pass swimUp when doing a surface jump - let the jump impulse work.
 		final boolean swimUp = _inWater && _moveUp && !waterSurfaceJump;
 		final boolean swimDown = _inWater && _moveDown;

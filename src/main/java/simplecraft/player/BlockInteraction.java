@@ -1848,8 +1848,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// 1. Set block data without rebuilding the mesh.
 		// 2. Create and register the tile entity (with facing, light, etc.).
 		// 3. Rebuild the mesh so the tile entity's facing is available during vertex building.
-		// Without this order, the mesh builder would query the TileEntityManager before the
-		// entity is registered and default to NORTH facing.
+		// Without this order, the mesh builder would query the TileEntityManager
+		// before the entity is registered and default to NORTH facing.
 		if (selectedBlock.isTileEntity())
 		{
 			final TileEntityManager manager = _world.getTileEntityManager();

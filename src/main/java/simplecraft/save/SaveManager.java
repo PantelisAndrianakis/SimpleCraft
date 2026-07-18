@@ -351,9 +351,9 @@ public class SaveManager
 				}
 			}
 
-			// Write unloaded saved regions. Without this, modifications in regions that
-			// were stashed at unload time (or loaded from disk and never revisited) get
-			// dropped by the file overwrite and the player sees blocks regenerate.
+			// Write unloaded saved regions. Without this, modifications in regions
+			// that were stashed at unload time (or loaded from disk and never revisited)
+			// get dropped by the file overwrite and the player sees blocks regenerate.
 			if (unloadedSaved != null)
 			{
 				for (Entry<Long, SavedRegionData> entry : unloadedSaved.entrySet())

@@ -461,8 +461,8 @@ public class BossArenaManager
 				}
 				else
 				{
-					// Shadow: head is close to the body (z=-0.05), so anchoring at the
-					// head with a mouth offset works perfectly.
+					// Shadow: head is close to the body (z=-0.05), so anchoring
+					// at the head with a mouth offset works perfectly.
 					final Vector3f headWorldPos = head.getWorldTranslation();
 					final Vector3f mouthOffset = headWorldRot.mult(new Vector3f(0, 0.1f, -0.45f));
 					_fireBreathEmitter.setLocalTranslation(headWorldPos.add(mouthOffset));
