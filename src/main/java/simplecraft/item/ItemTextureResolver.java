@@ -18,10 +18,10 @@ import simplecraft.world.Block.Face;
 
 /**
  * Resolves the best available texture for an item by checking multiple filesystem paths<br>
- * in priority order. Uses the same {@link FileLocator} approach as {@link ViewmodelRenderer}<br>
+ * in priority order. Uses the same {@link com.jme3.asset.plugins.FileLocator} approach as {@link simplecraft.player.ViewmodelRenderer}<br>
  * to load textures from the {@code assets/images/} directory tree.<br>
  * <br>
- * Used by {@link DroppedItem} for world drop visuals, by the inventory screen for slot icons,<br>
+ * Used by {@link simplecraft.item.DroppedItem} for world drop visuals, by the inventory screen for slot icons,<br>
  * and by the hotbar HUD for equipped item icons.<br>
  * <br>
  * <b>Lookup order:</b>
@@ -38,15 +38,6 @@ import simplecraft.world.Block.Face;
  */
 public class ItemTextureResolver
 {
-	/** First priority: dedicated drop/icon textures. */
-	private static final String PATH_DROPS = "assets/images/drops/";
-	
-	/** Second priority: general item sprites. */
-	private static final String PATH_ITEMS = "assets/images/items/";
-	
-	/** Third priority: block textures (used for BLOCK type items). */
-	private static final String PATH_BLOCKS = "assets/images/blocks/";
-	
 	/** Cache of resolved textures keyed by item ID. */
 	private static final Map<String, Texture> _cache = new HashMap<>();
 	
@@ -84,12 +75,12 @@ public class ItemTextureResolver
 		}
 		
 		// Priority 1: assets/images/drops/<item_id>.png
-		Texture texture = tryLoadFromFile(assetManager, PATH_DROPS, itemId + ".png");
+		Texture texture = tryLoadFromFile(assetManager, "assets/images/drops/", itemId + ".png");
 		
 		// Priority 2: assets/images/items/<item_id>.png
 		if (texture == null)
 		{
-			texture = tryLoadFromFile(assetManager, PATH_ITEMS, itemId + ".png");
+			texture = tryLoadFromFile(assetManager, "assets/images/items/", itemId + ".png");
 		}
 		
 		// Priority 3: assets/images/blocks/<block_texture>.png (for BLOCK type items only).
@@ -103,7 +94,7 @@ public class ItemTextureResolver
 				final String blockTextureFile = block.getTextureFile(Face.NORTH);
 				if (blockTextureFile != null)
 				{
-					texture = tryLoadFromFile(assetManager, PATH_BLOCKS, blockTextureFile);
+					texture = tryLoadFromFile(assetManager, "assets/images/blocks/", blockTextureFile);
 				}
 			}
 		}
@@ -122,21 +113,9 @@ public class ItemTextureResolver
 	}
 	
 	/**
-	 * Convenience overload that resolves by item ID.<br>
-	 * Looks up the ItemTemplate from the registry, then delegates to {@link #resolve(AssetManager, ItemTemplate)}.
-	 * @param assetManager the jME3 asset manager
-	 * @param itemId the item ID (e.g. "wood_sword", "meat", "dirt")
-	 * @return the loaded Texture, or null if none found
-	 */
-	public static Texture resolve(AssetManager assetManager, String itemId)
-	{
-		return resolve(assetManager, ItemRegistry.get(itemId));
-	}
-	
-	/**
-	 * Attempts to load a texture from the filesystem using {@link FileLocator}.<br>
-	 * Checks {@link File#exists()} first, then registers the project root directory<br>
-	 * and loads with a full-path {@link TextureKey}. Uses nearest-neighbor filtering<br>
+	 * Attempts to load a texture from the filesystem using {@link com.jme3.asset.plugins.FileLocator}.<br>
+	 * Checks {@code File.exists()} first, then registers the project root directory<br>
+	 * and loads with a full-path {@link com.jme3.asset.TextureKey}. Uses nearest-neighbor filtering<br>
 	 * for pixel art.<br>
 	 * <br>
 	 * <b>Important:</b> The TextureKey uses the full relative path ({@code directory + filename})<br>
@@ -150,8 +129,7 @@ public class ItemTextureResolver
 	 */
 	private static Texture tryLoadFromFile(AssetManager assetManager, String directory, String filename)
 	{
-		final File file = new File(directory + filename);
-		if (!file.exists())
+		if (!new File(directory + filename).exists())
 		{
 			return null;
 		}

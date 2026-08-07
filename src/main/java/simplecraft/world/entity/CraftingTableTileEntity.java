@@ -12,7 +12,7 @@ import simplecraft.world.World;
  * {@link simplecraft.player.BlockInteraction}, which detects this entity type<br>
  * and opens the {@link simplecraft.player.CraftingScreen}.<br>
  * <br>
- * Replaces the former {@link PlaceholderTileEntity} usage for CRAFTING_TABLE blocks.
+ * Replaces the former {@code PlaceholderTileEntity} usage for CRAFTING_TABLE blocks.
  * @author Pantelis Andrianakis
  * @since March 17th 2026
  */
@@ -30,8 +30,7 @@ public class CraftingTableTileEntity extends TileEntity
 	@Override
 	public void onInteract(PlayerController player, World world)
 	{
-		// Crafting UI opening is handled externally by BlockInteraction,
-		// which checks for CraftingTableTileEntity and opens CraftingScreen.
+		// Crafting UI opening is handled externally by BlockInteraction, which checks for CraftingTableTileEntity and opens CraftingScreen.
 		// No internal state to toggle or persist.
 	}
 	

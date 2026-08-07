@@ -93,25 +93,23 @@ public class FontManager
 	 */
 	public static BitmapFont getFont(AssetManager assetManager, String assetPath, int style, int size)
 	{
-		final String langCode = LanguageManager.getCurrentCode();
-		final String key = langCode + "_" + assetPath + "_" + style + "_" + size;
+		final String key = LanguageManager.getCurrentCode() + "_" + assetPath + "_" + style + "_" + size;
 		
-		if (_cache.containsKey(key))
+		final BitmapFont cached = _cache.get(key);
+		if (cached != null)
 		{
-			return _cache.get(key);
+			return cached;
 		}
 		
 		Font awtFont = null;
 		
-		try
+		// Load the font file via jME3's AssetManager (supports registered locators).
+		// The stream is closed even when createFont rejects a malformed font file.
+		try (InputStream stream = assetManager.locateAsset(new AssetKey<>(assetPath)).openStream())
 		{
-			// Load the font file via jME3's AssetManager (supports registered locators).
-			final InputStream stream = assetManager.locateAsset(new AssetKey<>(assetPath)).openStream();
-			
 			// Font.TRUETYPE_FONT handles both TTF and OTF formats.
 			awtFont = Font.createFont(Font.TRUETYPE_FONT, stream);
 			awtFont = awtFont.deriveFont(style, (float) size);
-			stream.close();
 			
 			System.out.println("FontManager: Loaded font from asset '" + assetPath + "' style=" + style + " size=" + size + "px.");
 		}
@@ -139,16 +137,15 @@ public class FontManager
 	 */
 	public static BitmapFont getSystemFont(AssetManager assetManager, String fontName, int style, int size)
 	{
-		final String langCode = LanguageManager.getCurrentCode();
-		final String key = langCode + "_system:" + fontName + "_" + style + "_" + size;
+		final String key = LanguageManager.getCurrentCode() + "_system:" + fontName + "_" + style + "_" + size;
 		
-		if (_cache.containsKey(key))
+		final BitmapFont cached = _cache.get(key);
+		if (cached != null)
 		{
-			return _cache.get(key);
+			return cached;
 		}
 		
-		final Font awtFont = new Font(fontName, style, size);
-		final BitmapFont font = generateFont(assetManager, awtFont, size, LanguageManager.getUniqueChars());
+		final BitmapFont font = generateFont(assetManager, new Font(fontName, style, size), size, LanguageManager.getUniqueChars());
 		_cache.put(key, font);
 		
 		System.out.println("FontManager: Generated system font '" + fontName + "' style=" + style + " size=" + size + "px.");
@@ -168,8 +165,7 @@ public class FontManager
 		
 		// QuestionManager button font - ButtonManager formula: height * yPercent * fontRatio.
 		// BUTTON_HEIGHT_PERCENT=0.065, FONT_HEIGHT_RATIO=0.52 (ButtonManager constants).
-		final int questionButtonSize = Math.max(10, (int) (screenHeight * 0.065f * 0.52f));
-		getFont(assetManager, getTitlePath(), Font.PLAIN, questionButtonSize);
+		getFont(assetManager, getTitlePath(), Font.PLAIN, Math.max(10, (int) (screenHeight * 0.065f * 0.52f)));
 	}
 	
 	/**
@@ -215,8 +211,7 @@ public class FontManager
 		}
 		
 		// First pass: measure all characters using a temporary Graphics2D.
-		final BufferedImage tempImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-		final Graphics2D tempGraphics = tempImage.createGraphics();
+		final Graphics2D tempGraphics = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
 		
 		final FontMetrics primaryMetrics = tempGraphics.getFontMetrics(awtFont);
 		final FontMetrics fallbackMetrics = tempGraphics.getFontMetrics(fallbackFont);
@@ -228,8 +223,7 @@ public class FontManager
 		
 		for (int i = 0; i < totalChars; i++)
 		{
-			final FontMetrics metrics = tempGraphics.getFontMetrics(fontPerChar[i]);
-			charWidths[i] = metrics.charWidth(allChars[i]);
+			charWidths[i] = tempGraphics.getFontMetrics(fontPerChar[i]).charWidth(allChars[i]);
 			
 			if (charWidths[i] > maxCharWidth)
 			{
@@ -325,19 +319,14 @@ public class FontManager
 			for (int x = 0; x < width; x++)
 			{
 				final int argb = image.getRGB(x, y);
-				final byte a = (byte) ((argb >> 24) & 0xFF);
-				final byte r = (byte) ((argb >> 16) & 0xFF);
-				final byte g = (byte) ((argb >> 8) & 0xFF);
-				final byte b = (byte) (argb & 0xFF);
 				
-				buffer.put(r).put(g).put(b).put(a);
+				buffer.put(((byte) ((argb >> 16) & 0xFF))).put(((byte) ((argb >> 8) & 0xFF))).put(((byte) (argb & 0xFF))).put(((byte) ((argb >> 24) & 0xFF)));
 			}
 		}
 		
 		buffer.flip();
 		
-		final Image jmeImage = new Image(Image.Format.RGBA8, width, height, buffer, ColorSpace.sRGB);
-		final Texture2D texture = new Texture2D(jmeImage);
+		final Texture2D texture = new Texture2D(new Image(Image.Format.RGBA8, width, height, buffer, ColorSpace.sRGB));
 		texture.setMagFilter(MagFilter.Bilinear);
 		texture.setMinFilter(MinFilter.BilinearNoMipMaps);
 		

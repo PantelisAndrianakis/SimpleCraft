@@ -2,6 +2,7 @@ package simplecraft.world.entity;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.influencers.ParticleInfluencer;
 import com.jme3.effect.ParticleMesh;
 import com.jme3.input.InputManager;
 import com.jme3.input.KeyInput;
@@ -81,9 +82,7 @@ public class CampfireTileEntity extends TileEntity
 		super(position, Block.CAMPFIRE);
 	}
 	
-	// ========================================================
-	// Lifecycle.
-	// ========================================================
+	// ========== LIFECYCLE ==========
 	
 	@Override
 	public void onPlaced(World world)
@@ -162,9 +161,7 @@ public class CampfireTileEntity extends TileEntity
 		});
 	}
 	
-	// ========================================================
-	// Dialog Input Handling.
-	// ========================================================
+	// ========== DIALOG INPUT HANDLING ==========
 	
 	/**
 	 * Registers input mappings for keyboard navigation of the question dialog.
@@ -236,6 +233,10 @@ public class CampfireTileEntity extends TileEntity
 				cleanupDialog();
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 	};
 	
@@ -259,9 +260,7 @@ public class CampfireTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Activation.
-	// ========================================================
+	// ========== ACTIVATION ==========
 	
 	/**
 	 * Activates this campfire as the player's respawn point.<br>
@@ -334,9 +333,7 @@ public class CampfireTileEntity extends TileEntity
 		_activated = activated;
 	}
 	
-	// ========================================================
-	// Particles.
-	// ========================================================
+	// ========== PARTICLES ==========
 	
 	/**
 	 * Creates the main fire particle emitter.<br>
@@ -365,8 +362,9 @@ public class CampfireTileEntity extends TileEntity
 		_fireEmitter.setLowLife(0.3f);
 		_fireEmitter.setHighLife(0.6f);
 		
-		_fireEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 1.2f, 0));
-		_fireEmitter.getParticleInfluencer().setVelocityVariation(0.3f);
+		final ParticleInfluencer fireInfluencer = _fireEmitter.getParticleInfluencer();
+		fireInfluencer.setInitialVelocity(new Vector3f(0, 1.2f, 0));
+		fireInfluencer.setVelocityVariation(0.3f);
 		_fireEmitter.setGravity(0, -0.5f, 0); // Slight upward drift (negative gravity = up).
 		
 		_fireEmitter.setLocalTranslation(0, 0, 0);
@@ -402,8 +400,9 @@ public class CampfireTileEntity extends TileEntity
 		_emberEmitter.setLowLife(1.0f);
 		_emberEmitter.setHighLife(1.8f);
 		
-		_emberEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.6f, 0));
-		_emberEmitter.getParticleInfluencer().setVelocityVariation(0.5f);
+		final ParticleInfluencer emberInfluencer = _emberEmitter.getParticleInfluencer();
+		emberInfluencer.setInitialVelocity(new Vector3f(0, 0.6f, 0));
+		emberInfluencer.setVelocityVariation(0.5f);
 		_emberEmitter.setGravity(0, -0.1f, 0);
 		
 		_emberEmitter.setLocalTranslation(0, 0.1f, 0);
@@ -456,9 +455,7 @@ public class CampfireTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Block Light.
-	// ========================================================
+	// ========== BLOCK LIGHT ==========
 	
 	/**
 	 * Propagates block light from this campfire into the surrounding area.<br>
@@ -466,8 +463,7 @@ public class CampfireTileEntity extends TileEntity
 	 */
 	private void propagateLight(World world)
 	{
-		final int level = _activated ? LIGHT_LEVEL_ACTIVE : LIGHT_LEVEL_INACTIVE;
-		world.propagateBlockLight(_position.x, _position.y, _position.z, level);
+		world.propagateBlockLight(_position.x, _position.y, _position.z, (_activated ? LIGHT_LEVEL_ACTIVE : LIGHT_LEVEL_INACTIVE));
 	}
 	
 	/**
@@ -478,14 +474,13 @@ public class CampfireTileEntity extends TileEntity
 		world.removeBlockLight(_position.x, _position.y, _position.z);
 	}
 	
+	@Override
 	public int getLightLevel()
 	{
 		return _activated ? LIGHT_LEVEL_ACTIVE : LIGHT_LEVEL_INACTIVE;
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	// ========== SERIALIZATION ==========
 	
 	@Override
 	public String serialize()

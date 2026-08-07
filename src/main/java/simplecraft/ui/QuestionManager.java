@@ -72,6 +72,7 @@ public class QuestionManager
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
 		final Camera camera = app.getCamera();
 		final float screenWidth = camera.getWidth();
 		final float screenHeight = camera.getHeight();
@@ -85,8 +86,7 @@ public class QuestionManager
 		_selectedIndex = -1; // No keyboard focus until first keyboard input.
 		
 		// --- Semi-transparent backdrop ---
-		final Quad backdropQuad = new Quad(screenWidth, screenHeight);
-		_backdrop = new Geometry("QuestionBackdrop", backdropQuad);
+		_backdrop = new Geometry("QuestionBackdrop", new Quad(screenWidth, screenHeight));
 		
 		final Material backdropMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		backdropMaterial.setColor("Color", new ColorRGBA(0, 0, 0, BACKDROP_ALPHA));
@@ -103,7 +103,7 @@ public class QuestionManager
 				return;
 			}
 			
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final Runnable action = _yesAction;
 			dismiss();
 			
@@ -120,7 +120,7 @@ public class QuestionManager
 				return;
 			}
 			
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final Runnable action = _noAction;
 			dismiss();
 			
@@ -181,11 +181,8 @@ public class QuestionManager
 		
 		_dialogContainer.addChild(buttonRow);
 		
-		// Center the dialog on screen.
-		final float dialogHeight = _dialogContainer.getPreferredSize().y;
-		final float dialogX = (screenWidth - dialogWidth) / 2f;
-		final float dialogY = (screenHeight + dialogHeight) / 2f;
-		_dialogContainer.setLocalTranslation(dialogX, dialogY, DIALOG_Z);
+		// Center the dialog on screen. Re-measure: the container grew when the button row was added.
+		_dialogContainer.setLocalTranslation(((screenWidth - dialogWidth) / 2f), ((screenHeight + _dialogContainer.getPreferredSize().y) / 2f), DIALOG_Z);
 		
 		// Attach to GUI node (backdrop first, then dialog on top).
 		final Node guiNode = app.getGuiNode();
@@ -199,8 +196,7 @@ public class QuestionManager
 	 */
 	public static void dismiss()
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final Node guiNode = app.getGuiNode();
+		final Node guiNode = SimpleCraft.getInstance().getGuiNode();
 		
 		if (_backdrop != null)
 		{
@@ -282,8 +278,7 @@ public class QuestionManager
 			return;
 		}
 		
-		final SimpleCraft app = SimpleCraft.getInstance();
-		app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+		SimpleCraft.getInstance().getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 		
 		final Runnable action = (_selectedIndex == 0) ? _yesAction : _noAction;
 		dismiss();

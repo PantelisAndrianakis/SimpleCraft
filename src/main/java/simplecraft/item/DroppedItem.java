@@ -35,10 +35,10 @@ import simplecraft.world.TextureAtlas;
  * <li><b>Colored cube</b> - fallback: a small solid-color cube (0.3 blocks) tinted per item type.</li>
  * </ol>
  * Mini-cube and colored-cube drops spin slowly around the Y axis. Billboard drops face the<br>
- * camera via {@link BillboardControl} and do not spin. All modes bob up and down via a sine wave.<br>
+ * camera via {@link com.jme3.scene.control.BillboardControl} and do not spin. All modes bob up and down via a sine wave.<br>
  * <br>
- * Pickup is handled externally by {@link DropManager}, which checks distance to<br>
- * the player each frame and attempts {@link Inventory#addItem(ItemInstance)}.<br>
+ * Pickup is handled externally by {@link simplecraft.item.DropManager}, which checks distance to<br>
+ * the player each frame and attempts {@code Inventory.addItem(ItemInstance)}.<br>
  * <br>
  * Each drop has a 300-second (5-minute) lifetime. When expired, the drop is<br>
  * removed from the world by the manager.
@@ -56,6 +56,9 @@ public class DroppedItem
 	
 	/** Spin speed for cube drops in radians per second. */
 	private static final float SPIN_SPEED = 1.5f;
+	
+	/** Shared quaternion for the spin animation (setLocalRotation copies the value). */
+	private static final Quaternion SPIN_QUAT = new Quaternion();
 	
 	// ------------------------------------------------------------------
 	// Billboard visual constants.
@@ -152,8 +155,7 @@ public class DroppedItem
 		{
 			_isBillboard = false;
 			
-			final Mesh miniCubeMesh = buildMiniCubeMesh(placedBlock);
-			final Geometry geom = new Geometry("DropMiniCube", miniCubeMesh);
+			final Geometry geom = new Geometry("DropMiniCube", buildMiniCubeMesh(placedBlock));
 			geom.setMaterial(atlasMaterial);
 			
 			_node.attachChild(geom);
@@ -169,8 +171,7 @@ public class DroppedItem
 		{
 			_isBillboard = true;
 			
-			final Quad quad = new Quad(BILLBOARD_SIZE, BILLBOARD_SIZE);
-			final Geometry geom = new Geometry("DropBillboard", quad);
+			final Geometry geom = new Geometry("DropBillboard", new Quad(BILLBOARD_SIZE, BILLBOARD_SIZE));
 			
 			final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 			mat.setTexture("ColorMap", spriteTexture);
@@ -184,8 +185,7 @@ public class DroppedItem
 			_node.attachChild(geom);
 			
 			// BillboardControl makes the node always face the camera.
-			final BillboardControl billboard = new BillboardControl();
-			_node.addControl(billboard);
+			_node.addControl(new BillboardControl());
 			
 			_node.setLocalTranslation(position.x, position.y + BASE_Y_OFFSET, position.z);
 			return;
@@ -196,8 +196,7 @@ public class DroppedItem
 		// ------------------------------------------------------------------
 		_isBillboard = false;
 		
-		final Box box = new Box(CUBE_HALF_SIZE, CUBE_HALF_SIZE, CUBE_HALF_SIZE);
-		final Geometry geom = new Geometry("DropCube", box);
+		final Geometry geom = new Geometry("DropCube", new Box(CUBE_HALF_SIZE, CUBE_HALF_SIZE, CUBE_HALF_SIZE));
 		
 		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setColor("Color", getColorForItem(itemId));
@@ -219,13 +218,12 @@ public class DroppedItem
 	private static Mesh buildMiniCubeMesh(Block block)
 	{
 		final int vertexCount = 24; // 4 vertices × 6 faces.
-		final int indexCount = 36; // 6 indices × 6 faces.
 		
 		final float[] positions = new float[vertexCount * 3];
 		final float[] normals = new float[vertexCount * 3];
 		final float[] texCoords = new float[vertexCount * 2];
 		final float[] colors = new float[vertexCount * 4];
-		final int[] indices = new int[indexCount];
+		final int[] indices = new int[36]; // 6 indices × 6 faces.
 		
 		final float h = CUBE_HALF_SIZE;
 		
@@ -233,17 +231,14 @@ public class DroppedItem
 		{
 			final Face face = CUBE_FACES[f];
 			final int vBase = f * 4;
-			final int pBase = vBase * 3;
-			final int nBase = vBase * 3;
-			final int tBase = vBase * 2;
 			final int cBase = vBase * 4;
 			final int iBase = f * 6;
 			
 			// Write positions and normals for this face.
-			writeFacePositions(positions, pBase, normals, nBase, face, h);
+			writeFacePositions(positions, vBase * 3, normals, vBase * 3, face, h);
 			
 			// Write atlas UVs.
-			writeFaceUVs(texCoords, tBase, block, face);
+			writeFaceUVs(texCoords, vBase * 2, block, face);
 			
 			// Write vertex colors (white = full brightness).
 			for (int v = 0; v < 4; v++)
@@ -393,6 +388,10 @@ public class DroppedItem
 				pos[p + 11] = -h;
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 		
 		// Write normal for all 4 vertices.
@@ -463,15 +462,14 @@ public class DroppedItem
 		_lifetime -= tpf;
 		
 		// Sine wave bob (all modes).
-		final float bobOffset = FastMath.sin(_animTimer * BOB_SPEED) * BOB_AMPLITUDE;
-		_node.setLocalTranslation(_position.x, _position.y + BASE_Y_OFFSET + bobOffset, _position.z);
+		_node.setLocalTranslation(_position.x, _position.y + BASE_Y_OFFSET + (FastMath.sin(_animTimer * BOB_SPEED) * BOB_AMPLITUDE), _position.z);
 		
 		// Non-billboard drops spin slowly around the Y axis.
 		// Billboard drops skip this - BillboardControl handles their orientation.
 		if (!_isBillboard)
 		{
-			final float angle = _animTimer * SPIN_SPEED;
-			_node.setLocalRotation(new Quaternion().fromAngleAxis(angle, Vector3f.UNIT_Y));
+			SPIN_QUAT.fromAngleAxis(_animTimer * SPIN_SPEED, Vector3f.UNIT_Y);
+			_node.setLocalRotation(SPIN_QUAT);
 		}
 	}
 	
@@ -513,24 +511,6 @@ public class DroppedItem
 	public Node getNode()
 	{
 		return _node;
-	}
-	
-	/**
-	 * Returns the remaining lifetime in seconds.
-	 * @return seconds until despawn
-	 */
-	public float getLifetime()
-	{
-		return _lifetime;
-	}
-	
-	/**
-	 * Returns true if this drop uses a billboard quad, false if it uses a cube.
-	 * @return true for billboard mode
-	 */
-	public boolean isBillboard()
-	{
-		return _isBillboard;
 	}
 	
 	// ------------------------------------------------------------------

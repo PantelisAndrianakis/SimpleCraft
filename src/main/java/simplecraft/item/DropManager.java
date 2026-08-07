@@ -20,10 +20,10 @@ import simplecraft.audio.AudioManager;
  * Each frame, the manager updates animations, checks player proximity<br>
  * for pickup and removes expired drops.<br>
  * <br>
- * A maximum of {@link #MAX_ACTIVE_DROPS} drops can exist simultaneously. When the<br>
+ * A maximum of {@code MAX_ACTIVE_DROPS} drops can exist simultaneously. When the<br>
  * limit is reached, the oldest drop is removed to make room for a new one.<br>
  * <br>
- * Pickup range is {@link #PICKUP_RANGE} blocks - when the player walks within<br>
+ * Pickup range is {@code PICKUP_RANGE} blocks - when the player walks within<br>
  * this distance, the drop is automatically added to the player's inventory.<br>
  * If the inventory is full, the drop remains on the ground.
  * @author Pantelis Andrianakis
@@ -39,13 +39,6 @@ public class DropManager
 	
 	/** Maximum number of active drops in the world. */
 	private static final int MAX_ACTIVE_DROPS = 1000;
-	
-	/**
-	 * Sound effect path for item pickup.<br>
-	 * Add this constant to {@link AudioManager} if a dedicated pickup sound is desired.<br>
-	 * Falls back silently if the asset does not exist.
-	 */
-	private static final String SFX_ITEM_PICKUP = "Sounds/sfx/item_pickup.ogg";
 	
 	/** All currently active dropped items. */
 	private final List<DroppedItem> _drops = new ArrayList<>();
@@ -92,16 +85,14 @@ public class DropManager
 		// Enforce maximum active drops - remove the oldest if at capacity.
 		while (_drops.size() >= MAX_ACTIVE_DROPS)
 		{
-			final DroppedItem oldest = _drops.remove(0);
-			_dropNode.detachChild(oldest.getNode());
+			_dropNode.detachChild(_drops.remove(0).getNode());
 		}
 		
 		final DroppedItem drop = new DroppedItem(instance, position, _assetManager, _atlasMaterial);
 		_drops.add(drop);
 		_dropNode.attachChild(drop.getNode());
 		
-		final ItemTemplate template = instance.getTemplate();
-		System.out.println("DropManager: Spawned " + instance.getCount() + "x " + template.getDisplayName() + " at [" + String.format("%.1f", position.x) + ", " + String.format("%.1f", position.y) + ", " + String.format("%.1f", position.z) + "]");
+		System.out.println("DropManager: Spawned " + instance.getCount() + "x " + instance.getTemplate().getDisplayName() + " at [" + String.format("%.1f", position.x) + ", " + String.format("%.1f", position.y) + ", " + String.format("%.1f", position.z) + "]");
 	}
 	
 	/**
@@ -116,6 +107,7 @@ public class DropManager
 		while (iterator.hasNext())
 		{
 			final DroppedItem drop = iterator.next();
+			final Node dropNode = drop.getNode();
 			
 			// Update animation.
 			drop.update(tpf);
@@ -123,7 +115,7 @@ public class DropManager
 			// Check for expiration.
 			if (drop.isExpired())
 			{
-				_dropNode.detachChild(drop.getNode());
+				_dropNode.detachChild(dropNode);
 				iterator.remove();
 				continue;
 			}
@@ -133,29 +125,28 @@ public class DropManager
 			final float dx = playerPos.x - dropPos.x;
 			final float dy = playerPos.y - dropPos.y;
 			final float dz = playerPos.z - dropPos.z;
-			final float distSq = dx * dx + dy * dy + dz * dz;
-			
-			if (distSq <= PICKUP_RANGE_SQ)
+			if (((dx * dx) + (dy * dy) + (dz * dz)) > PICKUP_RANGE_SQ)
 			{
-				// Attempt to add to inventory.
-				final ItemInstance dropInstance = drop.getInstance();
-				final boolean added = inventory.addItem(dropInstance);
-				if (added)
-				{
-					_dropNode.detachChild(drop.getNode());
-					iterator.remove();
-					
-					// Play pickup sound.
-					if (_audioManager != null)
-					{
-						_audioManager.playSfx(SFX_ITEM_PICKUP);
-					}
-					
-					System.out.println("Picked up " + dropInstance.getCount() + "x " + dropInstance.getTemplate().getDisplayName());
-				}
-				
-				// If inventory is full, leave the drop on the ground.
+				continue;
 			}
+			
+			// Attempt to add to inventory. If the inventory is full, leave the drop on the ground.
+			final ItemInstance dropInstance = drop.getInstance();
+			if (!inventory.addItem(dropInstance))
+			{
+				continue;
+			}
+			
+			_dropNode.detachChild(dropNode);
+			iterator.remove();
+			
+			// Play pickup sound. Falls back silently if the asset does not exist.
+			if (_audioManager != null)
+			{
+				_audioManager.playSfx("Sounds/sfx/item_pickup.ogg");
+			}
+			
+			System.out.println("Picked up " + dropInstance.getCount() + "x " + dropInstance.getTemplate().getDisplayName());
 		}
 	}
 	

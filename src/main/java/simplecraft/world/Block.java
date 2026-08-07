@@ -13,14 +13,14 @@ import simplecraft.settings.LanguageManager;
 
 /**
  * Defines all block types with their rendering, gameplay and atlas properties.<br>
- * Texture filenames are defined per block. Atlas indices are resolved dynamically by {@link TextureAtlas} during atlas building.
+ * Texture filenames are defined per block. Atlas indices are resolved dynamically by {@link simplecraft.world.TextureAtlas} during atlas building.
  * @author Pantelis Andrianakis
  * @since February 21st 2026
  */
 public enum Block
 {
 	// @formatter:off
-	//                RenderMode                   solid        transparent         liquid        tileEntity       decoration     faceSnap   hardness  tool             sideTexture                topTexture                    bottomTexture                    frontTexture
+	// renderMode                   solid        transparent         liquid        tileEntity       decoration     faceSnap   hardness  tool             sideTexture                topTexture                    bottomTexture                    frontTexture
 	AIR              (RenderMode.CUBE_SOLID,       false, true,  false, false,  false,          false,    0,        ToolType.NONE,    null,                      null,                         null,                            null),
 	GRASS            (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    6,        ToolType.SHOVEL,  "grass_side.png",          "grass_top.png",              "dirt.png",                      null),
 	DIRT             (RenderMode.CUBE_SOLID,       true,  false, false, false,  false,          false,    6,        ToolType.SHOVEL,  "dirt.png",                null,                         null,                            null),
@@ -50,9 +50,7 @@ public enum Block
 	DOOR_TOP         (RenderMode.FLAT_PANEL,       false, true,  false, true,   false,          true,     9,        ToolType.AXE,     "door_top.png",            null,                         null,                            null);
 	// @formatter:on
 	
-	// ========================================================
-	// Inner Enums.
-	// ========================================================
+	// ========== INNER ENUMS ==========
 	
 	public enum RenderMode
 	{
@@ -80,9 +78,7 @@ public enum Block
 		WEST
 	}
 	
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	private final RenderMode _renderMode;
 	private final boolean _solid;
@@ -106,16 +102,12 @@ public enum Block
 	/** Front/NORTH face texture. Null = use side texture. */
 	private final String _frontTexture;
 	
-	// ========================================================
-	// Atlas Index Map (populated by TextureAtlas at startup).
-	// ========================================================
+	// ========== ATLAS INDEX MAP (POPULATED BY TEXTUREATLAS AT STARTUP) ==========
 	
-	/** Maps texture filename to atlas index. Populated by {@link TextureAtlas#buildAtlas}. */
+	/** Maps texture filename to atlas index. Populated by {@code TextureAtlas.buildAtlas}. */
 	private static final Map<String, Integer> ATLAS_INDEX_MAP = new HashMap<>();
 	
-	// ========================================================
-	// Constructor.
-	// ========================================================
+	// ========== CONSTRUCTOR ==========
 	
 	Block(RenderMode renderMode, boolean solid, boolean transparent, boolean liquid, boolean tileEntity, boolean decoration, boolean faceSnap, int hardness, ToolType bestTool, String sideTexture, String topTexture, String bottomTexture, String frontTexture)
 	{
@@ -134,9 +126,7 @@ public enum Block
 		_frontTexture = frontTexture;
 	}
 	
-	// ========================================================
-	// Rendering Properties.
-	// ========================================================
+	// ========== RENDERING PROPERTIES ==========
 	
 	public RenderMode getRenderMode()
 	{
@@ -158,9 +148,7 @@ public enum Block
 		return _liquid;
 	}
 	
-	// ========================================================
-	// Gameplay Properties.
-	// ========================================================
+	// ========== GAMEPLAY PROPERTIES ==========
 	
 	public String getDisplayName()
 	{
@@ -335,9 +323,7 @@ public enum Block
 		}
 	}
 	
-	// ========================================================
-	// Texture File Lookup.
-	// ========================================================
+	// ========== TEXTURE FILE LOOKUP ==========
 	
 	/**
 	 * Returns the texture filename for a specific face.<br>
@@ -373,9 +359,7 @@ public enum Block
 		}
 	}
 	
-	// ========================================================
-	// Atlas Index Lookup.
-	// ========================================================
+	// ========== ATLAS INDEX LOOKUP ==========
 	
 	/**
 	 * Returns the atlas index for a specific face.<br>
@@ -406,13 +390,11 @@ public enum Block
 		return ATLAS_INDEX_MAP.getOrDefault(_sideTexture, -1);
 	}
 	
-	// ========================================================
-	// Static Atlas Registration.
-	// ========================================================
+	// ========== STATIC ATLAS REGISTRATION ==========
 	
 	/**
 	 * Registers an atlas index for a texture filename.<br>
-	 * Called by {@link TextureAtlas} during atlas building.
+	 * Called by {@link simplecraft.world.TextureAtlas} during atlas building.
 	 */
 	public static void registerAtlasIndex(String filename, int index)
 	{
@@ -421,7 +403,7 @@ public enum Block
 	
 	/**
 	 * Collects all unique texture filenames from all block types in a deterministic order.<br>
-	 * Used by {@link TextureAtlas} to build the atlas grid.
+	 * Used by {@link simplecraft.world.TextureAtlas} to build the atlas grid.
 	 * @return ordered list of unique texture filenames
 	 */
 	public static List<String> collectTextureFiles()
@@ -455,9 +437,7 @@ public enum Block
 		return new ArrayList<>(uniqueFiles);
 	}
 	
-	// ========================================================
-	// Lookup by Ordinal.
-	// ========================================================
+	// ========== LOOKUP BY ORDINAL ==========
 	
 	private static final Block[] VALUES = values();
 	

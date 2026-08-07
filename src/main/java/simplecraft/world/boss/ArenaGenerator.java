@@ -29,9 +29,7 @@ import simplecraft.world.entity.TorchTileEntity;
  */
 public class ArenaGenerator
 {
-	// ========================================================
-	// Arena Constants.
-	// ========================================================
+	// ========== ARENA CONSTANTS ==========
 	
 	/** Arena width/depth in blocks. */
 	public static final int ARENA_SIZE_X = 401;
@@ -62,9 +60,7 @@ public class ArenaGenerator
 	/** Player spawn - SW corner of the arena, facing the center. */
 	public static final Vector3i PLAYER_SPAWN = new Vector3i(ARENA_MIN_X - 5, 2, ARENA_MIN_Z - 5);
 	
-	// ========================================================
-	// Tower Constants.
-	// ========================================================
+	// ========== TOWER CONSTANTS ==========
 	
 	/** Tower outer radius (circular wall). */
 	private static final int TOWER_OUTER_RADIUS = 12;
@@ -125,9 +121,7 @@ public class ArenaGenerator
 	/** Regions needed per axis. */
 	private static final int REGIONS_PER_AXIS = (ARENA_SIZE_X + Region.SIZE_XZ - 1) / Region.SIZE_XZ;
 	
-	// ========================================================
-	// Generation.
-	// ========================================================
+	// ========== GENERATION ==========
 	
 	/**
 	 * Generates the boss arena.
@@ -171,9 +165,7 @@ public class ArenaGenerator
 		return arenaWorld;
 	}
 	
-	// ========================================================
-	// Shell.
-	// ========================================================
+	// ========== SHELL ==========
 	
 	private static void fillShell(World world)
 	{
@@ -215,9 +207,7 @@ public class ArenaGenerator
 		}
 	}
 	
-	// ========================================================
-	// Central Arena.
-	// ========================================================
+	// ========== CENTRAL ARENA ==========
 	
 	private static void fillCentralArena(World world)
 	{
@@ -233,13 +223,9 @@ public class ArenaGenerator
 		}
 	}
 	
-	// ========================================================
-	// Tower.
-	// ========================================================
+	// ========== TOWER ==========
 	
-	// ========================================================
-	// Tower generation (modified)
-	// ========================================================
+	// ========== TOWER GENERATION (MODIFIED) ==========
 	
 	/**
 	 * Generates a castle tower: circular BEDROCK walls, helicoid staircase,<br>
@@ -267,7 +253,7 @@ public class ArenaGenerator
 					world.setBlockNoRebuild(wx, y, wz, isWall ? Block.BEDROCK : Block.AIR);
 				}
 				
-				// Solid roof floor (full disc) – replaces the old ceiling line
+				// Solid roof floor (full disc) - replaces the old ceiling line
 				world.setBlockNoRebuild(wx, TOWER_TOP_Y, wz, Block.BEDROCK);
 			}
 		}
@@ -433,9 +419,7 @@ public class ArenaGenerator
 		}
 	}
 	
-	// ========================================================
-	// Roof Battlements
-	// ========================================================
+	// ========== ROOF BATTLEMENTS ==========
 	
 	/**
 	 * Adds crenellations (alternating merlons and crenels) around the top of the tower<br>
@@ -456,10 +440,9 @@ public class ArenaGenerator
 		{
 			for (int dz = -r; dz <= r; dz++)
 			{
-				double dist = Math.sqrt(dx * dx + dz * dz);
 				
 				// Select blocks approximately on the outer ring.
-				if (Math.abs(dist - r) > 1.0)
+				if (Math.abs(Math.sqrt(dx * dx + dz * dz) - r) > 1.0)
 				{
 					continue;
 				}
@@ -478,8 +461,7 @@ public class ArenaGenerator
 				boolean isMerlon = false;
 				for (int m = 0; m < NUM_MERLONS; m++)
 				{
-					double merlonCenter = m * (2.0 * Math.PI / NUM_MERLONS);
-					double diff = angle - merlonCenter;
+					double diff = angle - (m * (2.0 * Math.PI / NUM_MERLONS));
 					while (diff > Math.PI)
 					{
 						diff -= 2.0 * Math.PI;
@@ -518,9 +500,7 @@ public class ArenaGenerator
 		}
 	}
 	
-	// ========================================================
-	// Doors.
-	// ========================================================
+	// ========== DOORS ==========
 	
 	/**
 	 * Carves a 1-wide, 2-tall opening through the tower wall for a door.
@@ -595,9 +575,7 @@ public class ArenaGenerator
 		}
 	}
 	
-	// ========================================================
-	// Tower Interior Torches.
-	// ========================================================
+	// ========== TOWER INTERIOR TORCHES ==========
 	
 	/**
 	 * Places torches inside a tower on the outer wall going upward.<br>
@@ -631,12 +609,9 @@ public class ArenaGenerator
 		{
 			for (int[] offset : torchOffsets)
 			{
-				final int tx = cx + offset[0];
-				final int tz = cz + offset[1];
-				final Face attachFace = faces[offset[2]];
 				
 				// Only place if the torch position is air and the wall behind is solid.
-				carveAndPlaceWallTorch(world, manager, tx, y, tz, attachFace);
+				carveAndPlaceWallTorch(world, manager, (cx + offset[0]), y, (cz + offset[1]), faces[offset[2]]);
 			}
 		}
 	}
@@ -653,9 +628,7 @@ public class ArenaGenerator
 		placeWallTorch(world, manager, x, y, z, attachedFace);
 	}
 	
-	// ========================================================
-	// Rooftop Torches.
-	// ========================================================
+	// ========== ROOFTOP TORCHES ==========
 	
 	/**
 	 * Places floor torches on the tower rooftop for visibility from above and below.<br>
@@ -683,9 +656,7 @@ public class ArenaGenerator
 		placeFloorTorch(world, manager, cx, y, cz);
 	}
 	
-	// ========================================================
-	// Perimeter and Arena Torches.
-	// ========================================================
+	// ========== PERIMETER AND ARENA TORCHES ==========
 	
 	private static void placePerimeterTorches(World world, TileEntityManager manager)
 	{
@@ -724,9 +695,7 @@ public class ArenaGenerator
 		}
 	}
 	
-	// ========================================================
-	// Torch Helpers.
-	// ========================================================
+	// ========== TORCH HELPERS ==========
 	
 	private static void placeWallTorch(World world, TileEntityManager manager, int x, int y, int z, Face attachedFace)
 	{

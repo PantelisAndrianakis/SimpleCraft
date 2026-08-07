@@ -10,6 +10,7 @@ import com.jme3.input.controls.AnalogListener;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.material.Material;
+import com.jme3.material.RenderState;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
@@ -78,9 +79,9 @@ import simplecraft.world.entity.WindowTileEntity;
  */
 public class BlockInteraction implements ActionListener, AnalogListener
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Maximum raycast distance in blocks. */
 	private static final float RAY_DISTANCE = 5.0f;
@@ -128,9 +129,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		Block.WHITE_DAISY
 	};
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final Camera _camera;
 	private final InputManager _inputManager;
@@ -153,6 +154,15 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	// Crack overlay.
 	private Geometry _crackGeometry;
 	private boolean _crackVisible;
+	
+	/** Reused crack overlay color (avoids per-frame ColorRGBA allocation). */
+	private final ColorRGBA _crackColor = new ColorRGBA(0, 0, 0, 0);
+	
+	/** Last block position the crack quad was built for (avoids per-frame mesh rebuilds). */
+	private int _crackBuiltX = Integer.MIN_VALUE;
+	private int _crackBuiltY;
+	private int _crackBuiltZ;
+	private Face _crackBuiltFace;
 	
 	// Raycast results (updated each frame).
 	/** World coordinates of the targeted block, or null if no target. */
@@ -253,9 +263,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private final Vector3f _rayOrigin = new Vector3f();
 	private final Vector3f _rayDirection = new Vector3f();
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a new block interaction handler.
@@ -277,39 +287,40 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Create highlight material (bright white, unshaded).
 		_highlightMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		_highlightMaterial.setColor("Color", new ColorRGBA(1.0f, 1.0f, 1.0f, 0.9f));
-		_highlightMaterial.getAdditionalRenderState().setWireframe(true);
-		_highlightMaterial.getAdditionalRenderState().setLineWidth(2.0f);
-		_highlightMaterial.getAdditionalRenderState().setDepthTest(false);
+		final RenderState highlightState = _highlightMaterial.getAdditionalRenderState();
+		highlightState.setWireframe(true);
+		highlightState.setLineWidth(2.0f);
+		highlightState.setDepthTest(false);
 		
 		// Create highlight material for unbreakable blocks (vivid red).
 		_highlightUnbreakableMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		_highlightUnbreakableMaterial.setColor("Color", new ColorRGBA(1.0f, 0.2f, 0.2f, 0.9f));
-		_highlightUnbreakableMaterial.getAdditionalRenderState().setWireframe(true);
-		_highlightUnbreakableMaterial.getAdditionalRenderState().setLineWidth(2.0f);
-		_highlightUnbreakableMaterial.getAdditionalRenderState().setDepthTest(false);
+		final RenderState unbreakableState = _highlightUnbreakableMaterial.getAdditionalRenderState();
+		unbreakableState.setWireframe(true);
+		unbreakableState.setLineWidth(2.0f);
+		unbreakableState.setDepthTest(false);
 		
 		// Create crack overlay material (semi-transparent black).
 		// DepthWrite=false prevents the crack quad from writing to the depth buffer,
-		// which would occlude transparent/flat-panel geometry (glass panes, window panels)
-		// rendered in the same Transparent pass. The Translucent bucket ensures the crack
-		// always draws after the Transparent pass, so it appears on top of glass/panels
-		// regardless of bounding-box sort order.
+		// which would occlude transparent/flat-panel geometry (glass panes, window panels) rendered in the same Transparent pass.
+		// The Translucent bucket ensures the crack always draws after the Transparent pass,
+		// so it appears on top of glass/panels regardless of bounding-box sort order.
 		_crackMaterial = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		_crackMaterial.setColor("Color", new ColorRGBA(0, 0, 0, 0));
-		_crackMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
-		_crackMaterial.getAdditionalRenderState().setDepthWrite(false);
+		final RenderState crackState = _crackMaterial.getAdditionalRenderState();
+		crackState.setBlendMode(BlendMode.Alpha);
+		crackState.setDepthWrite(false);
 		
 		// Build highlight geometry.
-		final WireBox wireBox = new WireBox(0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND);
-		_highlightGeometry = new Geometry("BlockHighlight", wireBox);
+		_highlightGeometry = new Geometry("BlockHighlight", new WireBox(0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND, 0.5f + HIGHLIGHT_EXPAND));
 		_highlightGeometry.setMaterial(_highlightMaterial);
 		_highlightGeometry.setQueueBucket(Bucket.Translucent);
 		_highlightGeometry.setCullHint(Geometry.CullHint.Always); // Hidden initially.
 		_overlayNode.attachChild(_highlightGeometry);
 		
 		// Build crack overlay geometry (single quad, mesh updated dynamically).
-		// Initialize with a minimal valid mesh (1 degenerate triangle) so Lemur's
-		// pick system never encounters a Mesh without a Position buffer.
+		// Initialize with a minimal valid mesh (1 degenerate triangle),
+		// So Lemur's pick system never encounters a Mesh without a Position buffer.
 		final Mesh placeholderMesh = new Mesh();
 		// @formatter:off
 		placeholderMesh.setBuffer(Type.Position, 3, BufferUtils.createFloatBuffer(new float[]{0,0,0, 0,0,0, 0,0,0}));
@@ -326,9 +337,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_destructionQueue = new BlockDestructionQueue(_world, assetManager);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Input Registration.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Registers mouse input mappings for attack, place and block selection.
@@ -371,9 +382,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_inputManager.removeListener(this);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Update.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates block interaction each frame: raycast, breaking, placement, overlays.
@@ -423,9 +434,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_destructionQueue.update(tpf);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Raycasting.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Steps along the camera ray to find the first non-AIR, non-liquid block.
@@ -445,8 +456,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		int prevBlockY = Integer.MIN_VALUE;
 		int prevBlockZ = Integer.MIN_VALUE;
 		
-		final int steps = (int) (RAY_DISTANCE / RAY_STEP);
-		for (int i = 0; i <= steps; i++)
+		for (int i = 0; i <= ((int) (RAY_DISTANCE / RAY_STEP)); i++)
 		{
 			final float distance = i * RAY_STEP;
 			final float px = _rayOrigin.x + _rayDirection.x * distance;
@@ -491,7 +501,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			
 			// Window direct placement: detect air blocks with a valid 4-edge solid frame.
 			// When the player aims through a hole in a wall with empty space behind,
-			// the ray would normally pass through without stopping. This catches it.
+			// The ray would normally pass through without stopping. This catches it.
 			if (block == Block.AIR && _playerController.getSelectedBlock() == Block.WINDOW)
 			{
 				if (hasWindowFrame(bx, by, bz))
@@ -522,8 +532,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			else if (_isBreaking)
 			{
 				// Same block, but check if the player switched tools - recalculate hits required.
-				final ItemInstance currentItem = _playerController.getInventory().getSelectedItem();
-				if (currentItem != _breakingWithItem)
+				if (_playerController.getInventory().getSelectedItem() != _breakingWithItem)
 				{
 					resetBreaking();
 				}
@@ -565,7 +574,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			float t1 = (bx - origin.x) / dir.x;
 			float t2 = (bx + 1 - origin.x) / dir.x;
-			final Face near = dir.x > 0 ? Face.WEST : Face.EAST;
 			if (t1 > t2)
 			{
 				final float tmp = t1;
@@ -576,7 +584,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			if (t1 > tMin)
 			{
 				tMin = t1;
-				entryFace = near;
+				entryFace = (dir.x > 0) ? Face.WEST : Face.EAST;
 			}
 			
 			tMax = Math.min(tMax, t2);
@@ -587,7 +595,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			float t1 = (by - origin.y) / dir.y;
 			float t2 = (by + 1 - origin.y) / dir.y;
-			final Face near = dir.y > 0 ? Face.BOTTOM : Face.TOP;
 			if (t1 > t2)
 			{
 				final float tmp = t1;
@@ -598,7 +605,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			if (t1 > tMin)
 			{
 				tMin = t1;
-				entryFace = near;
+				entryFace = (dir.y > 0) ? Face.BOTTOM : Face.TOP;
 			}
 			
 			tMax = Math.min(tMax, t2);
@@ -609,7 +616,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			float t1 = (bz - origin.z) / dir.z;
 			float t2 = (bz + 1 - origin.z) / dir.z;
-			final Face near = dir.z > 0 ? Face.SOUTH : Face.NORTH;
 			if (t1 > t2)
 			{
 				final float tmp = t1;
@@ -620,7 +626,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			if (t1 > tMin)
 			{
 				tMin = t1;
-				entryFace = near;
+				entryFace = (dir.z > 0) ? Face.SOUTH : Face.NORTH;
 			}
 			
 			tMax = Math.min(tMax, t2);
@@ -647,8 +653,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			// Check if the adjacent block in that direction is empty (placeable).
 			faceToOffset(edgeFace);
-			final Block adjacent = _world.getBlock(bx + _faceOffsetX, by + _faceOffsetY, bz + _faceOffsetZ);
-			if (!adjacent.isSolid())
+			if (!_world.getBlock(bx + _faceOffsetX, by + _faceOffsetY, bz + _faceOffsetZ).isSolid())
 			{
 				return edgeFace;
 			}
@@ -736,9 +741,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Corner - pick the axis closest to the edge.
 		if (faceA != null && faceB != null)
 		{
-			final float distA = aLow ? a : 1 - a;
-			final float distB = bLow ? b : 1 - b;
-			return distA < distB ? faceA : faceB;
+			return (aLow ? a : 1 - a) < (bLow ? b : 1 - b) ? faceA : faceB;
 		}
 		
 		return faceA != null ? faceA : faceB;
@@ -786,12 +789,16 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				_faceOffsetX = -1;
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Breaking.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Handles attack input: delivers hits to the target block.
@@ -821,31 +828,30 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return;
 		}
 		
+		final String blockName = block.name();
+		final Inventory inventory = _playerController.getInventory();
+		final int selectedHotbarIndex = inventory.getSelectedHotbarIndex();
+		final ItemInstance heldItem = inventory.getSelectedItem();
+		final String heldItemName = (heldItem != null) ? heldItem.getTemplate().getDisplayName() : null;
+		
 		// Unbreakable block (WATER, BEDROCK).
 		if (!block.isBreakable())
 		{
 			// Still costs durability (wrong target = 2) - don't waste your tools on bedrock.
-			final Inventory inventory = _playerController.getInventory();
-			final ItemInstance held = inventory.getSelectedItem();
-			if (held != null && held.hasDurability())
+			if (heldItem != null && heldItem.hasDurability())
 			{
-				final boolean broken = held.loseDurability(DURABILITY_COST_WRONG);
-				if (broken)
+				if (heldItem.loseDurability(DURABILITY_COST_WRONG))
 				{
-					final String toolName = held.getTemplate().getDisplayName();
-					inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
-					MessageManager.show(LanguageManager.get("msg.tool_broke").replace("{0}", toolName));
-					System.out.println("Tool broke: " + toolName);
+					inventory.setSlot(selectedHotbarIndex, null);
+					MessageManager.show(LanguageManager.get("msg.tool_broke").replace("{0}", heldItemName));
+					System.out.println("Tool broke: " + heldItemName);
 				}
 			}
 			
 			_hitCooldownTimer = HIT_COOLDOWN;
-			System.out.println("Cannot break " + block.name() + " - unbreakable.");
+			System.out.println("Cannot break " + blockName + " - unbreakable.");
 			return;
 		}
-		
-		final Inventory inventory = _playerController.getInventory();
-		final ItemInstance heldItem = inventory.getSelectedItem();
 		
 		// Start tracking this block if not already.
 		if (!_isBreaking)
@@ -860,9 +866,10 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		// Deliver hit.
+		final boolean decoration = block.isDecoration();
 		_hitsDelivered++;
 		_hitCooldownTimer = HIT_COOLDOWN;
-		_audioManager.playSfx(block.isDecoration() ? AudioManager.SFX_STEP_GRASS : AudioManager.SFX_BLOCK_HIT);
+		_audioManager.playSfx(decoration ? AudioManager.SFX_STEP_GRASS : AudioManager.SFX_BLOCK_HIT);
 		
 		// Trigger viewmodel swing animation.
 		if (_viewmodelRenderer != null)
@@ -874,13 +881,11 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		final int durabilityCost = getDurabilityCostPerHit(block, heldItem);
 		if (durabilityCost > 0 && heldItem != null && heldItem.hasDurability())
 		{
-			final boolean broken = heldItem.loseDurability(durabilityCost);
-			if (broken)
+			if (heldItem.loseDurability(durabilityCost))
 			{
-				final String toolName = heldItem.getTemplate().getDisplayName();
-				inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
-				MessageManager.show(LanguageManager.get("msg.tool_broke").replace("{0}", toolName));
-				System.out.println("Tool broke: " + toolName);
+				inventory.setSlot(selectedHotbarIndex, null);
+				MessageManager.show(LanguageManager.get("msg.tool_broke").replace("{0}", heldItemName));
+				System.out.println("Tool broke: " + heldItemName);
 				
 				// Tool broke mid-block-break - recalculate effective hits with bare hands.
 				final ItemInstance newHeld = inventory.getSelectedItem();
@@ -899,152 +904,148 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 		}
 		
-		System.out.println("Hit " + block.name() + " (" + _hitsDelivered + "/" + _hitsRequired + ")");
+		System.out.println("Hit " + blockName + " (" + _hitsDelivered + "/" + _hitsRequired + ")");
 		
 		// Apply camera shake.
 		applyShake();
 		
-		// Check if broken.
-		if (_hitsDelivered >= _hitsRequired)
+		// Not broken yet - wait for more hits.
+		if (_hitsDelivered < _hitsRequired)
 		{
-			System.out.println("Broke " + block.name() + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "]");
-			_audioManager.playSfx(block.isDecoration() ? AudioManager.SFX_STEP_DIRT : AudioManager.SFX_BLOCK_BREAK);
-			
-			// Spawn block break particles at the broken block position.
-			if (_particleManager != null)
+			return;
+		}
+		
+		System.out.println("Broke " + blockName + " at [" + _targetX + ", " + _targetY + ", " + _targetZ + "]");
+		_audioManager.playSfx(decoration ? AudioManager.SFX_STEP_DIRT : AudioManager.SFX_BLOCK_BREAK);
+		
+		// Spawn block break particles at the broken block position.
+		if (_particleManager != null)
+		{
+			_particleManager.spawnBlockBreak(new Vector3f(_targetX, _targetY, _targetZ), block);
+		}
+		
+		// Record berry bush respawn before clearing player-placed flag (needs the original flag).
+		if (block == Block.BERRY_BUSH && !_world.isPlayerPlaced(_targetX, _targetY, _targetZ))
+		{
+			_world.addBerryRespawn(_targetX, _targetY, _targetZ);
+		}
+		
+		// Clear player-placed flag before removal.
+		_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
+		
+		// Mark as player-removed (prevents enemy spawning in cleared areas).
+		_world.markPlayerRemoved(_targetX, _targetY, _targetZ);
+		
+		// Remove tile entity if present.
+		if (block.isTileEntity())
+		{
+			final TileEntityManager manager = _world.getTileEntityManager();
+			if (manager != null)
 			{
-				_particleManager.spawnBlockBreak(new Vector3f(_targetX, _targetY, _targetZ), block);
-			}
-			
-			// Record berry bush respawn before clearing player-placed flag (needs the original flag).
-			if (block == Block.BERRY_BUSH && !_world.isPlayerPlaced(_targetX, _targetY, _targetZ))
-			{
-				_world.addBerryRespawn(_targetX, _targetY, _targetZ);
-			}
-			
-			// Clear player-placed flag before removal.
-			_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
-			
-			// Mark as player-removed (prevents enemy spawning in cleared areas).
-			_world.markPlayerRemoved(_targetX, _targetY, _targetZ);
-			
-			// Remove tile entity if present.
-			if (block.isTileEntity())
-			{
-				final TileEntityManager manager = _world.getTileEntityManager();
-				if (manager != null)
+				final TileEntity entity = manager.get(_targetX, _targetY, _targetZ);
+				if (entity != null)
 				{
-					final TileEntity entity = manager.get(_targetX, _targetY, _targetZ);
-					if (entity != null)
+					// Door: breaking either half destroys both halves.
+					if (entity instanceof DoorTileEntity)
 					{
-						// Door: breaking either half destroys both halves.
-						if (entity instanceof DoorTileEntity)
+						final DoorTileEntity door = (DoorTileEntity) entity;
+						final Vector3i partnerPos = door.getPartnerPos();
+						
+						// Clear player-placed and mark player-removed for both positions.
+						_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
+						_world.markPlayerRemoved(_targetX, _targetY, _targetZ);
+						if (partnerPos != null)
 						{
-							final DoorTileEntity door = (DoorTileEntity) entity;
-							final Vector3i partnerPos = door.getPartnerPos();
-							
-							// Clear player-placed and mark player-removed for both positions.
-							_world.clearPlayerPlaced(_targetX, _targetY, _targetZ);
-							_world.markPlayerRemoved(_targetX, _targetY, _targetZ);
-							if (partnerPos != null)
-							{
-								_world.clearPlayerPlaced(partnerPos.x, partnerPos.y, partnerPos.z);
-								_world.markPlayerRemoved(partnerPos.x, partnerPos.y, partnerPos.z);
-							}
-							
-							// Destroy both halves (sets to AIR, removes tile entities, rebuilds mesh).
-							door.destroyBothHalves(_world);
-							
-							// Drop the door item on the ground.
-							dropBlockItem(Block.DOOR_BOTTOM, _targetX, _targetY, _targetZ);
-							
-							System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] - both halves destroyed.");
-							_audioManager.playSfx(AudioManager.SFX_BLOCK_BREAK);
-							resetBreaking();
-							return;
+							_world.clearPlayerPlaced(partnerPos.x, partnerPos.y, partnerPos.z);
+							_world.markPlayerRemoved(partnerPos.x, partnerPos.y, partnerPos.z);
 						}
 						
-						// Non-door tile entities: standard removal.
+						// Destroy both halves (sets to AIR, removes tile entities, rebuilds mesh).
+						door.destroyBothHalves(_world);
 						
-						// Chest: drop all stored contents before removal.
-						if (entity instanceof ChestTileEntity)
+						// Drop the door item on the ground.
+						dropBlockItem(Block.DOOR_BOTTOM, _targetX, _targetY, _targetZ);
+						
+						System.out.println("Broke DOOR at [" + _targetX + ", " + _targetY + ", " + _targetZ + "] - both halves destroyed.");
+						_audioManager.playSfx(AudioManager.SFX_BLOCK_BREAK);
+						resetBreaking();
+						return;
+					}
+					
+					// Non-door tile entities: standard removal.
+					
+					// Chest: drop all stored contents before removal.
+					if (entity instanceof ChestTileEntity)
+					{
+						((ChestTileEntity) entity).dropContents(_dropManager);
+						
+						// Close the chest screen if this chest is currently being viewed.
+						if (_chestScreen != null && _chestScreen.isOpen())
 						{
-							final ChestTileEntity chest = (ChestTileEntity) entity;
-							chest.dropContents(_dropManager);
-							
-							// Close the chest screen if this chest is currently being viewed.
-							if (_chestScreen != null && _chestScreen.isOpen())
-							{
-								_chestScreen.close();
-							}
+							_chestScreen.close();
 						}
+					}
+					
+					// Furnace: drop all stored contents before removal.
+					if (entity instanceof FurnaceTileEntity)
+					{
+						((FurnaceTileEntity) entity).dropContents(_dropManager);
 						
-						// Furnace: drop all stored contents before removal.
-						if (entity instanceof FurnaceTileEntity)
+						// Close the furnace screen if this furnace is currently being viewed.
+						if (_furnaceScreen != null && _furnaceScreen.isOpen())
 						{
-							final FurnaceTileEntity furnace = (FurnaceTileEntity) entity;
-							furnace.dropContents(_dropManager);
-							
-							// Close the furnace screen if this furnace is currently being viewed.
-							if (_furnaceScreen != null && _furnaceScreen.isOpen())
-							{
-								_furnaceScreen.close();
-							}
+							_furnaceScreen.close();
 						}
-						
-						manager.remove(_targetX, _targetY, _targetZ);
-						entity.onRemoved(_world);
-						
-						// If the broken campfire was the active respawn point, clear it.
-						if (entity instanceof CampfireTileEntity)
+					}
+					
+					manager.remove(_targetX, _targetY, _targetZ);
+					entity.onRemoved(_world);
+					
+					// If the broken campfire was the active respawn point, clear it.
+					if (entity instanceof CampfireTileEntity)
+					{
+						if (((CampfireTileEntity) entity).isActivated())
 						{
-							final CampfireTileEntity campfire = (CampfireTileEntity) entity;
-							if (campfire.isActivated())
-							{
-								_playerController.clearRespawnCampfire();
-								MessageManager.show(LanguageManager.get("msg.respawn_lost"));
-							}
+							_playerController.clearRespawnCampfire();
+							MessageManager.show(LanguageManager.get("msg.respawn_lost"));
 						}
 					}
 				}
 			}
-			
-			// If any adjacent block is liquid, replace with WATER instead of AIR.
-			final Block replacement = (_targetY <= World.WATER_LEVEL && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR;
-			_world.setBlockImmediate(_targetX, _targetY, _targetZ, replacement);
-			
-			// Drop block item on the ground at the broken block position.
-			dropBlockItem(block, _targetX, _targetY, _targetZ);
-			
-			// If WOOD was broken, trigger tree felling (block is already AIR).
-			if (block == Block.WOOD)
-			{
-				final TreeFeller.FellingResult fellingResult = TreeFeller.fellTree(_world, _targetX, _targetY, _targetZ);
-				_destructionQueue.queueTreeFelling(fellingResult);
-				
-				// Drop items for each block destroyed by the felling cascade.
-				// The broken block itself was already handled by dropBlockItem above.
-				// Each felled block drops at its own world position.
-				final List<Block> felledTypes = fellingResult.getBlockTypes();
-				final List<int[]> felledPositions = fellingResult.getBlocks();
-				for (int i = 0; i < felledTypes.size(); i++)
-				{
-					final int[] pos = felledPositions.get(i);
-					dropBlockItem(felledTypes.get(i), pos[0], pos[1], pos[2]);
-				}
-			}
-			
-			// Check block support for nearby player-placed blocks.
-			final BlockSupport.CollapseResult collapseResult = BlockSupport.checkSupport(_world, _targetX, _targetY, _targetZ);
-			_destructionQueue.queueCollapseResult(collapseResult);
-			
-			// Check if breaking this block removes support from neighboring tile entities
-			// (torches, campfires, windows, doors). These aren't caught by BlockSupport
-			// because they aren't solid player-placed blocks.
-			removeSupportedTileEntities(_targetX, _targetY, _targetZ);
-			
-			resetBreaking();
 		}
+		
+		// If any adjacent block is liquid, replace with WATER instead of AIR.
+		_world.setBlockImmediate(_targetX, _targetY, _targetZ, ((_targetY <= World.WATER_LEVEL) && hasAdjacentLiquid(_targetX, _targetY, _targetZ)) ? Block.WATER : Block.AIR);
+		
+		// Drop block item on the ground at the broken block position.
+		dropBlockItem(block, _targetX, _targetY, _targetZ);
+		
+		// If WOOD was broken, trigger tree felling (block is already AIR).
+		if (block == Block.WOOD)
+		{
+			final TreeFeller.FellingResult fellingResult = TreeFeller.fellTree(_world, _targetX, _targetY, _targetZ);
+			_destructionQueue.queueTreeFelling(fellingResult);
+			
+			// Drop items for each block destroyed by the felling cascade.
+			// The broken block itself was already handled by dropBlockItem above.
+			// Each felled block drops at its own world position.
+			final List<Block> felledTypes = fellingResult.getBlockTypes();
+			final List<int[]> felledPositions = fellingResult.getBlocks();
+			for (int i = 0; i < felledTypes.size(); i++)
+			{
+				final int[] pos = felledPositions.get(i);
+				dropBlockItem(felledTypes.get(i), pos[0], pos[1], pos[2]);
+			}
+		}
+		
+		// Check block support for nearby player-placed blocks.
+		_destructionQueue.queueCollapseResult(BlockSupport.checkSupport(_world, _targetX, _targetY, _targetZ));
+		
+		// Check if breaking this block removes support from neighboring tile entities (torches, campfires, windows, doors).
+		// These aren't caught by BlockSupport because they aren't solid player-placed blocks.
+		removeSupportedTileEntities(_targetX, _targetY, _targetZ);
+		
+		resetBreaking();
 	}
 	
 	/** Block damage per hit with the correct tool. */
@@ -1082,8 +1083,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			return -1; // Unbreakable.
 		}
 		
-		final float damagePerHit = getBlockDamagePerHit(block, heldItem);
-		return (int) Math.ceil(hardness / damagePerHit);
+		return (int) Math.ceil(hardness / getBlockDamagePerHit(block, heldItem));
 	}
 	
 	/**
@@ -1139,7 +1139,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		final ItemTemplate template = heldItem.getTemplate();
 		
 		// Correct tool: 1 durability per hit.
-		if (template.hasTool())
+		if (template.getType() == ItemType.TOOL)
 		{
 			final ToolType bestTool = block.getBestTool();
 			if (bestTool != ToolType.NONE && template.getToolType() == bestTool)
@@ -1204,16 +1204,12 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 			
 			// Center of the block + slight random offset for visual spread.
-			final float dropX = bx + 0.5f + (Rnd.nextFloat() - 0.5f) * 0.3f;
-			final float dropZ = bz + 0.5f + (Rnd.nextFloat() - 0.5f) * 0.3f;
-			_dropManager.spawnDrop(new Vector3f(dropX, groundY, dropZ), stack);
+			_dropManager.spawnDrop(new Vector3f((bx + 0.5f + (Rnd.nextFloat() - 0.5f) * 0.3f), groundY, (bz + 0.5f + (Rnd.nextFloat() - 0.5f) * 0.3f)), stack);
 		}
 		else
 		{
 			// Fallback: add directly to inventory if DropManager is not wired.
-			final Inventory inventory = _playerController.getInventory();
-			final boolean added = inventory.addItem(stack);
-			if (added)
+			if (_playerController.getInventory().addItem(stack))
 			{
 				System.out.println("Picked up: " + dropItem.getDisplayName());
 			}
@@ -1319,7 +1315,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				door.destroyBothHalves(_world);
 				System.out.println("Door lost support at [" + nx + ", " + ny + ", " + nz + "] - both halves destroyed.");
 				
-				// destroyBothHalves already rebuilds, but mark for rebuild in case of batching.
+				// DestroyBothHalves already rebuilds, but mark for rebuild in case of batching.
 				needsRebuild = true;
 				continue;
 			}
@@ -1327,8 +1323,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			// Campfire: clear respawn point if active.
 			if (te instanceof CampfireTileEntity)
 			{
-				final CampfireTileEntity campfire = (CampfireTileEntity) te;
-				if (campfire.isActivated())
+				if (((CampfireTileEntity) te).isActivated())
 				{
 					_playerController.clearRespawnCampfire();
 					MessageManager.show(LanguageManager.get("msg.respawn_lost"));
@@ -1340,8 +1335,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			// Chest: drop all stored contents before removal.
 			if (te instanceof ChestTileEntity)
 			{
-				final ChestTileEntity chest = (ChestTileEntity) te;
-				chest.dropContents(_dropManager);
+				((ChestTileEntity) te).dropContents(_dropManager);
 				
 				if (_chestScreen != null && _chestScreen.isOpen())
 				{
@@ -1352,8 +1346,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			// Furnace: drop all stored contents before removal.
 			if (te instanceof FurnaceTileEntity)
 			{
-				final FurnaceTileEntity furnace = (FurnaceTileEntity) te;
-				furnace.dropContents(_dropManager);
+				((FurnaceTileEntity) te).dropContents(_dropManager);
 				
 				if (_furnaceScreen != null && _furnaceScreen.isOpen())
 				{
@@ -1397,9 +1390,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		_camera.setLocation(_rayOrigin);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Placing.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Handles block placement at the placement position.
@@ -1427,10 +1420,11 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		final String itemId = selectedTemplate.getId();
 		
-		// Dragon Orb - teleport to arena.
-		if ("dragon_orb".equals(itemId))
+		// Dragon / Shadow Orb - teleport to arena.
+		final boolean inBossArena = _playerController.isInBossArena();
+		if ("dragon_orb".equals(itemId) || "shadow_orb".equals(itemId))
 		{
-			if (_playerController.isInBossArena())
+			if (inBossArena)
 			{
 				MessageManager.show(LanguageManager.get("msg.orb_no_power"));
 				return true;
@@ -1444,35 +1438,14 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				return true;
 			}
 			
-			System.err.println("BlockInteraction: Dragon Orb used but PlayingState not found.");
-			return false;
-		}
-		
-		// Shadow Orb - teleport to arena.
-		if ("shadow_orb".equals(itemId))
-		{
-			if (_playerController.isInBossArena())
-			{
-				MessageManager.show(LanguageManager.get("msg.orb_no_power"));
-				return true;
-			}
-			
-			// Initiate arena entry via PlayingState (shows loading screen, generates arena next frame).
-			final PlayingState state = getPlayingState();
-			if (state != null)
-			{
-				state.beginArenaEntry(itemId);
-				return true;
-			}
-			
-			System.err.println("BlockInteraction: Shadow Orb used but PlayingState not found.");
+			System.err.println("BlockInteraction: " + itemId + " used but PlayingState not found.");
 			return false;
 		}
 		
 		// Recall Orb - return from arena.
 		if ("recall_orb".equals(itemId))
 		{
-			if (!_playerController.isInBossArena())
+			if (!inBossArena)
 			{
 				MessageManager.show(LanguageManager.get("msg.orb_faint"));
 				return true;
@@ -1561,6 +1534,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		// Check if targeting a tile entity block - interact instead of placing.
 		final Block targetBlock = _world.getBlock(_targetX, _targetY, _targetZ);
+		final boolean targetSolid = targetBlock.isSolid();
 		if (targetBlock.isTileEntity())
 		{
 			final TileEntityManager manager = _world.getTileEntityManager();
@@ -1604,16 +1578,17 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		final Block selectedBlock = _playerController.getSelectedBlock();
-		
 		if (selectedBlock == null || selectedBlock == Block.AIR)
 		{
 			return;
 		}
 		
+		final String selectedBlockName = selectedBlock.name();
+		
 		// Cannot place WATER or BEDROCK.
 		if (selectedBlock == Block.WATER || selectedBlock == Block.BEDROCK)
 		{
-			System.out.println("Cannot place " + selectedBlock.name() + ".");
+			System.out.println("Cannot place " + selectedBlockName + ".");
 			return;
 		}
 		
@@ -1621,7 +1596,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		if (_playerController.isInBossArena() && selectedBlock.isTileEntity())
 		{
 			MessageManager.show(LanguageManager.get("msg.cannot_place"));
-			System.out.println("Arena restriction: Cannot place " + selectedBlock.name() + " in boss arena.");
+			System.out.println("Arena restriction: Cannot place " + selectedBlockName + " in boss arena.");
 			return;
 		}
 		
@@ -1642,14 +1617,13 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// When _targetSelf, place at adjacent face position if target is solid.
 		else if (_targetSelf)
 		{
-			if (targetBlock.isSolid())
+			if (targetSolid)
 			{
 				faceToOffset(_targetFace);
 				final int adjX = _targetX + _faceOffsetX;
 				final int adjY = _targetY + _faceOffsetY;
 				final int adjZ = _targetZ + _faceOffsetZ;
-				final Block adjacent = _world.getBlock(adjX, adjY, adjZ);
-				if (!adjacent.isSolid())
+				if (!_world.getBlock(adjX, adjY, adjZ).isSolid())
 				{
 					placeX = adjX;
 					placeY = adjY;
@@ -1660,8 +1634,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		}
 		
 		// Face-snap placement - blocks that attach to surfaces (torches, doors, etc.)
-		// bypass the 20% edge redirect and always use the raw entry face.
-		if (selectedBlock.isFaceSnap() && _hasTarget && targetBlock.isSolid())
+		// Bypass the 20% edge redirect and always use the raw entry face.
+		if (selectedBlock.isFaceSnap() && _hasTarget && targetSolid)
 		{
 			faceToOffset(_entryFace);
 			placeX = _targetX + _faceOffsetX;
@@ -1710,8 +1684,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		// Window placement - normal path (targeting a solid wall block).
 		// Must target a solid block's side face (not top/bottom).
-		// All frame edges (top, bottom and left or right of the panel) must be solid
-		// so the window sits in a proper wall opening, not dangling in open air.
+		// All frame edges (top, bottom and left or right of the panel) must be solid,
+		// So the window sits in a proper wall opening, not dangling in open air.
 		if (selectedBlock == Block.WINDOW && !_windowDirectPlace)
 		{
 			if (_entryFace == Face.TOP || _entryFace == Face.BOTTOM)
@@ -1771,8 +1745,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 			}
 			
 			// Check that the block below the door is solid (for support).
-			final Block belowBlock = _world.getBlock(placeX, doorBottomY - 1, placeZ);
-			if (!belowBlock.isSolid())
+			if (!_world.getBlock(placeX, doorBottomY - 1, placeZ).isSolid())
 			{
 				System.out.println("Cannot place DOOR here - needs a solid block below.");
 				return;
@@ -1803,7 +1776,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		{
 			if (!canPlaceOnSoil(placeX, placeY, placeZ))
 			{
-				System.out.println("Cannot place " + selectedBlock.name() + " here - needs GRASS or DIRT below.");
+				System.out.println("Cannot place " + selectedBlockName + " here - needs GRASS or DIRT below.");
 				return;
 			}
 		}
@@ -1818,7 +1791,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Cannot place non-solid blocks (decorations, billboards) into liquid.
 		if (existing.isLiquid() && !selectedBlock.isSolid())
 		{
-			System.out.println("Cannot place " + selectedBlock.name() + " in water.");
+			System.out.println("Cannot place " + selectedBlockName + " in water.");
 			return;
 		}
 		
@@ -1848,8 +1821,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// 1. Set block data without rebuilding the mesh.
 		// 2. Create and register the tile entity (with facing, light, etc.).
 		// 3. Rebuild the mesh so the tile entity's facing is available during vertex building.
-		// Without this order, the mesh builder would query the TileEntityManager
-		// before the entity is registered and default to NORTH facing.
+		// Without this order, the mesh builder would query the TileEntityManager before the entity is registered and default to NORTH facing.
 		if (selectedBlock.isTileEntity())
 		{
 			final TileEntityManager manager = _world.getTileEntityManager();
@@ -1873,8 +1845,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					case TORCH:
 					{
 						// Determine attachment face based on which block face the player clicked.
-						final Face attachedFace = determineTorchAttachment(placeX, placeY, placeZ, _entryFace);
-						entity = new TorchTileEntity(pos, attachedFace);
+						entity = new TorchTileEntity(pos, determineTorchAttachment(placeX, placeY, placeZ, _entryFace));
 						break;
 					}
 					case CHEST:
@@ -1923,7 +1894,6 @@ public class BlockInteraction implements ActionListener, AnalogListener
 					{
 						// Place both halves and create two linked tile entities.
 						final int doorTopY = placeY + 1;
-						final Vector3i bottomPos = pos;
 						final Vector3i topPos = new Vector3i(placeX, doorTopY, placeZ);
 						
 						// Set the top block data.
@@ -1931,7 +1901,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						_world.markPlayerPlaced(placeX, doorTopY, placeZ);
 						
 						// Attachment face and facing derived from player look direction.
-						// If an adjacent door exists on the hinge side, mirror the facing
+						// If an adjacent door exists on the hinge side, mirror the facing,
 						// so both door knobs face each other (double-door effect).
 						Facing doorFacing = getPlayerFacing();
 						if (hasAdjacentDoor(placeX, placeY, placeZ, doorFacing))
@@ -1942,17 +1912,17 @@ public class BlockInteraction implements ActionListener, AnalogListener
 						final Face doorAttach = facingToAttachFace(doorFacing);
 						
 						// Create linked tile entities.
-						final DoorTileEntity bottomEntity = new DoorTileEntity(bottomPos, Block.DOOR_BOTTOM, doorAttach, topPos, true);
+						final DoorTileEntity bottomEntity = new DoorTileEntity(pos, Block.DOOR_BOTTOM, doorAttach, topPos, true);
 						bottomEntity.setFacing(doorFacing);
 						bottomEntity.onPlaced(_world);
 						manager.register(bottomEntity);
 						
-						final DoorTileEntity topEntity = new DoorTileEntity(topPos, Block.DOOR_TOP, doorAttach, bottomPos, false);
+						final DoorTileEntity topEntity = new DoorTileEntity(topPos, Block.DOOR_TOP, doorAttach, pos, false);
 						topEntity.setFacing(doorFacing);
 						topEntity.onPlaced(_world);
 						manager.register(topEntity);
 						
-						// entity stays null - we already registered both halves directly.
+						// Entity stays null - we already registered both halves directly.
 						break;
 					}
 					default:
@@ -1987,7 +1957,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		// Consume one item from inventory for the placed block.
 		_playerController.getInventory().consumeSelectedItem();
 		
-		System.out.println("Placed " + selectedBlock.name() + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
+		System.out.println("Placed " + selectedBlockName + " at [" + placeX + ", " + placeY + ", " + placeZ + "]");
 		_audioManager.playSfx(AudioManager.SFX_BLOCK_PLACE);
 	}
 	
@@ -2003,10 +1973,8 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private Facing getPlayerFacing()
 	{
 		final Vector3f dir = _camera.getDirection();
-		final float absX = Math.abs(dir.x);
-		final float absZ = Math.abs(dir.z);
 		
-		if (absX > absZ)
+		if (Math.abs(dir.x) > Math.abs(dir.z))
 		{
 			// Player looks more along X axis.
 			// Looking east (+X) -> player sees WEST face -> front faces WEST.
@@ -2062,8 +2030,7 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	private boolean canPlaceTorch(int x, int y, int z)
 	{
 		// Check block below.
-		final Block below = _world.getBlock(x, y - 1, z);
-		if (below.isSolid())
+		if (_world.getBlock(x, y - 1, z).isSolid())
 		{
 			return true;
 		}
@@ -2101,9 +2068,9 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	 */
 	private Face determineTorchAttachment(int x, int y, int z, Face clickedFace)
 	{
-		// Prefer the face the player actually clicked - the support block is opposite
-		// to the entry face direction. E.g. clicking the EAST face of a block places
-		// the torch one block to the east; the support block is to the WEST of the torch.
+		// Prefer the face the player actually clicked - the support block is opposite to the entry face direction.
+		// E.g. clicking the EAST face of a block places the torch one block to the east;
+		// The support block is to the WEST of the torch.
 		// TOP attachment is never allowed: torches do not hang from ceilings.
 		final Face preferred = oppositeFace(clickedFace);
 		if (preferred != Face.TOP && isAttachableFace(x, y, z, preferred))
@@ -2238,17 +2205,16 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	 */
 	private Facing getWindowFrameFacing(int x, int y, int z)
 	{
-		final boolean eastOk = isWindowFrameBlock(x + 1, y, z);
-		final boolean westOk = isWindowFrameBlock(x - 1, y, z);
+		final Vector3f direction = _camera.getDirection();
 		
-		if (eastOk && westOk)
+		if (isWindowFrameBlock(x + 1, y, z) && isWindowFrameBlock(x - 1, y, z))
 		{
 			// Panel perpendicular to Z axis.
-			return _camera.getDirection().z > 0 ? Facing.SOUTH : Facing.NORTH;
+			return (direction.z > 0) ? Facing.SOUTH : Facing.NORTH;
 		}
 		
 		// Panel perpendicular to X axis.
-		return _camera.getDirection().x > 0 ? Facing.WEST : Facing.EAST;
+		return (direction.x > 0) ? Facing.WEST : Facing.EAST;
 	}
 	
 	/**
@@ -2386,48 +2352,20 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		final Vector3f pos = _playerController.getPosition();
 		
 		// Player AABB.
-		final float pMinX = pos.x - PLAYER_HALF_WIDTH;
-		final float pMaxX = pos.x + PLAYER_HALF_WIDTH;
-		final float pMinY = pos.y;
-		final float pMaxY = pos.y + PLAYER_HEIGHT;
-		final float pMinZ = pos.z - PLAYER_HALF_WIDTH;
-		final float pMaxZ = pos.z + PLAYER_HALF_WIDTH;
 		
 		// Block AABB (integer position to +1).
-		final float blockMinX = bx;
-		final float blockMaxX = bx + 1;
-		final float blockMinY = by;
-		final float blockMaxY = by + 1;
-		final float blockMinZ = bz;
-		final float blockMaxZ = bz + 1;
 		
 		// AABB overlap test.
-		return pMinX < blockMaxX && pMaxX > blockMinX && pMinY < blockMaxY && pMaxY > blockMinY && pMinZ < blockMaxZ && pMaxZ > blockMinZ;
+		return (pos.x - PLAYER_HALF_WIDTH) < (bx + 1) && (pos.x + PLAYER_HALF_WIDTH) > bx && pos.y < (by + 1) && (pos.y + PLAYER_HEIGHT) > by && (pos.z - PLAYER_HALF_WIDTH) < (bz + 1) && (pos.z + PLAYER_HALF_WIDTH) > bz;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Block Selection (Mouse Wheel).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
-	/**
-	 * Cycles to the next hotbar slot.
-	 */
-	private void nextBlock()
-	{
-		_playerController.getInventory().nextHotbar();
-	}
-	
-	/**
-	 * Cycles to the previous hotbar slot.
-	 */
-	private void previousBlock()
-	{
-		_playerController.getInventory().prevHotbar();
-	}
-	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Block Highlight.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates the block highlight position and visibility.
@@ -2458,183 +2396,187 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		
 		// Only show highlight when a placeable block is equipped.
 		final Block selectedBlock = _playerController.getSelectedBlock();
-		if (_hasTarget && selectedBlock != null && selectedBlock != Block.AIR)
-		{
-			final Block targetBlock = _world.getBlock(_targetX, _targetY, _targetZ);
-			
-			int showX;
-			int showY;
-			int showZ;
-			
-			if (targetBlock.isDecoration())
-			{
-				// Decoration: always replace in-place.
-				showX = _targetX;
-				showY = _targetY;
-				showZ = _targetZ;
-			}
-			else if (_targetSelf)
-			{
-				// Window direct placement: highlight the framed air block.
-				if (_windowDirectPlace)
-				{
-					showX = _targetX;
-					showY = _targetY;
-					showZ = _targetZ;
-				}
-				else if (targetBlock.isSolid())
-				{
-					// TOP/BOTTOM face center: always show placement above/below if empty.
-					if (_targetFace == Face.TOP || _targetFace == Face.BOTTOM)
-					{
-						faceToOffset(_targetFace);
-						final Block adjacent = _world.getBlock(_targetX + _faceOffsetX, _targetY + _faceOffsetY, _targetZ + _faceOffsetZ);
-						if (!adjacent.isSolid())
-						{
-							showX = _targetX + _faceOffsetX;
-							showY = _targetY + _faceOffsetY;
-							showZ = _targetZ + _faceOffsetZ;
-						}
-						else
-						{
-							// Blocked above/below - show on target for breaking.
-							showX = _targetX;
-							showY = _targetY;
-							showZ = _targetZ;
-						}
-					}
-					else
-					{
-						// Side face center - show on target for breaking.
-						showX = _targetX;
-						showY = _targetY;
-						showZ = _targetZ;
-					}
-				}
-				else if (targetBlock.isBreakable())
-				{
-					// Non-solid but breakable (leaves) - show on target for breaking.
-					showX = _targetX;
-					showY = _targetY;
-					showZ = _targetZ;
-				}
-				else
-				{
-					// Non-solid, non-breakable - hide.
-					if (_highlightVisible)
-					{
-						_highlightGeometry.setCullHint(Geometry.CullHint.Always);
-						_highlightVisible = false;
-					}
-					return;
-				}
-			}
-			else if (!targetBlock.isSolid())
-			{
-				// Non-solid, non-decoration: show for breaking if breakable, hide otherwise.
-				if (targetBlock.isBreakable())
-				{
-					showX = _targetX;
-					showY = _targetY;
-					showZ = _targetZ;
-				}
-				else
-				{
-					if (_highlightVisible)
-					{
-						_highlightGeometry.setCullHint(Geometry.CullHint.Always);
-						_highlightVisible = false;
-					}
-					return;
-				}
-			}
-			else if (_hasPlacePos)
-			{
-				// Solid target, edge region: show at placement position.
-				showX = _placeX;
-				showY = _placeY;
-				showZ = _placeZ;
-				
-				// If placement spot is solid, fall back to target.
-				final Block placeBlock = _world.getBlock(showX, showY, showZ);
-				if (placeBlock.isSolid())
-				{
-					showX = _targetX;
-					showY = _targetY;
-					showZ = _targetZ;
-				}
-			}
-			else
-			{
-				// No valid placement - fall back to target.
-				showX = _targetX;
-				showY = _targetY;
-				showZ = _targetZ;
-			}
-			
-			// Position highlight.
-			_highlightGeometry.setLocalTranslation(showX + 0.5f, showY + 0.5f, showZ + 0.5f);
-			
-			// Swap material based on breakability.
-			// Window direct placement targets AIR (not breakable) but should use normal highlight.
-			if (targetBlock.isBreakable() || _windowDirectPlace)
-			{
-				_highlightGeometry.setMaterial(_highlightMaterial);
-			}
-			else
-			{
-				_highlightGeometry.setMaterial(_highlightUnbreakableMaterial);
-			}
-			
-			if (!_highlightVisible)
-			{
-				_highlightGeometry.setCullHint(Geometry.CullHint.Never);
-				_highlightVisible = true;
-			}
-		}
-		else
+		if (!_hasTarget || (selectedBlock == null) || (selectedBlock == Block.AIR))
 		{
 			if (_highlightVisible)
 			{
 				_highlightGeometry.setCullHint(Geometry.CullHint.Always);
 				_highlightVisible = false;
 			}
+			
+			return;
+		}
+		
+		final Block targetBlock = _world.getBlock(_targetX, _targetY, _targetZ);
+		final boolean targetBreakable = targetBlock.isBreakable();
+		
+		int showX;
+		int showY;
+		int showZ;
+		
+		if (targetBlock.isDecoration())
+		{
+			// Decoration: always replace in-place.
+			showX = _targetX;
+			showY = _targetY;
+			showZ = _targetZ;
+		}
+		else if (_targetSelf)
+		{
+			// Window direct placement: highlight the framed air block.
+			if (_windowDirectPlace)
+			{
+				showX = _targetX;
+				showY = _targetY;
+				showZ = _targetZ;
+			}
+			else if (targetBlock.isSolid())
+			{
+				// TOP/BOTTOM face center: always show placement above/below if empty.
+				if (_targetFace == Face.TOP || _targetFace == Face.BOTTOM)
+				{
+					faceToOffset(_targetFace);
+					if (!_world.getBlock(_targetX + _faceOffsetX, _targetY + _faceOffsetY, _targetZ + _faceOffsetZ).isSolid())
+					{
+						showX = _targetX + _faceOffsetX;
+						showY = _targetY + _faceOffsetY;
+						showZ = _targetZ + _faceOffsetZ;
+					}
+					else
+					{
+						// Blocked above/below - show on target for breaking.
+						showX = _targetX;
+						showY = _targetY;
+						showZ = _targetZ;
+					}
+				}
+				else
+				{
+					// Side face center - show on target for breaking.
+					showX = _targetX;
+					showY = _targetY;
+					showZ = _targetZ;
+				}
+			}
+			else if (targetBreakable)
+			{
+				// Non-solid but breakable (leaves) - show on target for breaking.
+				showX = _targetX;
+				showY = _targetY;
+				showZ = _targetZ;
+			}
+			else
+			{
+				// Non-solid, non-breakable - hide.
+				if (_highlightVisible)
+				{
+					_highlightGeometry.setCullHint(Geometry.CullHint.Always);
+					_highlightVisible = false;
+				}
+				return;
+			}
+		}
+		else if (!targetBlock.isSolid())
+		{
+			// Non-solid, non-decoration: show for breaking if breakable, hide otherwise.
+			if (targetBreakable)
+			{
+				showX = _targetX;
+				showY = _targetY;
+				showZ = _targetZ;
+			}
+			else
+			{
+				if (_highlightVisible)
+				{
+					_highlightGeometry.setCullHint(Geometry.CullHint.Always);
+					_highlightVisible = false;
+				}
+				return;
+			}
+		}
+		else if (_hasPlacePos)
+		{
+			// Solid target, edge region: show at placement position.
+			showX = _placeX;
+			showY = _placeY;
+			showZ = _placeZ;
+			
+			// If placement spot is solid, fall back to target.
+			if (_world.getBlock(showX, showY, showZ).isSolid())
+			{
+				showX = _targetX;
+				showY = _targetY;
+				showZ = _targetZ;
+			}
+		}
+		else
+		{
+			// No valid placement - fall back to target.
+			showX = _targetX;
+			showY = _targetY;
+			showZ = _targetZ;
+		}
+		
+		// Position highlight.
+		_highlightGeometry.setLocalTranslation(showX + 0.5f, showY + 0.5f, showZ + 0.5f);
+		
+		// Swap material based on breakability.
+		// Window direct placement targets AIR (not breakable) but should use normal highlight.
+		if (targetBreakable || _windowDirectPlace)
+		{
+			_highlightGeometry.setMaterial(_highlightMaterial);
+		}
+		else
+		{
+			_highlightGeometry.setMaterial(_highlightUnbreakableMaterial);
+		}
+		
+		if (!_highlightVisible)
+		{
+			_highlightGeometry.setCullHint(Geometry.CullHint.Never);
+			_highlightVisible = true;
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Crack Overlay.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates the crack overlay based on breaking progress.
 	 */
 	private void updateCrackOverlay()
 	{
-		if (_isBreaking && _hitsDelivered > 0 && _hitsRequired > 0)
-		{
-			final float progress = (float) _hitsDelivered / _hitsRequired;
-			final float alpha = progress * CRACK_MAX_ALPHA;
-			
-			// Update crack material color.
-			_crackMaterial.setColor("Color", new ColorRGBA(0, 0, 0, alpha));
-			
-			// Build quad mesh on the targeted face.
-			buildCrackQuad(_breakingX, _breakingY, _breakingZ, _targetFace);
-			
-			if (!_crackVisible)
-			{
-				_crackGeometry.setCullHint(Geometry.CullHint.Never);
-				_crackVisible = true;
-			}
-		}
-		else
+		if (!_isBreaking || (_hitsDelivered <= 0) || (_hitsRequired <= 0))
 		{
 			if (_crackVisible)
 			{
 				_crackGeometry.setCullHint(Geometry.CullHint.Always);
 				_crackVisible = false;
 			}
+			
+			return;
+		}
+		
+		// Update crack material color (reused instance, avoids per-frame allocation).
+		_crackColor.a = ((float) _hitsDelivered / _hitsRequired) * CRACK_MAX_ALPHA;
+		_crackMaterial.setColor("Color", _crackColor);
+		
+		// Rebuild the quad mesh only when the targeted block or face changed.
+		if ((_crackBuiltX != _breakingX) || (_crackBuiltY != _breakingY) || (_crackBuiltZ != _breakingZ) || (_crackBuiltFace != _targetFace))
+		{
+			buildCrackQuad(_breakingX, _breakingY, _breakingZ, _targetFace);
+			_crackBuiltX = _breakingX;
+			_crackBuiltY = _breakingY;
+			_crackBuiltZ = _breakingZ;
+			_crackBuiltFace = _targetFace;
+		}
+		
+		if (!_crackVisible)
+		{
+			_crackGeometry.setCullHint(Geometry.CullHint.Never);
+			_crackVisible = true;
 		}
 	}
 	
@@ -2767,6 +2709,10 @@ public class BlockInteraction implements ActionListener, AnalogListener
 				positions[11] = bz;
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 		
 		// Fill normals (same for all 4 vertices).
@@ -2785,56 +2731,47 @@ public class BlockInteraction implements ActionListener, AnalogListener
 		mesh.updateBound();
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Input Callbacks.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	@Override
 	public void onAction(String name, boolean isPressed, float tpf)
 	{
-		switch (name)
+		if (ACTION_ATTACK.equals(name))
 		{
-			case ACTION_ATTACK:
+			_attackHeld = isPressed;
+			
+			// Reset cooldown on fresh press so first click is instant.
+			if (isPressed)
 			{
-				_attackHeld = isPressed;
-				
-				// Reset cooldown on fresh press so first click is instant.
-				if (isPressed)
-				{
-					_hitCooldownTimer = 0;
-				}
-				break;
+				_hitCooldownTimer = 0;
 			}
-			case ACTION_PLACE:
+		}
+		else if (ACTION_PLACE.equals(name))
+		{
+			// Single press (not hold).
+			if (isPressed)
 			{
-				// Single press (not hold).
-				if (isPressed)
-				{
-					_placePressed = true;
-				}
-				break;
+				_placePressed = true;
 			}
-			default:
+		}
+		else if (isPressed)
+		{
+			// Hotbar direct-select keys.
+			for (int i = 0; i < GameInputManager.HOTBAR_ACTIONS.length; i++)
 			{
-				// Hotbar direct-select keys.
-				if (isPressed)
+				if (name.equals(GameInputManager.HOTBAR_ACTIONS[i]))
 				{
-					for (int i = 0; i < GameInputManager.HOTBAR_ACTIONS.length; i++)
+					_playerController.getInventory().selectHotbar(i);
+					
+					// Immediately use the item if it is an orb or consumable.
+					if (!tryUseOrb())
 					{
-						if (name.equals(GameInputManager.HOTBAR_ACTIONS[i]))
-						{
-							_playerController.getInventory().selectHotbar(i);
-							
-							// Immediately use the item if it is an orb or consumable.
-							if (!tryUseOrb())
-							{
-								tryUseConsumable();
-							}
-							break;
-						}
+						tryUseConsumable();
 					}
+					break;
 				}
-				break;
 			}
 		}
 	}
@@ -2842,24 +2779,19 @@ public class BlockInteraction implements ActionListener, AnalogListener
 	@Override
 	public void onAnalog(String name, float value, float tpf)
 	{
-		switch (name)
+		if (ACTION_NEXT_BLOCK.equals(name))
 		{
-			case ACTION_NEXT_BLOCK:
-			{
-				nextBlock();
-				break;
-			}
-			case ACTION_PREV_BLOCK:
-			{
-				previousBlock();
-				break;
-			}
+			_playerController.getInventory().nextHotbar();
+		}
+		else if (ACTION_PREV_BLOCK.equals(name))
+		{
+			_playerController.getInventory().prevHotbar();
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Accessors.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the overlay node containing highlight and crack geometries.<br>

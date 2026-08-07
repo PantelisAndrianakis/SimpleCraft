@@ -1,5 +1,6 @@
 package simplecraft.enemy;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,9 +35,9 @@ import simplecraft.world.World;
  * <br>
  * When the player walks within activation range of an unoccupied spawn point,<br>
  * an enemy materializes with a scale-up animation. When the player moves beyond<br>
- * {@link #DESPAWN_RANGE}, the enemy is silently removed and the point becomes available.<br>
- * After an enemy is killed, the spawn point enters a {@link #RESPAWN_COOLDOWN_DAY}<br>
- * (or shorter {@link #RESPAWN_COOLDOWN_NIGHT} at night) before it can produce a new enemy.<br>
+ * {@code DESPAWN_RANGE}, the enemy is silently removed and the point becomes available.<br>
+ * After an enemy is killed, the spawn point enters a {@code RESPAWN_COOLDOWN_DAY}<br>
+ * (or shorter {@code RESPAWN_COOLDOWN_NIGHT} at night) before it can produce a new enemy.<br>
  * <br>
  * At night, spawn rates increase: the activation range widens, the maximum active enemy<br>
  * cap is raised and the spawn table shifts to favor skeletons and spiders.<br>
@@ -162,6 +163,12 @@ public class SpawnSystem
 	/** Cardinal direction offsets for the enclosure BFS. */
 	// @formatter:off
 	private static final int[][] CARDINAL_DIRS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+	
+	/** Reusable visited set for the enclosure flood fill (single-threaded update loop). */
+	private static final Set<Long> ENCLOSURE_VISITED = new HashSet<>();
+	
+	/** Reusable BFS queue of packed XZ keys for the enclosure flood fill. */
+	private static final ArrayDeque<Long> ENCLOSURE_QUEUE = new ArrayDeque<>();
 	// @formatter:on
 	
 	// ------------------------------------------------------------------
@@ -326,7 +333,7 @@ public class SpawnSystem
 	
 	/**
 	 * Sets the safe zone center (player's world spawn point).<br>
-	 * No enemies will spawn within {@link #SAFE_ZONE_RADIUS} of this position.
+	 * No enemies will spawn within {@code SAFE_ZONE_RADIUS} of this position.
 	 * @param x world X of the spawn point
 	 * @param z world Z of the spawn point
 	 */
@@ -379,30 +386,6 @@ public class SpawnSystem
 		return _dayNightCycle != null && _dayNightCycle.isNight();
 	}
 	
-	/**
-	 * Returns the current maximum active enemy cap based on time of day.
-	 */
-	private int getMaxActiveEnemies()
-	{
-		return isNight() ? MAX_ACTIVE_ENEMIES_NIGHT : MAX_ACTIVE_ENEMIES_DAY;
-	}
-	
-	/**
-	 * Returns the squared maximum activation range based on time of day.
-	 */
-	private float getActivationRangeMaxSq()
-	{
-		return isNight() ? ACTIVATION_RANGE_MAX_NIGHT_SQ : ACTIVATION_RANGE_MAX_DAY_SQ;
-	}
-	
-	/**
-	 * Returns the respawn cooldown based on time of day.
-	 */
-	private float getRespawnCooldown()
-	{
-		return isNight() ? RESPAWN_COOLDOWN_NIGHT : RESPAWN_COOLDOWN_DAY;
-	}
-	
 	// ------------------------------------------------------------------
 	// Main update.
 	// ------------------------------------------------------------------
@@ -450,28 +433,30 @@ public class SpawnSystem
 		}
 		
 		// Track new regions that are loaded.
-		for (long key : desiredRegions)
+		for (Long key : desiredRegions)
 		{
-			if (!_trackedRegions.contains(key))
+			if (_trackedRegions.contains(key))
 			{
-				final int rx = regionKeyX(key);
-				final int rz = regionKeyZ(key);
-				
-				// Only generate spawn points if the region is actually loaded.
-				if (world.getRegion(rx, rz) != null)
-				{
-					final List<SpawnPoint> points = generateSpawnPoints(rx, rz);
-					_regionSpawnPoints.put(key, points);
-					_trackedRegions.add(key);
-				}
+				continue;
 			}
+			
+			// Only generate spawn points if the region is actually loaded.
+			final int rx = World.regionKeyX(key);
+			final int rz = World.regionKeyZ(key);
+			if (world.getRegion(rx, rz) == null)
+			{
+				continue;
+			}
+			
+			_regionSpawnPoints.put(key, generateSpawnPoints(rx, rz));
+			_trackedRegions.add(key);
 		}
 		
 		// Untrack regions that are no longer desired.
 		final Iterator<Long> trackIterator = _trackedRegions.iterator();
 		while (trackIterator.hasNext())
 		{
-			final long key = trackIterator.next();
+			final Long key = trackIterator.next();
 			if (!desiredRegions.contains(key))
 			{
 				// Despawn any active enemies in this region.
@@ -500,15 +485,13 @@ public class SpawnSystem
 	 */
 	private List<SpawnPoint> generateSpawnPoints(int regionX, int regionZ)
 	{
-		final long regionSeed = _worldSeed * SEED_MUL_A + regionKey(regionX, regionZ) * SEED_MUL_B;
-		final Random rng = new Random(regionSeed);
+		final Random rng = new Random((_worldSeed * SEED_MUL_A) + (regionKey(regionX, regionZ) * SEED_MUL_B));
 		
 		// Calculate spawn count using rate as probability for fractional part.
 		// e.g. rate 1.0 = 10% chance of 1 point, rate 5.0 = 50%, rate 10.0 = guaranteed 1.
 		final float scaled = MAX_SPAWNS_PER_REGION * (SPAWN_RATE / 10f);
 		final int guaranteed = (int) scaled;
-		final float fractional = scaled - guaranteed;
-		final int count = guaranteed + (rng.nextFloat() < fractional ? 1 : 0);
+		final int count = guaranteed + (rng.nextFloat() < (scaled - guaranteed) ? 1 : 0);
 		
 		final int originX = regionX * Region.SIZE_XZ;
 		final int originZ = regionZ * Region.SIZE_XZ;
@@ -519,11 +502,8 @@ public class SpawnSystem
 		final List<SpawnPoint> points = new ArrayList<>(count);
 		for (int i = 0; i < count; i++)
 		{
-			final int wx = originX + rng.nextInt(Region.SIZE_XZ);
-			final int wz = originZ + rng.nextInt(Region.SIZE_XZ);
-			final EnemyType landType = spawnTable[rng.nextInt(spawnTable.length)];
 			
-			points.add(new SpawnPoint(wx, wz, landType));
+			points.add(new SpawnPoint((originX + rng.nextInt(Region.SIZE_XZ)), (originZ + rng.nextInt(Region.SIZE_XZ)), spawnTable[rng.nextInt(spawnTable.length)]));
 		}
 		
 		return points;
@@ -548,8 +528,7 @@ public class SpawnSystem
 		// Reject spawn points inside the player's safe zone.
 		if (_safeZoneSet)
 		{
-			final float distSq = horizontalDistanceSq(_safeZoneX, _safeZoneZ, bx, bz);
-			if (distSq < SAFE_ZONE_RADIUS_SQ)
+			if (horizontalDistanceSq(_safeZoneX, _safeZoneZ, bx, bz) < SAFE_ZONE_RADIUS_SQ)
 			{
 				point.valid = false;
 				return;
@@ -585,8 +564,7 @@ public class SpawnSystem
 		}
 		
 		// Check headroom (2 blocks above ground).
-		final Block headBlock = world.getBlock(bx, groundY + 1, bz);
-		if (headBlock.isSolid())
+		if (world.getBlock(bx, groundY + 1, bz).isSolid())
 		{
 			point.valid = false;
 			return;
@@ -612,8 +590,9 @@ public class SpawnSystem
 	 */
 	private void processSpawnPoints(Vector3f playerPos, boolean playerInWater, World world, float tpf)
 	{
-		final int maxEnemies = getMaxActiveEnemies();
-		final float activationRangeMaxSq = getActivationRangeMaxSq();
+		final boolean night = isNight();
+		final int maxEnemies = night ? MAX_ACTIVE_ENEMIES_NIGHT : MAX_ACTIVE_ENEMIES_DAY;
+		final float activationRangeMaxSq = night ? ACTIVATION_RANGE_MAX_NIGHT_SQ : ACTIVATION_RANGE_MAX_DAY_SQ;
 		
 		for (List<SpawnPoint> points : _regionSpawnPoints.values())
 		{
@@ -660,7 +639,7 @@ public class SpawnSystem
 						{
 							_enemyNode.detachChild(enemy.getNode());
 							point.activeEnemy = null;
-							point.respawnTimer = getRespawnCooldown();
+							point.respawnTimer = night ? RESPAWN_COOLDOWN_NIGHT : RESPAWN_COOLDOWN_DAY;
 							point.deathProcessed = false;
 							_activeCount--;
 						}
@@ -776,13 +755,15 @@ public class SpawnSystem
 	 */
 	private void despawnEnemy(SpawnPoint point)
 	{
-		if (point.activeEnemy != null)
+		if (point.activeEnemy == null)
 		{
-			_enemyNode.detachChild(point.activeEnemy.getNode());
-			point.activeEnemy = null;
-			_activeCount--;
-			// No cooldown on despawn - point is immediately available when player returns.
+			return;
 		}
+		
+		_enemyNode.detachChild(point.activeEnemy.getNode());
+		point.activeEnemy = null;
+		_activeCount--;
+		// No cooldown on despawn - point is immediately available when player returns.
 	}
 	
 	// ------------------------------------------------------------------
@@ -812,17 +793,15 @@ public class SpawnSystem
 			
 			if (progress < SPAWN_RISE_FRACTION)
 			{
-				// Phase 1: Rise from 0 to overshoot.
+				// Phase 1: Rise from 0 to overshoot (smooth-step).
 				final float t = progress / SPAWN_RISE_FRACTION;
-				final float smooth = t * t * (3.0f - 2.0f * t);
-				scale = smooth * SPAWN_OVERSHOOT;
+				scale = t * t * (3.0f - (2.0f * t)) * SPAWN_OVERSHOOT;
 			}
 			else
 			{
-				// Phase 2: Settle from overshoot to 1.0.
+				// Phase 2: Settle from overshoot to 1.0 (smooth-step).
 				final float t = (progress - SPAWN_RISE_FRACTION) / (1.0f - SPAWN_RISE_FRACTION);
-				final float smooth = t * t * (3.0f - 2.0f * t);
-				scale = SPAWN_OVERSHOOT + (1.0f - SPAWN_OVERSHOOT) * smooth;
+				scale = SPAWN_OVERSHOOT + ((1.0f - SPAWN_OVERSHOOT) * t * t * (3.0f - (2.0f * t)));
 			}
 		}
 		
@@ -868,13 +847,13 @@ public class SpawnSystem
 	 * level. A cell is passable if neither foot nor head height contains a solid or flat panel<br>
 	 * block (so walls, doors and windows all count as barriers).<br>
 	 * <br>
-	 * If the fill reaches {@link #ENCLOSURE_CHECK_RADIUS} blocks from the start, the area is<br>
+	 * If the fill reaches {@code ENCLOSURE_CHECK_RADIUS} blocks from the start, the area is<br>
 	 * open and the method returns false immediately. If the fill terminates without escaping<br>
 	 * (all paths blocked) and at least one boundary block was player-placed, the area is<br>
 	 * enclosed and the method returns true. Natural caves (no player blocks on the boundary)<br>
 	 * are not considered enclosed.<br>
 	 * <br>
-	 * Typical cost: 20–50 block lookups for a house interior; early exit for open terrain.
+	 * Typical cost: 20-50 block lookups for a house interior; early exit for open terrain.
 	 * @param world the game world
 	 * @param startX spawn world X
 	 * @param startY spawn world Y (feet level)
@@ -884,41 +863,37 @@ public class SpawnSystem
 	private static boolean isEnclosedByPlayer(World world, int startX, int startY, int startZ)
 	{
 		final int radiusSq = ENCLOSURE_CHECK_RADIUS * ENCLOSURE_CHECK_RADIUS;
-		final Set<Long> visited = new HashSet<>();
-		final Queue<int[]> queue = new LinkedList<>();
+		ENCLOSURE_VISITED.clear();
+		ENCLOSURE_QUEUE.clear();
 		boolean hitPlayerBlock = false;
 		
-		final long startKey = ((long) startX << 32) | (startZ & 0xFFFFFFFFL);
-		visited.add(startKey);
-		queue.add(new int[]
-		{
-			startX,
-			startZ
-		});
+		final Long startKey = ((long) startX << 32) | (startZ & 0xFFFFFFFFL);
+		ENCLOSURE_VISITED.add(startKey);
+		ENCLOSURE_QUEUE.add(startKey);
 		
-		while (!queue.isEmpty())
+		while (!ENCLOSURE_QUEUE.isEmpty())
 		{
-			final int[] current = queue.poll();
-			final int cx = current[0];
-			final int cz = current[1];
+			final long current = ENCLOSURE_QUEUE.poll();
+			final int cx = (int) (current >> 32);
+			final int cz = (int) current;
 			
 			for (int[] dir : CARDINAL_DIRS)
 			{
 				final int nx = cx + dir[0];
 				final int nz = cz + dir[1];
-				final long key = ((long) nx << 32) | (nz & 0xFFFFFFFFL);
+				final Long key = ((long) nx << 32) | (nz & 0xFFFFFFFFL);
 				
-				if (visited.contains(key))
+				if (ENCLOSURE_VISITED.contains(key))
 				{
 					continue;
 				}
 				
-				visited.add(key);
+				ENCLOSURE_VISITED.add(key);
 				
 				// Check if this cell has reached the escape radius.
 				final int dx = nx - startX;
 				final int dz = nz - startZ;
-				if ((dx * dx + dz * dz) >= radiusSq)
+				if (((dx * dx) + (dz * dz)) >= radiusSq)
 				{
 					return false; // Open area - flood fill escaped.
 				}
@@ -927,25 +902,18 @@ public class SpawnSystem
 				// Solid blocks and flat panels (doors, windows) count as walls.
 				final Block foot = world.getBlock(nx, startY, nz);
 				final Block head = world.getBlock(nx, startY + 1, nz);
-				final boolean footBlocked = foot.isSolid() || foot.isFlatPanel();
-				final boolean headBlocked = head.isSolid() || head.isFlatPanel();
-				
-				if (!footBlocked && !headBlocked)
-				{
-					// Passable - continue flood fill.
-					queue.add(new int[]
-					{
-						nx,
-						nz
-					});
-				}
-				else
+				if (foot.isSolid() || foot.isFlatPanel() || head.isSolid() || head.isFlatPanel())
 				{
 					// Blocked - check if the wall is player-placed.
 					if (world.isPlayerPlaced(nx, startY, nz) || world.isPlayerPlaced(nx, startY + 1, nz))
 					{
 						hitPlayerBlock = true;
 					}
+				}
+				else
+				{
+					// Passable - continue flood fill.
+					ENCLOSURE_QUEUE.add(key);
 				}
 			}
 		}
@@ -967,10 +935,7 @@ public class SpawnSystem
 	{
 		for (int y = 255; y >= 0; y--)
 		{
-			final Block block = world.getBlock(bx, y, bz);
-			final Block above = world.getBlock(bx, y + 1, bz);
-			
-			if (block.isSolid() && !above.isSolid())
+			if (world.getBlock(bx, y, bz).isSolid() && !world.getBlock(bx, y + 1, bz).isSolid())
 			{
 				return y + 1;
 			}
@@ -1017,16 +982,6 @@ public class SpawnSystem
 	private static long regionKey(int regionX, int regionZ)
 	{
 		return ((long) regionX << 32) | (regionZ & 0xFFFFFFFFL);
-	}
-	
-	private static int regionKeyX(long key)
-	{
-		return (int) (key >> 32);
-	}
-	
-	private static int regionKeyZ(long key)
-	{
-		return (int) key;
 	}
 	
 	// ------------------------------------------------------------------

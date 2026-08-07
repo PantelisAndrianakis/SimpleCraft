@@ -2,6 +2,7 @@ package simplecraft.world.entity;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.influencers.ParticleInfluencer;
 import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
@@ -63,9 +64,7 @@ public class TorchTileEntity extends TileEntity
 	/** How far toward the wall the torch base shifts (in blocks). */
 	private static final float WALL_SHIFT = 0.52f;
 	
-	// ========================================================
-	// Billboard Mesh Constants.
-	// ========================================================
+	// ========== BILLBOARD MESH CONSTANTS ==========
 	
 	/** Number of tiles per row/column in the texture atlas. */
 	private static final int ATLAS_GRID_SIZE = TextureAtlas.GRID_SIZE;
@@ -82,16 +81,12 @@ public class TorchTileEntity extends TileEntity
 	/** Self-illumination brightness for the torch billboard (always warm-lit). */
 	private static final float SELF_LIGHT = 0.9f;
 	
-	// ========================================================
-	// Shared Material (lazy-initialized, reused for all torches).
-	// ========================================================
+	// ========== SHARED MATERIAL (LAZY-INITIALIZED, REUSED FOR ALL TORCHES) ==========
 	
 	/** Shared material for all torch billboard geometries. */
 	private static Material _sharedMaterial;
 	
-	// ========================================================
-	// Instance Fields.
-	// ========================================================
+	// ========== INSTANCE FIELDS ==========
 	
 	/** Flame particle emitter. */
 	private ParticleEmitter _flameEmitter;
@@ -106,9 +101,7 @@ public class TorchTileEntity extends TileEntity
 		super(position, Block.TORCH, attachedFace);
 	}
 	
-	// ========================================================
-	// Lifecycle.
-	// ========================================================
+	// ========== LIFECYCLE ==========
 	
 	@Override
 	public void onPlaced(World world)
@@ -124,8 +117,7 @@ public class TorchTileEntity extends TileEntity
 		_visualNode.attachChild(pivotNode);
 		
 		// Create the cross-billboard mesh for the torch (centered on pivot origin).
-		final Geometry torchGeometry = createTorchGeometry();
-		pivotNode.attachChild(torchGeometry);
+		pivotNode.attachChild(createTorchGeometry());
 		
 		// Create flame particles at the torch tip.
 		createFlameEmitter();
@@ -165,9 +157,7 @@ public class TorchTileEntity extends TileEntity
 		// Torches have no interaction - do nothing.
 	}
 	
-	// ========================================================
-	// Wall Tilt.
-	// ========================================================
+	// ========== WALL TILT ==========
 	
 	/**
 	 * Applies rotation and position offset to the pivot node for wall-mounted torches.<br>
@@ -220,9 +210,7 @@ public class TorchTileEntity extends TileEntity
 		pivotNode.setLocalTranslation(pos.x + offsetX, pos.y, pos.z + offsetZ);
 	}
 	
-	// ========================================================
-	// Torch Billboard Mesh.
-	// ========================================================
+	// ========== TORCH BILLBOARD MESH ==========
 	
 	/**
 	 * Creates a Geometry containing the cross-billboard mesh for the torch.<br>
@@ -234,8 +222,7 @@ public class TorchTileEntity extends TileEntity
 	private Geometry createTorchGeometry()
 	{
 		// Billboard quad vertices, centered at origin (pivot point).
-		// Same dimensions as RegionMeshBuilder's billboard quads but shifted
-		// so the center is at (0, 0, 0) instead of (0.5, 0, 0.5).
+		// Same dimensions as RegionMeshBuilder's billboard quads but shifted so the center is at (0, 0, 0) instead of (0.5, 0, 0.5).
 		final float lo = INSET - 0.5f; // -0.35
 		final float hi = (1.0f - INSET) - 0.5f; // +0.35
 		
@@ -358,9 +345,7 @@ public class TorchTileEntity extends TileEntity
 		return _sharedMaterial;
 	}
 	
-	// ========================================================
-	// Particles.
-	// ========================================================
+	// ========== PARTICLES ==========
 	
 	/**
 	 * Creates a small flame particle emitter for the torch tip.<br>
@@ -389,33 +374,31 @@ public class TorchTileEntity extends TileEntity
 		_flameEmitter.setLowLife(0.2f);
 		_flameEmitter.setHighLife(0.4f);
 		
-		_flameEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.6f, 0));
-		_flameEmitter.getParticleInfluencer().setVelocityVariation(0.2f);
+		final ParticleInfluencer flameInfluencer = _flameEmitter.getParticleInfluencer();
+		flameInfluencer.setInitialVelocity(new Vector3f(0, 0.6f, 0));
+		flameInfluencer.setVelocityVariation(0.2f);
 		_flameEmitter.setGravity(0, -0.3f, 0);
 		
 		_flameEmitter.setLocalTranslation(0, 0, 0);
 		_flameEmitter.setParticlesPerSec(6);
 	}
 	
-	// ========================================================
-	// Accessors.
-	// ========================================================
+	// ========== ACCESSORS ==========
 	
 	/**
 	 * Returns the block light level emitted by a placed torch.
 	 */
+	@Override
 	public int getLightLevel()
 	{
 		return TORCH_LIGHT_LEVEL;
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	// ========== SERIALIZATION ==========
 	
 	/**
 	 * Torch serialization uses the base class only - attachedFace is already<br>
-	 * included by {@link TileEntity#serialize()}.
+	 * included by {@code TileEntity.serialize()}.
 	 */
 	@Override
 	public String serialize()

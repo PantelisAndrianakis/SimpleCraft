@@ -22,9 +22,7 @@ import simplecraft.world.World;
  */
 public class WindowTileEntity extends TileEntity
 {
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	/** Whether the window panel is currently open (slid to one side). */
 	private boolean _open = false;
@@ -37,9 +35,7 @@ public class WindowTileEntity extends TileEntity
 	 */
 	private boolean _flippedOpen = false;
 	
-	// ========================================================
-	// Constructor.
-	// ========================================================
+	// ========== CONSTRUCTOR ==========
 	
 	/**
 	 * Creates a new window tile entity at the given position attached to the specified face.
@@ -51,9 +47,7 @@ public class WindowTileEntity extends TileEntity
 		super(position, Block.WINDOW, attachedFace);
 	}
 	
-	// ========================================================
-	// Lifecycle Hooks.
-	// ========================================================
+	// ========== LIFECYCLE HOOKS ==========
 	
 	@Override
 	public void onPlaced(World world)
@@ -86,9 +80,8 @@ public class WindowTileEntity extends TileEntity
 			// Check for adjacent window/door on the swing side.
 			// If found, flip direction so both panels swing away from each other.
 			final Vector3i swingSide = getSwingSideAdjacentPosition();
-			final Block swingBlock = world.getBlock(swingSide.x, swingSide.y, swingSide.z);
 			
-			_flippedOpen = swingBlock.isFlatPanel();
+			_flippedOpen = world.getBlock(swingSide.x, swingSide.y, swingSide.z).isFlatPanel();
 		}
 		else
 		{
@@ -97,17 +90,14 @@ public class WindowTileEntity extends TileEntity
 		}
 		
 		// Trigger mesh rebuild so the FLAT_PANEL quad updates its position.
-		// Cannot use setBlockImmediate - the block type hasn't changed (still WINDOW),
-		// so Region.setBlock skips the dirty flag. Force rebuild via markRegionDirtyAt.
+		// Cannot use setBlockImmediate - the block type hasn't changed (still WINDOW), so Region.setBlock skips the dirty flag. Force rebuild via markRegionDirtyAt.
 		world.markRegionDirtyAt(_position.x, _position.y, _position.z);
 		world.rebuildDirtyRegionsImmediate();
 		
 		System.out.println("Window " + (_open ? "opened" : "closed") + " at " + _position + (_flippedOpen ? " (flipped)" : ""));
 	}
 	
-	// ========================================================
-	// State Accessors.
-	// ========================================================
+	// ========== STATE ACCESSORS ==========
 	
 	/**
 	 * Returns whether the window is currently open.
@@ -144,9 +134,7 @@ public class WindowTileEntity extends TileEntity
 		_flippedOpen = flippedOpen;
 	}
 	
-	// ========================================================
-	// Helpers.
-	// ========================================================
+	// ========== HELPERS ==========
 	
 	/**
 	 * Returns the world position of the block adjacent to this window on the<br>
@@ -157,10 +145,7 @@ public class WindowTileEntity extends TileEntity
 	private Vector3i getSwingSideAdjacentPosition()
 	{
 		// Hinge side from the perspective of someone looking at the panel's front face:
-		// NORTH facing (+Z front): hinge = +X
-		// SOUTH facing (-Z front): hinge = -X
-		// EAST facing (+X front): hinge = +Z
-		// WEST facing (-X front): hinge = -Z
+		// NORTH facing (+Z front): hinge = +X sOUTH facing (-Z front): hinge = -X eAST facing (+X front): hinge = +Z wEST facing (-X front): hinge = -Z
 		switch (_facing)
 		{
 			case NORTH:
@@ -186,9 +171,7 @@ public class WindowTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	// ========== SERIALIZATION ==========
 	
 	/**
 	 * Serializes this window tile entity to a key=value string.<br>

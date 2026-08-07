@@ -17,7 +17,7 @@ import java.util.List;
  * Each world lives in {@code ~/.simplecraft/worlds/{dirName}/} with a {@code world_info.txt} file.<br>
  * The directory name is a sanitized version of the display name.<br>
  * The seed is always stored as text. A numeric value for world generation<br>
- * is derived on demand via {@link #getSeedValue()}.
+ * is derived on demand via {@code getSeedValue()}.
  * @author Pantelis Andrianakis
  * @since February 23rd 2026
  */
@@ -157,8 +157,7 @@ public class WorldInfo
 	 */
 	public boolean hasSaveData()
 	{
-		final Path worldDat = getWorldDirectory().resolve("world.dat");
-		return Files.exists(worldDat);
+		return Files.exists(getWorldDirectory().resolve("world.dat"));
 	}
 	
 	// --- Static persistence methods ---
@@ -181,12 +180,13 @@ public class WorldInfo
 	{
 		try
 		{
+			final String worldName = info.getName();
 			Files.createDirectories(worldDir);
 			
 			final Path infoFile = worldDir.resolve(INFO_FILE);
 			try (BufferedWriter writer = Files.newBufferedWriter(infoFile))
 			{
-				writer.write("name=" + info.getName());
+				writer.write("name=" + worldName);
 				writer.newLine();
 				writer.write("seed=" + info.getSeed());
 				writer.newLine();
@@ -198,7 +198,7 @@ public class WorldInfo
 				writer.newLine();
 			}
 			
-			System.out.println("Saved world info: " + info.getName() + " -> " + infoFile);
+			System.out.println("Saved world info: " + worldName + " -> " + infoFile);
 		}
 		catch (IOException e)
 		{
@@ -260,6 +260,10 @@ public class WorldInfo
 					case "dayCount":
 					{
 						info._dayCount = Integer.parseInt(value);
+						break;
+					}
+					default:
+					{
 						break;
 					}
 				}
@@ -336,32 +340,34 @@ public class WorldInfo
 			return false;
 		}
 		
-		deleteDirectory(worldDir.toFile());
+		final boolean deleted = deleteDirectory(worldDir.toFile());
 		System.out.println("Deleted world: " + info.getName());
-		return true;
+		return deleted;
 	}
 	
 	/**
-	 * Recursively deletes a directory and all its contents.
+	 * Recursively deletes a directory and all its contents.<br>
+	 * Symbolic links are removed as links and never followed, so a link planted inside<br>
+	 * a world folder cannot lead the recursion out into unrelated files.
 	 * @param dir The directory to delete
+	 * @return true when the directory and everything under it was removed
 	 */
-	private static void deleteDirectory(File dir)
+	private static boolean deleteDirectory(File dir)
 	{
+		boolean deleted = true;
 		final File[] files = dir.listFiles();
 		if (files != null)
 		{
 			for (File file : files)
 			{
-				if (file.isDirectory())
+				if (file.isDirectory() && !Files.isSymbolicLink(file.toPath()))
 				{
-					deleteDirectory(file);
+					deleted &= deleteDirectory(file);
 				}
-				else
+				else if (!file.delete())
 				{
-					if (!file.delete())
-					{
-						System.err.println("ERROR: Failed to delete " + file.getPath());
-					}
+					System.err.println("ERROR: Failed to delete " + file.getPath());
+					deleted = false;
 				}
 			}
 		}
@@ -369,7 +375,10 @@ public class WorldInfo
 		if (!dir.delete())
 		{
 			System.err.println("ERROR: Failed to delete " + dir.getPath());
+			deleted = false;
 		}
+		
+		return deleted;
 	}
 	
 	/**
@@ -379,8 +388,7 @@ public class WorldInfo
 	 */
 	public static boolean worldExists(String name)
 	{
-		final Path worldDir = getWorldsDirectory().resolve(sanitizeName(name));
-		return Files.exists(worldDir);
+		return Files.exists(getWorldsDirectory().resolve(sanitizeName(name)));
 	}
 	
 	/**

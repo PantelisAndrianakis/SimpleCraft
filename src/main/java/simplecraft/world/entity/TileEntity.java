@@ -15,26 +15,24 @@ import simplecraft.world.World;
  * <br>
  * Each tile entity stores its world block position, block type, attachment face,<br>
  * and an optional visual node for particle effects or other scene attachments.<br>
- * The visual node is managed by {@link TileEntityManager} - it is attached to<br>
+ * The visual node is managed by {@link simplecraft.world.entity.TileEntityManager} - it is attached to<br>
  * the scene on registration and detached on removal.<br>
  * <br>
  * The {@code attachedFace} field records which face of the neighboring solid block<br>
  * this tile entity is attached to. This is relevant for directional blocks such as<br>
  * torches, doors, windows and trapdoors. Blocks without directional placement<br>
- * (e.g. campfire, chest) default to {@link Face#BOTTOM}.<br>
+ * (e.g. campfire, chest) default to {@code Face.BOTTOM}.<br>
  * <br>
  * The {@code facing} field records which cardinal direction the block's front face<br>
  * points toward. Used by CHEST, FURNACE, WINDOW and DOOR so the front texture<br>
  * or panel orientation renders correctly based on where the player stood when placing.<br>
- * Defaults to {@link Facing#NORTH} for backward compatibility with older saves.
+ * Defaults to {@code Facing.NORTH} for backward compatibility with older saves.
  * @author Pantelis Andrianakis
  * @since March 8th 2026
  */
 public abstract class TileEntity
 {
-	// ========================================================
-	// Facing Enum.
-	// ========================================================
+	// ========== FACING ENUM ==========
 	
 	/**
 	 * Cardinal direction a block's front face points toward.<br>
@@ -49,9 +47,7 @@ public abstract class TileEntity
 		WEST
 	}
 	
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	/** World block coordinates of this tile entity. */
 	protected final Vector3i _position;
@@ -82,9 +78,7 @@ public abstract class TileEntity
 	/** Optional scene node for particles/visuals. Null if no visuals needed. */
 	protected Node _visualNode;
 	
-	// ========================================================
-	// Constructors.
-	// ========================================================
+	// ========== CONSTRUCTORS ==========
 	
 	/**
 	 * Create a new tile entity at the given world position with a specific attachment face.
@@ -110,9 +104,7 @@ public abstract class TileEntity
 		this(position, blockType, Face.BOTTOM);
 	}
 	
-	// ========================================================
-	// Lifecycle Hooks.
-	// ========================================================
+	// ========== LIFECYCLE HOOKS ==========
 	
 	/**
 	 * Called when this tile entity's block is placed in the world.<br>
@@ -155,9 +147,19 @@ public abstract class TileEntity
 		// Default: no-op.
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	/**
+	 * Block light emitted by this specific instance.<br>
+	 * Override when the amount depends on per-instance state rather than block type alone,<br>
+	 * so a reload restores the same light the instance emitted during play.
+	 * @return the light level, or 0 when this tile entity emits no light
+	 */
+	public int getLightLevel()
+	{
+		// Default: not a light source.
+		return 0;
+	}
+	
+	// ========== SERIALIZATION ==========
 	
 	/**
 	 * Serializes this tile entity to a key=value string for saving.<br>
@@ -285,6 +287,10 @@ public abstract class TileEntity
 					partnerZ = Integer.parseInt(value);
 					break;
 				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 		
@@ -343,10 +349,7 @@ public abstract class TileEntity
 			case "DOOR_BOTTOM":
 			case "DOOR_TOP":
 			{
-				final Block doorBlock = Block.valueOf(type);
-				final boolean bottom = type.equals("DOOR_BOTTOM");
-				final Vector3i partnerPos = hasPartner ? new Vector3i(partnerX, partnerY, partnerZ) : null;
-				final DoorTileEntity door = new DoorTileEntity(pos, doorBlock, face, partnerPos, bottom);
+				final DoorTileEntity door = new DoorTileEntity(pos, Block.valueOf(type), face, (hasPartner ? new Vector3i(partnerX, partnerY, partnerZ) : null), type.equals("DOOR_BOTTOM"));
 				door.setFacing(facingDir);
 				door.setOpen(open);
 				door.setFlippedOpen(flippedOpen);
@@ -361,9 +364,7 @@ public abstract class TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Accessors.
-	// ========================================================
+	// ========== ACCESSORS ==========
 	
 	/**
 	 * Returns the world block coordinates of this tile entity.

@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
-import java.lang.management.ManagementFactory;
 import java.net.SocketAddress;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
@@ -13,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.UUID;
 
@@ -40,9 +40,6 @@ public class DiscordRichPresenceManager
 	// Discord IPC opcodes.
 	private static final int OP_HANDSHAKE = 0;
 	private static final int OP_FRAME = 1;
-	// private static final int OP_CLOSE = 2;
-	// private static final int OP_PING = 3;
-	// private static final int OP_PONG = 4;
 	
 	// Unique application id from https://discord.com/developers/applications.
 	private static final String APPLICATION_ID = "1483415192237772994";
@@ -75,12 +72,12 @@ public class DiscordRichPresenceManager
 			try
 			{
 				openConnection();
-				sendHandshake();
+				sendFrame(OP_HANDSHAKE, "{\"v\":1,\"client_id\":\"" + APPLICATION_ID + "\"}");
 				readResponse(); // Read the READY dispatch to confirm connection.
 				_connected = true;
 				System.out.println("[Discord] Rich Presence connected.");
 				
-				updatePresence("Playing", null);
+				updatePresence("Playing", null, "simplecraft_logo", "SimpleCraft");
 			}
 			catch (Exception e)
 			{
@@ -142,10 +139,7 @@ public class DiscordRichPresenceManager
 			activity.append("\"type\":0");
 			activity.append("}");
 			
-			final String nonce = UUID.randomUUID().toString();
-			final String payload = "{\"cmd\":\"SET_ACTIVITY\",\"args\":{\"pid\":" + _pid + ",\"activity\":" + activity + "},\"nonce\":\"" + nonce + "\"}";
-			
-			sendFrame(OP_FRAME, payload);
+			sendFrame(OP_FRAME, ("{\"cmd\":\"SET_ACTIVITY\",\"args\":{\"pid\":" + _pid + ",\"activity\":" + activity + "},\"nonce\":\"" + UUID.randomUUID() + "\"}"));
 			readResponse(); // Read acknowledgement.
 		}
 		catch (Exception e)
@@ -157,39 +151,6 @@ public class DiscordRichPresenceManager
 	}
 	
 	/**
-	 * Convenience overload: update with details and state only, using default image.
-	 * @param details The top detail line
-	 * @param state The bottom state line, or null
-	 */
-	public void updatePresence(String details, String state)
-	{
-		updatePresence(details, state, "simplecraft_logo", "SimpleCraft");
-	}
-	
-	/**
-	 * Clear the Rich Presence (show nothing).
-	 */
-	public void clearPresence()
-	{
-		if (!_connected)
-		{
-			return;
-		}
-		
-		try
-		{
-			final String nonce = UUID.randomUUID().toString();
-			final String payload = "{\"cmd\":\"SET_ACTIVITY\",\"args\":{\"pid\":" + _pid + "},\"nonce\":\"" + nonce + "\"}";
-			sendFrame(OP_FRAME, payload);
-			readResponse();
-		}
-		catch (Exception e)
-		{
-			System.out.println("[Discord] Failed to clear presence: " + e.getMessage());
-		}
-	}
-	
-	/**
 	 * Disconnect from Discord IPC. Call on app shutdown.
 	 */
 	public void disconnect()
@@ -197,19 +158,16 @@ public class DiscordRichPresenceManager
 		// Mark disconnected first so no further writes are attempted during shutdown.
 		_connected = false;
 		
-		if (_connection != null)
+		if (_connection == null)
 		{
-			// Do not send OP_CLOSE here. On some systems (especially Windows named pipes),
-			// a final blocking write can hang during process shutdown and freeze app exit.
-			// Closing the streams/pipe directly is sufficient for teardown.
-			closeQuietly();
-			System.out.println("[Discord] Rich Presence disconnected.");
+			return;
 		}
-	}
-	
-	public boolean isConnected()
-	{
-		return _connected;
+		
+		// Do not send OP_CLOSE here.
+		// On some systems (especially Windows named pipes), a final blocking write can hang during process shutdown and freeze app exit.
+		// Closing the streams/pipe directly is sufficient for teardown.
+		closeQuietly();
+		System.out.println("[Discord] Rich Presence disconnected.");
 	}
 	
 	// -----------------------------------------------------------------------------------
@@ -252,8 +210,7 @@ public class DiscordRichPresenceManager
 	 */
 	private void openWindowsPipe(int pipeIndex) throws IOException
 	{
-		final String pipePath = "\\\\.\\pipe\\discord-ipc-" + pipeIndex;
-		final RandomAccessFile pipe = new RandomAccessFile(pipePath, "rw");
+		final RandomAccessFile pipe = new RandomAccessFile(("\\\\.\\pipe\\discord-ipc-" + pipeIndex), "rw");
 		
 		_connection = pipe;
 		_outputStream = new OutputStream()
@@ -291,8 +248,7 @@ public class DiscordRichPresenceManager
 	 */
 	private void openUnixSocket(int pipeIndex) throws IOException
 	{
-		final String socketPath = getUnixSocketPath(pipeIndex);
-		final SocketAddress address = UnixDomainSocketAddress.of(Path.of(socketPath));
+		final SocketAddress address = UnixDomainSocketAddress.of(Path.of(getUnixSocketPath(pipeIndex)));
 		final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
 		channel.connect(address);
 		channel.configureBlocking(true);
@@ -339,20 +295,11 @@ public class DiscordRichPresenceManager
 	}
 	
 	/**
-	 * Send the IPC handshake (opcode 0).
-	 */
-	private void sendHandshake() throws IOException
-	{
-		final String payload = "{\"v\":1,\"client_id\":\"" + APPLICATION_ID + "\"}";
-		sendFrame(OP_HANDSHAKE, payload);
-	}
-	
-	/**
 	 * Send a framed IPC message: [opcode:4 bytes LE][length:4 bytes LE][json payload].
 	 */
 	private void sendFrame(int opcode, String jsonPayload) throws IOException
 	{
-		final byte[] payloadBytes = jsonPayload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		final byte[] payloadBytes = jsonPayload.getBytes(StandardCharsets.UTF_8);
 		final ByteBuffer header = ByteBuffer.allocate(8);
 		header.order(ByteOrder.LITTLE_ENDIAN);
 		header.putInt(opcode);
@@ -370,11 +317,9 @@ public class DiscordRichPresenceManager
 	private String readResponse() throws IOException
 	{
 		// Read 8-byte header.
-		final byte[] headerBytes = readExact(8);
-		final ByteBuffer header = ByteBuffer.wrap(headerBytes);
+		final ByteBuffer header = ByteBuffer.wrap(readExact(8));
 		header.order(ByteOrder.LITTLE_ENDIAN);
 		
-		// final int opcode = header.getInt(); // Available if needed for dispatch routing.
 		header.getInt(); // Skip opcode.
 		final int length = header.getInt();
 		
@@ -384,8 +329,7 @@ public class DiscordRichPresenceManager
 		}
 		
 		// Read payload.
-		final byte[] payload = readExact(length);
-		return new String(payload, java.nio.charset.StandardCharsets.UTF_8);
+		return new String(readExact(length), StandardCharsets.UTF_8);
 	}
 	
 	/**
@@ -473,24 +417,7 @@ public class DiscordRichPresenceManager
 	 */
 	private static int getProcessId()
 	{
-		try
-		{
-			// Java 9+ approach.
-			return (int) ProcessHandle.current().pid();
-		}
-		catch (Exception e)
-		{
-			try
-			{
-				// Fallback: parse from ManagementFactory.
-				final String jvmName = ManagementFactory.getRuntimeMXBean().getName();
-				return Integer.parseInt(jvmName.split("@")[0]);
-			}
-			catch (Exception e2)
-			{
-				return 0;
-			}
-		}
+		return (int) ProcessHandle.current().pid();
 	}
 	
 	/**

@@ -35,9 +35,9 @@ public class ItemInstance
 		this(template, 1);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Getters.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	public ItemTemplate getTemplate()
 	{
@@ -54,9 +54,9 @@ public class ItemInstance
 		return _durability;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Stack Operations.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns true if this stack can merge with another.<br>
@@ -176,9 +176,9 @@ public class ItemInstance
 		return clone;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Durability Operations.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns true if this item has durability (weapons and tools).
@@ -251,11 +251,12 @@ public class ItemInstance
 	@Override
 	public String toString()
 	{
+		final String displayName = _template.getDisplayName();
 		if (hasDurability())
 		{
-			return _template.getDisplayName() + " x" + _count + " [" + _durability + "/" + _template.getMaxDurability() + "]";
+			return displayName + " x" + _count + " [" + _durability + "/" + _template.getMaxDurability() + "]";
 		}
 		
-		return _template.getDisplayName() + " x" + _count;
+		return displayName + " x" + _count;
 	}
 }

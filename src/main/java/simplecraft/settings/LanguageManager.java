@@ -3,9 +3,9 @@ package simplecraft.settings;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.TreeSet;
 
 /**
  * Manages multilanguage support by discovering available language files and loading translations.<br>
@@ -88,7 +88,7 @@ public class LanguageManager
 			return;
 		}
 		
-		try (BufferedReader reader = new BufferedReader(new FileReader(file)))
+		try (BufferedReader reader = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8)))
 		{
 			String line;
 			while ((line = reader.readLine()) != null)
@@ -137,30 +137,36 @@ public class LanguageManager
 	}
 	
 	/**
-	 * Collect all unique characters from the current language's translations that fall outside the standard ASCII range (32–126). Used by FontManager to extend the glyph atlas so non-Latin scripts (Cyrillic, Greek, CJK, Hangul, etc.) render correctly.
+	 * Collect all unique characters from the current language's translations that fall outside the standard ASCII range (32 to 126).
+	 * Used by FontManager to extend the glyph atlas so non-Latin scripts (Cyrillic, Greek, CJK, Hangul, etc.) render correctly.
 	 * @return Sorted array of unique non-ASCII characters used in the active language
 	 */
 	public static char[] getUniqueChars()
 	{
-		final TreeSet<Character> set = new TreeSet<>();
-		
+		// Mark used code units in a flat table, so the walk below yields them already sorted.
+		final boolean[] used = new boolean[Character.MAX_VALUE + 1];
+		int count = 0;
 		for (String value : _translations.values())
 		{
 			for (int i = 0; i < value.length(); i++)
 			{
 				final char c = value.charAt(i);
-				if (c < 32 || c > 126)
+				if (((c < 32) || (c > 126)) && !used[c])
 				{
-					set.add(c);
+					used[c] = true;
+					count++;
 				}
 			}
 		}
 		
-		final char[] result = new char[set.size()];
-		int i = 0;
-		for (char c : set)
+		final char[] result = new char[count];
+		int index = 0;
+		for (int c = 0; c < used.length; c++)
 		{
-			result[i++] = c;
+			if (used[c])
+			{
+				result[index++] = (char) c;
+			}
 		}
 		
 		return result;
@@ -184,7 +190,7 @@ public class LanguageManager
 	 */
 	private static String readLanguageName(File file, String fallback)
 	{
-		try (BufferedReader reader = new BufferedReader(new FileReader(file)))
+		try (BufferedReader reader = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8)))
 		{
 			String line;
 			while ((line = reader.readLine()) != null)

@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.influencers.ParticleInfluencer;
 import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
@@ -18,23 +19,23 @@ import simplecraft.world.Block;
 /**
  * Manages particle effects for block breaking and combat damage.<br>
  * <br>
- * Uses jME3 {@link ParticleEmitter} in burst mode: particles are emitted once<br>
+ * Uses jME3 {@link com.jme3.effect.ParticleEmitter} in burst mode: particles are emitted once<br>
  * via {@code emitAllParticles()}, then the emitter is auto-removed after all<br>
  * particles have died. A maximum of {@value #MAX_ACTIVE_EMITTERS} emitters can<br>
  * be active simultaneously - the oldest is removed if the limit is exceeded.<br>
  * <br>
- * <b>Block break particles:</b> 8–12 small colored quads fly outward with gravity.<br>
- * Color is derived from the block type via {@link Block#getParticleColor()}.<br>
+ * <b>Block break particles:</b> 8-12 small colored quads fly outward with gravity.<br>
+ * Color is derived from the block type via {@code Block.getParticleColor()}.<br>
  * <br>
- * <b>Damage particles:</b> 4–6 small red quads fly upward briefly at the hit point.
+ * <b>Damage particles:</b> 4-6 small red quads fly upward briefly at the hit point.
  * @author Pantelis Andrianakis
  * @since March 12th 2026
  */
 public class ParticleManager
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Maximum number of simultaneously active particle emitters. */
 	private static final int MAX_ACTIVE_EMITTERS = 10;
@@ -88,15 +89,21 @@ public class ParticleManager
 	/** Color for damage particles (red). */
 	private static final ColorRGBA DAMAGE_COLOR = new ColorRGBA(0.9f, 0.1f, 0.1f, 1.0f);
 	
+	/** Initial velocity for block break particles (influencer copies the value). */
+	private static final Vector3f BREAK_VELOCITY_VEC = new Vector3f(0, BREAK_VELOCITY, 0);
+	
+	/** Initial velocity for damage particles (influencer copies the value). */
+	private static final Vector3f DAMAGE_VELOCITY_VEC = new Vector3f(0, DAMAGE_VELOCITY, 0);
+	
 	/** Gravity applied to all particles. */
 	private static final Vector3f GRAVITY = new Vector3f(0, -10f, 0);
 	
 	/** Slight upward gravity for damage particles (fly up then fall). */
 	private static final Vector3f DAMAGE_GRAVITY = new Vector3f(0, -6f, 0);
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Scene node that holds all active particle emitters. */
 	private final Node _particleNode = new Node("Particles");
@@ -110,9 +117,9 @@ public class ParticleManager
 	/** Running counter for unique emitter names. */
 	private int _emitterCounter;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Inner Class.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Tracks an active emitter and its maximum lifetime for auto-removal.
@@ -131,9 +138,9 @@ public class ParticleManager
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates the particle manager.
@@ -144,9 +151,9 @@ public class ParticleManager
 		_assetManager = assetManager;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Public API.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the scene node containing all active particle emitters.<br>
@@ -172,8 +179,9 @@ public class ParticleManager
 		final ParticleEmitter emitter = createEmitter("BlockBreak_" + _emitterCounter++, count, BREAK_PARTICLE_SIZE, BREAK_LIFETIME_MIN, BREAK_LIFETIME_MAX, color, color, GRAVITY);
 		
 		// Particles fly outward in all directions.
-		emitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, BREAK_VELOCITY, 0));
-		emitter.getParticleInfluencer().setVelocityVariation(BREAK_VELOCITY_VARIATION);
+		final ParticleInfluencer influencer = emitter.getParticleInfluencer();
+		influencer.setInitialVelocity(BREAK_VELOCITY_VEC);
+		influencer.setVelocityVariation(BREAK_VELOCITY_VARIATION);
 		
 		emitter.setLocalTranslation(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
 		
@@ -187,13 +195,13 @@ public class ParticleManager
 	 */
 	public void spawnDamage(Vector3f position)
 	{
-		final int count = DAMAGE_PARTICLES_MIN + (int) (Math.random() * (DAMAGE_PARTICLES_MAX - DAMAGE_PARTICLES_MIN + 1));
-		
+		final int count = DAMAGE_PARTICLES_MIN + (int) (Math.random() * ((DAMAGE_PARTICLES_MAX - DAMAGE_PARTICLES_MIN) + 1));
 		final ParticleEmitter emitter = createEmitter("Damage_" + _emitterCounter++, count, DAMAGE_PARTICLE_SIZE, DAMAGE_LIFETIME_MIN, DAMAGE_LIFETIME_MAX, DAMAGE_COLOR, DAMAGE_COLOR, DAMAGE_GRAVITY);
 		
 		// Particles fly upward and slightly outward.
-		emitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, DAMAGE_VELOCITY, 0));
-		emitter.getParticleInfluencer().setVelocityVariation(DAMAGE_VELOCITY_VARIATION);
+		final ParticleInfluencer influencer = emitter.getParticleInfluencer();
+		influencer.setInitialVelocity(DAMAGE_VELOCITY_VEC);
+		influencer.setVelocityVariation(DAMAGE_VELOCITY_VARIATION);
 		
 		emitter.setLocalTranslation(position);
 		
@@ -233,9 +241,9 @@ public class ParticleManager
 		_activeEmitters.clear();
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Internal Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a burst-mode particle emitter with the given parameters.
@@ -276,8 +284,7 @@ public class ParticleManager
 		// Enforce limit - remove oldest emitter if at capacity.
 		while (_activeEmitters.size() >= MAX_ACTIVE_EMITTERS)
 		{
-			final EmitterEntry oldest = _activeEmitters.remove(0);
-			_particleNode.detachChild(oldest.emitter);
+			_particleNode.detachChild(_activeEmitters.remove(0).emitter);
 		}
 		
 		_particleNode.attachChild(emitter);

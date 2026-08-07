@@ -9,11 +9,13 @@ import java.util.Date;
 import java.util.List;
 
 import com.jme3.app.Application;
+import com.jme3.asset.AssetManager;
 import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
 
@@ -44,7 +46,7 @@ import simplecraft.world.WorldInfo;
 /**
  * World selection screen where players create, select and delete worlds.<br>
  * Displays a paginated list of existing worlds (3 per page) sorted by last played date.<br>
- * Uses {@link FontManager#SYMBOL_ARROW_LEFT} and {@link FontManager#SYMBOL_ARROW_RIGHT}<br>
+ * Uses {@code FontManager.SYMBOL_ARROW_LEFT} and {@code FontManager.SYMBOL_ARROW_RIGHT}<br>
  * for page navigation when more than 3 worlds exist.<br>
  * Provides a "Create New World" dialog with name and seed fields.<br>
  * Supports keyboard navigation via WASD and arrow keys.<br>
@@ -139,6 +141,10 @@ public class WorldSelectState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
+		final Node guiNode = app.getGuiNode();
+		
 		System.out.println("WorldSelectState entered.");
 		
 		_dialogOpen = false;
@@ -152,7 +158,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// --- Background Image ---
 		_background = new Picture("WorldSelect Background");
-		_background.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
+		_background.setImage(assetManager, BACKGROUND_PATH, true);
 		_background.setWidth(screenWidth);
 		_background.setHeight(screenHeight);
 		_background.setLocalTranslation(0, 0, -10);
@@ -160,7 +166,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// --- Title Label ---
 		_titleLabel = new Label(LanguageManager.get("menu.select_world"));
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, 52));
+		_titleLabel.setFont(FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, 52));
 		_titleLabel.setFontSize(52);
 		_titleLabel.setColor(ColorRGBA.White);
 		
@@ -170,23 +176,20 @@ public class WorldSelectState extends FadeableAppState
 		
 		// --- Logo ---
 		_logo = new Picture("WorldSelect Logo");
-		_logo.setImage(app.getAssetManager(), TITLE_LOGO_PATH, true);
+		_logo.setImage(assetManager, TITLE_LOGO_PATH, true);
 		_logo.setWidth(LOGO_SIZE);
 		_logo.setHeight(LOGO_SIZE);
 		_logo.setCullHint(Spatial.CullHint.Never);
 		
 		// Calculate total title group width (title + spacing + logo) for centering.
-		final float titleGroupWidth = titleWidth + LOGO_TITLE_SPACING + LOGO_SIZE;
 		
 		// Title group: positioned in upper portion of screen.
-		final float titleGroupX = screenCenterX - (titleGroupWidth / 2.3f);
+		final float titleGroupX = screenCenterX - ((titleWidth + LOGO_TITLE_SPACING + LOGO_SIZE) / 2.3f);
 		final float titleY = screenHeight * 0.90f;
 		_titleLabel.setLocalTranslation(titleGroupX, titleY, 1);
 		
 		// Logo: to the right of the title, vertically centered with title.
-		final float logoX = titleGroupX + titleWidth + LOGO_TITLE_SPACING;
-		final float logoY = titleY - (titleHeight * 0.41f) - (LOGO_SIZE / 2f);
-		_logo.setLocalTranslation(logoX, logoY, 1);
+		_logo.setLocalTranslation((titleGroupX + titleWidth + LOGO_TITLE_SPACING), (titleY - (titleHeight * 0.41f) - (LOGO_SIZE / 2f)), 1);
 		
 		// --- Navigation ---
 		_navigation = new MenuNavigationManager();
@@ -202,16 +205,16 @@ public class WorldSelectState extends FadeableAppState
 		buildBottomBar();
 		
 		// Attach all elements to GUI (background first so it's behind everything).
-		app.getGuiNode().attachChild(_background);
-		app.getGuiNode().attachChild(_titleLabel);
-		app.getGuiNode().attachChild(_logo);
-		app.getGuiNode().attachChild(_listContainer);
-		app.getGuiNode().attachChild(_bottomBar);
+		guiNode.attachChild(_background);
+		guiNode.attachChild(_titleLabel);
+		guiNode.attachChild(_logo);
+		guiNode.attachChild(_listContainer);
+		guiNode.attachChild(_bottomBar);
 		
 		// Register navigation (Escape goes back to main menu).
 		final Runnable backAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.MAIN_MENU, true);
 		};
 		_navigation.setBackAction(backAction);
@@ -221,7 +224,7 @@ public class WorldSelectState extends FadeableAppState
 	@Override
 	protected void onExitState()
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = SimpleCraft.getInstance().getGuiNode();
 		
 		// Close dialog if open.
 		dismissCreateDialog();
@@ -239,43 +242,43 @@ public class WorldSelectState extends FadeableAppState
 		// Remove all GUI elements.
 		if (_background != null)
 		{
-			app.getGuiNode().detachChild(_background);
+			guiNode.detachChild(_background);
 			_background = null;
 		}
 		
 		if (_titleLabel != null)
 		{
-			app.getGuiNode().detachChild(_titleLabel);
+			guiNode.detachChild(_titleLabel);
 			_titleLabel = null;
 		}
 		
 		if (_logo != null)
 		{
-			app.getGuiNode().detachChild(_logo);
+			guiNode.detachChild(_logo);
 			_logo = null;
 		}
 		
 		if (_listContainer != null)
 		{
-			app.getGuiNode().detachChild(_listContainer);
+			guiNode.detachChild(_listContainer);
 			_listContainer = null;
 		}
 		
 		if (_pageBar != null)
 		{
-			app.getGuiNode().detachChild(_pageBar);
+			guiNode.detachChild(_pageBar);
 			_pageBar = null;
 		}
 		
 		if (_bottomBar != null)
 		{
-			app.getGuiNode().detachChild(_bottomBar);
+			guiNode.detachChild(_bottomBar);
 			_bottomBar = null;
 		}
 		
 		if (_emptyLabel != null)
 		{
-			app.getGuiNode().detachChild(_emptyLabel);
+			guiNode.detachChild(_emptyLabel);
 			_emptyLabel = null;
 		}
 		
@@ -290,6 +293,7 @@ public class WorldSelectState extends FadeableAppState
 	private void refreshWorldList()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = app.getGuiNode();
 		final Camera camera = app.getCamera();
 		final float screenWidth = camera.getWidth();
 		final float screenHeight = camera.getHeight();
@@ -301,14 +305,14 @@ public class WorldSelectState extends FadeableAppState
 		// Remove empty label if present.
 		if (_emptyLabel != null)
 		{
-			app.getGuiNode().detachChild(_emptyLabel);
+			guiNode.detachChild(_emptyLabel);
 			_emptyLabel = null;
 		}
 		
 		// Remove page bar if present.
 		if (_pageBar != null)
 		{
-			app.getGuiNode().detachChild(_pageBar);
+			guiNode.detachChild(_pageBar);
 			_pageBar = null;
 		}
 		
@@ -323,10 +327,8 @@ public class WorldSelectState extends FadeableAppState
 			_emptyLabel.setFontSize(20);
 			_emptyLabel.setColor(new ColorRGBA(0.8f, 0.8f, 0.8f, 0.9f));
 			
-			final float emptyWidth = _emptyLabel.getPreferredSize().x;
-			final float emptyY = screenHeight * 0.55f;
-			_emptyLabel.setLocalTranslation(screenCenterX - (emptyWidth / 2f), emptyY, 0);
-			app.getGuiNode().attachChild(_emptyLabel);
+			_emptyLabel.setLocalTranslation(screenCenterX - (_emptyLabel.getPreferredSize().x / 2f), (screenHeight * 0.55f), 0);
+			guiNode.attachChild(_emptyLabel);
 		}
 		else
 		{
@@ -349,9 +351,7 @@ public class WorldSelectState extends FadeableAppState
 			// Build world entries for current page.
 			for (int i = startIndex; i < endIndex; i++)
 			{
-				final WorldInfo world = _worlds.get(i);
-				final Container entry = createWorldEntry(world);
-				_listContainer.addChild(entry);
+				_listContainer.addChild(createWorldEntry(_worlds.get(i)));
 				
 				// Add spacer between entries (not after last).
 				if (i < endIndex - 1)
@@ -368,9 +368,7 @@ public class WorldSelectState extends FadeableAppState
 		}
 		
 		// Position list container centered horizontally, below title.
-		final float listContainerWidth = _listContainer.getPreferredSize().x;
-		final float listY = screenHeight * 0.785f;
-		_listContainer.setLocalTranslation(screenCenterX - (listContainerWidth / 2f), listY, 0);
+		_listContainer.setLocalTranslation(screenCenterX - (_listContainer.getPreferredSize().x / 2f), (screenHeight * 0.785f), 0);
 	}
 	
 	/**
@@ -381,6 +379,10 @@ public class WorldSelectState extends FadeableAppState
 	private Container createWorldEntry(WorldInfo world)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
+		final String regularFontPath = FontManager.getRegularPath();
+		final String worldName = world.getName();
 		final Camera camera = app.getCamera();
 		final float screenWidth = camera.getWidth();
 		final float screenHeight = camera.getHeight();
@@ -398,16 +400,14 @@ public class WorldSelectState extends FadeableAppState
 		nameRow.setBackground(null);
 		
 		// World name label (column 0).
-		final Label nameLabel = new Label(" " + world.getName());
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 20));
+		final Label nameLabel = new Label(" " + worldName);
+		nameLabel.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 20));
 		nameLabel.setFontSize(20);
 		nameLabel.setColor(ColorRGBA.White);
 		nameRow.addChild(nameLabel, 0, 0);
 		
-		// Flex spacer to push ■ right (column 1).
-		final float nameWidth = nameLabel.getPreferredSize().x;
-		final float symbolWidth = 20; // Approximate width of ■ label.
-		final float nameSpacer = entryInnerWidth - nameWidth - symbolWidth;
+		// Flex spacer to push ■ right (column 1). The trailing 20 is the approximate width of the delete symbol label.
+		final float nameSpacer = entryInnerWidth - nameLabel.getPreferredSize().x - 20;
 		final Label nameFlexSpacer = new Label("");
 		nameFlexSpacer.setPreferredSize(new Vector3f(Math.max(nameSpacer, 10), 1, 0));
 		nameFlexSpacer.setBackground(null);
@@ -415,7 +415,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Delete symbol "■" (column 2) - gray, turns red on hover.
 		final Label deleteSymbol = new Label(FontManager.SYMBOL_SQUARE + " ");
-		deleteSymbol.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 12));
+		deleteSymbol.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 12));
 		deleteSymbol.setFontSize(12);
 		deleteSymbol.setColor(DELETE_SYMBOL_COLOR);
 		deleteSymbol.setBackground(null);
@@ -425,8 +425,8 @@ public class WorldSelectState extends FadeableAppState
 		// Click + hover listener for delete symbol.
 		final Runnable deleteAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show(LanguageManager.get("menu.delete_confirm").replace("{0}", world.getName()), () ->
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			QuestionManager.show(LanguageManager.get("menu.delete_confirm").replace("{0}", worldName), () ->
 			{
 				WorldInfo.delete(world);
 				rebuildNavigation();
@@ -468,11 +468,8 @@ public class WorldSelectState extends FadeableAppState
 		entry.addChild(nameRow);
 		
 		// --- Row 2: [Seed | Last played | Size] ---
-		final String lastPlayed = DATE_FORMAT.format(new Date(world.getLastPlayedAt()));
-		final String sizeText = formatDirectorySize(world.getWorldDirectory());
-		final String dayText = LanguageManager.get("menu.day") + " " + world.getDayCount();
-		final Label infoLabel = new Label(" " + dayText + "  |  " + LanguageManager.get("menu.seed") + " " + world.getSeed() + "  |  " + lastPlayed + "  |  " + sizeText);
-		infoLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 12));
+		final Label infoLabel = new Label(" " + LanguageManager.get("menu.day") + " " + world.getDayCount() + "  |  " + LanguageManager.get("menu.seed") + " " + world.getSeed() + "  |  " + DATE_FORMAT.format(new Date(world.getLastPlayedAt())) + "  |  " + formatDirectorySize(world.getWorldDirectory()));
+		infoLabel.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 12));
 		infoLabel.setFontSize(12);
 		infoLabel.setColor(INFO_TEXT_COLOR);
 		infoLabel.setInsets(new Insets3f(0, 0, screenHeight * INFO_BOTTOM_PERCENT, 0));
@@ -484,8 +481,7 @@ public class WorldSelectState extends FadeableAppState
 		playRow.setInsets(new Insets3f(0, 0, screenHeight * 0.01f, 0));
 		
 		// Left spacer for centering.
-		final float playWidth = screenWidth * PLAY_BUTTON_WIDTH_PERCENT;
-		final float sideSpace = (entryInnerWidth - playWidth) / 2f;
+		final float sideSpace = (entryInnerWidth - (screenWidth * PLAY_BUTTON_WIDTH_PERCENT)) / 2f;
 		
 		final Label leftSpacer = new Label("");
 		leftSpacer.setPreferredSize(new Vector3f(Math.max(sideSpace, 1), 1, 0));
@@ -495,10 +491,10 @@ public class WorldSelectState extends FadeableAppState
 		// Play button (centered).
 		final Runnable playAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			enterWorld(world);
 		};
-		final Panel playButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.play"), PLAY_BUTTON_WIDTH_PERCENT, ENTRY_BUTTON_HEIGHT_PERCENT, playAction);
+		final Panel playButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.play"), PLAY_BUTTON_WIDTH_PERCENT, ENTRY_BUTTON_HEIGHT_PERCENT, playAction);
 		playRow.addChild(playButton, 0, 1);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(playButton, playAction));
 		
@@ -533,6 +529,10 @@ public class WorldSelectState extends FadeableAppState
 	private void buildPageBar(int totalPages)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
+		final Node guiNode = app.getGuiNode();
+		final String regularFontPath = FontManager.getRegularPath();
 		final Camera camera = app.getCamera();
 		final float screenWidth = camera.getWidth();
 		final float screenHeight = camera.getHeight();
@@ -543,7 +543,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Left arrow.
 		_pageLeftArrow = new Label(FontManager.SYMBOL_ARROW_LEFT);
-		_pageLeftArrow.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 20));
+		_pageLeftArrow.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 20));
 		_pageLeftArrow.setFontSize(20);
 		_pageLeftArrow.setColor(_currentPage > 0 ? PAGE_ARROW_COLOR : PAGE_ARROW_DISABLED);
 		_pageLeftArrow.setInsets(new Insets3f(0, 10, 0, 10));
@@ -557,7 +557,7 @@ public class WorldSelectState extends FadeableAppState
 			{
 				if (event.isPressed() && _currentPage > 0)
 				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+					audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 					_currentPage--;
 					rebuildNavigation();
 				}
@@ -566,7 +566,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Page text.
 		_pageLabel = new Label(LanguageManager.get("menu.page") + " " + (_currentPage + 1) + " / " + totalPages);
-		_pageLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
+		_pageLabel.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 16));
 		_pageLabel.setFontSize(16);
 		_pageLabel.setColor(PAGE_TEXT_COLOR);
 		_pageLabel.setTextHAlignment(HAlignment.Center);
@@ -574,7 +574,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Right arrow.
 		_pageRightArrow = new Label(FontManager.SYMBOL_ARROW_RIGHT);
-		_pageRightArrow.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 20));
+		_pageRightArrow.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 20));
 		_pageRightArrow.setFontSize(20);
 		_pageRightArrow.setColor(_currentPage < totalPages - 1 ? PAGE_ARROW_COLOR : PAGE_ARROW_DISABLED);
 		_pageRightArrow.setInsets(new Insets3f(0, 10, 0, 10));
@@ -588,7 +588,7 @@ public class WorldSelectState extends FadeableAppState
 			{
 				if (event.isPressed() && _currentPage < getTotalPages() - 1)
 				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+					audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 					_currentPage++;
 					rebuildNavigation();
 				}
@@ -604,7 +604,7 @@ public class WorldSelectState extends FadeableAppState
 			{
 				if (_currentPage > 0)
 				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+					audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 					_currentPage--;
 					rebuildNavigation();
 				}
@@ -613,7 +613,7 @@ public class WorldSelectState extends FadeableAppState
 			{
 				if (_currentPage < getTotalPages() - 1)
 				{
-					app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+					audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 					_currentPage++;
 					rebuildNavigation();
 				}
@@ -623,11 +623,9 @@ public class WorldSelectState extends FadeableAppState
 		// @formatter:on
 		
 		// Position centered, between list and bottom bar.
-		final float pageBarWidth = _pageBar.getPreferredSize().x;
-		final float pageBarY = screenHeight * 0.18f;
-		_pageBar.setLocalTranslation(screenCenterX - (pageBarWidth / 2f), pageBarY, 0);
+		_pageBar.setLocalTranslation(screenCenterX - (_pageBar.getPreferredSize().x / 2f), (screenHeight * 0.18f), 0);
 		
-		app.getGuiNode().attachChild(_pageBar);
+		guiNode.attachChild(_pageBar);
 	}
 	
 	// --- Bottom Bar ---
@@ -638,6 +636,8 @@ public class WorldSelectState extends FadeableAppState
 	private void buildBottomBar()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
 		final Camera camera = app.getCamera();
 		final float screenWidth = camera.getWidth();
 		final float screenHeight = camera.getHeight();
@@ -649,10 +649,10 @@ public class WorldSelectState extends FadeableAppState
 		// Create New World button.
 		final Runnable createAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			showCreateDialog();
 		};
-		final Panel createButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.create_new_world"), BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, createAction);
+		final Panel createButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.create_new_world"), BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, createAction);
 		_bottomBar.addChild(createButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(createButton, createAction));
 		
@@ -661,17 +661,15 @@ public class WorldSelectState extends FadeableAppState
 		// Back button.
 		final Runnable backAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.MAIN_MENU, true);
 		};
-		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.back"), BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, backAction);
+		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.back"), BOTTOM_BUTTON_WIDTH_PERCENT, BOTTOM_BUTTON_HEIGHT_PERCENT, backAction);
 		_bottomBar.addChild(backButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(backButton, backAction));
 		
 		// Position bottom bar centered.
-		final float bottomBarWidth = _bottomBar.getPreferredSize().x;
-		final float bottomBarY = screenHeight * 0.15f;
-		_bottomBar.setLocalTranslation(screenCenterX - (bottomBarWidth / 2f), bottomBarY, 0);
+		_bottomBar.setLocalTranslation(screenCenterX - (_bottomBar.getPreferredSize().x / 2f), (screenHeight * 0.15f), 0);
 	}
 	
 	/**
@@ -681,6 +679,8 @@ public class WorldSelectState extends FadeableAppState
 	private void rebuildNavigation()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final AudioManager audioManager = app.getAudioManager();
+		final Node guiNode = app.getGuiNode();
 		
 		if (_navigation != null)
 		{
@@ -693,14 +693,14 @@ public class WorldSelectState extends FadeableAppState
 		refreshWorldList();
 		
 		// Rebuild bottom bar.
-		app.getGuiNode().detachChild(_bottomBar);
+		guiNode.detachChild(_bottomBar);
 		buildBottomBar();
-		app.getGuiNode().attachChild(_bottomBar);
+		guiNode.attachChild(_bottomBar);
 		
 		// Register navigation.
 		final Runnable backAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.MAIN_MENU, true);
 		};
 		_navigation.setBackAction(backAction);
@@ -749,8 +749,13 @@ public class WorldSelectState extends FadeableAppState
 		}
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
+		final Node guiNode = app.getGuiNode();
+		final String regularFontPath = FontManager.getRegularPath();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		final float screenCenterY = screenHeight / 2f;
 		
@@ -768,7 +773,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Dialog title.
 		final Label dialogTitle = new Label(LanguageManager.get("menu.create_new_world"));
-		dialogTitle.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 28));
+		dialogTitle.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 28));
 		dialogTitle.setFontSize(28);
 		dialogTitle.setColor(ColorRGBA.White);
 		dialogTitle.setTextHAlignment(HAlignment.Center);
@@ -779,7 +784,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// World Name label.
 		final Label nameLabel = new Label(" " + LanguageManager.get("menu.world_name"));
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
+		nameLabel.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 16));
 		nameLabel.setFontSize(16);
 		nameLabel.setColor(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f));
 		_dialogContainer.addChild(nameLabel);
@@ -787,7 +792,7 @@ public class WorldSelectState extends FadeableAppState
 		// World Name text field - visible background so it reads as an input box.
 		_nameField = new TextField(LanguageManager.get("menu.world_name_field"));
 		_nameField.setPreferredSize(new Vector3f(dialogWidth - 40, 28, 0));
-		_nameField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
+		_nameField.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 16));
 		_nameField.setFontSize(16);
 		_nameField.setColor(FIELD_TEXT_COLOR);
 		_nameField.setBackground(new QuadBackgroundComponent(FIELD_BG_COLOR));
@@ -798,7 +803,7 @@ public class WorldSelectState extends FadeableAppState
 		
 		// Seed label.
 		final Label seedLabel = new Label(" " + LanguageManager.get("menu.seed_label"));
-		seedLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
+		seedLabel.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 16));
 		seedLabel.setFontSize(16);
 		seedLabel.setColor(new ColorRGBA(0.85f, 0.85f, 0.85f, 1f));
 		_dialogContainer.addChild(seedLabel);
@@ -806,7 +811,7 @@ public class WorldSelectState extends FadeableAppState
 		// Seed text field - visible background.
 		_seedField = new TextField("");
 		_seedField.setPreferredSize(new Vector3f(dialogWidth - 40, 28, 0));
-		_seedField.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, 16));
+		_seedField.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, 16));
 		_seedField.setFontSize(16);
 		_seedField.setColor(FIELD_TEXT_COLOR);
 		_seedField.setBackground(new QuadBackgroundComponent(FIELD_BG_COLOR));
@@ -822,11 +827,10 @@ public class WorldSelectState extends FadeableAppState
 		// Create button.
 		final Runnable confirmCreateAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			createWorld();
 		};
-		final Panel createBtn = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.create"), 0.12f, 0.055f, confirmCreateAction);
-		dialogButtons.addChild(createBtn);
+		dialogButtons.addChild(ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.create"), 0.12f, 0.055f, confirmCreateAction));
 		
 		// Small spacer between dialog buttons.
 		final Label dialogBtnSpacer = new Label("");
@@ -836,22 +840,20 @@ public class WorldSelectState extends FadeableAppState
 		// Cancel button.
 		final Runnable cancelAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			dismissCreateDialog();
 		};
-		final Panel cancelBtn = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.cancel"), 0.12f, 0.055f, cancelAction);
-		dialogButtons.addChild(cancelBtn);
+		dialogButtons.addChild(ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.cancel"), 0.12f, 0.055f, cancelAction));
 		
 		_dialogContainer.addChild(dialogButtons);
 		
 		// Position dialog centered on screen.
-		final float dialogTotalWidth = _dialogContainer.getPreferredSize().x;
-		final float dialogHeight = _dialogContainer.getPreferredSize().y;
-		_dialogContainer.setLocalTranslation(screenCenterX - (dialogTotalWidth / 2f), screenCenterY + (dialogHeight / 2f), 2);
+		final Vector3f dialogSize = _dialogContainer.getPreferredSize();
+		_dialogContainer.setLocalTranslation(screenCenterX - (dialogSize.x / 2f), screenCenterY + (dialogSize.y / 2f), 2);
 		
 		// Attach overlay and dialog.
-		app.getGuiNode().attachChild(_dialogOverlay);
-		app.getGuiNode().attachChild(_dialogContainer);
+		guiNode.attachChild(_dialogOverlay);
+		guiNode.attachChild(_dialogContainer);
 	}
 	
 	/**
@@ -866,17 +868,17 @@ public class WorldSelectState extends FadeableAppState
 		
 		_dialogOpen = false;
 		
-		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = SimpleCraft.getInstance().getGuiNode();
 		
 		if (_dialogOverlay != null)
 		{
-			app.getGuiNode().detachChild(_dialogOverlay);
+			guiNode.detachChild(_dialogOverlay);
 			_dialogOverlay = null;
 		}
 		
 		if (_dialogContainer != null)
 		{
-			app.getGuiNode().detachChild(_dialogContainer);
+			guiNode.detachChild(_dialogContainer);
 			_dialogContainer = null;
 		}
 		

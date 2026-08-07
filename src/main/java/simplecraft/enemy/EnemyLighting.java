@@ -1,5 +1,6 @@
 package simplecraft.enemy;
 
+import java.nio.Buffer;
 import java.nio.FloatBuffer;
 
 import com.jme3.math.ColorRGBA;
@@ -8,6 +9,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.util.BufferUtils;
 
@@ -17,7 +19,7 @@ import simplecraft.world.World;
  * Handles dynamic lighting for enemy models using vertex colors.<br>
  * Samples both sky light and block light (torches, campfires) at each enemy's<br>
  * position and applies a blended brightness with warm tint to all vertex colors.<br>
- * Uses a dirty flag on {@link Enemy} so vertex buffers are only rebuilt when<br>
+ * Uses a dirty flag on {@link simplecraft.enemy.Enemy} so vertex buffers are only rebuilt when<br>
  * the light level changes, not every frame.
  * @author Pantelis Andrianakis
  * @since March 5th 2026
@@ -86,7 +88,7 @@ public class EnemyLighting
 	 * Updates the vertex colors on an enemy's model to match the current light level.<br>
 	 * Blends sky light and block light, applying warm tint for torch/campfire glow.<br>
 	 * Only rebuilds vertex buffers when the enemy's lighting dirty flag is set.<br>
-	 * Called once per frame from {@link EnemyAnimator#update}.
+	 * Called once per frame from {@code EnemyAnimator.update}.
 	 * @param enemy the enemy whose lighting to update
 	 */
 	public static void updateLighting(Enemy enemy)
@@ -96,7 +98,6 @@ public class EnemyLighting
 			return;
 		}
 		
-		final float skyLight = Math.max(enemy.getSkyLight(), MIN_BRIGHTNESS);
 		final Node enemyNode = enemy.getNode();
 		
 		// Sample block light from the world at the enemy's foot position.
@@ -107,16 +108,13 @@ public class EnemyLighting
 			blockLight = _world.getBlockLight((int) pos.x, (int) pos.y, (int) pos.z) / 15.0f;
 		}
 		
-		// Blend: take the brighter of sky light and block light.
-		final float finalB = Math.max(Math.max(skyLight, blockLight), MIN_BRIGHTNESS);
+		// Blend: take the brighter of sky light and block light, clamped to the minimum.
+		final float finalB = Math.max(Math.max(enemy.getSkyLight(), blockLight), MIN_BRIGHTNESS);
 		
 		// Warm tint ratio: how much light comes from block light.
 		final float blkRatio = (finalB > MIN_BRIGHTNESS) ? (blockLight / finalB) : 0;
-		final float r = finalB * lerp(_tintR, WARM_TINT_R, blkRatio);
-		final float g = finalB * lerp(_tintG, WARM_TINT_G, blkRatio);
-		final float b = finalB * lerp(_tintB, WARM_TINT_B, blkRatio);
 		
-		applyColorToNode(enemyNode, r, g, b);
+		applyColorToNode(enemyNode, (finalB * lerp(_tintR, WARM_TINT_R, blkRatio)), (finalB * lerp(_tintG, WARM_TINT_G, blkRatio)), (finalB * lerp(_tintB, WARM_TINT_B, blkRatio)));
 		enemy.setLightingDirty(false);
 	}
 	
@@ -124,7 +122,7 @@ public class EnemyLighting
 	 * Initializes vertex color buffers on all geometries in the enemy's scene graph.<br>
 	 * Uses the enemy's current sky light value (set by SpawnSystem before this call)<br>
 	 * so enemies spawn at the correct brightness for the time of day.<br>
-	 * Must be called after the model is assembled by {@link EnemyFactory} and before the first render frame.
+	 * Must be called after the model is assembled by {@link simplecraft.enemy.EnemyFactory} and before the first render frame.
 	 * @param enemy the enemy whose model to initialize
 	 */
 	public static void initializeLighting(Enemy enemy)
@@ -137,9 +135,9 @@ public class EnemyLighting
 	 * Recursively walks a scene graph node, applying uniform RGB color<br>
 	 * to all child Geometries and descending into child Nodes.
 	 * @param node the node to walk
-	 * @param r red component (0.0 – 1.0)
-	 * @param g green component (0.0 – 1.0)
-	 * @param b blue component (0.0 – 1.0)
+	 * @param r red component (0.0 - 1.0)
+	 * @param g green component (0.0 - 1.0)
+	 * @param b blue component (0.0 - 1.0)
 	 */
 	private static void applyColorToNode(Node node, float r, float g, float b)
 	{
@@ -160,9 +158,9 @@ public class EnemyLighting
 	 * Replaces the vertex color buffer on a single Geometry with the given RGB values.<br>
 	 * Creates a new RGBA float buffer with the given color for all vertices.
 	 * @param geom the geometry to update
-	 * @param r red component (0.0 – 1.0)
-	 * @param g green component (0.0 – 1.0)
-	 * @param b blue component (0.0 – 1.0)
+	 * @param r red component (0.0 - 1.0)
+	 * @param g green component (0.0 - 1.0)
+	 * @param b blue component (0.0 - 1.0)
 	 */
 	private static void applyColorToGeometry(Geometry geom, float r, float g, float b)
 	{
@@ -175,6 +173,26 @@ public class EnemyLighting
 		final int vertexCount = mesh.getVertexCount();
 		if (vertexCount == 0)
 		{
+			return;
+		}
+		
+		// Rewrite the existing buffer in place when possible; vertex count never changes.
+		final VertexBuffer existing = mesh.getBuffer(Type.Color);
+		final Buffer existingData = (existing != null) ? existing.getData() : null;
+		if ((existingData instanceof FloatBuffer) && (existingData.capacity() == (vertexCount * 4)))
+		{
+			final FloatBuffer colorBuffer = (FloatBuffer) existingData;
+			colorBuffer.clear();
+			for (int i = 0; i < vertexCount; i++)
+			{
+				colorBuffer.put(r); // R
+				colorBuffer.put(g); // G
+				colorBuffer.put(b); // B
+				colorBuffer.put(1.0f); // A
+			}
+			
+			colorBuffer.flip();
+			existing.updateData(colorBuffer);
 			return;
 		}
 		

@@ -9,7 +9,7 @@ import com.jme3.app.state.BaseAppState;
 /**
  * Manages game state transitions and maintains the current game state.<br>
  * Handles special cases like overlay states (PAUSED) and return navigation (OPTIONS).<br>
- * Supports optional fade transitions via {@link #switchTo(GameState, boolean)}.
+ * Supports optional fade transitions via {@code switchTo(GameState, boolean)}.
  * @author Pantelis Andrianakis
  * @since February 16th 2026
  */
@@ -65,7 +65,7 @@ public class GameStateManager
 	
 	/**
 	 * Switch to a new game state with an optional fade transition.<br>
-	 * When fade is true and the current state is a {@link FadeableAppState} with a configured fade-out duration,<br>
+	 * When fade is true and the current state is a {@link simplecraft.state.FadeableAppState} with a configured fade-out duration,<br>
 	 * the current state fades out before the switch occurs.<br>
 	 * The new state's fade-in (if configured) begins automatically when it is enabled.<br>
 	 * <br>
@@ -95,15 +95,6 @@ public class GameStateManager
 		}
 		
 		executeSwitch(newState);
-	}
-	
-	/**
-	 * Return to the previous state (used when exiting OPTIONS).<br>
-	 * Uses an instant transition (no fade).
-	 */
-	public void returnToPrevious()
-	{
-		returnToPrevious(false);
 	}
 	
 	/**
@@ -224,7 +215,7 @@ public class GameStateManager
 			
 			// Reset enabled flag - setEnabled(false) was called when entering PAUSED and detach does NOT reset it.
 			// Without this, re-attaching PLAYING later will not trigger onEnable() (and thus onEnterState()),
-			// resulting in an empty scene with only the sky background visible.
+			// Resulting in an empty scene with only the sky background visible.
 			if (playingState != null)
 			{
 				playingState.setEnabled(true);

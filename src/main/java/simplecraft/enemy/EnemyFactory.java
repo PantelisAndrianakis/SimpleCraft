@@ -7,6 +7,7 @@ import java.util.Random;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.influencers.ParticleInfluencer;
 import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
@@ -128,14 +129,18 @@ public class EnemyFactory
 				applyStats(enemy, 500, 2.0f, 50, 3.0f, 12.0f, 2.0f, false);
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 		
 		return enemy;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Stat Application.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Applies combat and movement stats to an enemy.
@@ -152,9 +157,9 @@ public class EnemyFactory
 		enemy.setAquatic(aquatic);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Noise Texture Generation.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Generates a 32x32 noise texture based on the given color.<br>
@@ -191,15 +196,14 @@ public class EnemyFactory
 		}
 		
 		buffer.flip();
-		final Image image = new Image(Format.RGBA8, NOISE_SIZE, NOISE_SIZE, buffer, ColorSpace.sRGB);
-		final Texture2D texture = new Texture2D(image);
+		final Texture2D texture = new Texture2D(new Image(Format.RGBA8, NOISE_SIZE, NOISE_SIZE, buffer, ColorSpace.sRGB));
 		NOISE_TEXTURE_CACHE.put(baseColor.clone(), texture);
 		return texture;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Material Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates an opaque Unshaded material with a per-color noise texture.
@@ -220,18 +224,6 @@ public class EnemyFactory
 	{
 		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setColor("Color", color);
-		mat.setBoolean("VertexColor", true); // Enable vertex colors.
-		return mat;
-	}
-	
-	/**
-	 * Creates a semi-transparent Unshaded material with a noise texture and alpha blending.
-	 */
-	private static Material makeTransparentNoiseMat(AssetManager assetManager, ColorRGBA color)
-	{
-		final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-		mat.setTexture("ColorMap", generateNoiseTexture(color));
-		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		mat.setBoolean("VertexColor", true); // Enable vertex colors.
 		return mat;
 	}
@@ -267,8 +259,7 @@ public class EnemyFactory
 	 */
 	private static Geometry makeBox(String name, float halfX, float halfY, float halfZ, Material mat, float tx, float ty, float tz)
 	{
-		final Box box = new Box(halfX, halfY, halfZ);
-		final Geometry geom = new Geometry(name, box);
+		final Geometry geom = new Geometry(name, new Box(halfX, halfY, halfZ));
 		geom.setMaterial(mat);
 		geom.setLocalTranslation(tx, ty, tz);
 		return geom;
@@ -301,9 +292,9 @@ public class EnemyFactory
 		return new ColorRGBA(Math.min(1, color.r * factor), Math.min(1, color.g * factor), Math.min(1, color.b * factor), color.a);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Zombie (~2.3 blocks tall with neck).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a zombie model with visible neck, bare green skin torso,<br>
@@ -381,9 +372,9 @@ public class EnemyFactory
 		enemy.setRightArm(rightArm);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Skeleton (~2.2 blocks tall with neck, short brown pants).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a skeleton model - thin bone-colored humanoid with a subtle neck,<br>
@@ -480,9 +471,9 @@ public class EnemyFactory
 		rightArm.attachChild(makeBox("RElbow", 0.05f, 0.025f, 0.005f, jointMat, 0, -0.375f, -0.095f));
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Wolf (~0.85 blocks tall, grey).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a grey wolf model with pointed ears, snout, short Doberman-style tail,<br>
@@ -564,9 +555,9 @@ public class EnemyFactory
 		frontRight.attachChild(makeBox("FRPaw", 0.06f, 0.03f, 0.06f, bellyMat, 0, -0.4f, 0));
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Spider (dark blue-black, big abdomen, smaller legs).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a spider model - dark blue-black body with a visibly large abdomen,<br>
@@ -623,6 +614,8 @@ public class EnemyFactory
 		final float legAngle = 65f * FastMath.DEG_TO_RAD;
 		final float legHalfY = 0.25f;
 		
+		final Quaternion leftLegRotation = new Quaternion().fromAngleAxis(-legAngle, Vector3f.UNIT_Z);
+		final Quaternion rightLegRotation = new Quaternion().fromAngleAxis(legAngle, Vector3f.UNIT_Z);
 		for (int i = 0; i < 4; i++)
 		{
 			// Left leg.
@@ -630,7 +623,7 @@ public class EnemyFactory
 			leftLegNode.setLocalTranslation(-0.25f, 0.5f, zOffsets[i]);
 			leftLegNode.attachChild(makeBox("LLeg" + i, 0.03f, legHalfY, 0.03f, bodyMat, 0, -legHalfY, 0));
 			leftLegNode.attachChild(makeBox("LLegJoint" + i, 0.04f, 0.02f, 0.04f, legJointMat, 0, -legHalfY, 0));
-			leftLegNode.setLocalRotation(new Quaternion().fromAngleAxis(-legAngle, Vector3f.UNIT_Z));
+			leftLegNode.setLocalRotation(leftLegRotation);
 			root.attachChild(leftLegNode);
 			
 			// Right leg.
@@ -638,14 +631,14 @@ public class EnemyFactory
 			rightLegNode.setLocalTranslation(0.25f, 0.5f, zOffsets[i]);
 			rightLegNode.attachChild(makeBox("RLeg" + i, 0.03f, legHalfY, 0.03f, bodyMat, 0, -legHalfY, 0));
 			rightLegNode.attachChild(makeBox("RLegJoint" + i, 0.04f, 0.02f, 0.04f, legJointMat, 0, -legHalfY, 0));
-			rightLegNode.setLocalRotation(new Quaternion().fromAngleAxis(legAngle, Vector3f.UNIT_Z));
+			rightLegNode.setLocalRotation(rightLegRotation);
 			root.attachChild(rightLegNode);
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Slime (0.8 cubed, semi-transparent).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a slime model - semi-transparent green cube with red eyes,<br>
@@ -655,7 +648,12 @@ public class EnemyFactory
 	{
 		final Node root = enemy.getNode();
 		final ColorRGBA slimeGreen = new ColorRGBA(0.20f, 0.70f, 0.20f, 0.6f);
-		final Material slimeMat = makeTransparentNoiseMat(assetManager, slimeGreen);
+		
+		// Semi-transparent noise material with alpha blending.
+		final Material slimeMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+		slimeMat.setTexture("ColorMap", generateNoiseTexture(slimeGreen));
+		slimeMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+		slimeMat.setBoolean("VertexColor", true); // Enable vertex colors.
 		final Material eyeMat = makeFlatMat(assetManager, EYE_RED);
 		final Material coreMat = makeNoiseMat(assetManager, new ColorRGBA(0.10f, 0.35f, 0.10f, 0.9f));
 		final Material mouthMat = makeFlatMat(assetManager, new ColorRGBA(0.04f, 0.15f, 0.04f, 1.0f));
@@ -674,9 +672,9 @@ public class EnemyFactory
 		bodyNode.attachChild(makeBox("Mouth", 0.1f, 0.025f, 0.07f, mouthMat, 0, -0.08f, -0.2f));
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Piranha (~0.5 long, ~0.2 tall, aquatic).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a piranha model - small fish with separate individual teeth,<br>
@@ -725,8 +723,7 @@ public class EnemyFactory
 		headNode.attachChild(makeBox("RightEye", 0.025f, 0.03f, 0.025f, eyeMat, 0.135f, 0.02f, 0));
 		
 		// Jaw - longer, offset down clearly from head to avoid z-fighting.
-		final Material jawMat = makeNoiseMat(assetManager, new ColorRGBA(0.25f, 0.25f, 0.28f, 1.0f));
-		headNode.attachChild(makeBox("LowerJaw", 0.11f, 0.025f, 0.1f, jawMat, 0, -0.115f, -0.03f));
+		headNode.attachChild(makeBox("LowerJaw", 0.11f, 0.025f, 0.1f, makeNoiseMat(assetManager, new ColorRGBA(0.25f, 0.25f, 0.28f, 1.0f)), 0, -0.115f, -0.03f));
 		
 		// Two teeth on lower jaw - left and right fangs pointing up.
 		final float ttz = -0.13f;
@@ -738,9 +735,9 @@ public class EnemyFactory
 		bodyNode.attachChild(makeBox("TailFin", 0.01f, 0.075f, 0.1f, finMat, 0, 0, 0.30f));
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Player (~2.3 blocks tall, iron armor).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a player model - light brown skin, brown hair, green eyes,<br>
@@ -851,9 +848,9 @@ public class EnemyFactory
 		rightArm.attachChild(makeBox("RShoulderPlate", 0.15f, 0.18f, 0.15f, ironLightMat, 0, -0.12f, 0));
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Dragon (~2.2 blocks tall, ~7 blocks long, ground drake).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a dragon model - large ground lizard with dark green-grey body,<br>
@@ -862,7 +859,7 @@ public class EnemyFactory
 	 * <br>
 	 * Uses leftLeg/rightLeg for front legs and leftArm/rightArm for back legs<br>
 	 * (same convention as the wolf). Jaw and tail segments are stored in<br>
-	 * dedicated dragon-specific fields on {@link Enemy}.
+	 * dedicated dragon-specific fields on {@link simplecraft.enemy.Enemy}.
 	 */
 	private static void buildDragon(Enemy enemy, AssetManager assetManager)
 	{
@@ -873,7 +870,6 @@ public class EnemyFactory
 		// EnemyLighting would read sky=0 and darken the dragon to invisible.
 		final ColorRGBA bodyColor = new ColorRGBA(0.40f, 0.28f, 0.18f, 1.0f); // Warm brown.
 		final ColorRGBA headColor = new ColorRGBA(0.35f, 0.24f, 0.15f, 1.0f); // Darker brown.
-		final ColorRGBA eyeColor = EYE_RED; // Red glowing eyes like all enemies.
 		final ColorRGBA bellyColor = new ColorRGBA(0.50f, 0.40f, 0.28f, 1.0f); // Lighter tan.
 		final ColorRGBA hornColor = new ColorRGBA(0.25f, 0.20f, 0.12f, 1.0f); // Dark bone.
 		final ColorRGBA wingColor = new ColorRGBA(0.45f, 0.32f, 0.20f, 1.0f); // Leathery brown.
@@ -882,7 +878,7 @@ public class EnemyFactory
 		
 		final Material bodyMat = makeDragonMat(assetManager, bodyColor);
 		final Material headMat = makeDragonMat(assetManager, headColor);
-		final Material eyeMat = makeDragonFlatMat(assetManager, eyeColor);
+		final Material eyeMat = makeDragonFlatMat(assetManager, EYE_RED);
 		final Material toothMat = makeDragonFlatMat(assetManager, TOOTH_WHITE);
 		final Material bellyMat = makeDragonMat(assetManager, bellyColor);
 		final Material backMat = makeDragonMat(assetManager, backColor);
@@ -906,7 +902,7 @@ public class EnemyFactory
 		bodyNode.attachChild(makeBox("Belly", 0.7f, 0.03f, 1.3f, bellyMat, 0, 0.01f, 0));
 		
 		// Back ridge - spiny ridge along the spine.
-		bodyNode.attachChild(makeBox("BackRidge", 0.08f, 0.12f, 1.2f, backColor.equals(backColor) ? hornMat : backMat, 0, 1.24f, 0));
+		bodyNode.attachChild(makeBox("BackRidge", 0.08f, 0.12f, 1.2f, hornMat, 0, 1.24f, 0));
 		
 		// ---- Head ----
 		// Two-part head: wider back cranium + narrower forward snout.
@@ -1084,8 +1080,9 @@ public class EnemyFactory
 		dragonFireEmitter.setHighLife(0.5f);
 		
 		// Fire shoots forward (-Z in head-local space). Dragon snout is longer.
-		dragonFireEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.5f, -8.0f));
-		dragonFireEmitter.getParticleInfluencer().setVelocityVariation(0.3f);
+		final ParticleInfluencer dragonFireInfluencer = dragonFireEmitter.getParticleInfluencer();
+		dragonFireInfluencer.setInitialVelocity(new Vector3f(0, 0.5f, -8.0f));
+		dragonFireInfluencer.setVelocityVariation(0.3f);
 		dragonFireEmitter.setGravity(0, -1.0f, 0);
 		
 		dragonFireEmitter.setLocalTranslation(0, 0.1f, -0.95f); // Mouth of the snout.
@@ -1097,9 +1094,9 @@ public class EnemyFactory
 	/** Shared temp quaternion for dragon horn/wing rotation setup. */
 	private static final Quaternion TEMP_QUAT = new Quaternion();
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Shadow (~3 blocks tall, bipedal demon / balrog).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Flame effect image path (shared with campfire). */
 	private static final String FLAME_IMAGE_PATH = "assets/images/effects/flame.png";
@@ -1129,7 +1126,6 @@ public class EnemyFactory
 		final ColorRGBA hornColor = new ColorRGBA(0.18f, 0.12f, 0.08f, 1.0f); // Dark bone.
 		final ColorRGBA clawColor = new ColorRGBA(0.15f, 0.10f, 0.07f, 1.0f);
 		final ColorRGBA hoofColor = new ColorRGBA(0.08f, 0.06f, 0.06f, 1.0f); // Almost black hooves.
-		final ColorRGBA eyeColor = EYE_RED;
 		
 		final Material bodyMat = makeDragonMat(assetManager, bodyColor);
 		final Material chestMat = makeDragonMat(assetManager, chestColor);
@@ -1137,7 +1133,7 @@ public class EnemyFactory
 		final Material hornMat = makeDragonMat(assetManager, hornColor);
 		final Material clawMat = makeDragonMat(assetManager, clawColor);
 		final Material hoofMat = makeDragonMat(assetManager, hoofColor);
-		final Material eyeMat = makeDragonFlatMat(assetManager, eyeColor);
+		final Material eyeMat = makeDragonFlatMat(assetManager, EYE_RED);
 		final Material toothMat = makeDragonFlatMat(assetManager, TOOTH_WHITE);
 		final Material jawMat = makeDragonMat(assetManager, darken(headColor, 0.8f));
 		
@@ -1164,7 +1160,7 @@ public class EnemyFactory
 		headNode.attachChild(makeBox("Skull", 0.28f, 0.28f, 0.28f, headMat, 0, 0.28f, 0));
 		
 		// Brow ridge - heavy overhanging brow.
-		headNode.attachChild(makeBox("BrowRidge", 0.32f, 0.06f, 0.12f, darken(headColor, 0.7f) == null ? headMat : makeDragonMat(assetManager, darken(headColor, 0.7f)), 0, 0.42f, -0.18f));
+		headNode.attachChild(makeBox("BrowRidge", 0.32f, 0.06f, 0.12f, makeDragonMat(assetManager, darken(headColor, 0.7f)), 0, 0.42f, -0.18f));
 		
 		// Snout / muzzle - slightly protruding.
 		headNode.attachChild(makeBox("Snout", 0.2f, 0.15f, 0.12f, headMat, 0, 0.15f, -0.35f));
@@ -1370,20 +1366,20 @@ public class EnemyFactory
 		fireEmitter.setHighLife(0.5f);
 		
 		// Fire shoots forward (-Z in head-local space).
-		fireEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.5f, -8.0f));
-		fireEmitter.getParticleInfluencer().setVelocityVariation(0.3f);
+		final ParticleInfluencer fireInfluencer = fireEmitter.getParticleInfluencer();
+		fireInfluencer.setInitialVelocity(new Vector3f(0, 0.5f, -8.0f));
+		fireInfluencer.setVelocityVariation(0.3f);
 		fireEmitter.setGravity(0, -1.0f, 0);
 		
 		// Position at the mouth (relative offset - applied in world space each frame by BossArenaManager).
 		fireEmitter.setLocalTranslation(0, 0.1f, -0.45f);
 		fireEmitter.setParticlesPerSec(0); // Dormant until activated.
 		
-		// NOTE: Do NOT attach the emitter to headNode. EnemyLighting recursively
-		// traverses the enemy node hierarchy and tries to set vertex color buffers
-		// on every Geometry - ParticleEmitter meshes have an incompatible buffer
-		// format, causing an UnsupportedOperationException. The emitter is stored
-		// on the Enemy and attached to a separate scene node by BossArenaManager,
-		// which syncs its world transform to the head each frame.
+		// NOTE: Do NOT attach the emitter to headNode.
+		// EnemyLighting recursively traverses the enemy node hierarchy and tries to set vertex color buffers on every Geometry.
+		// ParticleEmitter meshes have an incompatible buffer format, causing an UnsupportedOperationException.
+		// The emitter is stored on the Enemy and attached to a separate scene node by BossArenaManager,
+		// Which syncs its world transform to the head each frame.
 		enemy.setFireBreathEmitter(fireEmitter);
 		
 		// ---- Ambient Smoke Emitter ----
@@ -1408,8 +1404,9 @@ public class EnemyFactory
 		smokeEmitter.setLowLife(1.2f);
 		smokeEmitter.setHighLife(2.5f);
 		
-		smokeEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.6f, 0));
-		smokeEmitter.getParticleInfluencer().setVelocityVariation(0.5f);
+		final ParticleInfluencer smokeInfluencer = smokeEmitter.getParticleInfluencer();
+		smokeInfluencer.setInitialVelocity(new Vector3f(0, 0.6f, 0));
+		smokeInfluencer.setVelocityVariation(0.5f);
 		smokeEmitter.setParticlesPerSec(8); // Always emitting.
 		
 		enemy.setSmokeEmitter(smokeEmitter);

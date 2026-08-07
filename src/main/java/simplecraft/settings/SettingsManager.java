@@ -8,6 +8,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -64,7 +65,7 @@ public class SettingsManager
 	public static final float MIN_FOV = 30f;
 	public static final float MAX_FOV = 110f;
 	
-	/** Player-facing render distance range (1–15), internally offset by +5 to become 6–20 regions. */
+	/** Player-facing render distance range (1 to 15), internally offset by +5 to become 6 to 20 regions. */
 	public static final int MIN_RENDER_DISTANCE = 1;
 	public static final int MAX_RENDER_DISTANCE = 15;
 	private static final int RENDER_DISTANCE_OFFSET = 5;
@@ -126,8 +127,7 @@ public class SettingsManager
 				continue;
 			}
 			
-			final String key = w + "x" + h;
-			if (seen.add(key))
+			if (seen.add((w + "x" + h)))
 			{
 				resolutions.add(new int[]
 				{
@@ -184,7 +184,7 @@ public class SettingsManager
 			return;
 		}
 		
-		try (BufferedReader reader = new BufferedReader(new FileReader(file)))
+		try (BufferedReader reader = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8)))
 		{
 			String line;
 			while ((line = reader.readLine()) != null)
@@ -242,12 +242,22 @@ public class SettingsManager
 						}
 						case KEY_SCREEN_WIDTH:
 						{
-							_screenWidth = Integer.parseInt(value);
+							// Reject non-positive values so a corrupt settings file cannot produce an unusable window.
+							final int width = Integer.parseInt(value);
+							if (width > 0)
+							{
+								_screenWidth = width;
+							}
 							break;
 						}
 						case KEY_SCREEN_HEIGHT:
 						{
-							_screenHeight = Integer.parseInt(value);
+							// Reject non-positive values so a corrupt settings file cannot produce an unusable window.
+							final int height = Integer.parseInt(value);
+							if (height > 0)
+							{
+								_screenHeight = height;
+							}
 							break;
 						}
 						case KEY_FULLSCREEN:
@@ -285,14 +295,12 @@ public class SettingsManager
 							// Check for keybinding entries (key.actionName=keyCode).
 							if (key.startsWith(KEYBINDING_PREFIX))
 							{
-								final String action = key.substring(KEYBINDING_PREFIX.length());
-								_keybindings.put(action, Integer.parseInt(value));
+								_keybindings.put(key.substring(KEYBINDING_PREFIX.length()), Integer.parseInt(value));
 							}
 							// Check for mouse binding entries (mouse.actionName=buttonCode).
 							else if (key.startsWith(MOUSEBINDING_PREFIX))
 							{
-								final String action = key.substring(MOUSEBINDING_PREFIX.length());
-								_mouseBindings.put(action, Integer.parseInt(value));
+								_mouseBindings.put(key.substring(MOUSEBINDING_PREFIX.length()), Integer.parseInt(value));
 							}
 							else
 							{
@@ -331,7 +339,7 @@ public class SettingsManager
 				dir.mkdirs();
 			}
 			
-			try (BufferedWriter writer = new BufferedWriter(new FileWriter(SETTINGS_FILE)))
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(SETTINGS_FILE, StandardCharsets.UTF_8)))
 			{
 				writer.write("# SimpleCraft Settings");
 				writer.newLine();
@@ -436,7 +444,8 @@ public class SettingsManager
 	{
 		for (int i = 0; i < AVAILABLE_RESOLUTIONS.length; i++)
 		{
-			if (AVAILABLE_RESOLUTIONS[i][0] == _screenWidth && AVAILABLE_RESOLUTIONS[i][1] == _screenHeight)
+			final int[] resolution = AVAILABLE_RESOLUTIONS[i];
+			if ((resolution[0] == _screenWidth) && (resolution[1] == _screenHeight))
 			{
 				return i;
 			}
@@ -451,11 +460,14 @@ public class SettingsManager
 	 */
 	public void setResolutionByIndex(int index)
 	{
-		if (index >= 0 && index < AVAILABLE_RESOLUTIONS.length)
+		if ((index < 0) || (index >= AVAILABLE_RESOLUTIONS.length))
 		{
-			_screenWidth = AVAILABLE_RESOLUTIONS[index][0];
-			_screenHeight = AVAILABLE_RESOLUTIONS[index][1];
+			return;
 		}
+		
+		final int[] resolution = AVAILABLE_RESOLUTIONS[index];
+		_screenWidth = resolution[0];
+		_screenHeight = resolution[1];
 	}
 	
 	// --- Getters and Setters ---
@@ -496,7 +508,7 @@ public class SettingsManager
 	}
 	
 	/**
-	 * Returns the player-facing render distance (1–15) for UI display.
+	 * Returns the player-facing render distance (1 to 15) for UI display.
 	 */
 	public int getDisplayRenderDistance()
 	{

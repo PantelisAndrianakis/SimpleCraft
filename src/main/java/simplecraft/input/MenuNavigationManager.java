@@ -17,13 +17,13 @@ import simplecraft.ui.QuestionManager;
 
 /**
  * Centralized keyboard/gamepad navigation for all menu states.<br>
- * Manages a flat list of {@link NavigationSlot} entries with focus tracking,<br>
+ * Manages a flat list of {@link simplecraft.input.MenuNavigationManager.NavigationSlot} entries with focus tracking,<br>
  * QuestionManager delegation and a configurable back action.<br>
  * <br>
  * Supports three slot types via static factories:<br>
- * - {@link #buttonSlot(Panel, Runnable)} for ButtonManager-styled menu buttons<br>
- * - {@link #labelSlot(Label, Runnable, Runnable, Runnable)} for label-highlighted content rows<br>
- * - {@link #customSlot(Runnable, Runnable, Runnable, Runnable, Runnable)} for tab rows and special zones
+ * - {@code buttonSlot(Panel, Runnable)} for ButtonManager-styled menu buttons<br>
+ * - {@code labelSlot(Label, Runnable, Runnable, Runnable)} for label-highlighted content rows<br>
+ * - {@code customSlot(Runnable, Runnable, Runnable, Runnable, Runnable)} for tab rows and special zones
  * @author Pantelis Andrianakis
  * @since February 20th 2026
  */
@@ -68,7 +68,7 @@ public class MenuNavigationManager
 	
 	/**
 	 * Create a slot for a ButtonManager-styled menu button.<br>
-	 * Focus/unfocus calls {@link ButtonManager#setFocused(Spatial, boolean)}.<br>
+	 * Focus/unfocus calls {@code ButtonManager.setFocused(Spatial, boolean)}.<br>
 	 * Confirm runs the button action. Left/right do nothing.
 	 * @param button The Panel created by ButtonManager
 	 * @param action The action to run on confirm
@@ -327,7 +327,8 @@ public class MenuNavigationManager
 	public void setFocusIndex(int index)
 	{
 		// Unfocus previous.
-		if (_focusIndex >= 0 && _focusIndex < _slots.size())
+		final int slotCount = _slots.size();
+		if ((_focusIndex >= 0) && (_focusIndex < slotCount))
 		{
 			_slots.get(_focusIndex).onUnfocus();
 		}
@@ -335,7 +336,7 @@ public class MenuNavigationManager
 		_focusIndex = index;
 		
 		// Focus new.
-		if (_focusIndex >= 0 && _focusIndex < _slots.size())
+		if ((_focusIndex >= 0) && (_focusIndex < slotCount))
 		{
 			_slots.get(_focusIndex).onFocus();
 		}
@@ -343,18 +344,20 @@ public class MenuNavigationManager
 	
 	/**
 	 * Clamp the focus index to the current slot list size and re-apply focus visuals.<br>
-	 * Call after {@link #clearSlots()} / {@link #addSlot(NavigationSlot)} to maintain valid focus.
+	 * Call after {@code clearSlots()} / {@code addSlot(NavigationSlot)} to maintain valid focus.
 	 */
 	public void clampAndRefocus()
 	{
-		if (_focusIndex >= 0)
+		if (_focusIndex < 0)
 		{
-			final int slotCount = _slots.size();
-			_focusIndex = Math.min(_focusIndex, slotCount - 1);
-			if (_focusIndex >= 0 && _focusIndex < slotCount)
-			{
-				_slots.get(_focusIndex).onFocus();
-			}
+			return;
+		}
+		
+		final int slotCount = _slots.size();
+		_focusIndex = Math.min(_focusIndex, slotCount - 1);
+		if ((_focusIndex >= 0) && (_focusIndex < slotCount))
+		{
+			_slots.get(_focusIndex).onFocus();
 		}
 	}
 	
@@ -448,6 +451,10 @@ public class MenuNavigationManager
 					}
 					break;
 				}
+				default:
+				{
+					break;
+				}
 			}
 		};
 		
@@ -481,13 +488,13 @@ public class MenuNavigationManager
 		}
 		
 		// Unfocus current.
-		if (_focusIndex >= 0 && _focusIndex < _slots.size())
+		final int count = _slots.size();
+		if ((_focusIndex >= 0) && (_focusIndex < count))
 		{
 			_slots.get(_focusIndex).onUnfocus();
 		}
 		
-		final int count = _slots.size();
-		_focusIndex = ((_focusIndex + offset) % count + count) % count;
+		_focusIndex = (((_focusIndex + offset) % count) + count) % count;
 		
 		// Focus new.
 		_slots.get(_focusIndex).onFocus();
@@ -521,6 +528,10 @@ public class MenuNavigationManager
 			{
 				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				QuestionManager.dismiss();
+				break;
+			}
+			default:
+			{
 				break;
 			}
 		}

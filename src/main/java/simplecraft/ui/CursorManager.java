@@ -71,8 +71,8 @@ public class CursorManager
 	}
 	
 	/**
-	 * Initializes the CursorManager with the given {@link InputManager} and sets the default cursor.
-	 * @param inputManager the {@link InputManager} to apply cursors to
+	 * Initializes the CursorManager with the given {@link com.jme3.input.InputManager} and sets the default cursor.
+	 * @param inputManager the {@link com.jme3.input.InputManager} to apply cursors to
 	 */
 	public static void initialize(InputManager inputManager)
 	{
@@ -81,9 +81,9 @@ public class CursorManager
 	}
 	
 	/**
-	 * Switches the active cursor to the given {@link CursorType}.<br>
+	 * Switches the active cursor to the given {@link simplecraft.ui.CursorManager.CursorType}.<br>
 	 * The cursor is loaded and cached on first use.
-	 * @param type the {@link CursorType} to activate
+	 * @param type the {@link simplecraft.ui.CursorManager.CursorType} to activate
 	 */
 	public static void setCursor(CursorType type)
 	{
@@ -115,8 +115,8 @@ public class CursorManager
 	}
 	
 	/**
-	 * Returns the currently active {@link CursorType}.
-	 * @return the active {@link CursorType}, or {@code null} if none is set
+	 * Returns the currently active {@link simplecraft.ui.CursorManager.CursorType}.
+	 * @return the active {@link simplecraft.ui.CursorManager.CursorType}, or {@code null} if none is set
 	 */
 	public static CursorType getActiveCursor()
 	{
@@ -125,11 +125,12 @@ public class CursorManager
 	
 	/**
 	 * Preloads all cursor types into the cache.<br>
-	 * Optional - cursors are also loaded on demand by {@link #setCursor(CursorType)}.
+	 * Optional - cursors are also loaded on demand by {@code setCursor(CursorType)}.
 	 */
 	public static void preloadAll()
 	{
-		for (CursorType type : CursorType.values())
+		final CursorType[] types = CursorType.values();
+		for (CursorType type : types)
 		{
 			if (!CURSOR_CACHE.containsKey(type))
 			{
@@ -141,13 +142,13 @@ public class CursorManager
 			}
 		}
 		
-		System.out.println("Preloaded " + CURSOR_CACHE.size() + "/" + CursorType.values().length + " cursors.");
+		System.out.println("Preloaded " + CURSOR_CACHE.size() + "/" + types.length + " cursors.");
 	}
 	
 	/**
-	 * Loads a cursor image from disk, resizes it and creates a {@link JmeCursor}.
-	 * @param type the {@link CursorType} to load
-	 * @return the created {@link JmeCursor}, or {@code null} on failure
+	 * Loads a cursor image from disk, resizes it and creates a {@link com.jme3.cursors.plugins.JmeCursor}.
+	 * @param type the {@link simplecraft.ui.CursorManager.CursorType} to load
+	 * @return the created {@link com.jme3.cursors.plugins.JmeCursor}, or {@code null} on failure
 	 */
 	private static JmeCursor loadCursor(CursorType type)
 	{

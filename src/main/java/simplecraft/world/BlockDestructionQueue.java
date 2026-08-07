@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
+import com.jme3.material.RenderState;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
@@ -28,9 +29,7 @@ import com.jme3.scene.shape.Quad;
  */
 public class BlockDestructionQueue
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Delay in seconds between each block in a tree felling cascade. */
 	private static final float TREE_DELAY_PER_BLOCK = 0.04f;
@@ -62,9 +61,7 @@ public class BlockDestructionQueue
 	/** Default poof color (dirt, stone, etc.). */
 	private static final ColorRGBA POOF_COLOR_DEFAULT = new ColorRGBA(0.70f, 0.70f, 0.70f, 1.0f);
 	
-	// ========================================================
-	// Inner Classes.
-	// ========================================================
+	// ========== INNER CLASSES ==========
 	
 	/**
 	 * A single block pending visual destruction.
@@ -94,21 +91,21 @@ public class BlockDestructionQueue
 	{
 		final Geometry _geometry;
 		final Material _material;
-		final ColorRGBA _baseColor;
+		
+		/** Owned instance, mutated in place each frame so the fade allocates nothing. */
+		final ColorRGBA _color;
 		float _elapsed;
 		
-		PoofEffect(Geometry geometry, Material material, ColorRGBA baseColor)
+		PoofEffect(Geometry geometry, Material material, ColorRGBA color)
 		{
 			_geometry = geometry;
 			_material = material;
-			_baseColor = baseColor;
+			_color = color;
 			_elapsed = 0;
 		}
 	}
 	
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	private final World _world;
 	private final Node _effectsNode = new Node("DestructionEffects");
@@ -126,9 +123,7 @@ public class BlockDestructionQueue
 	/** Counter for unique geometry names. */
 	private int _poofCounter;
 	
-	// ========================================================
-	// Constructor.
-	// ========================================================
+	// ========== CONSTRUCTOR ==========
 	
 	/**
 	 * Creates a new destruction queue.
@@ -142,13 +137,11 @@ public class BlockDestructionQueue
 		_poofQuad = new Quad(POOF_SIZE * 2, POOF_SIZE * 2);
 	}
 	
-	// ========================================================
-	// Queuing.
-	// ========================================================
+	// ========== QUEUING ==========
 	
 	/**
 	 * Queues a tree felling result for staggered visual destruction.
-	 * @param result the felling result from {@link TreeFeller#fellTree}
+	 * @param result the felling result from {@code TreeFeller.fellTree}
 	 */
 	public void queueTreeFelling(TreeFeller.FellingResult result)
 	{
@@ -169,7 +162,7 @@ public class BlockDestructionQueue
 	
 	/**
 	 * Queues a block support collapse result for staggered visual destruction.
-	 * @param result the collapse result from {@link BlockSupport#checkSupport}
+	 * @param result the collapse result from {@code BlockSupport.checkSupport}
 	 */
 	public void queueCollapseResult(BlockSupport.CollapseResult result)
 	{
@@ -188,9 +181,7 @@ public class BlockDestructionQueue
 		}
 	}
 	
-	// ========================================================
-	// Update.
-	// ========================================================
+	// ========== UPDATE ==========
 	
 	/**
 	 * Updates the destruction queue each frame.<br>
@@ -246,30 +237,29 @@ public class BlockDestructionQueue
 			}
 			
 			// Interpolate scale.
-			final float scale = POOF_START_SCALE + (POOF_END_SCALE - POOF_START_SCALE) * progress;
-			effect._geometry.setLocalScale(scale);
+			effect._geometry.setLocalScale((POOF_START_SCALE + (POOF_END_SCALE - POOF_START_SCALE) * progress));
 			
-			// Interpolate alpha (fade out).
-			final float alpha = POOF_START_ALPHA * (1.0f - progress);
-			effect._material.setColor("Color", new ColorRGBA(effect._baseColor.r, effect._baseColor.g, effect._baseColor.b, alpha));
+			// Interpolate alpha (fade out). Re-set the same instance so the material picks up the change.
+			effect._color.a = POOF_START_ALPHA * (1.0f - progress);
+			effect._material.setColor("Color", effect._color);
 		}
 	}
 	
-	// ========================================================
-	// Poof Effect.
-	// ========================================================
+	// ========== POOF EFFECT ==========
 	
 	/**
 	 * Spawns a poof effect at the center of the given block position.
 	 */
 	private void spawnPoof(int x, int y, int z, Block blockType)
 	{
-		// Create material.
+		// Create material. The color is owned by the effect so the per-frame fade can mutate it.
 		final Material material = new Material(_assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		final ColorRGBA baseColor = getPoofColor(blockType);
-		material.setColor("Color", new ColorRGBA(baseColor.r, baseColor.g, baseColor.b, POOF_START_ALPHA));
-		material.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
-		material.getAdditionalRenderState().setDepthWrite(false);
+		final ColorRGBA color = new ColorRGBA(baseColor.r, baseColor.g, baseColor.b, POOF_START_ALPHA);
+		material.setColor("Color", color);
+		final RenderState renderState = material.getAdditionalRenderState();
+		renderState.setBlendMode(BlendMode.Alpha);
+		renderState.setDepthWrite(false);
 		
 		// Create geometry.
 		final Geometry geometry = new Geometry("Poof_" + (_poofCounter++), _poofQuad);
@@ -284,7 +274,7 @@ public class BlockDestructionQueue
 		geometry.addControl(new BillboardControl());
 		
 		_effectsNode.attachChild(geometry);
-		_activeEffects.add(new PoofEffect(geometry, material, baseColor));
+		_activeEffects.add(new PoofEffect(geometry, material, color));
 	}
 	
 	/**
@@ -305,9 +295,7 @@ public class BlockDestructionQueue
 		return POOF_COLOR_DEFAULT;
 	}
 	
-	// ========================================================
-	// Accessors.
-	// ========================================================
+	// ========== ACCESSORS ==========
 	
 	/**
 	 * Returns the effects node. Must be attached to the scene by the owning state.

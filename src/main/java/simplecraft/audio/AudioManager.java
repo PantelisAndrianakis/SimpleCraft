@@ -13,7 +13,7 @@ import com.jme3.math.Vector3f;
  * Manages all audio playback including music with crossfading and sound effects.<br>
  * Gracefully handles missing audio files without crashing.<br>
  * <br>
- * Music is always played as streamed audio ({@link DataType#Stream}) for instant<br>
+ * Music is always played as streamed audio ({@code DataType.Stream}) for instant<br>
  * startup with no decoding delay.<br>
  * <br>
  * Supports suspending tracks into a map (fade to zero, then pause). When a<br>
@@ -103,7 +103,7 @@ public class AudioManager
 	
 	/**
 	 * Map of tracks that have been suspended (faded to zero then paused).<br>
-	 * Keyed by asset path. When a track is requested via {@link #crossfadeWithSuspend},<br>
+	 * Keyed by asset path. When a track is requested via {@code crossfadeWithSuspend},<br>
 	 * the map is checked first - if the track exists here it is unpaused at the<br>
 	 * exact position instead of being reloaded from disk.
 	 */
@@ -164,8 +164,8 @@ public class AudioManager
 			_fadingOutMusic = null;
 		}
 		
-		// Leave the incoming track at its current volume - the next crossfade
-		// will pick it up from there via _fadeOutStartVolume for a smooth transition.
+		// Leave the incoming track at its current volume.
+		// The next crossfade will pick it up from there via _fadeOutStartVolume for a smooth transition.
 		_fadingInMusic = null;
 		
 		// Clear simple fade-in if active.
@@ -346,8 +346,8 @@ public class AudioManager
 		}
 		
 		// Settle any in-progress crossfade before starting a new one.
-		// This ensures the previous outgoing track is properly paused into the suspended map
-		// rather than being abandoned (which would cause a position reset).
+		// This ensures the previous outgoing track is properly paused into the suspended map,
+		// Rather than being abandoned, which would cause a position reset.
 		stopActiveCrossfade();
 		
 		// Determine the incoming track: resume from map or load fresh.
@@ -379,8 +379,8 @@ public class AudioManager
 			}
 		}
 		
-		// Capture the outgoing track's path before overwriting
-		// (needed when the fade completes and the track is stored in the suspended map).
+		// Capture the outgoing track's path before overwriting,
+		// Needed when the fade completes and the track is stored in the suspended map.
 		_suspendingPath = _currentMusicPath;
 		
 		// Setup crossfade: old track fades to 0 then pauses, new track fades in.
@@ -414,21 +414,23 @@ public class AudioManager
 	}
 	
 	/**
-	 * Clears all suspended tracks. Used by {@link #crossfadeTo} and other<br>
+	 * Clears all suspended tracks. Used by {@code crossfadeTo} and other<br>
 	 * methods that represent a fresh start where no track should be resumable.
 	 */
 	public void clearAllSuspended()
 	{
-		if (!_suspendedTracks.isEmpty())
+		if (_suspendedTracks.isEmpty())
 		{
-			for (AudioNode node : _suspendedTracks.values())
-			{
-				node.stop();
-			}
-			
-			System.out.println("AudioManager: Cleared all suspended tracks (" + _suspendedTracks.size() + ")");
-			_suspendedTracks.clear();
+			return;
 		}
+		
+		for (AudioNode node : _suspendedTracks.values())
+		{
+			node.stop();
+		}
+		
+		System.out.println("AudioManager: Cleared all suspended tracks (" + _suspendedTracks.size() + ")");
+		_suspendedTracks.clear();
 	}
 	
 	/**
@@ -436,25 +438,27 @@ public class AudioManager
 	 */
 	public void stopMusic()
 	{
-		if (_currentMusic != null)
+		if (_currentMusic == null)
 		{
-			// Settle any in-progress crossfade.
-			stopActiveCrossfade();
-			
-			clearAllSuspended();
-			
-			// Quick fade out.
-			_fadingOutMusic = _currentMusic;
-			_fadingInMusic = null;
-			_fadeTimer = 0f;
-			_fadeDuration = 1.0f;
-			_fadeOutStartVolume = _currentMusic.getVolume();
-			_pauseOnFadeOut = false;
-			
-			_currentMusic = null;
-			_currentMusicPath = null;
-			System.out.println("AudioManager: Stopping music with fade out.");
+			return;
 		}
+		
+		// Settle any in-progress crossfade.
+		stopActiveCrossfade();
+		
+		clearAllSuspended();
+		
+		// Quick fade out.
+		_fadingOutMusic = _currentMusic;
+		_fadingInMusic = null;
+		_fadeTimer = 0f;
+		_fadeDuration = 1.0f;
+		_fadeOutStartVolume = _currentMusic.getVolume();
+		_pauseOnFadeOut = false;
+		
+		_currentMusic = null;
+		_currentMusicPath = null;
+		System.out.println("AudioManager: Stopping music with fade out.");
 	}
 	
 	// ------------------------------------------------------------------
@@ -553,8 +557,7 @@ public class AudioManager
 			_fadeInTimer += tpf;
 			final float progress = Math.min(1f, _fadeInTimer / _fadeInDuration);
 			
-			final float volume = _fadeInTargetVolume * progress;
-			_currentMusic.setVolume(volume);
+			_currentMusic.setVolume(_fadeInTargetVolume * progress);
 			
 			if (progress >= 1f)
 			{
@@ -572,8 +575,7 @@ public class AudioManager
 			// Fade out.
 			if (_fadingOutMusic != null)
 			{
-				final float volume = _fadeOutStartVolume * (1f - progress);
-				_fadingOutMusic.setVolume(volume);
+				_fadingOutMusic.setVolume(_fadeOutStartVolume * (1f - progress));
 				
 				if (progress >= 1f)
 				{
@@ -602,9 +604,7 @@ public class AudioManager
 			// Fade in.
 			if (_fadingInMusic != null)
 			{
-				final float targetVolume = _masterVolume * _musicVolume;
-				final float volume = targetVolume * progress;
-				_fadingInMusic.setVolume(volume);
+				_fadingInMusic.setVolume(_masterVolume * _musicVolume * progress);
 				
 				if (progress >= 1f)
 				{

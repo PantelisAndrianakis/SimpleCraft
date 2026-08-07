@@ -31,20 +31,20 @@ import simplecraft.world.World;
 /**
  * Manages all combat interactions between the player and enemies.<br>
  * <br>
- * <b>Player -> Enemy damage:</b> {@link #tryPlayerAttack(Camera, List, World, PlayerController)} raycasts from the camera<br>
+ * <b>Player -> Enemy damage:</b> {@code tryPlayerAttack(Camera, List, World, PlayerController)} raycasts from the camera<br>
  * with a 3-block reach and a generous 0.5-block hit cylinder around each enemy's center mass.<br>
  * The closest hit enemy takes damage based on the held weapon/tool (bare hands: 3.0).<br>
  * Attack cooldown varies by weapon speed. Durability is consumed per hit.<br>
- * Hit and death feedback is handled by {@link Enemy#takeDamage(float)} (white flash, scale-down).<br>
+ * Hit and death feedback is handled by {@code Enemy.takeDamage(float)} (white flash, scale-down).<br>
  * <br>
- * <b>Enemy -> Player damage:</b> Scans all enemies in ATTACK state each frame. When an enemy's attack cooldown fires and the player is within attack range, damage is dealt via {@link PlayerController#takeDamage(float, String)}.<br>
+ * <b>Enemy -> Player damage:</b> Scans all enemies in ATTACK state each frame. When an enemy's attack cooldown fires and the player is within attack range, damage is dealt via {@code PlayerController.takeDamage(float, String)}.<br>
  * Incoming damage is reduced by the total armor protection from equipped armor pieces.<br>
  * Each equipped armor piece loses 1 durability per hit taken; pieces at 0 durability break.<br>
  * <br>
  * <b>Screen flash:</b> Full-screen colored quad on the GUI node that fades out over 0.3 seconds. Red (alpha 0.3) for damage, green (alpha 0.2) for healing. Reused across all damage/healing sources - any new flash restarts the timer.<br>
  * <br>
- * <b>Enemy death drops:</b> When an enemy dies, its drop table is rolled via {@link EnemyDropTable}<br>
- * and resulting items are spawned as world drops via the {@link DropManager}.
+ * <b>Enemy death drops:</b> When an enemy dies, its drop table is rolled via {@link simplecraft.enemy.EnemyDropTable}<br>
+ * and resulting items are spawned as world drops via the {@link simplecraft.item.DropManager}.
  * @author Pantelis Andrianakis
  * @since March 6th 2026
  */
@@ -141,6 +141,9 @@ public class CombatSystem
 	/** Drop manager for spawning item drops on enemy death. */
 	private DropManager _dropManager;
 	
+	// Reusable single-enemy list for boss attack raycasts (avoid per-attack allocation).
+	private final List<Enemy> _singleEnemyList = new ArrayList<>(1);
+	
 	// Reusable vectors for raycast math (avoid per-frame allocation).
 	private final Vector3f _rayOrigin = new Vector3f();
 	private final Vector3f _rayDir = new Vector3f();
@@ -158,12 +161,9 @@ public class CombatSystem
 		_audioManager = audioManager;
 		
 		final Camera camera = app.getCamera();
-		final int screenWidth = camera.getWidth();
-		final int screenHeight = camera.getHeight();
 		
 		// Build full-screen flash quad (hidden initially).
-		final Quad flashQuad = new Quad(screenWidth, screenHeight);
-		_flashGeometry = new Geometry("DamageFlash", flashQuad);
+		_flashGeometry = new Geometry("DamageFlash", new Quad(camera.getWidth(), camera.getHeight()));
 		_flashMaterial = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
 		_flashMaterial.setColor("Color", new ColorRGBA(0, 0, 0, 0));
 		_flashMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
@@ -196,7 +196,7 @@ public class CombatSystem
 		final float finalDamage = Math.max(0, rawDamage - armorReduction);
 		
 		// Armor durability loss - all equipped pieces take 1 durability per hit,
-		// even if the damage is fully absorbed.
+		// Even if the damage is fully absorbed.
 		if (armorReduction > 0)
 		{
 			inventory.damageAllArmor();
@@ -248,17 +248,15 @@ public class CombatSystem
 				continue;
 			}
 			
-			// Detect attack cooldown fire: EnemyAI resets attackTimer to exactly 0
-			// when cooldown expires. The stateTimer check avoids false positives
-			// on the first frame of entering ATTACK state (both timers are 0 then).
+			// Detect attack cooldown fire: EnemyAI resets attackTimer to exactly 0 when cooldown expires.
+			// The stateTimer check avoids false positives on the first frame of entering ATTACK state, where both timers are 0.
 			if (enemy.getAttackTimer() == 0f && enemy.getStateTimer() > 0.1f)
 			{
-				// Verify the player is actually within attack range
-				// (3D distance so enemies can't hit through floors or tall pillars).
+				// Verify the player is actually within attack range.
+				// 3D distance so enemies can't hit through floors or tall pillars.
 				final Vector3f enemyPos = enemy.getPosition();
 				final Vector3f playerPos = player.getPosition();
-				final float dist = enemyPos.distance(playerPos);
-				if (dist <= enemy.getAttackRange() * 1.2f)
+				if (enemyPos.distance(playerPos) <= (enemy.getAttackRange() * 1.2f))
 				{
 					// Line-of-sight check: enemies cannot hit through walls.
 					if (isLineOfSightBlocked(enemyPos, ENEMY_CENTER_OFFSET, playerPos, ENEMY_CENTER_OFFSET, world))
@@ -267,9 +265,8 @@ public class CombatSystem
 					}
 					
 					final String enemyName = formatEnemyName(enemy.getType());
-					final String source = "Killed by " + enemyName;
 					final float rawDamage = enemy.getAttackDamage();
-					final float finalDamage = applyDamageWithArmor(player, rawDamage, source);
+					final float finalDamage = applyDamageWithArmor(player, rawDamage, "Killed by " + enemyName);
 					
 					if (finalDamage > 0)
 					{
@@ -297,8 +294,8 @@ public class CombatSystem
 	
 	/**
 	 * Attempts a player attack via camera raycast. Finds the closest enemy whose<br>
-	 * center mass is within {@link #PLAYER_HIT_RADIUS} of the camera ray, up to<br>
-	 * {@link #PLAYER_ATTACK_RANGE} blocks away. Before confirming a hit, checks<br>
+	 * center mass is within {@code PLAYER_HIT_RADIUS} of the camera ray, up to<br>
+	 * {@code PLAYER_ATTACK_RANGE} blocks away. Before confirming a hit, checks<br>
 	 * line-of-sight by stepping along the ray and verifying no solid block is between<br>
 	 * the camera and the enemy. If a hit is found, deals damage based on the held<br>
 	 * weapon/tool and starts the attack cooldown. Durability is consumed per hit.<br>
@@ -321,7 +318,8 @@ public class CombatSystem
 		
 		// Scan with extended range if any boss is in the list.
 		float maxRange = PLAYER_ATTACK_RANGE;
-		for (int i = 0; i < enemies.size(); i++)
+		final int enemyCount = enemies.size();
+		for (int i = 0; i < enemyCount; i++)
 		{
 			final EnemyType et = enemies.get(i).getType();
 			if (et == EnemyType.DRAGON || et == EnemyType.SHADOW)
@@ -332,7 +330,7 @@ public class CombatSystem
 			}
 		}
 		
-		for (int i = 0; i < enemies.size(); i++)
+		for (int i = 0; i < enemyCount; i++)
 		{
 			final Enemy enemy = enemies.get(i);
 			
@@ -346,30 +344,24 @@ public class CombatSystem
 			final Vector3f enemyPos = enemy.getPosition();
 			final EnemyType enemyType = enemy.getType();
 			final boolean isBoss = (enemyType == EnemyType.DRAGON || enemyType == EnemyType.SHADOW);
-			final float centerOffset = isBoss ? (enemyType == EnemyType.SHADOW ? 1.8f : 1.6f) : ENEMY_CENTER_OFFSET;
 			final float hitRadius = isBoss ? 1.5f : PLAYER_HIT_RADIUS;
 			final float closeRange = isBoss ? 3.5f : CLOSE_RANGE_RADIUS;
 			final float centerX = enemyPos.x;
-			final float centerY = enemyPos.y + centerOffset;
+			final float centerY = enemyPos.y + (isBoss ? (enemyType == EnemyType.SHADOW ? 1.8f : 1.6f) : ENEMY_CENTER_OFFSET);
 			final float centerZ = enemyPos.z;
 			
 			// Vector from ray origin to enemy center.
 			_toEnemy.set(centerX - _rayOrigin.x, centerY - _rayOrigin.y, centerZ - _rayOrigin.z);
 			
-			// Check close-range sphere first: if the enemy center is within arm's
-			// reach of the camera AND roughly in front of the player, the hit registers
-			// regardless of cylinder projection. This handles enemies pressed against
-			// the player where the vertical gap between eye height and enemy center
-			// mass exceeds the cylinder hit radius.
+			// Check close-range sphere first: if the enemy center is within arm's reach of the camera AND roughly in front of the player, the hit registers regardless of cylinder projection.
+			// This handles enemies pressed against the player where the vertical gap between eye height and enemy center mass exceeds the cylinder hit radius.
 			final float distSq = _toEnemy.lengthSquared();
 			if (distSq <= closeRange * closeRange)
 			{
-				// Facing check: dot product between camera direction and direction
-				// to enemy must be positive (enemy is in front of the player).
+				// Facing check: dot product between camera direction and direction to enemy must be positive (enemy is in front of the player).
 				// At close range dot can be small due to the vertical angle down,
 				// so a simple > 0 (forward hemisphere) is sufficient.
-				final float facingDot = _toEnemy.dot(_rayDir);
-				if (facingDot > 0)
+				if (_toEnemy.dot(_rayDir) > 0)
 				{
 					// Use straight-line distance for sorting (closer = better).
 					final float dist = (float) Math.sqrt(distSq);
@@ -398,10 +390,9 @@ public class CombatSystem
 			final float dx = _closestPoint.x - centerX;
 			final float dy = _closestPoint.y - centerY;
 			final float dz = _closestPoint.z - centerZ;
-			final float perpDistSq = dx * dx + dy * dy + dz * dz;
 			
 			// Check if within the generous hit radius and closer than current best.
-			if (perpDistSq <= hitRadius * hitRadius && dot < closestDist)
+			if ((dx * dx + dy * dy + dz * dz) <= hitRadius * hitRadius && dot < closestDist)
 			{
 				closestEnemy = enemy;
 				closestDist = dot;
@@ -410,12 +401,15 @@ public class CombatSystem
 		
 		if (closestEnemy != null)
 		{
-			// Line-of-sight check: step along the ray and verify no solid block
-			// is between the camera and the enemy. This prevents hitting enemies
-			// through walls, floors and other solid geometry.
-			if (isBlockedByTerrain(closestDist, world))
+			// Line-of-sight check: step along the ray and verify no solid block is between the camera and the enemy.
+			// This prevents hitting enemies through walls, floors and other solid geometry.
+			// Start one step in to avoid checking the block the player is standing in.
+			for (float t = LOS_STEP_SIZE; t < closestDist; t += LOS_STEP_SIZE)
 			{
-				return false;
+				if (world.getBlock((int) Math.floor(_rayOrigin.x + (_rayDir.x * t)), (int) Math.floor(_rayOrigin.y + (_rayDir.y * t)), (int) Math.floor(_rayOrigin.z + (_rayDir.z * t))).isSolid())
+				{
+					return false;
+				}
 			}
 			
 			// Enemy is in the crosshair with clear line of sight - always suppress block breaking.
@@ -423,10 +417,9 @@ public class CombatSystem
 			if (_playerAttackTimer <= 0)
 			{
 				final float attackDamage = playerController.getAttackDamage();
-				final float attackSpeed = playerController.getAttackSpeed();
 				
 				closestEnemy.takeDamage(attackDamage, _audioManager);
-				_playerAttackTimer = attackSpeed;
+				_playerAttackTimer = playerController.getAttackSpeed();
 				
 				// Trigger viewmodel swing animation.
 				if (_viewmodelRenderer != null)
@@ -439,21 +432,19 @@ public class CombatSystem
 				final ItemInstance held = inventory.getSelectedItem();
 				if (held != null && held.hasDurability())
 				{
-					final boolean broken = held.loseDurability(1);
-					if (broken)
+					if (held.loseDurability(1))
 					{
-						final String toolName = held.getTemplate().getDisplayName();
 						inventory.setSlot(inventory.getSelectedHotbarIndex(), null);
-						System.out.println("Combat: " + toolName + " broke!");
+						System.out.println("Combat: " + held.getTemplate().getDisplayName() + " broke!");
 					}
 				}
 				
 				// Spawn red damage particles at the enemy's center mass.
 				if (_particleManager != null)
 				{
-					final Vector3f hitPos = new Vector3f(closestEnemy.getPosition());
-					hitPos.y += ENEMY_CENTER_OFFSET;
-					_particleManager.spawnDamage(hitPos);
+					_closestPoint.set(closestEnemy.getPosition());
+					_closestPoint.y += ENEMY_CENTER_OFFSET;
+					_particleManager.spawnDamage(_closestPoint);
 				}
 				
 				final String name = formatEnemyName(closestEnemy.getType());
@@ -474,39 +465,6 @@ public class CombatSystem
 	}
 	
 	/**
-	 * Steps along the stored ray ({@link #_rayOrigin}, {@link #_rayDir}) checking<br>
-	 * for solid blocks. Returns true if any solid block is found before the given distance.
-	 * @param maxDist the distance along the ray to check (enemy distance)
-	 * @param world the game world
-	 * @return true if a solid block blocks line-of-sight
-	 */
-	private boolean isBlockedByTerrain(float maxDist, World world)
-	{
-		// Start one step in (avoid checking the block the player is standing in).
-		for (float t = LOS_STEP_SIZE; t < maxDist; t += LOS_STEP_SIZE)
-		{
-			final int bx = (int) Math.floor(_rayOrigin.x + _rayDir.x * t);
-			final int by = (int) Math.floor(_rayOrigin.y + _rayDir.y * t);
-			final int bz = (int) Math.floor(_rayOrigin.z + _rayDir.z * t);
-			
-			if (world.getBlock(bx, by, bz).isSolid())
-			{
-				return true;
-			}
-		}
-		
-		return false;
-	}
-	
-	/**
-	 * Returns true if the player's attack is currently on cooldown.
-	 */
-	public boolean isPlayerAttackOnCooldown()
-	{
-		return _playerAttackTimer > 0;
-	}
-	
-	/**
 	 * Checks line-of-sight between two positions by stepping along the line and<br>
 	 * testing for solid blocks. Used to prevent enemy attacks through walls.
 	 * @param fromPos the source position (feet level)
@@ -521,13 +479,10 @@ public class CombatSystem
 		final float startX = fromPos.x;
 		final float startY = fromPos.y + fromYOffset;
 		final float startZ = fromPos.z;
-		final float endX = toPos.x;
-		final float endY = toPos.y + toYOffset;
-		final float endZ = toPos.z;
 		
-		final float dx = endX - startX;
-		final float dy = endY - startY;
-		final float dz = endZ - startZ;
+		final float dx = toPos.x - startX;
+		final float dy = (toPos.y + toYOffset) - startY;
+		final float dz = toPos.z - startZ;
 		final float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
 		
 		if (dist < LOS_STEP_SIZE)
@@ -542,11 +497,7 @@ public class CombatSystem
 		
 		for (float t = LOS_STEP_SIZE; t < dist; t += LOS_STEP_SIZE)
 		{
-			final int bx = (int) Math.floor(startX + dirX * t);
-			final int by = (int) Math.floor(startY + dirY * t);
-			final int bz = (int) Math.floor(startZ + dirZ * t);
-			
-			if (world.getBlock(bx, by, bz).isSolid())
+			if (world.getBlock((int) Math.floor(startX + (dirX * t)), (int) Math.floor(startY + (dirY * t)), (int) Math.floor(startZ + (dirZ * t))).isSolid())
 			{
 				return true;
 			}
@@ -557,7 +508,7 @@ public class CombatSystem
 	
 	/**
 	 * Called when an enemy dies. Rolls the drop table for the enemy type<br>
-	 * and spawns each resulting item as a world drop via the {@link DropManager}.
+	 * and spawns each resulting item as a world drop via the {@link simplecraft.item.DropManager}.
 	 * @param player the player controller
 	 * @param enemy the enemy that just died
 	 */
@@ -568,22 +519,22 @@ public class CombatSystem
 			return;
 		}
 		
+		final EnemyType enemyType = enemy.getType();
 		final Vector3f deathPos = enemy.getPosition();
-		final List<ItemInstance> drops = EnemyDropTable.rollDrops(enemy.getType(), deathPos.x, deathPos.z);
-		
-		for (int i = 0; i < drops.size(); i++)
+		final List<ItemInstance> drops = EnemyDropTable.rollDrops(enemyType, deathPos.x, deathPos.z);
+		final int dropCount = drops.size();
+		final Vector3f dropPos = new Vector3f();
+		for (int i = 0; i < dropCount; i++)
 		{
-			// Offset each drop slightly so they don't overlap.
-			final float offsetX = (i % 2 == 0) ? (i * 0.2f) : -(i * 0.2f);
-			final float offsetZ = (i % 2 == 0) ? -(i * 0.15f) : (i * 0.15f);
-			final Vector3f dropPos = new Vector3f(deathPos.x + offsetX, deathPos.y, deathPos.z + offsetZ);
+			// Offset each drop slightly so they don't overlap. DroppedItem copies the position.
+			dropPos.set(deathPos.x + ((i % 2 == 0) ? (i * 0.2f) : -(i * 0.2f)), deathPos.y, deathPos.z + ((i % 2 == 0) ? -(i * 0.15f) : (i * 0.15f)));
 			
 			_dropManager.spawnDrop(dropPos, drops.get(i));
 		}
 		
-		if (!drops.isEmpty())
+		if (dropCount > 0)
 		{
-			System.out.println(formatEnemyName(enemy.getType()) + " dropped " + drops.size() + " item(s).");
+			System.out.println(formatEnemyName(enemyType) + " dropped " + dropCount + " item(s).");
 		}
 	}
 	
@@ -770,9 +721,9 @@ public class CombatSystem
 		}
 		
 		// Use the same attack logic but with a single-enemy list.
-		final List<Enemy> singleList = new ArrayList<>(1);
-		singleList.add(dragon);
-		return tryPlayerAttack(camera, singleList, world, playerController);
+		_singleEnemyList.clear();
+		_singleEnemyList.add(dragon);
+		return tryPlayerAttack(camera, _singleEnemyList, world, playerController);
 	}
 	
 	/**
@@ -805,8 +756,7 @@ public class CombatSystem
 		}
 		else
 		{
-			final float alpha = _flashStartAlpha * (_flashTimer / FLASH_DURATION);
-			_tempColor.set(_flashColor.r, _flashColor.g, _flashColor.b, alpha);
+			_tempColor.set(_flashColor.r, _flashColor.g, _flashColor.b, _flashStartAlpha * (_flashTimer / FLASH_DURATION));
 			_flashMaterial.setColor("Color", _tempColor);
 		}
 	}

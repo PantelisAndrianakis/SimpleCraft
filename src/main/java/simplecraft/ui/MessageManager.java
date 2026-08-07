@@ -124,11 +124,7 @@ public class MessageManager
 		
 		// Position centered horizontally, lower-center of screen.
 		final Vector3f containerSize = _container.getPreferredSize();
-		final float containerWidth = containerSize.x;
-		final float containerHeight = containerSize.y;
-		final float posX = screenCenterX - (containerWidth / 2f);
-		final float posY = (screenHeight * VERTICAL_POSITION) + (containerHeight / 2f);
-		_container.setLocalTranslation(posX, posY, 100); // z=100 to render above everything.
+		_container.setLocalTranslation((screenCenterX - (containerSize.x / 2f)), ((screenHeight * VERTICAL_POSITION) + (containerSize.y / 2f)), 100); // z=100 to render above everything.
 		
 		app.getGuiNode().attachChild(_container);
 		

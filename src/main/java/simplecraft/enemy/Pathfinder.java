@@ -22,7 +22,7 @@ import simplecraft.world.entity.WindowTileEntity;
  * Accounts for ground height, step-up limits, headroom, water avoidance,<br>
  * and diagonal corner-cutting prevention.<br>
  * Also checks for closed doors/windows that block movement.<br>
- * Usage: call {@link #findPath(World, Vector3f, Vector3f, int, int)} to get<br>
+ * Usage: call {@code findPath(World, Vector3f, Vector3f, int, int)} to get<br>
  * a list of waypoints from start to goal, or an empty list if no path exists.
  * @author Pantelis Andrianakis
  * @since March 6th 2026
@@ -101,8 +101,7 @@ public class Pathfinder
 		
 		// Find ground Y at start and goal.
 		final int startGroundY = findGroundY(world, startX, startZ, startY);
-		final int goalGroundY = findGroundY(world, goalX, goalZ, (int) Math.floor(goal.y));
-		if (startGroundY < 0 || goalGroundY < 0)
+		if (startGroundY < 0 || findGroundY(world, goalX, goalZ, (int) Math.floor(goal.y)) < 0)
 		{
 			return Collections.emptyList();
 		}
@@ -152,8 +151,7 @@ public class Pathfinder
 				final int nz = currentZ + dirZ;
 				
 				// Range check - don't search too far from start.
-				final int distFromStart = Math.max(Math.abs(nx - startX), Math.abs(nz - startZ));
-				if (distFromStart > maxRange)
+				if (Math.max(Math.abs(nx - startX), Math.abs(nz - startZ)) > maxRange)
 				{
 					continue;
 				}
@@ -161,12 +159,7 @@ public class Pathfinder
 				// Diagonal corner-cutting prevention: both adjacent cardinals must be passable.
 				if (d >= 4) // Diagonal directions.
 				{
-					final int adjX = currentX + dirX;
-					final int adjZ = currentZ;
-					final int adj2X = currentX;
-					final int adj2Z = currentZ + dirZ;
-					
-					if (!isColumnPassable(world, adjX, adjZ, currentGroundY, headroom) || !isColumnPassable(world, adj2X, adj2Z, currentGroundY, headroom))
+					if (!isColumnPassable(world, currentX + dirX, currentZ, currentGroundY, headroom) || !isColumnPassable(world, currentX, currentZ + dirZ, currentGroundY, headroom))
 					{
 						continue;
 					}
@@ -198,24 +191,20 @@ public class Pathfinder
 				}
 				
 				// Water check - land enemies avoid water.
-				final Block footBlock = world.getBlock(nx, neighborGroundY, nz);
-				if (footBlock.isLiquid())
+				if (world.getBlock(nx, neighborGroundY, nz).isLiquid())
 				{
 					continue;
 				}
 				
 				// Check for closed doors or windows that would block movement.
-				if (isBlockedByClosedDoorOrWindow(world, nx, neighborGroundY, nz, current._x, current._z))
+				// HasHeadroom already covered levels groundY..groundY+headroom-1, so only headroom 1 needs the extra head-level check.
+				if ((headroom < 2) && isBlockedByClosedDoorOrWindow(world, nx, neighborGroundY, nz))
 				{
 					continue;
 				}
 				
-				// Cost calculation.
-				final float moveCost = (d < 4) ? CARDINAL_COST : DIAGONAL_COST;
-				
-				// Penalize step-ups slightly to prefer flat paths.
-				final float stepPenalty = (heightDiff > 0) ? 0.5f : 0;
-				final float newG = currentG + moveCost + stepPenalty;
+				// Cost calculation: movement cost plus a slight step-up penalty to prefer flat paths.
+				final float newG = currentG + ((d < 4) ? CARDINAL_COST : DIAGONAL_COST) + ((heightDiff > 0) ? 0.5f : 0);
 				
 				final long key = packKey(nx, nz);
 				final PathNode existing = allNodes.get(key);
@@ -231,19 +220,41 @@ public class Pathfinder
 					existing._closed = true;
 				}
 				
-				final float h = octileDistance(nx, nz, goalX, goalZ);
-				final PathNode neighbor = new PathNode(nx, nz, neighborGroundY, newG, h, current);
+				final PathNode neighbor = new PathNode(nx, nz, neighborGroundY, newG, octileDistance(nx, nz, goalX, goalZ), current);
 				allNodes.put(key, neighbor);
 				openSet.add(neighbor);
 			}
 		}
 		
-		// No path found within budget - return partial path to closest explored node.
-		return findClosestPartialPath(allNodes, goalX, goalZ);
+		// No path found within budget - return partial path to the closest explored node.
+		// This ensures the enemy at least moves toward the player even when no full path exists.
+		PathNode best = null;
+		float bestDist = Float.MAX_VALUE;
+		for (PathNode node : allNodes.values())
+		{
+			if (!node._closed)
+			{
+				continue;
+			}
+			
+			final float dist = octileDistance(node._x, node._z, goalX, goalZ);
+			if (dist < bestDist)
+			{
+				bestDist = dist;
+				best = node;
+			}
+		}
+		
+		if ((best != null) && (best._parent != null))
+		{
+			return reconstructPath(best);
+		}
+		
+		return Collections.emptyList();
 	}
 	
 	// ------------------------------------------------------------------
-	// Door and Window Blocking Check
+	// Door and window blocking check.
 	// ------------------------------------------------------------------
 	
 	/**
@@ -252,11 +263,9 @@ public class Pathfinder
 	 * @param targetX target column X
 	 * @param targetY ground Y at target
 	 * @param targetZ target column Z
-	 * @param fromX source column X (for determining which side we're approaching from)
-	 * @param fromZ source column Z
 	 * @return true if movement is blocked by a closed door/window
 	 */
-	private static boolean isBlockedByClosedDoorOrWindow(World world, int targetX, int targetY, int targetZ, int fromX, int fromZ)
+	private static boolean isBlockedByClosedDoorOrWindow(World world, int targetX, int targetY, int targetZ)
 	{
 		final TileEntityManager manager = world.getTileEntityManager();
 		if (manager == null)
@@ -266,50 +275,28 @@ public class Pathfinder
 		
 		// Check for door at ground level (enemy feet level).
 		final TileEntity groundEntity = manager.get(targetX, targetY, targetZ);
-		if (groundEntity instanceof DoorTileEntity)
+		if ((groundEntity instanceof DoorTileEntity) && !((DoorTileEntity) groundEntity).isOpen())
 		{
-			final DoorTileEntity door = (DoorTileEntity) groundEntity;
-			
-			// If door is closed, it blocks movement.
-			if (!door.isOpen())
-			{
-				return true;
-			}
+			return true;
 		}
 		
 		// Check for door at head level (enemy body might pass through upper half).
 		final TileEntity headEntity = manager.get(targetX, targetY + 1, targetZ);
-		if (headEntity instanceof DoorTileEntity)
+		if ((headEntity instanceof DoorTileEntity) && !((DoorTileEntity) headEntity).isOpen())
 		{
-			final DoorTileEntity door = (DoorTileEntity) headEntity;
-			
-			// If door is closed, it blocks movement (upper half matters for humanoids).
-			if (!door.isOpen())
-			{
-				return true;
-			}
+			return true;
 		}
 		
 		// Check for window at ground level.
-		if (groundEntity instanceof WindowTileEntity)
+		if ((groundEntity instanceof WindowTileEntity) && !((WindowTileEntity) groundEntity).isOpen())
 		{
-			final WindowTileEntity window = (WindowTileEntity) groundEntity;
-			
-			// If window is closed, it blocks movement.
-			if (!window.isOpen())
-			{
-				return true;
-			}
+			return true;
 		}
 		
 		// Check for window at head level (some windows might be placed higher).
-		if (headEntity instanceof WindowTileEntity)
+		if ((headEntity instanceof WindowTileEntity) && !((WindowTileEntity) headEntity).isOpen())
 		{
-			final WindowTileEntity window = (WindowTileEntity) headEntity;
-			if (!window.isOpen())
-			{
-				return true;
-			}
+			return true;
 		}
 		
 		return false;
@@ -338,38 +325,6 @@ public class Pathfinder
 		return path;
 	}
 	
-	/**
-	 * When A* doesn't reach the goal, returns a partial path to the closest explored node.<br>
-	 * This ensures the enemy at least moves toward the player even when no full path exists.
-	 */
-	private static List<Vector3f> findClosestPartialPath(Map<Long, PathNode> allNodes, int goalX, int goalZ)
-	{
-		PathNode best = null;
-		float bestDist = Float.MAX_VALUE;
-		
-		for (PathNode node : allNodes.values())
-		{
-			if (!node._closed)
-			{
-				continue;
-			}
-			
-			final float dist = octileDistance(node._x, node._z, goalX, goalZ);
-			if (dist < bestDist)
-			{
-				bestDist = dist;
-				best = node;
-			}
-		}
-		
-		if (best != null && best._parent != null)
-		{
-			return reconstructPath(best);
-		}
-		
-		return Collections.emptyList();
-	}
-	
 	// ------------------------------------------------------------------
 	// World query helpers.
 	// ------------------------------------------------------------------
@@ -388,10 +343,7 @@ public class Pathfinder
 				break;
 			}
 			
-			final Block block = world.getBlock(bx, y, bz);
-			final Block above = world.getBlock(bx, y + 1, bz);
-			
-			if (block.isSolid() && !above.isSolid())
+			if (world.getBlock(bx, y, bz).isSolid() && !world.getBlock(bx, y + 1, bz).isSolid())
 			{
 				return y + 1; // Feet stand on top of the solid block.
 			}
@@ -426,57 +378,42 @@ public class Pathfinder
 		}
 		
 		// Not water.
-		final Block footBlock = world.getBlock(bx, groundY, bz);
-		if (footBlock.isLiquid())
+		if (world.getBlock(bx, groundY, bz).isLiquid())
 		{
 			return false;
 		}
 		
 		// Check for closed doors/windows that would block the column entirely.
 		final TileEntityManager manager = world.getTileEntityManager();
-		if (manager != null)
+		if (manager == null)
 		{
-			// Check ground level.
-			final TileEntity groundEntity = manager.get(bx, groundY, bz);
-			if (groundEntity instanceof DoorTileEntity)
+			return true;
+		}
+		
+		// Check ground level.
+		final TileEntity groundEntity = manager.get(bx, groundY, bz);
+		if ((groundEntity instanceof DoorTileEntity) && !((DoorTileEntity) groundEntity).isOpen())
+		{
+			return false;
+		}
+		
+		if ((groundEntity instanceof WindowTileEntity) && !((WindowTileEntity) groundEntity).isOpen())
+		{
+			return false;
+		}
+		
+		// Check head level for doors (upper half).
+		if (headroom > 1)
+		{
+			final TileEntity headEntity = manager.get(bx, groundY + 1, bz);
+			if ((headEntity instanceof DoorTileEntity) && !((DoorTileEntity) headEntity).isOpen())
 			{
-				final DoorTileEntity door = (DoorTileEntity) groundEntity;
-				if (!door.isOpen())
-				{
-					return false;
-				}
+				return false;
 			}
 			
-			if (groundEntity instanceof WindowTileEntity)
+			if ((headEntity instanceof WindowTileEntity) && !((WindowTileEntity) headEntity).isOpen())
 			{
-				final WindowTileEntity window = (WindowTileEntity) groundEntity;
-				if (!window.isOpen())
-				{
-					return false;
-				}
-			}
-			
-			// Check head level for doors (upper half).
-			if (headroom > 1)
-			{
-				final TileEntity headEntity = manager.get(bx, groundY + 1, bz);
-				if (headEntity instanceof DoorTileEntity)
-				{
-					final DoorTileEntity door = (DoorTileEntity) headEntity;
-					if (!door.isOpen())
-					{
-						return false;
-					}
-				}
-				
-				if (headEntity instanceof WindowTileEntity)
-				{
-					final WindowTileEntity window = (WindowTileEntity) headEntity;
-					if (!window.isOpen())
-					{
-						return false;
-					}
-				}
+				return false;
 			}
 		}
 		
@@ -492,8 +429,7 @@ public class Pathfinder
 		
 		for (int h = 0; h < headroom; h++)
 		{
-			final Block block = world.getBlock(bx, groundY + h, bz);
-			if (block.isSolid())
+			if (world.getBlock(bx, groundY + h, bz).isSolid())
 			{
 				return false;
 			}
@@ -502,22 +438,14 @@ public class Pathfinder
 			if (manager != null)
 			{
 				final TileEntity entity = manager.get(bx, groundY + h, bz);
-				if (entity instanceof DoorTileEntity)
+				if ((entity instanceof DoorTileEntity) && !((DoorTileEntity) entity).isOpen())
 				{
-					final DoorTileEntity door = (DoorTileEntity) entity;
-					if (!door.isOpen())
-					{
-						return false;
-					}
+					return false;
 				}
 				
-				if (entity instanceof WindowTileEntity)
+				if ((entity instanceof WindowTileEntity) && !((WindowTileEntity) entity).isOpen())
 				{
-					final WindowTileEntity window = (WindowTileEntity) entity;
-					if (!window.isOpen())
-					{
-						return false;
-					}
+					return false;
 				}
 			}
 		}

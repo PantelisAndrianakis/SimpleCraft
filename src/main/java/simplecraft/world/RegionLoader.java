@@ -29,16 +29,12 @@ import simplecraft.world.RegionMeshBuilder.RegionMeshData;
  */
 public class RegionLoader
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Number of background threads for terrain generation and mesh building. */
 	private static final int THREAD_COUNT = 2;
 	
-	// ========================================================
-	// Ready Result Container.
-	// ========================================================
+	// ========== READY RESULT CONTAINER ==========
 	
 	/**
 	 * Holds a completed region with its pre-built mesh data.<br>
@@ -89,9 +85,7 @@ public class RegionLoader
 		}
 	}
 	
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	private final ExecutorService _executor;
 	private final ConcurrentLinkedQueue<ReadyRegion> _readyQueue = new ConcurrentLinkedQueue<>();
@@ -111,9 +105,7 @@ public class RegionLoader
 	/** Current total in-game days, updated each frame by World. Used for berry respawn checks. */
 	private volatile double _currentTotalDays = 0.0;
 	
-	// ========================================================
-	// Constructor.
-	// ========================================================
+	// ========== CONSTRUCTOR ==========
 	
 	/**
 	 * Creates a new RegionLoader with background worker threads.
@@ -130,9 +122,7 @@ public class RegionLoader
 		});
 	}
 	
-	// ========================================================
-	// Region Key Encoding.
-	// ========================================================
+	// ========== REGION KEY ENCODING ==========
 	
 	/**
 	 * Packs two int region coordinates into a single long key.
@@ -142,9 +132,7 @@ public class RegionLoader
 		return ((long) regionX << 32) | (regionZ & 0xFFFFFFFFL);
 	}
 	
-	// ========================================================
-	// Saved Region Data.
-	// ========================================================
+	// ========== SAVED REGION DATA ==========
 	
 	/**
 	 * Sets the shared saved region data map.<br>
@@ -157,22 +145,20 @@ public class RegionLoader
 		_savedRegionData = savedData;
 	}
 	
-	// ========================================================
-	// Load Requests.
-	// ========================================================
+	// ========== LOAD REQUESTS ==========
 	
 	/**
 	 * Submits a region for background generation and mesh building if not already pending.<br>
 	 * The background thread performs terrain generation, tree placement, applies any saved<br>
 	 * region data and then builds vertex arrays. The completed result appears in<br>
-	 * {@link #pollReady()} once finished.
+	 * {@code pollReady()} once finished.
 	 * @param regionX the region X coordinate
 	 * @param regionZ the region Z coordinate
 	 * @return true if the request was submitted, false if already pending
 	 */
 	public boolean requestLoad(int regionX, int regionZ)
 	{
-		final long key = regionKey(regionX, regionZ);
+		final Long key = regionKey(regionX, regionZ);
 		if (!_pendingKeys.add(key))
 		{
 			return false; // Already pending.
@@ -187,18 +173,18 @@ public class RegionLoader
 				{
 					return;
 				}
-
+				
 				// Heavy work 1: Generate terrain and trees.
 				final Region region = new Region(regionX, regionZ);
 				TerrainGenerator.generateRegion(region, _seed);
 				TreeGenerator.generateTrees(region, _seed);
-
+				
 				// Check again after terrain gen (cancel may have arrived).
 				if (!_pendingKeys.contains(key))
 				{
 					return;
 				}
-
+				
 				// Apply saved data BEFORE mesh building so the first mesh is correct.
 				// Uses ConcurrentHashMap.remove for atomic check-and-take (thread-safe).
 				boolean hadSavedData = false;
@@ -215,27 +201,26 @@ public class RegionLoader
 						hadSavedData = true;
 					}
 				}
-
+				
 				// Process any due berry bush respawns.
 				applyBerryRespawns(region);
-
+				
 				// Cache the region for potential future remesh.
 				_regionCache.put(key, region);
-
+				
 				// Heavy work 2: Build mesh vertex arrays using thread-safe cache for cross-region lookups.
 				// Neighbors already in the cache get correct boundary faces on the first build.
 				// Neighbors not yet cached return AIR (same as before), fixed by later remesh.
 				final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
-
+				
 				// Check if all cardinal neighbors were available during the build.
 				// If yes, boundary faces are correct - mark clean so no remesh is needed.
 				// If no, leave dirty (Region constructor sets _meshDirty = true).
-				final boolean allNeighborsCached = _regionCache.containsKey(regionKey(regionX - 1, regionZ)) && _regionCache.containsKey(regionKey(regionX + 1, regionZ)) && _regionCache.containsKey(regionKey(regionX, regionZ - 1)) && _regionCache.containsKey(regionKey(regionX, regionZ + 1));
-				if (allNeighborsCached)
+				if ((_regionCache.containsKey(regionKey(regionX - 1, regionZ)) && _regionCache.containsKey(regionKey(regionX + 1, regionZ)) && _regionCache.containsKey(regionKey(regionX, regionZ - 1)) && _regionCache.containsKey(regionKey(regionX, regionZ + 1))))
 				{
 					region.markMeshClean();
 				}
-
+				
 				_readyQueue.add(new ReadyRegion(region, meshData, hadSavedData, region.getMeshVersion()));
 			}
 			catch (RuntimeException e)
@@ -263,7 +248,7 @@ public class RegionLoader
 	 */
 	public boolean requestRemesh(int regionX, int regionZ)
 	{
-		final long key = regionKey(regionX, regionZ);
+		final Long key = regionKey(regionX, regionZ);
 		
 		// Get existing region from cache.
 		final Region region = _regionCache.get(key);
@@ -285,8 +270,7 @@ public class RegionLoader
 		}
 		
 		// Capture the region's mesh version at submit time.
-		// If a sync rebuild occurs while the background thread is running, the version
-		// will have incremented and the main thread can detect the stale result.
+		// If a sync rebuild occurs while the background thread is running, the version will have incremented and the main thread can detect the stale result.
 		final int versionAtSubmit = region.getMeshVersion();
 		
 		_executor.submit(() ->
@@ -298,13 +282,12 @@ public class RegionLoader
 				{
 					return;
 				}
-
+				
 				// Build mesh vertex arrays using thread-safe cache for cross-region lookups.
-				final RegionMeshData meshData = RegionMeshBuilder.buildRegionMeshData(region, this::getBlock);
-
+				
 				// Do NOT mark clean here - main thread marks clean when the result is polled.
 				// This avoids a race where background markMeshClean overwrites a main-thread markMeshDirty.
-				_readyQueue.add(new ReadyRegion(region, meshData, false, versionAtSubmit));
+				_readyQueue.add(new ReadyRegion(region, RegionMeshBuilder.buildRegionMeshData(region, this::getBlock), false, versionAtSubmit));
 			}
 			catch (RuntimeException e)
 			{
@@ -317,9 +300,7 @@ public class RegionLoader
 		return true;
 	}
 	
-	// ========================================================
-	// Result Polling.
-	// ========================================================
+	// ========== RESULT POLLING ==========
 	
 	/**
 	 * Polls a completed region with pre-built mesh data from the ready queue.<br>
@@ -338,9 +319,7 @@ public class RegionLoader
 		return result;
 	}
 	
-	// ========================================================
-	// State Queries.
-	// ========================================================
+	// ========== STATE QUERIES ==========
 	
 	/**
 	 * Returns true if the given region is pending generation (submitted but not yet polled).
@@ -376,9 +355,7 @@ public class RegionLoader
 		return _readyQueue.size();
 	}
 	
-	// ========================================================
-	// Thread-Safe Block Access.
-	// ========================================================
+	// ========== THREAD-SAFE BLOCK ACCESS ==========
 	
 	/**
 	 * Returns the block at the given world coordinates using the region cache.<br>
@@ -394,25 +371,19 @@ public class RegionLoader
 		}
 		
 		// Convert world to region coordinates using floor division.
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
 		
-		final Region region = _regionCache.get(regionKey(regionX, regionZ));
+		final Region region = _regionCache.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return Block.AIR;
 		}
 		
 		// Convert world to local coordinates using floor modulus.
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
 		
-		return region.getBlock(localX, worldY, localZ);
+		return region.getBlock(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
 	
-	// ========================================================
-	// Region Cache Management.
-	// ========================================================
+	// ========== REGION CACHE MANAGEMENT ==========
 	
 	/**
 	 * Gets a region from the cache by coordinates.
@@ -428,8 +399,7 @@ public class RegionLoader
 	 */
 	public void updateRegionCache(Region region)
 	{
-		final long key = regionKey(region.getRegionX(), region.getRegionZ());
-		_regionCache.put(key, region);
+		_regionCache.put(regionKey(region.getRegionX(), region.getRegionZ()), region);
 	}
 	
 	/**
@@ -437,13 +407,10 @@ public class RegionLoader
 	 */
 	public void removeFromCache(int regionX, int regionZ)
 	{
-		final long key = regionKey(regionX, regionZ);
-		_regionCache.remove(key);
+		_regionCache.remove(regionKey(regionX, regionZ));
 	}
 	
-	// ========================================================
-	// Berry Bush Respawn.
-	// ========================================================
+	// ========== BERRY BUSH RESPAWN ==========
 	
 	/**
 	 * Updates the current total in-game days used for berry respawn checks.<br>
@@ -519,9 +486,7 @@ public class RegionLoader
 		}
 	}
 	
-	// ========================================================
-	// Shutdown.
-	// ========================================================
+	// ========== SHUTDOWN ==========
 	
 	/**
 	 * Shuts down background threads and clears all pending and ready regions.<br>

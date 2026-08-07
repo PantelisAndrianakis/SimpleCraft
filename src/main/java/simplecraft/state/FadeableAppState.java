@@ -13,12 +13,12 @@ import simplecraft.state.GameStateManager.GameState;
 
 /**
  * Base state class that provides configurable fade-in and fade-out screen transitions.<br>
- * Subclasses set fade parameters via {@link #setFadeIn} and {@link #setFadeOut},<br>
- * then implement {@link #onEnterState}, {@link #onExitState},<br>
- * and optionally {@link #onUpdateState}, {@link #onFadeInComplete}, {@link #onFadeOutComplete}.<br>
+ * Subclasses set fade parameters via {@code setFadeIn} and {@code setFadeOut},<br>
+ * then implement {@code onEnterState}, {@code onExitState},<br>
+ * and optionally {@code onUpdateState}, {@code onFadeInComplete}, {@code onFadeOutComplete}.<br>
  * <br>
  * The fade is rendered as a full-screen colored overlay in the GUI node.<br>
- * States can be switched with or without fading via {@link GameStateManager#switchTo(GameState, boolean)}.
+ * States can be switched with or without fading via {@code GameStateManager.switchTo(GameState, boolean)}.
  * @author Pantelis Andrianakis
  * @since February 17th 2026
  */
@@ -48,6 +48,9 @@ public abstract class FadeableAppState extends BaseAppState
 	private Geometry _fadeOverlay;
 	private Material _fadeMaterial;
 	
+	/** Overlay color owned by this state; only its alpha changes while a fade runs. */
+	private ColorRGBA _fadeColor;
+	
 	// Callback when fade-out completes.
 	private Runnable _onFadeOutComplete;
 	
@@ -75,24 +78,9 @@ public abstract class FadeableAppState extends BaseAppState
 		_fadeOutColor = color.clone();
 	}
 	
-	public float getFadeInDuration()
-	{
-		return _fadeInDuration;
-	}
-	
-	public ColorRGBA getFadeInColor()
-	{
-		return _fadeInColor;
-	}
-	
 	public float getFadeOutDuration()
 	{
 		return _fadeOutDuration;
-	}
-	
-	public ColorRGBA getFadeOutColor()
-	{
-		return _fadeOutColor;
 	}
 	
 	// --- Subclass lifecycle hooks ---
@@ -120,14 +108,6 @@ public abstract class FadeableAppState extends BaseAppState
 	 * Called when the fade-in animation completes. Override to trigger post-reveal logic.
 	 */
 	protected void onFadeInComplete()
-	{
-		// Optional override.
-	}
-	
-	/**
-	 * Called when the fade-out animation completes, before the completion callback runs.
-	 */
-	protected void onFadeOutComplete()
 	{
 		// Optional override.
 	}
@@ -193,7 +173,6 @@ public abstract class FadeableAppState extends BaseAppState
 		{
 			// No fade-out configured; complete immediately.
 			_fadePhase = FadePhase.IDLE;
-			onFadeOutComplete();
 			
 			if (_onFadeOutComplete != null)
 			{
@@ -243,7 +222,6 @@ public abstract class FadeableAppState extends BaseAppState
 			{
 				_fadePhase = FadePhase.IDLE;
 				System.out.println(getClass().getSimpleName() + ": Fade-out complete.");
-				onFadeOutComplete();
 				
 				if (_onFadeOutComplete != null)
 				{
@@ -266,14 +244,12 @@ public abstract class FadeableAppState extends BaseAppState
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final Camera camera = app.getCamera();
-		final float width = camera.getWidth();
-		final float height = camera.getHeight();
 		
-		final Quad quad = new Quad(width, height);
-		_fadeOverlay = new Geometry("FadeOverlay", quad);
+		_fadeOverlay = new Geometry("FadeOverlay", new Quad(camera.getWidth(), camera.getHeight()));
 		
+		_fadeColor = new ColorRGBA(color.r, color.g, color.b, initialAlpha);
 		_fadeMaterial = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
-		_fadeMaterial.setColor("Color", new ColorRGBA(color.r, color.g, color.b, initialAlpha));
+		_fadeMaterial.setColor("Color", _fadeColor);
 		_fadeMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		
 		_fadeOverlay.setMaterial(_fadeMaterial);
@@ -288,11 +264,13 @@ public abstract class FadeableAppState extends BaseAppState
 	 */
 	private void updateFadeOverlayAlpha(float alpha)
 	{
-		if (_fadeMaterial != null)
+		if (_fadeMaterial == null)
 		{
-			final ColorRGBA current = (ColorRGBA) _fadeMaterial.getParam("Color").getValue();
-			_fadeMaterial.setColor("Color", new ColorRGBA(current.r, current.g, current.b, alpha));
+			return;
 		}
+		
+		_fadeColor.a = alpha;
+		_fadeMaterial.setColor("Color", _fadeColor);
 	}
 	
 	/**
@@ -305,6 +283,7 @@ public abstract class FadeableAppState extends BaseAppState
 			SimpleCraft.getInstance().getGuiNode().detachChild(_fadeOverlay);
 			_fadeOverlay = null;
 			_fadeMaterial = null;
+			_fadeColor = null;
 		}
 	}
 }

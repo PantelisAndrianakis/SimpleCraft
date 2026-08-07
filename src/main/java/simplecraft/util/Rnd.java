@@ -4,7 +4,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Thread-safe static utility for non-deterministic random number generation.<br>
- * Wraps {@link ThreadLocalRandom} for lock-free performance across threads.<br>
+ * Wraps {@link java.util.concurrent.ThreadLocalRandom} for lock-free performance across threads.<br>
  * <br>
  * <b>When to use Rnd:</b> Any runtime randomness that does not need to be reproducible,<br>
  * such as AI behavior (wander direction, idle timers, attack variance), visual effects<br>

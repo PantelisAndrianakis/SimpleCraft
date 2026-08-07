@@ -12,7 +12,7 @@ import simplecraft.world.entity.TileEntity.Facing;
 
 /**
  * Central registry for all active tile entities in the world.<br>
- * Maintains a map from packed world position to {@link TileEntity} instances<br>
+ * Maintains a map from packed world position to {@link simplecraft.world.entity.TileEntity} instances<br>
  * and a scene node for visual attachments (particle effects, etc.).<br>
  * <br>
  * Tile entities are registered when their block is placed and removed when<br>
@@ -29,9 +29,7 @@ public class TileEntityManager
 	/** Scene node that holds all tile entity visual nodes (particles, etc.). */
 	private final Node _node = new Node("TileEntities");
 	
-	// ========================================================
-	// Position Packing.
-	// ========================================================
+	// ========== POSITION PACKING ==========
 	
 	/**
 	 * Packs world coordinates into a single long key.<br>
@@ -50,9 +48,7 @@ public class TileEntityManager
 		return packPosition(pos.x, pos.y, pos.z);
 	}
 	
-	// ========================================================
-	// Registration.
-	// ========================================================
+	// ========== REGISTRATION ==========
 	
 	/**
 	 * Registers a tile entity and attaches its visual node to the scene.<br>
@@ -91,8 +87,7 @@ public class TileEntityManager
 	 */
 	public TileEntity remove(Vector3i pos)
 	{
-		final long key = packPosition(pos);
-		final TileEntity entity = _entities.remove(key);
+		final TileEntity entity = _entities.remove(packPosition(pos));
 		if (entity != null)
 		{
 			final Node visual = entity.getVisualNode();
@@ -133,7 +128,7 @@ public class TileEntityManager
 	/**
 	 * Returns the facing direction of the tile entity at the given world coordinates.<br>
 	 * Convenience method for the mesh builder to quickly look up orientation.<br>
-	 * Returns {@link Facing#NORTH} (default) if no tile entity exists at the position.
+	 * Returns {@code Facing.NORTH} (default) if no tile entity exists at the position.
 	 * @param x world X coordinate
 	 * @param y world Y coordinate
 	 * @param z world Z coordinate
@@ -167,9 +162,7 @@ public class TileEntityManager
 		return _node;
 	}
 	
-	// ========================================================
-	// Update.
-	// ========================================================
+	// ========== UPDATE ==========
 	
 	/**
 	 * Updates all tile entities. Called each frame from PlayingState.
@@ -183,9 +176,7 @@ public class TileEntityManager
 		}
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	// ========== SERIALIZATION ==========
 	
 	/** Separator between individual tile entity records in serialized data. */
 	private static final String RECORD_SEPARATOR = "\n---\n";
@@ -214,7 +205,7 @@ public class TileEntityManager
 	/**
 	 * Reconstructs tile entities from serialized save data.<br>
 	 * Clears existing entities and replaces them with deserialized ones.
-	 * @param data the serialized string from {@link #serializeAll()}
+	 * @param data the serialized string from {@code serializeAll()}
 	 * @param world the game world (passed to onPlaced for visual/light setup)
 	 */
 	public void deserializeAll(String data, World world)
@@ -228,8 +219,7 @@ public class TileEntityManager
 			return;
 		}
 		
-		final String[] records = data.split(RECORD_SEPARATOR);
-		for (String record : records)
+		for (String record : data.split(RECORD_SEPARATOR))
 		{
 			final String trimmed = record.trim();
 			if (trimmed.isEmpty())
@@ -254,9 +244,7 @@ public class TileEntityManager
 		}
 	}
 	
-	// ========================================================
-	// Cleanup.
-	// ========================================================
+	// ========== CLEANUP ==========
 	
 	/**
 	 * Removes all tile entities and detaches all visual nodes.<br>

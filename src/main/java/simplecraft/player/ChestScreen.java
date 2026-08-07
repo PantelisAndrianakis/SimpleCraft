@@ -2,6 +2,7 @@ package simplecraft.player;
 
 import java.awt.Font;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.InputManager;
@@ -69,9 +70,18 @@ import simplecraft.world.entity.ChestTileEntity;
  */
 public class ChestScreen implements ActionListener
 {
-	// ========================================================
+	/** Language keys for the four armor slot labels, indexed by armor slot. */
+	private static final String[] ARMOR_LABEL_KEYS =
+	{
+		"screen.armor_head",
+		"screen.armor_chest",
+		"screen.armor_pants",
+		"screen.armor_boots"
+	};
+	
+	// ------------------------------------------------------------------
 	// Layout Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Number of columns in both grids. */
 	private static final int GRID_COLS = 9;
@@ -104,9 +114,9 @@ public class ChestScreen implements ActionListener
 	private static final float Z_HELD = 15f;
 	private static final float Z_TOOLTIP = 16f;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Colors.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private static final ColorRGBA COLOR_OVERLAY = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.65f);
 	private static final ColorRGBA COLOR_SLOT_BG = new ColorRGBA(0.15f, 0.15f, 0.15f, 0.85f);
@@ -142,9 +152,9 @@ public class ChestScreen implements ActionListener
 	private static final int MODEL_TEX_WIDTH = 256;
 	private static final int MODEL_TEX_HEIGHT = 512;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final Inventory _inventory;
 	private final PlayerController _playerController;
@@ -269,6 +279,13 @@ public class ChestScreen implements ActionListener
 	
 	/** Model rotation and mouse drag tracking. */
 	private float _modelRotation;
+	
+	/** Reused quaternion for the per-frame model rotation (setLocalRotation copies the value). */
+	private final Quaternion _modelRotQuat = new Quaternion();
+	
+	/** Last tooltip background size (avoids per-frame mesh rebuilds while the tooltip is visible). */
+	private float _tooltipBgWidth = -1;
+	private float _tooltipBgHeight = -1;
 	private boolean _mouseDown;
 	private float _prevCursorX;
 	private float _modelDisplayX;
@@ -284,9 +301,9 @@ public class ChestScreen implements ActionListener
 	private BitmapText _armorTitleText;
 	private BitmapText _armorTitleTextShadow;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates the chest screen (hidden initially).
@@ -302,18 +319,20 @@ public class ChestScreen implements ActionListener
 		final SimpleCraft app = SimpleCraft.getInstance();
 		_guiNode = app.getGuiNode();
 		_inputManager = app.getInputManager();
-		_screenWidth = app.getCamera().getWidth();
-		_screenHeight = app.getCamera().getHeight();
+		
+		final Camera camera = app.getCamera();
+		_screenWidth = camera.getWidth();
+		_screenHeight = camera.getHeight();
 		
 		// Slot size proportional to screen height.
 		_slotSize = Math.max(36f, _screenHeight * 0.05f);
 		
 		// Fonts.
-		final int fontSize = Math.max(10, (int) (_screenHeight * 0.016f));
-		_font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, fontSize);
+		final AssetManager assetManager = app.getAssetManager();
+		final String regularFontPath = FontManager.getRegularPath();
+		_font = FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, Math.max(10, (int) (_screenHeight * 0.016f)));
 		
-		final int tooltipSize = Math.max(12, (int) (_screenHeight * 0.018f));
-		_tooltipFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, tooltipSize);
+		_tooltipFont = FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, Math.max(12, (int) (_screenHeight * 0.018f)));
 		
 		// Build all UI elements.
 		_screenNode = new Node("ChestScreen");
@@ -333,16 +352,14 @@ public class ChestScreen implements ActionListener
 		_guiNode.attachChild(_screenNode);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Build Methods.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private void buildOverlay(SimpleCraft app)
 	{
-		final Quad overlayQuad = new Quad(_screenWidth, _screenHeight);
-		final Geometry overlay = new Geometry("ChestOverlay", overlayQuad);
-		final Material mat = createColorMaterial(COLOR_OVERLAY, app);
-		overlay.setMaterial(mat);
+		final Geometry overlay = new Geometry("ChestOverlay", new Quad(_screenWidth, _screenHeight));
+		overlay.setMaterial(createColorMaterial(COLOR_OVERLAY, app));
 		overlay.setQueueBucket(Bucket.Gui);
 		overlay.setLocalTranslation(0, 0, Z_OVERLAY);
 		_screenNode.attachChild(overlay);
@@ -361,20 +378,14 @@ public class ChestScreen implements ActionListener
 		final float totalGridHeight = (CHEST_ROWS + PLAYER_MAIN_ROWS + 1) * _slotSize + (CHEST_ROWS + PLAYER_MAIN_ROWS) * SLOT_SPACING + SECTION_GAP * 2;
 		
 		// Armor panel dimensions.
-		final float armorPanelWidth = _slotSize;
-		final float playerModelWidth = _slotSize * 1.6f;
-		final float armorGap = _slotSize * 0.5f;
-		final float panelGridGap = _slotSize * 0.5f;
-		final float armorAreaWidth = armorPanelWidth + armorGap + playerModelWidth + panelGridGap;
+		final float armorAreaWidth = _slotSize + (_slotSize * 0.5f) + (_slotSize * 1.6f) + (_slotSize * 0.5f);
 		
 		// Combined width centered on screen, grid shifted right.
-		final float combinedWidth = armorAreaWidth + totalGridWidth;
-		final float combinedStartX = (_screenWidth - combinedWidth) / 2f;
+		final float combinedStartX = (_screenWidth - (armorAreaWidth + totalGridWidth)) / 2f;
 		final float gridStartX = combinedStartX + armorAreaWidth;
-		final float gridStartY = (_screenHeight - totalGridHeight) / 2f;
 		
 		// Player hotbar (display slots 27-35): bottom row.
-		final float hotbarY = gridStartY;
+		final float hotbarY = ((_screenHeight - totalGridHeight) / 2f);
 		for (int col = 0; col < GRID_COLS; col++)
 		{
 			final int di = ChestTileEntity.CHEST_SLOTS + col;
@@ -388,8 +399,7 @@ public class ChestScreen implements ActionListener
 		{
 			for (int col = 0; col < GRID_COLS; col++)
 			{
-				final int playerSlotIndex = 9 + row * GRID_COLS + col;
-				final int di = ChestTileEntity.CHEST_SLOTS + playerSlotIndex;
+				final int di = ChestTileEntity.CHEST_SLOTS + (9 + row * GRID_COLS + col);
 				_slotX[di] = gridStartX + col * (_slotSize + SLOT_SPACING);
 				_slotY[di] = playerMainStartY + (2 - row) * (_slotSize + SLOT_SPACING);
 			}
@@ -408,8 +418,7 @@ public class ChestScreen implements ActionListener
 		}
 		
 		// Armor panel: 4 slots, helmet aligned with top inventory row.
-		final float topInvRowY = playerMainStartY + 2 * (_slotSize + SLOT_SPACING);
-		final float armorStartY = topInvRowY - 3 * (_slotSize + SLOT_SPACING);
+		final float armorStartY = (playerMainStartY + 2 * (_slotSize + SLOT_SPACING)) - 3 * (_slotSize + SLOT_SPACING);
 		
 		_armorPanelX = combinedStartX;
 		_armorPanelY = armorStartY;
@@ -423,6 +432,9 @@ public class ChestScreen implements ActionListener
 	
 	private void buildSlots(SimpleCraft app)
 	{
+		final float fontSize = _font.getCharSet().getRenderedSize();
+		final GameInputManager gim = SimpleCraft.getInstance().getGameInputManager();
+		
 		for (int i = 0; i < TOTAL_DISPLAY_SLOTS; i++)
 		{
 			// Chest slots (0-26) use lighter colors; player inventory/action bar (27-62) use darker colors matching InventoryScreen.
@@ -445,7 +457,7 @@ public class ChestScreen implements ActionListener
 			// Label text.
 			_slotLabel[i] = new BitmapText(_font);
 			_slotLabel[i].setText("");
-			_slotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+			_slotLabel[i].setSize(fontSize * 1.2f);
 			_slotLabel[i].setColor(COLOR_TEXT.clone());
 			_slotLabel[i].setLocalTranslation(_slotX[i], _slotY[i] + _slotSize, Z_TEXT);
 			_slotLabel[i].setCullHint(BitmapText.CullHint.Always);
@@ -454,14 +466,14 @@ public class ChestScreen implements ActionListener
 			// Count text + shadow.
 			_slotCountShadow[i] = new BitmapText(_font);
 			_slotCountShadow[i].setText("");
-			_slotCountShadow[i].setSize(_font.getCharSet().getRenderedSize());
+			_slotCountShadow[i].setSize(fontSize);
 			_slotCountShadow[i].setColor(COLOR_TEXT_SHADOW.clone());
 			_slotCountShadow[i].setCullHint(BitmapText.CullHint.Always);
 			_screenNode.attachChild(_slotCountShadow[i]);
 			
 			_slotCount[i] = new BitmapText(_font);
 			_slotCount[i].setText("");
-			_slotCount[i].setSize(_font.getCharSet().getRenderedSize());
+			_slotCount[i].setSize(fontSize);
 			_slotCount[i].setColor(COLOR_TEXT.clone());
 			_slotCount[i].setCullHint(BitmapText.CullHint.Always);
 			_screenNode.attachChild(_slotCount[i]);
@@ -477,15 +489,11 @@ public class ChestScreen implements ActionListener
 			if (i >= ChestTileEntity.CHEST_SLOTS && i < ChestTileEntity.CHEST_SLOTS + Inventory.HOTBAR_SLOTS)
 			{
 				final int hotbarIndex = i - ChestTileEntity.CHEST_SLOTS;
-				final GameInputManager gim = SimpleCraft.getInstance().getGameInputManager();
-				final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[hotbarIndex]));
 				_hotbarNumbers[hotbarIndex] = new BitmapText(_font);
-				_hotbarNumbers[hotbarIndex].setText(keyName);
-				_hotbarNumbers[hotbarIndex].setSize(_font.getCharSet().getRenderedSize() * 0.8f);
+				_hotbarNumbers[hotbarIndex].setText(GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[hotbarIndex])));
+				_hotbarNumbers[hotbarIndex].setSize(fontSize * 0.8f);
 				_hotbarNumbers[hotbarIndex].setColor(COLOR_HOTBAR_LABEL.clone());
-				final float numX = _slotX[i] + 2;
-				final float numY = _slotY[i] + _slotSize - 2;
-				_hotbarNumbers[hotbarIndex].setLocalTranslation(numX, numY, Z_TEXT);
+				_hotbarNumbers[hotbarIndex].setLocalTranslation((_slotX[i] + 2), (_slotY[i] + _slotSize - 2), Z_TEXT);
 				_screenNode.attachChild(_hotbarNumbers[hotbarIndex]);
 			}
 		}
@@ -493,8 +501,7 @@ public class ChestScreen implements ActionListener
 	
 	private void buildHoverHighlight(SimpleCraft app)
 	{
-		final Material mat = createColorMaterial(COLOR_HOVER, app);
-		_hoverHighlight = createQuadWithMaterial("ChHover", _slotSize, _slotSize, mat);
+		_hoverHighlight = createQuadWithMaterial("ChHover", _slotSize, _slotSize, createColorMaterial(COLOR_HOVER, app));
 		_hoverHighlight.setLocalTranslation(0, 0, Z_HIGHLIGHT);
 		_hoverHighlight.setCullHint(Geometry.CullHint.Always);
 		_screenNode.attachChild(_hoverHighlight);
@@ -518,12 +525,10 @@ public class ChestScreen implements ActionListener
 			_screenNode.attachChild(_armorSlotFill[i]);
 			
 			_armorSlotLabel[i] = new BitmapText(_font);
-			_armorSlotLabel[i].setText(getArmorSlotLabel(i));
+			_armorSlotLabel[i].setText(LanguageManager.get(ARMOR_LABEL_KEYS[i]));
 			_armorSlotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
 			_armorSlotLabel[i].setColor(new ColorRGBA(0.5f, 0.5f, 0.55f, 0.5f));
-			final float labelWidth = _armorSlotLabel[i].getLineWidth();
-			final float labelHeight = _armorSlotLabel[i].getLineHeight();
-			_armorSlotLabel[i].setLocalTranslation(_armorSlotX[i] + (_slotSize - labelWidth) / 2f, _armorSlotY[i] + (_slotSize + labelHeight) / 2f, Z_TEXT);
+			_armorSlotLabel[i].setLocalTranslation(_armorSlotX[i] + (_slotSize - _armorSlotLabel[i].getLineWidth()) / 2f, _armorSlotY[i] + (_slotSize + _armorSlotLabel[i].getLineHeight()) / 2f, Z_TEXT);
 			_screenNode.attachChild(_armorSlotLabel[i]);
 			
 			_armorSlotDurMat[i] = createColorMaterial(COLOR_DURABILITY_GREEN, app);
@@ -532,19 +537,6 @@ public class ChestScreen implements ActionListener
 			_armorSlotDurBar[i].setCullHint(Geometry.CullHint.Always);
 			_screenNode.attachChild(_armorSlotDurBar[i]);
 		}
-	}
-	
-	private static String getArmorSlotLabel(int index)
-	{
-		final String[] keys =
-		{
-			"screen.armor_head",
-			"screen.armor_chest",
-			"screen.armor_pants",
-			"screen.armor_boots"
-		};
-		
-		return LanguageManager.get(keys[index]);
 	}
 	
 	/**
@@ -573,8 +565,7 @@ public class ChestScreen implements ActionListener
 		}
 		
 		// Body.
-		final Node bodyNode = makeModelPivot("Body", makeModelBox("BodyBox", 0.3f, 0.33f, 0.15f, skinMat, 0, 0, 0), 0, 1.27f, 0);
-		_modelRootNode.attachChild(bodyNode);
+		_modelRootNode.attachChild(makeModelPivot("Body", makeModelBox("BodyBox", 0.3f, 0.33f, 0.15f, skinMat, 0, 0, 0), 0, 1.27f, 0));
 		_baseWaistband = makeModelBox("Waistband", 0.31f, 0.12f, 0.16f, pantsMat, 0, 0.88f, 0);
 		_modelRootNode.attachChild(_baseWaistband);
 		_modelRootNode.attachChild(makeModelBox("Neck", 0.15f, 0.04f, 0.12f, skinMat, 0, 1.64f, 0));
@@ -669,19 +660,16 @@ public class ChestScreen implements ActionListener
 		_modelScene.updateGeometricState();
 		
 		// Display quad.
-		final float armorGap = _slotSize * 0.5f;
-		_modelDisplayX = _armorPanelX + _slotSize + armorGap;
+		_modelDisplayX = _armorPanelX + _slotSize + (_slotSize * 0.5f);
 		_modelDisplayWidth = _slotSize * 1.6f;
-		final float armorTotalHeight = 4 * _slotSize + 3 * SLOT_SPACING;
 		_modelDisplayY = _armorPanelY;
-		_modelDisplayHeight = armorTotalHeight;
+		_modelDisplayHeight = (4 * _slotSize) + (3 * SLOT_SPACING);
 		
 		_modelDisplayMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
 		_modelDisplayMat.setTexture("ColorMap", _modelRenderTexture);
 		_modelDisplayMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		
-		final Quad displayQuad = new Quad(_modelDisplayWidth, _modelDisplayHeight);
-		_modelDisplayQuad = new Geometry("ChModelDisplay", displayQuad);
+		_modelDisplayQuad = new Geometry("ChModelDisplay", new Quad(_modelDisplayWidth, _modelDisplayHeight));
 		_modelDisplayQuad.setMaterial(_modelDisplayMat);
 		_modelDisplayQuad.setQueueBucket(Bucket.Gui);
 		_modelDisplayQuad.setLocalTranslation(_modelDisplayX, _modelDisplayY, Z_SLOT_FILL);
@@ -690,22 +678,22 @@ public class ChestScreen implements ActionListener
 	
 	private void buildTooltip(SimpleCraft app)
 	{
-		final Material bgMat = createColorMaterial(COLOR_TOOLTIP_BG, app);
-		_tooltipBg = createQuadWithMaterial("ChTooltipBg", 100, 24, bgMat);
+		_tooltipBg = createQuadWithMaterial("ChTooltipBg", 100, 24, createColorMaterial(COLOR_TOOLTIP_BG, app));
 		_tooltipBg.setLocalTranslation(0, 0, Z_TOOLTIP - 0.1f);
 		_tooltipBg.setCullHint(Geometry.CullHint.Always);
 		_screenNode.attachChild(_tooltipBg);
 		
+		final float tooltipFontSize = _tooltipFont.getCharSet().getRenderedSize();
 		_tooltipTextShadow = new BitmapText(_tooltipFont);
 		_tooltipTextShadow.setText("");
-		_tooltipTextShadow.setSize(_tooltipFont.getCharSet().getRenderedSize());
+		_tooltipTextShadow.setSize(tooltipFontSize);
 		_tooltipTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_tooltipTextShadow.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_tooltipTextShadow);
 		
 		_tooltipText = new BitmapText(_tooltipFont);
 		_tooltipText.setText("");
-		_tooltipText.setSize(_tooltipFont.getCharSet().getRenderedSize());
+		_tooltipText.setSize(tooltipFontSize);
 		_tooltipText.setColor(COLOR_TEXT.clone());
 		_tooltipText.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_tooltipText);
@@ -719,23 +707,24 @@ public class ChestScreen implements ActionListener
 		_heldQuad.setCullHint(Geometry.CullHint.Always);
 		_screenNode.attachChild(_heldQuad);
 		
+		final float fontSize = _font.getCharSet().getRenderedSize();
 		_heldLabel = new BitmapText(_font);
 		_heldLabel.setText("");
-		_heldLabel.setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+		_heldLabel.setSize(fontSize * 1.2f);
 		_heldLabel.setColor(COLOR_TEXT.clone());
 		_heldLabel.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_heldLabel);
 		
 		_heldCountShadow = new BitmapText(_font);
 		_heldCountShadow.setText("");
-		_heldCountShadow.setSize(_font.getCharSet().getRenderedSize());
+		_heldCountShadow.setSize(fontSize);
 		_heldCountShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_heldCountShadow);
 		
 		_heldCount = new BitmapText(_font);
 		_heldCount.setText("");
-		_heldCount.setSize(_font.getCharSet().getRenderedSize());
+		_heldCount.setSize(fontSize);
 		_heldCount.setColor(COLOR_TEXT.clone());
 		_heldCount.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_heldCount);
@@ -747,14 +736,15 @@ public class ChestScreen implements ActionListener
 		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, titleSize);
 		
 		// "Chest" title above the chest slot section.
+		final String chestTitle = LanguageManager.get("screen.chest");
 		_titleTextShadow = new BitmapText(titleFont);
-		_titleTextShadow.setText(LanguageManager.get("screen.chest"));
+		_titleTextShadow.setText(chestTitle);
 		_titleTextShadow.setSize(titleSize);
 		_titleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_titleTextShadow);
 		
 		_titleText = new BitmapText(titleFont);
-		_titleText.setText(LanguageManager.get("screen.chest"));
+		_titleText.setText(chestTitle);
 		_titleText.setSize(titleSize);
 		_titleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_titleText);
@@ -763,79 +753,75 @@ public class ChestScreen implements ActionListener
 		final float gridCenterX = (_slotX[ChestTileEntity.CHEST_SLOTS] + _slotX[ChestTileEntity.CHEST_SLOTS + 8] + _slotSize) / 2f;
 		
 		// Position above the top chest row.
-		final float titleWidth = _titleText.getLineWidth();
-		final float titleX = gridCenterX - titleWidth / 2f;
+		final float titleX = gridCenterX - _titleText.getLineWidth() / 2f;
 		
 		// Top chest row is row 0 (display slots 0-8), which has the highest Y.
-		final float topChestSlotY = _slotY[0];
-		final float titleY = topChestSlotY + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 2;
+		final float titleY = _slotY[0] + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 2;
 		_titleText.setLocalTranslation(titleX, titleY, Z_TEXT);
 		_titleTextShadow.setLocalTranslation(titleX + 1, titleY - 1, Z_TEXT - 0.1f);
 		
 		// "Inventory" label above the player main inventory section.
+		final String inventoryTitle = LanguageManager.get("screen.inventory");
 		_inventoryLabelShadow = new BitmapText(titleFont);
-		_inventoryLabelShadow.setText(LanguageManager.get("screen.inventory"));
+		_inventoryLabelShadow.setText(inventoryTitle);
 		_inventoryLabelShadow.setSize(titleSize);
 		_inventoryLabelShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_inventoryLabelShadow);
 		
 		_inventoryLabel = new BitmapText(titleFont);
-		_inventoryLabel.setText(LanguageManager.get("screen.inventory"));
+		_inventoryLabel.setText(inventoryTitle);
 		_inventoryLabel.setSize(titleSize);
 		_inventoryLabel.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_inventoryLabel);
 		
 		// Position above the top player main inventory row (display slot for player slot 9).
-		final float invWidth = _inventoryLabel.getLineWidth();
-		final float invX = gridCenterX - invWidth / 2f;
-		final float topPlayerMainY = _slotY[ChestTileEntity.CHEST_SLOTS + 9];
-		final float invY = topPlayerMainY + _slotSize + SLOT_PADDING + _inventoryLabel.getLineHeight() + 2;
+		final float invX = gridCenterX - _inventoryLabel.getLineWidth() / 2f;
+		final float invY = _slotY[ChestTileEntity.CHEST_SLOTS + 9] + _slotSize + SLOT_PADDING + _inventoryLabel.getLineHeight() + 2;
 		_inventoryLabel.setLocalTranslation(invX, invY, Z_TEXT);
 		_inventoryLabelShadow.setLocalTranslation(invX + 1, invY - 1, Z_TEXT - 0.1f);
 		
 		// "Action Bar" label above the hotbar row, below the inventory.
+		final String actionBarTitle = LanguageManager.get("screen.action_bar");
 		_actionBarLabelShadow = new BitmapText(titleFont);
-		_actionBarLabelShadow.setText(LanguageManager.get("screen.action_bar"));
+		_actionBarLabelShadow.setText(actionBarTitle);
 		_actionBarLabelShadow.setSize(titleSize);
 		_actionBarLabelShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_actionBarLabelShadow);
 		
 		_actionBarLabel = new BitmapText(titleFont);
-		_actionBarLabel.setText(LanguageManager.get("screen.action_bar"));
+		_actionBarLabel.setText(actionBarTitle);
 		_actionBarLabel.setSize(titleSize);
 		_actionBarLabel.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_actionBarLabel);
 		
-		final float abWidth = _actionBarLabel.getLineWidth();
-		final float abX = gridCenterX - abWidth / 2f;
-		final float hotbarTopY = _slotY[ChestTileEntity.CHEST_SLOTS];
-		final float abY = hotbarTopY + _slotSize + SLOT_PADDING + _actionBarLabel.getLineHeight() + 2;
+		final float abX = gridCenterX - _actionBarLabel.getLineWidth() / 2f;
+		final float abY = _slotY[ChestTileEntity.CHEST_SLOTS] + _slotSize + SLOT_PADDING + _actionBarLabel.getLineHeight() + 2;
 		_actionBarLabel.setLocalTranslation(abX, abY, Z_TEXT);
 		_actionBarLabelShadow.setLocalTranslation(abX + 1, abY - 1, Z_TEXT - 0.1f);
 		
 		// "Armor" label above the armor slots.
+		final String armorTitle = LanguageManager.get("screen.armor");
 		_armorTitleTextShadow = new BitmapText(titleFont);
-		_armorTitleTextShadow.setText(LanguageManager.get("screen.armor"));
+		_armorTitleTextShadow.setText(armorTitle);
 		_armorTitleTextShadow.setSize(titleSize);
 		_armorTitleTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_screenNode.attachChild(_armorTitleTextShadow);
 		
 		_armorTitleText = new BitmapText(titleFont);
-		_armorTitleText.setText(LanguageManager.get("screen.armor"));
+		_armorTitleText.setText(armorTitle);
 		_armorTitleText.setSize(titleSize);
 		_armorTitleText.setColor(COLOR_TEXT.clone());
 		_screenNode.attachChild(_armorTitleText);
 		
-		final float armorTitleWidth = _armorTitleText.getLineWidth();
-		final float armorTitleX = _armorSlotX[0] + (_slotSize - armorTitleWidth) / 2f;
+		final float armorTitleX = _armorSlotX[0] + (_slotSize - _armorTitleText.getLineWidth()) / 2f;
 		final float armorTitleY = _armorSlotY[0] + _slotSize + SLOT_PADDING + _armorTitleText.getLineHeight() + 2;
 		_armorTitleText.setLocalTranslation(armorTitleX, armorTitleY, Z_TEXT);
 		_armorTitleTextShadow.setLocalTranslation(armorTitleX + 1, armorTitleY - 1, Z_TEXT - 0.1f);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Open / Close.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Opens the chest screen for the given chest tile entity.
@@ -949,9 +935,9 @@ public class ChestScreen implements ActionListener
 		return _open;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Update.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates hover detection, tooltip and held item position each frame.
@@ -977,7 +963,7 @@ public class ChestScreen implements ActionListener
 		{
 			final float deltaX = cx - _prevCursorX;
 			final float sensitivityScale = Math.max(0.05f, SimpleCraft.getInstance().getSettingsManager().getMouseSensitivity());
-			if (cx >= _modelDisplayX && cx < _modelDisplayX + _modelDisplayWidth && cy >= _modelDisplayY && cy < _modelDisplayY + _modelDisplayHeight)
+			if (isOverModelDisplay(cx, cy))
 			{
 				_modelRotation += deltaX * 0.01f * sensitivityScale;
 			}
@@ -985,7 +971,7 @@ public class ChestScreen implements ActionListener
 		
 		_prevCursorX = cx;
 		
-		_modelRootNode.setLocalRotation(new Quaternion().fromAngleAxis(_modelRotation, Vector3f.UNIT_Y));
+		_modelRootNode.setLocalRotation(_modelRotQuat.fromAngleAxis(_modelRotation, Vector3f.UNIT_Y));
 		_modelScene.updateLogicalState(tpf);
 		_modelScene.updateGeometricState();
 		
@@ -1024,23 +1010,19 @@ public class ChestScreen implements ActionListener
 		// Chest slots (display 0-26).
 		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
 		{
-			final ItemInstance stack = _activeChest.getSlot(i);
-			updateSlotVisual(i, stack);
+			updateSlotVisual(i, _activeChest.getSlot(i));
 		}
 		
 		// Player slots (display 27-62 maps to inventory 0-35).
 		for (int i = 0; i < Inventory.TOTAL_SLOTS; i++)
 		{
-			final ItemInstance stack = _inventory.getSlot(i);
-			updateSlotVisual(ChestTileEntity.CHEST_SLOTS + i, stack);
+			updateSlotVisual(ChestTileEntity.CHEST_SLOTS + i, _inventory.getSlot(i));
 		}
 		
 		// Armor slots and 3D model overlays.
 		for (int i = 0; i < ArmorSlot.COUNT; i++)
 		{
-			final ArmorSlot slot = ArmorSlot.fromIndex(i);
-			final ItemInstance armorItem = _inventory.getArmorSlot(slot);
-			updateArmorSlotVisual(i, armorItem);
+			updateArmorSlotVisual(i, _inventory.getArmorSlot(ArmorSlot.fromIndex(i)));
 		}
 		
 		updatePlayerModelOverlays();
@@ -1076,18 +1058,13 @@ public class ChestScreen implements ActionListener
 		else
 		{
 			_slotFillMat[index].clearParam("ColorMap");
-			final ColorRGBA fillColor = InventoryScreen.getItemColor(template);
-			_slotFillMat[index].setColor("Color", fillColor);
+			_slotFillMat[index].setColor("Color", InventoryScreen.getItemColor(template));
 			
 			final String label = InventoryScreen.getItemLabel(template);
 			if (label != null && !label.isEmpty())
 			{
 				_slotLabel[index].setText(label);
-				final float labelWidth = _slotLabel[index].getLineWidth();
-				final float labelHeight = _slotLabel[index].getLineHeight();
-				final float labelX = _slotX[index] + (_slotSize - labelWidth) / 2f;
-				final float labelY = _slotY[index] + (_slotSize + labelHeight) / 2f;
-				_slotLabel[index].setLocalTranslation(labelX, labelY, Z_TEXT);
+				_slotLabel[index].setLocalTranslation((_slotX[index] + (_slotSize - _slotLabel[index].getLineWidth()) / 2f), (_slotY[index] + (_slotSize + _slotLabel[index].getLineHeight()) / 2f), Z_TEXT);
 				_slotLabel[index].setCullHint(BitmapText.CullHint.Never);
 			}
 			else
@@ -1104,8 +1081,7 @@ public class ChestScreen implements ActionListener
 			_slotCount[index].setText(countStr);
 			_slotCountShadow[index].setText(countStr);
 			
-			final float countWidth = _slotCount[index].getLineWidth();
-			final float countX = _slotX[index] + _slotSize - countWidth - 2;
+			final float countX = _slotX[index] + _slotSize - _slotCount[index].getLineWidth() - 2;
 			final float countY = _slotY[index] + _slotCount[index].getLineHeight() + 1;
 			_slotCount[index].setLocalTranslation(countX, countY, Z_TEXT);
 			_slotCountShadow[index].setLocalTranslation(countX + 1, countY - 1, Z_TEXT - 0.1f);
@@ -1193,9 +1169,15 @@ public class ChestScreen implements ActionListener
 			tipY = _screenHeight - 4;
 		}
 		
-		final float bgW = tipWidth + padding * 2;
+		final float bgW = tipWidth + (padding * 2);
 		final float bgH = tipHeight + padding;
-		_tooltipBg.setMesh(new Quad(bgW, bgH));
+		if ((bgW != _tooltipBgWidth) || (bgH != _tooltipBgHeight))
+		{
+			_tooltipBg.setMesh(new Quad(bgW, bgH));
+			_tooltipBgWidth = bgW;
+			_tooltipBgHeight = bgH;
+		}
+		
 		_tooltipBg.setLocalTranslation(tipX - padding, tipY - tipHeight - padding / 2f, Z_TOOLTIP - 0.1f);
 		_tooltipBg.setCullHint(Geometry.CullHint.Never);
 		
@@ -1232,16 +1214,13 @@ public class ChestScreen implements ActionListener
 		else
 		{
 			_heldQuadMat.clearParam("ColorMap");
-			final ColorRGBA color = InventoryScreen.getItemColor(heldTemplate);
-			_heldQuadMat.setColor("Color", color);
+			_heldQuadMat.setColor("Color", InventoryScreen.getItemColor(heldTemplate));
 			
 			final String label = InventoryScreen.getItemLabel(heldTemplate);
 			if (label != null && !label.isEmpty())
 			{
 				_heldLabel.setText(label);
-				final float labelWidth = _heldLabel.getLineWidth();
-				final float labelHeight = _heldLabel.getLineHeight();
-				_heldLabel.setLocalTranslation(heldX + (heldSize - labelWidth) / 2f, heldY + (heldSize + labelHeight) / 2f, Z_HELD + 0.1f);
+				_heldLabel.setLocalTranslation(heldX + (heldSize - _heldLabel.getLineWidth()) / 2f, heldY + (heldSize + _heldLabel.getLineHeight()) / 2f, Z_HELD + 0.1f);
 				_heldLabel.setCullHint(BitmapText.CullHint.Never);
 			}
 			else
@@ -1274,9 +1253,9 @@ public class ChestScreen implements ActionListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Input Handling.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	@Override
 	public void onAction(String name, boolean isPressed, float tpf)
@@ -1534,9 +1513,7 @@ public class ChestScreen implements ActionListener
 			return;
 		}
 		
-		final boolean isChestSlot = displaySlot < ChestTileEntity.CHEST_SLOTS;
-		
-		if (isChestSlot)
+		if (displaySlot < ChestTileEntity.CHEST_SLOTS)
 		{
 			// Transfer from chest to player inventory.
 			if (_inventory.addItem(stack))
@@ -1549,8 +1526,7 @@ public class ChestScreen implements ActionListener
 			// Transfer from player inventory to chest.
 			if (addToChest(stack))
 			{
-				final int playerSlot = displaySlot - ChestTileEntity.CHEST_SLOTS;
-				_inventory.setSlot(playerSlot, null);
+				_inventory.setSlot((displaySlot - ChestTileEntity.CHEST_SLOTS), null);
 			}
 		}
 	}
@@ -1570,7 +1546,7 @@ public class ChestScreen implements ActionListener
 		
 		final int maxStackSize = stack.getTemplate().getMaxStackSize();
 		final int amount = stack.getCount();
-
+		
 		// Pass 1: Verify the whole stack fits before mutating anything.
 		// A partial merge followed by a false return would let the caller keep the source stack, duplicating the items already merged.
 		int capacity = 0;
@@ -1585,18 +1561,18 @@ public class ChestScreen implements ActionListener
 			{
 				capacity += maxStackSize - existing.getCount();
 			}
-
+			
 			if (capacity >= amount)
 			{
 				break;
 			}
 		}
-
+		
 		if (capacity < amount)
 		{
 			return false;
 		}
-
+		
 		// Pass 2: Commit. Merge into existing matching stacks first, then fill empty slots.
 		int remaining = amount;
 		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
@@ -1605,21 +1581,21 @@ public class ChestScreen implements ActionListener
 			{
 				return true;
 			}
-
+			
 			final ItemInstance existing = _activeChest.getSlot(i);
 			if (existing != null && existing.canStackWith(stack))
 			{
 				remaining = existing.add(remaining);
 			}
 		}
-
+		
 		for (int i = 0; i < ChestTileEntity.CHEST_SLOTS; i++)
 		{
 			if (remaining <= 0)
 			{
 				return true;
 			}
-
+			
 			if (_activeChest.getSlot(i) == null)
 			{
 				final int placed = Math.min(remaining, maxStackSize);
@@ -1627,13 +1603,13 @@ public class ChestScreen implements ActionListener
 				remaining -= placed;
 			}
 		}
-
+		
 		return remaining <= 0;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Slot Mapping.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the item at the given display slot index.<br>
@@ -1683,9 +1659,9 @@ public class ChestScreen implements ActionListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Slot Hit Detection.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the display slot index at the given screen position, or -1 if outside.
@@ -1836,9 +1812,9 @@ public class ChestScreen implements ActionListener
 		_armorMatsLight[index].setColor("Color", isGold ? COLOR_GOLD_LIGHT.clone() : COLOR_IRON_LIGHT.clone());
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// World Drop Support.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Sets the drop manager for spawning world drops when items are discarded.
@@ -1895,8 +1871,7 @@ public class ChestScreen implements ActionListener
 		int groundY = (int) Math.ceil(playerPos.y);
 		if (_world != null)
 		{
-			final int startY = (int) Math.ceil(playerPos.y) + 1;
-			for (int y = startY; y >= 0; y--)
+			for (int y = ((int) Math.ceil(playerPos.y) + 1); y >= 0; y--)
 			{
 				if (_world.getBlock(bx, y, bz).isSolid())
 				{
@@ -1909,9 +1884,9 @@ public class ChestScreen implements ActionListener
 		_dropManager.spawnDrop(new Vector3f(dropX, groundY, dropZ), stack);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Cleanup.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Removes all chest screen elements from the GUI node.
@@ -1929,20 +1904,18 @@ public class ChestScreen implements ActionListener
 		_guiNode.detachChild(_screenNode);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Geometry Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private Geometry createQuad(String name, float width, float height, ColorRGBA color, SimpleCraft app)
 	{
-		final Material mat = createColorMaterial(color, app);
-		return createQuadWithMaterial(name, width, height, mat);
+		return createQuadWithMaterial(name, width, height, createColorMaterial(color, app));
 	}
 	
 	private Geometry createQuadWithMaterial(String name, float width, float height, Material mat)
 	{
-		final Quad quad = new Quad(width, height);
-		final Geometry geom = new Geometry(name, quad);
+		final Geometry geom = new Geometry(name, new Quad(width, height));
 		geom.setMaterial(mat);
 		geom.setQueueBucket(Bucket.Gui);
 		return geom;
@@ -1956,9 +1929,9 @@ public class ChestScreen implements ActionListener
 		return mat;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// 3D Model Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private Material makeModelMat(ColorRGBA color, SimpleCraft app)
 	{
@@ -1969,8 +1942,7 @@ public class ChestScreen implements ActionListener
 	
 	private Geometry makeModelBox(String name, float halfX, float halfY, float halfZ, Material mat, float tx, float ty, float tz)
 	{
-		final Box box = new Box(halfX, halfY, halfZ);
-		final Geometry geom = new Geometry(name, box);
+		final Geometry geom = new Geometry(name, new Box(halfX, halfY, halfZ));
 		geom.setMaterial(mat);
 		geom.setLocalTranslation(tx, ty, tz);
 		return geom;

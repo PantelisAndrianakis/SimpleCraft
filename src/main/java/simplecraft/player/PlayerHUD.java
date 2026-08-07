@@ -2,12 +2,14 @@ package simplecraft.player;
 
 import java.awt.Font;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
@@ -31,8 +33,8 @@ import simplecraft.world.Block;
  * block-breaking progress and the death/respawn screen.<br>
  * <br>
  * All elements are attached to the application's GUI node (screen-space overlay).<br>
- * Call {@link #update(float, float, float, float, boolean, int, int, boolean, boolean)} each frame<br>
- * with current player state and {@link #cleanup()} when leaving the playing state.<br>
+ * Call {@code update(float, float, float, float, boolean, int, int, boolean, boolean)} each frame<br>
+ * with current player state and {@code cleanup()} when leaving the playing state.<br>
  * <br>
  * <b>Crosshair:</b> Small "+" at screen center, white with slight transparency.<br>
  * <b>Health bar:</b> Top-left, red fill proportional to health. Dark background.<br>
@@ -50,9 +52,9 @@ import simplecraft.world.Block;
  */
 public class PlayerHUD
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Layout Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Health bar width in pixels. */
 	private static final float HEALTH_BAR_WIDTH = 200f;
@@ -108,9 +110,9 @@ public class PlayerHUD
 	/** Height of the durability bar in pixels. */
 	private static final float DURABILITY_BAR_HEIGHT = 3f;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Colors.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private static final ColorRGBA COLOR_BG = new ColorRGBA(0.1f, 0.1f, 0.1f, 0.6f);
 	private static final ColorRGBA COLOR_HEALTH = new ColorRGBA(0.85f, 0.15f, 0.15f, 1.0f);
@@ -150,9 +152,9 @@ public class PlayerHUD
 	/** Boss health bar height in pixels. */
 	private static final float BOSS_BAR_HEIGHT = 16f;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final Node _guiNode;
 	private final Node _hudNode;
@@ -247,9 +249,9 @@ public class PlayerHUD
 	/** Reusable color to avoid allocation each frame. */
 	private final ColorRGBA _tempColor = new ColorRGBA();
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates and attaches all HUD elements to the GUI node.
@@ -258,12 +260,12 @@ public class PlayerHUD
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		_guiNode = app.getGuiNode();
-		_screenWidth = app.getCamera().getWidth();
-		_screenHeight = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		_screenWidth = camera.getWidth();
+		_screenHeight = camera.getHeight();
 		
 		// Scale font size relative to screen height for resolution independence.
-		final int fontSize = Math.max(12, (int) (_screenHeight * 0.018f));
-		_font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, fontSize);
+		_font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, Math.max(12, (int) (_screenHeight * 0.018f)));
 		
 		// Compute hotbar slot size proportional to screen height.
 		_hotbarSlotSize = Math.max(32f, _screenHeight * 0.037f);
@@ -283,9 +285,9 @@ public class PlayerHUD
 		_guiNode.attachChild(_hudNode);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Build Methods.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private void buildCrosshair()
 	{
@@ -295,9 +297,7 @@ public class PlayerHUD
 		_crosshairText.setColor(COLOR_CROSSHAIR);
 		
 		// Center on screen. BitmapText origin is bottom-left of text.
-		final float textWidth = _crosshairText.getLineWidth();
-		final float textHeight = _crosshairText.getLineHeight();
-		_crosshairText.setLocalTranslation((_screenWidth - textWidth) / 2f, (_screenHeight + textHeight) / 2f, 1);
+		_crosshairText.setLocalTranslation((_screenWidth - _crosshairText.getLineWidth()) / 2f, (_screenHeight + _crosshairText.getLineHeight()) / 2f, 1);
 		
 		_hudNode.attachChild(_crosshairText);
 	}
@@ -367,9 +367,10 @@ public class PlayerHUD
 	private void buildHotbar()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final float hudFontSize = _font.getCharSet().getRenderedSize();
+		final GameInputManager gim = app.getGameInputManager();
 		
-		final float totalWidth = HOTBAR_SIZE * _hotbarSlotSize + (HOTBAR_SIZE - 1) * HOTBAR_SLOT_SPACING;
-		final float startX = (_screenWidth - totalWidth) / 2f;
+		final float startX = (_screenWidth - (HOTBAR_SIZE * _hotbarSlotSize + (HOTBAR_SIZE - 1) * HOTBAR_SLOT_SPACING)) / 2f;
 		_hotbarSlotY = EDGE_PADDING;
 		
 		for (int i = 0; i < HOTBAR_SIZE; i++)
@@ -391,7 +392,7 @@ public class PlayerHUD
 			// Label text (type indicator: W, P, A, S, +).
 			_hotbarLabel[i] = new BitmapText(_font);
 			_hotbarLabel[i].setText("");
-			_hotbarLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+			_hotbarLabel[i].setSize(hudFontSize * 1.2f);
 			_hotbarLabel[i].setColor(COLOR_TEXT.clone());
 			_hotbarLabel[i].setCullHint(BitmapText.CullHint.Always);
 			_hudNode.attachChild(_hotbarLabel[i]);
@@ -399,14 +400,14 @@ public class PlayerHUD
 			// Count text (bottom-right of slot).
 			_hotbarCountShadow[i] = new BitmapText(_font);
 			_hotbarCountShadow[i].setText("");
-			_hotbarCountShadow[i].setSize(_font.getCharSet().getRenderedSize());
+			_hotbarCountShadow[i].setSize(hudFontSize);
 			_hotbarCountShadow[i].setColor(COLOR_TEXT_SHADOW.clone());
 			_hotbarCountShadow[i].setCullHint(BitmapText.CullHint.Always);
 			_hudNode.attachChild(_hotbarCountShadow[i]);
 			
 			_hotbarCount[i] = new BitmapText(_font);
 			_hotbarCount[i].setText("");
-			_hotbarCount[i].setSize(_font.getCharSet().getRenderedSize());
+			_hotbarCount[i].setSize(hudFontSize);
 			_hotbarCount[i].setColor(COLOR_TEXT.clone());
 			_hotbarCount[i].setCullHint(BitmapText.CullHint.Always);
 			_hudNode.attachChild(_hotbarCount[i]);
@@ -419,15 +420,11 @@ public class PlayerHUD
 			_hudNode.attachChild(_hotbarDurBar[i]);
 			
 			// Key label (top-left of slot, shows the bound key name e.g. "1", "F5").
-			final GameInputManager gim = app.getGameInputManager();
-			final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i]));
 			_hotbarKeyLabel[i] = new BitmapText(_font);
-			_hotbarKeyLabel[i].setText(keyName);
-			_hotbarKeyLabel[i].setSize(_font.getCharSet().getRenderedSize() * 0.8f);
+			_hotbarKeyLabel[i].setText(GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i])));
+			_hotbarKeyLabel[i].setSize(hudFontSize * 0.8f);
 			_hotbarKeyLabel[i].setColor(COLOR_HOTBAR_KEY_LABEL.clone());
-			final float keyX = _hotbarSlotX[i] + 2;
-			final float keyY = _hotbarSlotY + _hotbarSlotSize - 2;
-			_hotbarKeyLabel[i].setLocalTranslation(keyX, keyY, 0.3f);
+			_hotbarKeyLabel[i].setLocalTranslation((_hotbarSlotX[i] + 2), (_hotbarSlotY + _hotbarSlotSize - 2), 0.3f);
 			_hudNode.attachChild(_hotbarKeyLabel[i]);
 		}
 		
@@ -481,17 +478,16 @@ public class PlayerHUD
 		_deathScreenNode = new Node("DeathScreen");
 		
 		// Full-screen dark red overlay.
-		final Quad overlayQuad = new Quad(_screenWidth, _screenHeight);
-		final Geometry overlay = new Geometry("DeathOverlay", overlayQuad);
-		final Material overlayMat = createColorMaterial(COLOR_DEATH_OVERLAY, app);
-		overlay.setMaterial(overlayMat);
+		final Geometry overlay = new Geometry("DeathOverlay", new Quad(_screenWidth, _screenHeight));
+		overlay.setMaterial(createColorMaterial(COLOR_DEATH_OVERLAY, app));
 		overlay.setQueueBucket(Bucket.Gui);
 		overlay.setLocalTranslation(0, 0, 20);
 		_deathScreenNode.attachChild(overlay);
 		
 		// "You Died" title - large font.
+		final AssetManager assetManager = app.getAssetManager();
 		final int titleSize = Math.max(24, (int) (_screenHeight * 0.06f));
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, titleSize);
+		final BitmapFont titleFont = FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, titleSize);
 		
 		_deathTitleShadow = new BitmapText(titleFont);
 		_deathTitleShadow.setText(LanguageManager.get("hud.you_died"));
@@ -515,7 +511,7 @@ public class PlayerHUD
 		
 		// Death cause text - smaller font below title.
 		final int causeSize = Math.max(14, (int) (_screenHeight * 0.025f));
-		final BitmapFont causeFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, causeSize);
+		final BitmapFont causeFont = FontManager.getFont(assetManager, FontManager.getRegularPath(), Font.PLAIN, causeSize);
 		
 		_deathCauseShadow = new BitmapText(causeFont);
 		_deathCauseShadow.setText("");
@@ -632,15 +628,6 @@ public class PlayerHUD
 	}
 	
 	/**
-	 * Shows the boss health bar with the default "Dragon" name.<br>
-	 * Convenience overload for backward compatibility.
-	 */
-	public void showBossHealthBar()
-	{
-		showBossHealthBar(LanguageManager.get("hud.dragon"));
-	}
-	
-	/**
 	 * Hides the boss health bar. Called when the dragon dies or leaving the arena.
 	 */
 	public void hideBossHealthBar()
@@ -667,27 +654,20 @@ public class PlayerHUD
 			return;
 		}
 		
-		final float ratio = maxHealth > 0 ? Math.max(0, Math.min(1, health / maxHealth)) : 0;
-		_bossBarFill.setLocalScale(ratio, 1, 1);
+		_bossBarFill.setLocalScale(maxHealth > 0 ? Math.max(0, Math.min(1, health / maxHealth)) : 0, 1, 1);
 		
 		// Phase color.
-		switch (phase)
+		if (phase == 3)
 		{
-			case 3:
-			{
-				_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL_P3);
-				break;
-			}
-			case 2:
-			{
-				_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL_P2);
-				break;
-			}
-			default:
-			{
-				_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL);
-				break;
-			}
+			_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL_P3);
+		}
+		else if (phase == 2)
+		{
+			_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL_P2);
+		}
+		else
+		{
+			_bossBarFillMat.setColor("Color", COLOR_BOSS_BAR_FILL);
 		}
 		
 		// Update HP text and reposition (right-aligned inside bar).
@@ -696,16 +676,15 @@ public class PlayerHUD
 		_bossBarHpShadow.setText(hpText);
 		
 		final float barWidth = _screenWidth * BOSS_BAR_WIDTH_RATIO;
-		final float barX = (_screenWidth - barWidth) / 2f;
-		final float hpTextX = barX + barWidth - _bossBarHpText.getLineWidth() - 4;
+		final float hpTextX = ((_screenWidth - barWidth) / 2f) + barWidth - _bossBarHpText.getLineWidth() - 4;
 		final float hpTextY = _bossBarHpText.getLocalTranslation().y;
 		_bossBarHpText.setLocalTranslation(hpTextX, hpTextY, 0.2f);
 		_bossBarHpShadow.setLocalTranslation(hpTextX + 1, hpTextY - 1, 0.1f);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Inventory Setter.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Sets the inventory reference used to populate hotbar slots.
@@ -716,9 +695,9 @@ public class PlayerHUD
 		_inventory = inventory;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Update.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates all HUD elements with current player state. Call each frame.
@@ -742,15 +721,13 @@ public class PlayerHUD
 		updateBreakProgress(hitsDelivered, hitsRequired, isBreaking);
 		
 		// Toggle crosshair visibility based on settings (hidden when dead).
-		final boolean showCross = showCrosshair && !_deathScreenVisible;
-		_crosshairText.setCullHint(showCross ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+		_crosshairText.setCullHint((showCrosshair && !_deathScreenVisible) ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
 		
 		// Animate death screen prompt pulse.
 		if (_deathScreenVisible)
 		{
 			_deathPromptPulse += tpf;
-			final float pulse = (float) (Math.sin(_deathPromptPulse * 2.0) * 0.3 + 0.7);
-			_tempColor.set(COLOR_DEATH_PROMPT.r, COLOR_DEATH_PROMPT.g, COLOR_DEATH_PROMPT.b, pulse);
+			_tempColor.set(COLOR_DEATH_PROMPT.r, COLOR_DEATH_PROMPT.g, COLOR_DEATH_PROMPT.b, ((float) (Math.sin(_deathPromptPulse * 2.0) * 0.3 + 0.7)));
 			_deathPrompt.setColor(_tempColor.clone());
 		}
 	}
@@ -813,15 +790,13 @@ public class PlayerHUD
 		}
 		
 		// Fill ratio.
-		final float ratio = maxAir > 0 ? Math.max(0, Math.min(1, air / maxAir)) : 0;
-		_airFill.setLocalScale(ratio, 1, 1);
+		_airFill.setLocalScale(maxAir > 0 ? Math.max(0, Math.min(1, air / maxAir)) : 0, 1, 1);
 		
 		// Flash red when air is critically low.
 		if (air < AIR_WARNING_THRESHOLD && air > 0)
 		{
 			_airFlashTimer += tpf;
-			final float flash = (float) (Math.sin(_airFlashTimer * AIR_FLASH_RATE * Math.PI * 2) * 0.5 + 0.5);
-			_tempColor.interpolateLocal(COLOR_AIR, COLOR_AIR_WARNING, flash);
+			_tempColor.interpolateLocal(COLOR_AIR, COLOR_AIR_WARNING, ((float) (Math.sin(_airFlashTimer * AIR_FLASH_RATE * Math.PI * 2) * 0.5 + 0.5)));
 			_tempColor.a = _airAlpha;
 			_airFillMat.setColor("Color", _tempColor);
 		}
@@ -892,8 +867,7 @@ public class PlayerHUD
 		
 		for (int i = 0; i < HOTBAR_SIZE; i++)
 		{
-			final ItemInstance stack = _inventory.getSlot(i);
-			updateHotbarSlot(i, stack);
+			updateHotbarSlot(i, _inventory.getSlot(i));
 		}
 		
 		// Update selection highlight position.
@@ -902,9 +876,7 @@ public class PlayerHUD
 		{
 			_lastSelectedIndex = selectedIndex;
 			// final float hlSize = _hotbarSlotSize + HOTBAR_BG_PADDING * 2 + 2;
-			final float hlX = _hotbarSlotX[selectedIndex] - HOTBAR_BG_PADDING - 1;
-			final float hlY = _hotbarSlotY - HOTBAR_BG_PADDING - 1;
-			_hotbarHighlight.setLocalTranslation(hlX, hlY, -0.1f);
+			_hotbarHighlight.setLocalTranslation((_hotbarSlotX[selectedIndex] - HOTBAR_BG_PADDING - 1), (_hotbarSlotY - HOTBAR_BG_PADDING - 1), -0.1f);
 		}
 	}
 	
@@ -941,19 +913,14 @@ public class PlayerHUD
 		{
 			// No sprite - use colored quad with type label.
 			_hotbarFillMat[index].clearParam("ColorMap");
-			final ColorRGBA fillColor = InventoryScreen.getItemColor(template);
-			_hotbarFillMat[index].setColor("Color", fillColor);
+			_hotbarFillMat[index].setColor("Color", InventoryScreen.getItemColor(template));
 			
 			// Label (type indicator letter).
 			final String label = InventoryScreen.getItemLabel(template);
 			if (label != null && !label.isEmpty())
 			{
 				_hotbarLabel[index].setText(label);
-				final float labelWidth = _hotbarLabel[index].getLineWidth();
-				final float labelHeight = _hotbarLabel[index].getLineHeight();
-				final float labelX = _hotbarSlotX[index] + (_hotbarSlotSize - labelWidth) / 2f;
-				final float labelY = _hotbarSlotY + (_hotbarSlotSize + labelHeight) / 2f;
-				_hotbarLabel[index].setLocalTranslation(labelX, labelY, 0.3f);
+				_hotbarLabel[index].setLocalTranslation((_hotbarSlotX[index] + (_hotbarSlotSize - _hotbarLabel[index].getLineWidth()) / 2f), (_hotbarSlotY + (_hotbarSlotSize + _hotbarLabel[index].getLineHeight()) / 2f), 0.3f);
 				_hotbarLabel[index].setCullHint(BitmapText.CullHint.Never);
 			}
 			else
@@ -970,8 +937,7 @@ public class PlayerHUD
 			_hotbarCount[index].setText(countStr);
 			_hotbarCountShadow[index].setText(countStr);
 			
-			final float countWidth = _hotbarCount[index].getLineWidth();
-			final float countX = _hotbarSlotX[index] + _hotbarSlotSize - countWidth - 2;
+			final float countX = _hotbarSlotX[index] + _hotbarSlotSize - _hotbarCount[index].getLineWidth() - 2;
 			final float countY = _hotbarSlotY + _hotbarCount[index].getLineHeight() + 1;
 			_hotbarCount[index].setLocalTranslation(countX, countY, 0.3f);
 			_hotbarCountShadow[index].setLocalTranslation(countX + 1, countY - 1, 0.2f);
@@ -1015,10 +981,11 @@ public class PlayerHUD
 	
 	private void updateBreakProgress(int hitsDelivered, int hitsRequired, boolean isBreaking)
 	{
+		final Node.CullHint breakCullHint = _breakNode.getCullHint();
 		if (!isBreaking || hitsDelivered <= 0 || hitsRequired <= 0)
 		{
 			// Hide progress bar.
-			if (_breakNode.getCullHint() != Node.CullHint.Always)
+			if (breakCullHint != Node.CullHint.Always)
 			{
 				_breakNode.setCullHint(Node.CullHint.Always);
 			}
@@ -1026,20 +993,17 @@ public class PlayerHUD
 		}
 		
 		// Show progress bar.
-		if (_breakNode.getCullHint() != Node.CullHint.Never)
+		if (breakCullHint != Node.CullHint.Never)
 		{
 			_breakNode.setCullHint(Node.CullHint.Never);
 		}
 		
 		// Scale fill (inverted - full bar = full durability, shrinks as hits land).
-		final float ratio = Math.max(0, 1.0f - (float) hitsDelivered / hitsRequired);
-		_breakFill.setLocalScale(ratio, 1, 1);
+		_breakFill.setLocalScale(Math.max(0, 1.0f - (float) hitsDelivered / hitsRequired), 1, 1);
 		
 		// Update text.
-		final Block targetBlock = SimpleCraft.getInstance().getStateManager().getState(PlayingState.class) != null ? getBreakingBlockFromInteraction() : Block.AIR;
-		final String blockName = targetBlock != null ? targetBlock.getDisplayName() : LanguageManager.get("hud.block");
-		final int remaining = hitsRequired - hitsDelivered;
-		final String text = blockName + " " + remaining + "/" + hitsRequired;
+		final Block targetBlock = (_blockInteraction != null) ? _blockInteraction.getTargetBlock() : Block.AIR;
+		final String text = (targetBlock != null ? targetBlock.getDisplayName() : LanguageManager.get("hud.block")) + " " + (hitsRequired - hitsDelivered) + "/" + hitsRequired;
 		_breakText.setText(text);
 		_breakTextShadow.setText(text);
 		
@@ -1065,19 +1029,9 @@ public class PlayerHUD
 		_blockInteraction = blockInteraction;
 	}
 	
-	private Block getBreakingBlockFromInteraction()
-	{
-		if (_blockInteraction != null)
-		{
-			return _blockInteraction.getTargetBlock();
-		}
-		
-		return Block.AIR;
-	}
-	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Death Screen.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Shows the death screen overlay with the given cause of death.
@@ -1098,12 +1052,10 @@ public class PlayerHUD
 		_deathCauseText.setText(cause);
 		_deathCauseShadow.setText(cause);
 		
-		float causeWidth = _deathCauseText.getLineWidth();
-		float causeX = (_screenWidth - causeWidth) / 2f;
+		float causeX = (_screenWidth - _deathCauseText.getLineWidth()) / 2f;
 		
 		// Position below the title.
-		float titleY = _screenHeight * 0.6f;
-		float causeY = titleY - _deathTitle.getLineHeight() - _screenHeight * 0.04f;
+		float causeY = (_screenHeight * 0.6f) - _deathTitle.getLineHeight() - _screenHeight * 0.04f;
 		_deathCauseText.setLocalTranslation(causeX, causeY, 21);
 		_deathCauseShadow.setLocalTranslation(causeX + 1, causeY - 1, 20.5f);
 		
@@ -1132,9 +1084,9 @@ public class PlayerHUD
 		return _deathScreenVisible;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Visibility Toggle (for screenshot mode).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Sets the visibility of the entire HUD (crosshair, health, hotbar, etc.).<br>
@@ -1154,9 +1106,9 @@ public class PlayerHUD
 		return _hudNode.getCullHint() != CullHint.Always;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Cleanup.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Removes all HUD elements from the GUI node.
@@ -1166,17 +1118,16 @@ public class PlayerHUD
 		_guiNode.detachChild(_hudNode);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Helper Methods.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a colored quad geometry with alpha blending.
 	 */
 	private Geometry createQuad(String name, float width, float height, ColorRGBA color, SimpleCraft app)
 	{
-		final Material mat = createColorMaterial(color, app);
-		return createQuadWithMaterial(name, width, height, mat);
+		return createQuadWithMaterial(name, width, height, createColorMaterial(color, app));
 	}
 	
 	/**
@@ -1184,8 +1135,7 @@ public class PlayerHUD
 	 */
 	private Geometry createQuadWithMaterial(String name, float width, float height, Material mat)
 	{
-		final Quad quad = new Quad(width, height);
-		final Geometry geom = new Geometry(name, quad);
+		final Geometry geom = new Geometry(name, new Quad(width, height));
 		geom.setMaterial(mat);
 		geom.setQueueBucket(Bucket.Gui);
 		return geom;

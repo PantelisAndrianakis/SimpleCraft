@@ -2,11 +2,13 @@ package simplecraft.world.boss;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.effect.ParticleEmitter;
+import com.jme3.material.Material;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
 import simplecraft.SimpleCraft;
+import simplecraft.combat.CombatSystem;
 import simplecraft.enemy.Enemy;
 import simplecraft.enemy.Enemy.EnemyType;
 import simplecraft.enemy.EnemyFactory;
@@ -89,9 +91,7 @@ public class BossArenaManager
 	/** Duration in seconds for the victory message. */
 	private static final float VICTORY_MESSAGE_DURATION = 10.0f;
 	
-	// ========================================================
-	// Arena Entry.
-	// ========================================================
+	// ========== ARENA ENTRY ==========
 	
 	/**
 	 * Teleports the player into a Boss arena.<br>
@@ -110,6 +110,7 @@ public class BossArenaManager
 		}
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Material atlasMaterial = state.getAtlasMaterial();
 		final Node rootNode = app.getRootNode();
 		
 		// Store main world state.
@@ -141,7 +142,7 @@ public class BossArenaManager
 		}
 		
 		// Generate the arena world using the same atlas material.
-		_arenaWorld = ArenaGenerator.generate(state.getAtlasMaterial());
+		_arenaWorld = ArenaGenerator.generate(atlasMaterial);
 		
 		// Propagate block light for arena torches.
 		_arenaWorld.repropagateAllBlockLights();
@@ -194,9 +195,7 @@ public class BossArenaManager
 		spawnRootNode.attachChild(_arenaEnemyNode);
 		
 		// Attach fire breath emitter outside the enemy node hierarchy.
-		// EnemyLighting recursively traverses enemy.getNode() and crashes on ParticleEmitter
-		// meshes (incompatible vertex color buffer). The emitter's world transform is synced
-		// to the boss head each frame in update().
+		// EnemyLighting recursively traverses enemy.getNode() and crashes on ParticleEmitter meshes (incompatible vertex color buffer). The emitter's world transform is synced to the boss head each frame in update().
 		_fireBreathEmitter = _boss.getFireBreathEmitter();
 		if (_fireBreathEmitter != null)
 		{
@@ -211,13 +210,14 @@ public class BossArenaManager
 		}
 		
 		// Create arena drop manager for Recall Orb drop.
-		_arenaDropManager = new DropManager(spawnAssetManager, spawnApp.getAudioManager(), state.getAtlasMaterial());
+		_arenaDropManager = new DropManager(spawnAssetManager, spawnApp.getAudioManager(), atlasMaterial);
 		spawnRootNode.attachChild(_arenaDropManager.getNode());
 		
 		// Wire arena drop manager to combat system.
-		if (state.getCombatSystem() != null)
+		final CombatSystem enterCombatSystem = state.getCombatSystem();
+		if (enterCombatSystem != null)
 		{
-			state.getCombatSystem().setDropManager(_arenaDropManager);
+			enterCombatSystem.setDropManager(_arenaDropManager);
 		}
 		
 		// Teleport player to entrance alcove.
@@ -227,9 +227,7 @@ public class BossArenaManager
 		player.setPosition(spawnX, spawnY, spawnZ);
 		
 		// Face toward arena center.
-		final float dx = ArenaGenerator.ARENA_SIZE_X / 2f - spawnX;
-		final float dz = ArenaGenerator.ARENA_SIZE_Z / 2f - spawnZ;
-		final float yaw = (float) Math.atan2(dx, dz);
+		final float yaw = (float) Math.atan2((ArenaGenerator.ARENA_SIZE_X / 2f - spawnX), (ArenaGenerator.ARENA_SIZE_Z / 2f - spawnZ));
 		app.getCamera().lookAtDirection(new Vector3f(-(float) Math.sin(yaw), 0, (float) Math.cos(yaw)), Vector3f.UNIT_Y);
 		
 		_inArena = true;
@@ -240,9 +238,7 @@ public class BossArenaManager
 		System.out.println("BossArenaManager: Entered arena. Return pos: [" + _mainWorldReturnPos.x + ", " + _mainWorldReturnPos.y + ", " + _mainWorldReturnPos.z + "]");
 	}
 	
-	// ========================================================
-	// Arena Exit.
-	// ========================================================
+	// ========== ARENA EXIT ==========
 	
 	/**
 	 * Exits the boss arena and returns the player to the main world.<br>
@@ -259,8 +255,7 @@ public class BossArenaManager
 			return;
 		}
 		
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final Node rootNode = app.getRootNode();
+		final Node rootNode = SimpleCraft.getInstance().getRootNode();
 		
 		// Detach arena world scene nodes.
 		if (_arenaWorld != null)
@@ -325,9 +320,11 @@ public class BossArenaManager
 		}
 		
 		// Restore main world drop manager in combat system.
-		if (state.getMainDropManager() != null && state.getCombatSystem() != null)
+		final CombatSystem exitCombatSystem = state.getCombatSystem();
+		final DropManager mainDropManager = state.getMainDropManager();
+		if (mainDropManager != null && exitCombatSystem != null)
 		{
-			state.getCombatSystem().setDropManager(state.getMainDropManager());
+			exitCombatSystem.setDropManager(mainDropManager);
 		}
 		
 		_boss = null;
@@ -383,9 +380,7 @@ public class BossArenaManager
 		_inArena = false;
 	}
 	
-	// ========================================================
-	// Accessors.
-	// ========================================================
+	// ========== ACCESSORS ==========
 	
 	/**
 	 * Returns true if the player is currently in the boss arena.
@@ -439,41 +434,35 @@ public class BossArenaManager
 			_boss.update(player.getPosition(), false, world, SimpleCraft.getInstance().getAudioManager(), tpf);
 			
 			// Sync fire breath emitter world transform to the boss.
-			// The emitter lives outside the enemy node hierarchy (to avoid EnemyLighting crash)
-			// so we manually position it each frame.
+			// The emitter lives outside the enemy node hierarchy (to avoid EnemyLighting crash) so we manually position it each frame.
 			final Node head = _boss.getHead();
 			if (_fireBreathEmitter != null && head != null)
 			{
 				// Force world transform update so getWorldTranslation() reflects the current frame's AI rotation (not the previous frame's cached value).
-				_boss.getNode().updateGeometricState();
+				final Node bossNode = _boss.getNode();
+				bossNode.updateGeometricState();
 				
 				final Quaternion headWorldRot = head.getWorldRotation();
 				
 				if (_boss.getType() == EnemyType.DRAGON)
 				{
-					// Dragon's head is 2.1 blocks forward from feet. At bite range (3.0), the snout tip is at/past the player — fire spawning there is invisible.
-					// Anchor fire at the body/neck area instead: use the body world position with a small forward offset so the fire stream runs from the neck,
-					// through the open jaw, toward the player (3+ blocks of visible stream).
+					// Dragon's head is 2.1 blocks forward from feet. At bite range (3.0), the snout tip is at/past the player - fire spawning there is invisible.
+					// Anchor fire at the body/neck area instead: use the body world position with a small forward offset so the fire stream runs from the neck, through the open jaw, toward the player (3+ blocks of visible stream).
 					final Node body = _boss.getBody();
-					final Vector3f bodyWorldPos = (body != null) ? body.getWorldTranslation() : _boss.getNode().getWorldTranslation();
-					final Vector3f neckOffset = headWorldRot.mult(new Vector3f(0, 0.3f, -3f));
-					_fireBreathEmitter.setLocalTranslation(bodyWorldPos.add(neckOffset));
+					final Vector3f bodyWorldPos = (body != null) ? body.getWorldTranslation() : bossNode.getWorldTranslation();
+					_fireBreathEmitter.setLocalTranslation(bodyWorldPos.add(headWorldRot.mult(new Vector3f(0, 0.3f, -3f))));
 				}
 				else
 				{
-					// Shadow: head is close to the body (z=-0.05), so anchoring
-					// at the head with a mouth offset works perfectly.
-					final Vector3f headWorldPos = head.getWorldTranslation();
-					final Vector3f mouthOffset = headWorldRot.mult(new Vector3f(0, 0.1f, -0.45f));
-					_fireBreathEmitter.setLocalTranslation(headWorldPos.add(mouthOffset));
+					// Shadow: head is close to the body (z=-0.05), so anchoring at the head with a mouth offset works perfectly.
+					_fireBreathEmitter.setLocalTranslation(head.getWorldTranslation().add(headWorldRot.mult(new Vector3f(0, 0.1f, -0.45f))));
 				}
 				
 				_fireBreathEmitter.setLocalRotation(headWorldRot);
 				
 				// JME3 particle velocities are in world space and NOT rotated by the emitter's local rotation.
 				// Update initial velocity direction each frame so fire shoots forward from the mouth in the direction the boss is facing.
-				final Vector3f fireVelocity = headWorldRot.mult(new Vector3f(0, 0.5f, -8.0f));
-				_fireBreathEmitter.getParticleInfluencer().setInitialVelocity(fireVelocity);
+				_fireBreathEmitter.getParticleInfluencer().setInitialVelocity(headWorldRot.mult(new Vector3f(0, 0.5f, -8.0f)));
 			}
 			
 			// Sync smoke emitter to the boss body (torso area, slightly above center).
@@ -491,8 +480,7 @@ public class BossArenaManager
 			}
 		}
 		
-		// Always update arena drops - the Recall Orb needs pickup checks
-		// even after the boss is dead and removed from the scene.
+		// Always update arena drops - the Recall Orb needs pickup checks even after the boss is dead and removed from the scene.
 		if (_arenaDropManager != null && !player.isDead())
 		{
 			_arenaDropManager.update(player.getPosition(), player.getInventory(), tpf);
@@ -513,8 +501,7 @@ public class BossArenaManager
 		}
 		
 		// Stop and detach particle emitters (smoke lingers visually after death otherwise).
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final Node rootNode = app.getRootNode();
+		final Node rootNode = SimpleCraft.getInstance().getRootNode();
 		
 		if (_smokeEmitter != null)
 		{
@@ -541,8 +528,7 @@ public class BossArenaManager
 	 */
 	public void cleanup()
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final Node rootNode = app.getRootNode();
+		final Node rootNode = SimpleCraft.getInstance().getRootNode();
 		
 		if (_arenaWorld != null)
 		{

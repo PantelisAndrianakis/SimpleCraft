@@ -22,9 +22,7 @@ import java.util.Set;
  */
 public class BlockSupport
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Maximum number of blocks to traverse when checking grounding (safety cap). */
 	private static final int MAX_FLOOD = 200;
@@ -60,9 +58,7 @@ public class BlockSupport
 	};
 	// @formatter:on
 	
-	// ========================================================
-	// Result Class.
-	// ========================================================
+	// ========== RESULT CLASS ==========
 	
 	/**
 	 * Contains the ordered list of blocks to destroy from a support collapse.<br>
@@ -100,9 +96,7 @@ public class BlockSupport
 		}
 	}
 	
-	// ========================================================
-	// Public API.
-	// ========================================================
+	// ========== PUBLIC API ==========
 	
 	/**
 	 * Identifies all player-placed blocks that lose their grounding when a block is broken.<br>
@@ -137,7 +131,7 @@ public class BlockSupport
 				final Block block = world.getBlock(nx, ny, nz);
 				if (block != Block.AIR)
 				{
-					final long key = packPos(nx, ny, nz);
+					final Long key = packPos(nx, ny, nz);
 					if (candidateSeen.add(key))
 					{
 						candidateQueue.add(key);
@@ -149,7 +143,7 @@ public class BlockSupport
 		// Process candidates.
 		while (!candidateQueue.isEmpty() && totalCollapsed < MAX_COLLAPSE)
 		{
-			final long startKey = candidateQueue.poll();
+			final Long startKey = candidateQueue.poll();
 			
 			// Skip if already resolved.
 			if (confirmedGrounded.contains(startKey) || confirmedCollapsed.contains(startKey))
@@ -212,7 +206,7 @@ public class BlockSupport
 						final int nx = px + offset[0];
 						final int ny = py + offset[1];
 						final int nz = pz + offset[2];
-						final long nKey = packPos(nx, ny, nz);
+						final Long nKey = packPos(nx, ny, nz);
 						
 						if (!confirmedGrounded.contains(nKey) && !confirmedCollapsed.contains(nKey) && candidateSeen.add(nKey))
 						{
@@ -249,7 +243,7 @@ public class BlockSupport
 		
 		final List<int[]> sortedBlocks = new ArrayList<>();
 		final List<Block> sortedTypes = new ArrayList<>();
-		for (int i : indices)
+		for (Integer i : indices)
 		{
 			sortedBlocks.add(collapsedBlocks.get(i));
 			sortedTypes.add(collapsedTypes.get(i));
@@ -265,9 +259,7 @@ public class BlockSupport
 		return new CollapseResult(sortedBlocks, sortedTypes);
 	}
 	
-	// ========================================================
-	// Flood Fill Grounding Check.
-	// ========================================================
+	// ========== FLOOD FILL GROUNDING CHECK ==========
 	
 	/**
 	 * Result of a flood-fill group search.
@@ -326,15 +318,15 @@ public class BlockSupport
 				final int ny = py + offset[1];
 				final int nz = pz + offset[2];
 				
-				final Block neighbor = world.getBlock(nx, ny, nz);
-				if (neighbor.isSolid() && !world.isPlayerPlaced(nx, ny, nz))
+				final boolean neighborSolid = world.getBlock(nx, ny, nz).isSolid();
+				if (neighborSolid && !world.isPlayerPlaced(nx, ny, nz))
 				{
 					// Found natural support - entire group is grounded.
 					return new FloodResult(group, true);
 				}
 				
 				// Also check if adjacent to a confirmed-grounded player block.
-				if (neighbor.isSolid() && confirmedGrounded.contains(packPos(nx, ny, nz)))
+				if (neighborSolid && confirmedGrounded.contains(packPos(nx, ny, nz)))
 				{
 					return new FloodResult(group, true);
 				}
@@ -346,7 +338,7 @@ public class BlockSupport
 				final int nx = px + offset[0];
 				final int ny = py + offset[1];
 				final int nz = pz + offset[2];
-				final long nKey = packPos(nx, ny, nz);
+				final Long nKey = packPos(nx, ny, nz);
 				
 				if (!group.contains(nKey) && world.isPlayerPlaced(nx, ny, nz) && world.getBlock(nx, ny, nz) != Block.AIR)
 				{
@@ -365,9 +357,7 @@ public class BlockSupport
 		return new FloodResult(group, false);
 	}
 	
-	// ========================================================
-	// Position Packing Utilities.
-	// ========================================================
+	// ========== POSITION PACKING UTILITIES ==========
 	
 	/**
 	 * Packs world coordinates into a single long key.<br>

@@ -20,9 +20,6 @@ import simplecraft.SimpleCraft;
  */
 public final class MouseSensitivityManager
 {
-	/** Sensitivity value that maps to unmodified system cursor speed. */
-	private static final float BASE_SENSITIVITY = 1.0f;
-	
 	private static InputManager _inputManager;
 	private static RawInputListener _listener;
 	private static boolean _enabled;
@@ -48,13 +45,14 @@ public final class MouseSensitivityManager
 			@Override
 			public void onMouseMotionEvent(MouseMotionEvent event)
 			{
-				if (!_enabled || _replaying || _inputManager == null)
+				if (!_enabled || _replaying)
 				{
 					return;
 				}
 				
-				final float sensitivity = SimpleCraft.getInstance().getSettingsManager().getMouseSensitivity();
-				final float multiplier = Math.max(0.05f, sensitivity / BASE_SENSITIVITY);
+				// A sensitivity of 1.0 maps to unmodified system cursor speed.
+				final SimpleCraft app = SimpleCraft.getInstance();
+				final float multiplier = Math.max(0.05f, app.getSettingsManager().getMouseSensitivity());
 				if (Math.abs(multiplier - 1f) < 0.0001f)
 				{
 					return;
@@ -69,7 +67,6 @@ public final class MouseSensitivityManager
 					return;
 				}
 				
-				final SimpleCraft app = SimpleCraft.getInstance();
 				final Camera camera = app.getCamera();
 				final int maxX = Math.max(1, camera.getWidth() - 1);
 				final int maxY = Math.max(1, camera.getHeight() - 1);
@@ -85,8 +82,7 @@ public final class MouseSensitivityManager
 				_replaying = true;
 				try
 				{
-					final MouseMotionEvent scaled = new MouseMotionEvent(scaledX, scaledY, scaledDx, scaledDy, event.getWheel(), event.getDeltaWheel());
-					_inputManager.onMouseMotionEvent(scaled);
+					_inputManager.onMouseMotionEvent(new MouseMotionEvent(scaledX, scaledY, scaledDx, scaledDy, event.getWheel(), event.getDeltaWheel()));
 				}
 				finally
 				{

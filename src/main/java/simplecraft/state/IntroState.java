@@ -8,6 +8,7 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 import com.jme3.ui.Picture;
@@ -24,8 +25,6 @@ import simplecraft.ui.FontManager;
  */
 public class IntroState extends FadeableAppState
 {
-	private static final String BACKGROUND_PATH = "assets/images/backgrounds/epic_dragon_games.png";
-	
 	private static final float HOLD_DURATION = 3.0f;
 	
 	// Reference resolution for font scaling (1080p baseline).
@@ -35,9 +34,6 @@ public class IntroState extends FadeableAppState
 	// Base font size at reference resolution.
 	private static final float BASE_FONT_SIZE = 64f;
 	
-	// Text font color.
-	private static final ColorRGBA TEXT_COLOR = ColorRGBA.LightGray; // new ColorRGBA(0.55f, 0.2f, 0.85f, 1f)
-	
 	private Label _titleLabel;
 	private Geometry _blackBackground;
 	private Picture _backgroundImage;
@@ -46,11 +42,11 @@ public class IntroState extends FadeableAppState
 	
 	public IntroState()
 	{
-		// First fade: white to black (1.33 seconds).
-		setFadeIn(1.33f, ColorRGBA.LightGray); // Start light gray, fade to transparent.
+		// First fade: light gray to transparent (1.33 seconds).
+		setFadeIn(1.33f, ColorRGBA.LightGray);
 		
-		// Second fade: black fade-out (1.5 seconds).
-		setFadeOut(1.0f, ColorRGBA.Black); // Fade to black.
+		// Second fade: transparent to black (1.0 seconds).
+		setFadeOut(1.0f, ColorRGBA.Black);
 	}
 	
 	@Override
@@ -74,11 +70,9 @@ public class IntroState extends FadeableAppState
 		final float screenHeight = camera.getHeight();
 		
 		// Calculate resolution scale factor (using average of width/height ratios for balanced scaling).
-		final float widthScale = screenWidth / REFERENCE_WIDTH;
-		final float heightScale = screenHeight / REFERENCE_HEIGHT;
 		
 		// Use the smaller scale to ensure text fits on screen, or average for balanced look.
-		final float scaleFactor = Math.min(widthScale, heightScale); // Conservative: text always fits.
+		final float scaleFactor = Math.min((screenWidth / REFERENCE_WIDTH), (screenHeight / REFERENCE_HEIGHT)); // Conservative: text always fits.
 		
 		// Calculate adaptive font size.
 		final float adaptiveFontSize = BASE_FONT_SIZE * scaleFactor;
@@ -90,71 +84,68 @@ public class IntroState extends FadeableAppState
 		app.getViewPort().setBackgroundColor(ColorRGBA.White);
 		
 		// Create black background quad (will be visible during fades).
-		final Quad quad = new Quad(screenWidth, screenHeight);
-		_blackBackground = new Geometry("BlackBackground", quad);
+		_blackBackground = new Geometry("BlackBackground", new Quad(screenWidth, screenHeight));
 		
 		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setColor("Color", ColorRGBA.Black);
 		_blackBackground.setMaterial(mat);
 		_blackBackground.setLocalTranslation(0, 0, -20); // Behind everything.
 		
-		app.getGuiNode().attachChild(_blackBackground);
+		final Node guiNode = app.getGuiNode();
+		guiNode.attachChild(_blackBackground);
 		
 		// --- Background Image (stretched to fill screen) ---
 		_backgroundImage = new Picture("Intro Background");
-		_backgroundImage.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
+		_backgroundImage.setImage(app.getAssetManager(), "assets/images/backgrounds/epic_dragon_games.png", true);
 		_backgroundImage.setWidth(screenWidth);
 		_backgroundImage.setHeight(screenHeight);
 		_backgroundImage.setLocalTranslation(0, 0, -10);
 		_backgroundImage.setCullHint(Spatial.CullHint.Never);
 		
-		app.getGuiNode().attachChild(_backgroundImage);
+		guiNode.attachChild(_backgroundImage);
 		
 		// Create title text "Epic Dragon Games" below the logo.
 		_titleLabel = new Label("Epic Dragon Games");
 		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, (int) adaptiveFontSize));
 		_titleLabel.setFontSize(adaptiveFontSize);
-		_titleLabel.setColor(TEXT_COLOR);
+		_titleLabel.setColor(ColorRGBA.LightGray);
 		
 		// Center the label.
 		final Vector3f labelSize = _titleLabel.getPreferredSize();
-		final float labelWidth = labelSize.x;
-		final float labelHeight = labelSize.y;
-		final float x = (screenWidth - labelWidth) / 2f;
-		final float y = (screenHeight + labelHeight) / 3.5f;
-		_titleLabel.setLocalTranslation(x, y, 0);
+		_titleLabel.setLocalTranslation(((screenWidth - labelSize.x) / 2f), ((screenHeight + labelSize.y) / 3.5f), 0);
 		
-		app.getGuiNode().attachChild(_titleLabel);
+		guiNode.attachChild(_titleLabel);
 		
 		_holdTimer = 0f;
 		_firstFadeComplete = false;
 		
-		System.out.println("IntroState: Starting - fade in from black...");
+		System.out.println("IntroState: Starting - fade in from light gray...");
 	}
 	
 	@Override
 	protected void onExitState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = app.getGuiNode();
 		
 		// Clean up black background.
 		if (_blackBackground != null)
 		{
-			app.getGuiNode().detachChild(_blackBackground);
+			guiNode.detachChild(_blackBackground);
 			_blackBackground = null;
 		}
 		
 		// Clean up background image.
 		if (_backgroundImage != null)
 		{
-			app.getGuiNode().detachChild(_backgroundImage);
+			guiNode.detachChild(_backgroundImage);
 			_backgroundImage = null;
 		}
 		
 		// Clean up title.
 		if (_titleLabel != null)
 		{
-			app.getGuiNode().detachChild(_titleLabel);
+			guiNode.detachChild(_titleLabel);
 			_titleLabel = null;
 		}
 		
@@ -168,17 +159,18 @@ public class IntroState extends FadeableAppState
 	protected void onUpdateState(float tpf)
 	{
 		// After first fade completes, wait for hold duration.
-		if (_firstFadeComplete && !isFading() && _holdTimer < HOLD_DURATION)
+		if (!_firstFadeComplete || isFading() || (_holdTimer >= HOLD_DURATION))
 		{
-			_holdTimer += tpf;
+			return;
+		}
+		
+		_holdTimer += tpf;
+		if (_holdTimer >= HOLD_DURATION)
+		{
+			System.out.println("IntroState: Hold complete, starting fade-out to black...");
 			
-			if (_holdTimer >= HOLD_DURATION)
-			{
-				System.out.println("IntroState: Hold complete, starting fade-out to black...");
-				
-				// Start fade-out and transition to main menu when complete.
-				startFadeOut(() -> SimpleCraft.getInstance().getGameStateManager().switchTo(GameStateManager.GameState.MAIN_MENU));
-			}
+			// Start fade-out and transition to main menu when complete.
+			startFadeOut(() -> SimpleCraft.getInstance().getGameStateManager().switchTo(GameStateManager.GameState.MAIN_MENU));
 		}
 	}
 	

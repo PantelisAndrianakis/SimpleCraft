@@ -21,7 +21,7 @@ import simplecraft.world.boss.ArenaGenerator;
  * <br>
  * States: {@code IDLE -> WANDER -> CHASE -> ATTACK}.<br>
  * Land enemies avoid water. Piranhas never leave water.<br>
- * Each enemy stores its own AI state, timers and target via fields on {@link Enemy}.
+ * Each enemy stores its own AI state, timers and target via fields on {@link simplecraft.enemy.Enemy}.
  * @author Pantelis Andrianakis
  * @since March 5th 2026
  */
@@ -37,8 +37,7 @@ public class EnemyAI
 		IDLE,
 		WANDER,
 		CHASE,
-		ATTACK,
-		DRAGON
+		ATTACK
 	}
 	
 	// ------------------------------------------------------------------
@@ -123,6 +122,12 @@ public class EnemyAI
 	/** Shared quaternion for slerp (current rotation snapshot). */
 	private static final Quaternion SLERP_QUAT = new Quaternion();
 	
+	/** Shared vector for position updates (Enemy.setPosition copies the value). */
+	private static final Vector3f TEMP_VEC = new Vector3f();
+	
+	/** Shared angle buffer for facing math in {@code isPlayerBehind}. */
+	private static final float[] TEMP_ANGLES = new float[3];
+	
 	/**
 	 * Turn speed for smooth enemy rotation (radians per second).<br>
 	 * Controls how quickly enemies rotate to face their target direction.<br>
@@ -130,7 +135,7 @@ public class EnemyAI
 	 */
 	private static final float TURN_SPEED = 5.0f;
 	
-	/** Current frame's delta time, stored at the start of {@link #update} for use by facing helpers. */
+	/** Current frame's delta time, stored at the start of {@code update} for use by facing helpers. */
 	private static float _tpf;
 	
 	/** Particle manager for dragon block destruction effects. */
@@ -157,7 +162,7 @@ public class EnemyAI
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Updates the AI for a single enemy. Called once per frame from {@link Enemy#update(float)}.<br>
+	 * Updates the AI for a single enemy. Called once per frame from {@code Enemy.update(float)}.<br>
 	 * Delegates to land or aquatic behavior based on the enemy's aquatic flag.
 	 * @param enemy the enemy to update
 	 * @param playerPos the player's current world position
@@ -176,11 +181,12 @@ public class EnemyAI
 			return;
 		}
 		
+		final EnemyType type = enemy.getType();
 		if (enemy.isAquatic())
 		{
 			updateAquatic(enemy, playerPos, playerInWater, world, tpf);
 		}
-		else if (enemy.getType() == EnemyType.DRAGON || enemy.getType() == EnemyType.SHADOW)
+		else if ((type == EnemyType.DRAGON) || (type == EnemyType.SHADOW))
 		{
 			updateBoss(enemy, playerPos, world, tpf);
 			snapDragonToGround(enemy, world);
@@ -191,9 +197,9 @@ public class EnemyAI
 		}
 	}
 	
-	// ==================================================================
+	// ------------------------------------------------------------------
 	// Land Enemy AI (Zombie, Skeleton, Wolf, Spider, Slime, Player).
-	// ==================================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Runs the land enemy state machine: IDLE -> WANDER -> CHASE -> ATTACK.
@@ -304,14 +310,13 @@ public class EnemyAI
 				}
 				
 				// Advance path recalculation timer.
-				enemy.setPathTimer(enemy.getPathTimer() + tpf);
+				final float pathTimer = enemy.getPathTimer() + tpf;
+				enemy.setPathTimer(pathTimer);
 				
 				// Recalculate path periodically or when no path exists.
-				if (enemy.getPath() == null || enemy.getPathTimer() >= PATH_RECALC_INTERVAL)
+				if ((enemy.getPath() == null) || (pathTimer >= PATH_RECALC_INTERVAL))
 				{
-					final int headroom = getHeadroom(enemy);
-					final int searchRange = (int) Math.ceil(detectionRange);
-					final List<Vector3f> path = Pathfinder.findPath(world, enemy.getPosition(), playerPos, headroom, searchRange);
+					final List<Vector3f> path = Pathfinder.findPath(world, enemy.getPosition(), playerPos, getHeadroom(enemy), ((int) Math.ceil(detectionRange)));
 					
 					if (!path.isEmpty())
 					{
@@ -328,19 +333,22 @@ public class EnemyAI
 				
 				// Follow the current path if one exists.
 				final List<Vector3f> path = enemy.getPath();
-				if (path != null && enemy.getPathIndex() < path.size())
+				final int pathSize = (path != null) ? path.size() : 0;
+				final int pathIndex = enemy.getPathIndex();
+				if ((path != null) && (pathIndex < pathSize))
 				{
-					final Vector3f waypoint = path.get(enemy.getPathIndex());
+					final Vector3f waypoint = path.get(pathIndex);
 					final boolean moved = moveLandToward(enemy, waypoint, enemy.getMoveSpeed(), world, tpf);
 					enemy.setMoving(moved);
 					
 					// Check if we arrived at the current waypoint.
 					if (horizontalDistance(enemy.getPosition(), waypoint) < WAYPOINT_ARRIVAL_THRESHOLD)
 					{
-						enemy.setPathIndex(enemy.getPathIndex() + 1);
+						final int nextIndex = pathIndex + 1;
+						enemy.setPathIndex(nextIndex);
 						
 						// If path is exhausted, clear it so next recalc generates fresh one.
-						if (enemy.getPathIndex() >= path.size())
+						if (nextIndex >= pathSize)
 						{
 							enemy.clearPath();
 						}
@@ -354,8 +362,7 @@ public class EnemyAI
 				else
 				{
 					// No valid path - fall back to direct movement (best effort).
-					final boolean moved = moveLandToward(enemy, playerPos, enemy.getMoveSpeed(), world, tpf);
-					enemy.setMoving(moved);
+					enemy.setMoving(moveLandToward(enemy, playerPos, enemy.getMoveSpeed(), world, tpf));
 				}
 				break;
 			}
@@ -381,8 +388,9 @@ public class EnemyAI
 				}
 				
 				// Deal damage on cooldown.
-				enemy.setAttackTimer(enemy.getAttackTimer() + tpf);
-				if (enemy.getAttackTimer() >= enemy.getAttackCooldown())
+				final float attackTimer = enemy.getAttackTimer() + tpf;
+				enemy.setAttackTimer(attackTimer);
+				if (attackTimer >= enemy.getAttackCooldown())
 				{
 					enemy.setAttackTimer(0);
 					
@@ -391,15 +399,13 @@ public class EnemyAI
 				}
 				break;
 			}
-			case DRAGON:
+			default:
 			{
-				// Dragon uses updateBoss() - never reaches updateLand. Safety no-op.
 				break;
 			}
 		}
 		
-		// Per-frame ground snap - keeps enemies glued to terrain even when idle
-		// or when terrain changes beneath them.
+		// Per-frame ground snap - keeps enemies glued to terrain even when idle or when terrain changes beneath them.
 		snapToGround(enemy, world);
 	}
 	
@@ -410,20 +416,19 @@ public class EnemyAI
 	private static void snapToGround(Enemy enemy, World world)
 	{
 		final Vector3f pos = enemy.getPosition();
-		final int bx = (int) Math.floor(pos.x);
-		final int bz = (int) Math.floor(pos.z);
-		final int currentFootY = (int) Math.floor(pos.y);
 		
-		final int groundY = findGroundY(world, bx, bz, currentFootY);
-		if (groundY >= 0)
+		final int groundY = findGroundY(world, ((int) Math.floor(pos.x)), ((int) Math.floor(pos.z)), ((int) Math.floor(pos.y)));
+		if (groundY < 0)
 		{
-			final float expectedY = groundY + GROUND_OFFSET;
-			
-			// Only snap if the difference is significant (avoids jitter from float precision).
-			if (Math.abs(pos.y - expectedY) > 0.1f)
-			{
-				enemy.setPosition(new Vector3f(pos.x, expectedY, pos.z));
-			}
+			return;
+		}
+		
+		// Only snap if the difference is significant (avoids jitter from float precision).
+		final float expectedY = groundY + GROUND_OFFSET;
+		if (Math.abs(pos.y - expectedY) > 0.1f)
+		{
+			TEMP_VEC.set(pos.x, expectedY, pos.z);
+			enemy.setPosition(TEMP_VEC);
 		}
 	}
 	
@@ -436,20 +441,19 @@ public class EnemyAI
 	private static void snapDragonToGround(Enemy enemy, World world)
 	{
 		final Vector3f pos = enemy.getPosition();
-		final int bx = (int) Math.floor(pos.x);
-		final int bz = (int) Math.floor(pos.z);
-		final int currentFootY = (int) Math.floor(pos.y);
 		
-		final int groundY = findGroundY(world, bx, bz, currentFootY);
-		if (groundY >= 0)
+		final int groundY = findGroundY(world, ((int) Math.floor(pos.x)), ((int) Math.floor(pos.z)), ((int) Math.floor(pos.y)));
+		if (groundY < 0)
 		{
-			final float expectedY = groundY + GROUND_OFFSET;
-			
-			// Only snap downward - never upward. Walk/charge handle stepping up.
-			if (pos.y > expectedY + 0.1f)
-			{
-				enemy.setPosition(new Vector3f(pos.x, expectedY, pos.z));
-			}
+			return;
+		}
+		
+		// Only snap downward - never upward. Walk/charge handle stepping up.
+		final float expectedY = groundY + GROUND_OFFSET;
+		if (pos.y > (expectedY + 0.1f))
+		{
+			TEMP_VEC.set(pos.x, expectedY, pos.z);
+			enemy.setPosition(TEMP_VEC);
 		}
 	}
 	
@@ -498,35 +502,32 @@ public class EnemyAI
 		}
 		
 		// Check if the block at foot level of the new ground is water.
-		final Block footBlock = world.getBlock(bx, groundY, bz);
-		if (footBlock.isLiquid())
+		if (world.getBlock(bx, groundY, bz).isLiquid())
 		{
 			// Water ahead - don't enter.
 			return false;
 		}
 		
 		// Check step-up: only allow climbing 1 block.
-		final int heightDiff = groundY - currentFootY;
-		if (heightDiff > MAX_STEP_UP)
+		if ((groundY - currentFootY) > MAX_STEP_UP)
 		{
 			// Wall too high - can't climb.
 			return false;
 		}
 		
 		// Check headroom (2 blocks above ground for humanoids, 1 for small enemies).
-		final int headroom = (enemy.getType() == Enemy.EnemyType.SPIDER || enemy.getType() == Enemy.EnemyType.SLIME) ? 1 : 2;
-		for (int h = 0; h < headroom; h++)
+		final EnemyType enemyType = enemy.getType();
+		for (int h = 0; h < (((enemyType == EnemyType.SPIDER) || (enemyType == EnemyType.SLIME)) ? 1 : 2); h++)
 		{
-			final Block above = world.getBlock(bx, groundY + h, bz);
-			if (above.isSolid())
+			if (world.getBlock(bx, groundY + h, bz).isSolid())
 			{
 				return false; // Blocked.
 			}
 		}
 		
 		// Apply movement.
-		final float newY = groundY + GROUND_OFFSET;
-		enemy.setPosition(new Vector3f(newX, newY, newZ));
+		TEMP_VEC.set(newX, groundY + GROUND_OFFSET, newZ);
+		enemy.setPosition(TEMP_VEC);
 		
 		// Face movement direction.
 		faceDirection(enemy, dx, dz);
@@ -549,11 +550,8 @@ public class EnemyAI
 				break;
 			}
 			
-			final Block block = world.getBlock(bx, y, bz);
-			final Block above = world.getBlock(bx, y + 1, bz);
-			
 			// Ground = solid block with non-solid above (or liquid counts as blocking for land enemies).
-			if (block.isSolid() && !above.isSolid())
+			if (world.getBlock(bx, y, bz).isSolid() && !world.getBlock(bx, y + 1, bz).isSolid())
 			{
 				return y + 1; // Feet stand on top of the solid block.
 			}
@@ -562,9 +560,9 @@ public class EnemyAI
 		return -1;
 	}
 	
-	// ==================================================================
+	// ------------------------------------------------------------------
 	// Aquatic Enemy AI (Piranha).
-	// ==================================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Runs the piranha state machine: IDLE (circle), WANDER (swim), CHASE, ATTACK.
@@ -574,8 +572,7 @@ public class EnemyAI
 		// Advance state timer.
 		enemy.setStateTimer(enemy.getStateTimer() + tpf);
 		
-		final Vector3f enemyPos = enemy.getPosition();
-		final float distToPlayer = enemyPos.distance(playerPos);
+		final float distToPlayer = enemy.getPosition().distance(playerPos);
 		final float detectionRange = enemy.getDetectionRange();
 		final float attackRange = enemy.getAttackRange();
 		
@@ -688,17 +685,17 @@ public class EnemyAI
 				}
 				
 				// Deal damage on cooldown.
-				enemy.setAttackTimer(enemy.getAttackTimer() + tpf);
-				if (enemy.getAttackTimer() >= enemy.getAttackCooldown())
+				final float attackTimer = enemy.getAttackTimer() + tpf;
+				enemy.setAttackTimer(attackTimer);
+				if (attackTimer >= enemy.getAttackCooldown())
 				{
 					enemy.setAttackTimer(0);
 					// Damage applied by caller / damage system.
 				}
 				break;
 			}
-			case DRAGON:
+			default:
 			{
-				// Dragon is not aquatic - safety no-op.
 				break;
 			}
 		}
@@ -714,13 +711,14 @@ public class EnemyAI
 	 */
 	private static void swimCircle(Enemy enemy, World world, float tpf)
 	{
+		final Vector3f pos = enemy.getPosition();
 		final float time = enemy.getStateTimer();
 		final Vector3f center = enemy.getCircleCenter();
 		
 		if (center == null)
 		{
 			// Initialize circle center to current position.
-			enemy.setCircleCenter(new Vector3f(enemy.getPosition()));
+			enemy.setCircleCenter(new Vector3f(pos));
 			return;
 		}
 		
@@ -730,21 +728,18 @@ public class EnemyAI
 		float targetY = center.y + FastMath.sin(time * 0.8f) * 0.3f; // Gentle depth bob.
 		
 		// Clamp to water.
-		final int bx = (int) Math.floor(targetX);
-		final int by = (int) Math.floor(targetY);
-		final int bz = (int) Math.floor(targetZ);
 		
-		if (!world.getBlock(bx, by, bz).isLiquid())
+		if (!world.getBlock(((int) Math.floor(targetX)), ((int) Math.floor(targetY)), ((int) Math.floor(targetZ))).isLiquid())
 		{
 			// Out of water - reverse direction by staying at current pos.
 			return;
 		}
 		
-		final Vector3f pos = enemy.getPosition();
 		final float dx = targetX - pos.x;
 		final float dz = targetZ - pos.z;
 		
-		enemy.setPosition(new Vector3f(targetX, targetY, targetZ));
+		TEMP_VEC.set(targetX, targetY, targetZ);
+		enemy.setPosition(TEMP_VEC);
 		
 		if (dx * dx + dz * dz > 0.001f)
 		{
@@ -785,8 +780,7 @@ public class EnemyAI
 		if (!world.getBlock(bx, by, bz).isLiquid())
 		{
 			// Can't go there - try just XZ movement at current Y.
-			final int byFallback = (int) Math.floor(pos.y);
-			if (!world.getBlock(bx, byFallback, bz).isLiquid())
+			if (!world.getBlock(bx, ((int) Math.floor(pos.y)), bz).isLiquid())
 			{
 				// Still blocked - stay put.
 				return;
@@ -795,7 +789,8 @@ public class EnemyAI
 			newY = pos.y;
 		}
 		
-		enemy.setPosition(new Vector3f(newX, newY, newZ));
+		TEMP_VEC.set(newX, newY, newZ);
+		enemy.setPosition(TEMP_VEC);
 		
 		// Face movement direction (XZ only).
 		if (dx * dx + dz * dz > 0.001f)
@@ -804,9 +799,9 @@ public class EnemyAI
 		}
 	}
 	
-	// ==================================================================
+	// ------------------------------------------------------------------
 	// Boss AI (Dragon).
-	// ==================================================================
+	// ------------------------------------------------------------------
 	
 	/** Dragon Phase 2 HP threshold (50%). */
 	private static final float DRAGON_PHASE2_HP_RATIO = 0.5f;
@@ -850,7 +845,6 @@ public class EnemyAI
 		// --- Phase transitions ---
 		final float hpRatio = enemy.getHealth() / enemy.getMaxHealth();
 		final int currentPhase = enemy.getBossPhase();
-		final EnemyType enemyType = enemy.getType();
 		
 		if (currentPhase == 1 && hpRatio <= DRAGON_PHASE2_HP_RATIO)
 		{
@@ -866,11 +860,12 @@ public class EnemyAI
 		// --- Roar animation (phase transition) ---
 		if (enemy.isRoaring())
 		{
-			enemy.setRoarTimer(enemy.getRoarTimer() + tpf);
+			final float roarTimer = enemy.getRoarTimer() + tpf;
+			enemy.setRoarTimer(roarTimer);
 			enemy.setMoving(false);
 			faceTarget(enemy, playerPos);
 			
-			if (enemy.getRoarTimer() >= DRAGON_ROAR_DURATION)
+			if (roarTimer >= DRAGON_ROAR_DURATION)
 			{
 				enemy.setRoaring(false);
 				enemy.setRoarTimer(0);
@@ -881,11 +876,12 @@ public class EnemyAI
 		// --- Charge telegraph ---
 		if (enemy.isChargeTelegraph())
 		{
-			enemy.setTelegraphTimer(enemy.getTelegraphTimer() + tpf);
+			final float telegraphTimer = enemy.getTelegraphTimer() + tpf;
+			enemy.setTelegraphTimer(telegraphTimer);
 			enemy.setMoving(false);
 			faceTarget(enemy, playerPos);
 			
-			if (enemy.getTelegraphTimer() >= DRAGON_TELEGRAPH_DURATION)
+			if (telegraphTimer >= DRAGON_TELEGRAPH_DURATION)
 			{
 				// Launch charge.
 				enemy.setChargeTelegraph(false);
@@ -920,10 +916,11 @@ public class EnemyAI
 		// --- Charge recovery / pillar stun ---
 		if (enemy.isChargeRecovery())
 		{
-			enemy.setChargeRecoveryTimer(enemy.getChargeRecoveryTimer() - tpf);
+			final float recoveryTimer = enemy.getChargeRecoveryTimer() - tpf;
+			enemy.setChargeRecoveryTimer(recoveryTimer);
 			enemy.setMoving(false);
 			
-			if (enemy.getChargeRecoveryTimer() <= 0)
+			if (recoveryTimer <= 0)
 			{
 				enemy.setChargeRecovery(false);
 				enemy.setChargePillarStun(false);
@@ -934,10 +931,11 @@ public class EnemyAI
 		// --- Pillar stun ---
 		if (enemy.isChargePillarStun())
 		{
-			enemy.setPillarStunTimer(enemy.getPillarStunTimer() - tpf);
+			final float stunTimer = enemy.getPillarStunTimer() - tpf;
+			enemy.setPillarStunTimer(stunTimer);
 			enemy.setMoving(false);
 			
-			if (enemy.getPillarStunTimer() <= 0)
+			if (stunTimer <= 0)
 			{
 				enemy.setChargePillarStun(false);
 			}
@@ -945,7 +943,8 @@ public class EnemyAI
 		}
 		
 		// --- Normal boss behavior ---
-		final float distToPlayer = horizontalDistance(enemy.getPosition(), playerPos);
+		final Vector3f bossPos = enemy.getPosition();
+		final float distToPlayer = horizontalDistance(bossPos, playerPos);
 		
 		// Tick cooldowns.
 		enemy.setBiteCooldown(enemy.getBiteCooldown() + tpf);
@@ -961,41 +960,35 @@ public class EnemyAI
 		final float chargeMaxInterval;
 		final boolean canCharge;
 		
-		switch (enemy.getBossPhase())
+		if (currentPhase == 2)
 		{
-			case 2:
-			{
-				moveSpeed = 3.5f;
-				biteDamage = 8.0f;
-				biteCooldownMax = 1.5f;
-				tailRearArc = 120.0f;
-				chargeMinInterval = 8.0f;
-				chargeMaxInterval = 12.0f;
-				canCharge = true;
-				break;
-			}
-			case 3:
-			{
-				moveSpeed = 5.0f;
-				biteDamage = 10.0f;
-				biteCooldownMax = 1.0f;
-				tailRearArc = 180.0f;
-				chargeMinInterval = 5.0f;
-				chargeMaxInterval = 8.0f;
-				canCharge = true;
-				break;
-			}
-			default: // Phase 1.
-			{
-				moveSpeed = 2.0f;
-				biteDamage = 6.0f;
-				biteCooldownMax = 2.0f;
-				tailRearArc = 90.0f;
-				chargeMinInterval = 0;
-				chargeMaxInterval = 0;
-				canCharge = false;
-				break;
-			}
+			moveSpeed = 3.5f;
+			biteDamage = 8.0f;
+			biteCooldownMax = 1.5f;
+			tailRearArc = 120.0f;
+			chargeMinInterval = 8.0f;
+			chargeMaxInterval = 12.0f;
+			canCharge = true;
+		}
+		else if (currentPhase == 3)
+		{
+			moveSpeed = 5.0f;
+			biteDamage = 10.0f;
+			biteCooldownMax = 1.0f;
+			tailRearArc = 180.0f;
+			chargeMinInterval = 5.0f;
+			chargeMaxInterval = 8.0f;
+			canCharge = true;
+		}
+		else // Phase 1.
+		{
+			moveSpeed = 2.0f;
+			biteDamage = 6.0f;
+			biteCooldownMax = 2.0f;
+			tailRearArc = 90.0f;
+			chargeMinInterval = 0;
+			chargeMaxInterval = 0;
+			canCharge = false;
 		}
 		
 		// Update phase-specific stats on the enemy.
@@ -1016,7 +1009,7 @@ public class EnemyAI
 		
 		// --- Tail swipe check (Dragon only) ---
 		// If player is within tail range and behind the dragon.
-		if (enemyType == EnemyType.DRAGON && distToPlayer <= DRAGON_TAIL_RANGE && enemy.getTailSwipeCooldown() >= 3.0f)
+		if ((enemy.getType() == EnemyType.DRAGON) && (distToPlayer <= DRAGON_TAIL_RANGE) && (enemy.getTailSwipeCooldown() >= 3.0f))
 		{
 			if (isPlayerBehind(enemy, playerPos, tailRearArc))
 			{
@@ -1029,7 +1022,8 @@ public class EnemyAI
 		}
 		
 		// --- Bite attack ---
-		if (distToPlayer <= DRAGON_BITE_RANGE && enemy.getBiteCooldown() >= biteCooldownMax && !enemy.isBiteActive())
+		final boolean biteActive = enemy.isBiteActive();
+		if ((distToPlayer <= DRAGON_BITE_RANGE) && (enemy.getBiteCooldown() >= biteCooldownMax) && !biteActive)
 		{
 			enemy.setBiteActive(true);
 			enemy.setBiteTimer(0);
@@ -1042,12 +1036,11 @@ public class EnemyAI
 		}
 		
 		// --- Walk toward player ---
-		if (distToPlayer > DRAGON_BITE_RANGE * 0.8f && !enemy.isBiteActive() && !enemy.isTailSwiping())
+		if ((distToPlayer > (DRAGON_BITE_RANGE * 0.8f)) && !biteActive && !enemy.isTailSwiping())
 		{
 			// Direct movement toward player (no A* - arena is open).
-			final Vector3f pos = enemy.getPosition();
-			float dx = playerPos.x - pos.x;
-			float dz = playerPos.z - pos.z;
+			float dx = playerPos.x - bossPos.x;
+			float dz = playerPos.z - bossPos.z;
 			final float dist = FastMath.sqrt(dx * dx + dz * dz);
 			
 			// Headroom depends on boss type (Dragon=3, Shadow=4).
@@ -1059,8 +1052,8 @@ public class EnemyAI
 				dz /= dist;
 				
 				final float step = moveSpeed * tpf;
-				float newX = pos.x + dx * step;
-				float newZ = pos.z + dz * step;
+				float newX = bossPos.x + (dx * step);
+				float newZ = bossPos.z + (dz * step);
 				
 				// Clamp to arena bounds.
 				newX = Math.max(DRAGON_ARENA_MARGIN, Math.min(ArenaGenerator.ARENA_SIZE_X - DRAGON_ARENA_MARGIN, newX));
@@ -1069,7 +1062,7 @@ public class EnemyAI
 				// Find the ground level at the destination position.
 				final int bx = (int) Math.floor(newX);
 				final int bz = (int) Math.floor(newZ);
-				final int currentFootY = (int) Math.floor(pos.y);
+				final int currentFootY = (int) Math.floor(bossPos.y);
 				final int newGroundY = findGroundY(world, bx, bz, currentFootY);
 				
 				// Use new ground if valid, otherwise current foot level.
@@ -1089,8 +1082,8 @@ public class EnemyAI
 				
 				if (!blocked)
 				{
-					final float newY = (newGroundY >= 0) ? (newGroundY + GROUND_OFFSET) : pos.y;
-					enemy.setPosition(new Vector3f(newX, newY, newZ));
+					TEMP_VEC.set(newX, (newGroundY >= 0) ? (newGroundY + GROUND_OFFSET) : bossPos.y, newZ);
+					enemy.setPosition(TEMP_VEC);
 					faceDirection(enemy, dx, dz);
 					enemy.setMoving(true);
 				}
@@ -1100,15 +1093,15 @@ public class EnemyAI
 					if (bossDestroyBlocks(enemy, world, bx, checkFootY, bz, dx, dz))
 					{
 						// Blocks were destroyed - pause for one frame to sell the impact,
-						// then the dragon will move through on the next frame.
+						// Then the dragon will move through on the next frame.
 						faceDirection(enemy, dx, dz);
 						enemy.setMoving(false);
 					}
 					else
 					{
 						// Indestructible obstacle (shouldn't happen in arena) - try to slide around.
-						final float slideX = pos.x + dz * step; // Perpendicular.
-						final float slideZ = pos.z - dx * step;
+						final float slideX = bossPos.x + (dz * step); // Perpendicular.
+						final float slideZ = bossPos.z - (dx * step);
 						final float clampedSlideX = Math.max(DRAGON_ARENA_MARGIN, Math.min(ArenaGenerator.ARENA_SIZE_X - DRAGON_ARENA_MARGIN, slideX));
 						final float clampedSlideZ = Math.max(DRAGON_ARENA_MARGIN, Math.min(ArenaGenerator.ARENA_SIZE_Z - DRAGON_ARENA_MARGIN, slideZ));
 						
@@ -1128,8 +1121,8 @@ public class EnemyAI
 						
 						if (!slideBlocked)
 						{
-							final float slideY = (slideGroundY >= 0) ? (slideGroundY + GROUND_OFFSET) : pos.y;
-							enemy.setPosition(new Vector3f(clampedSlideX, slideY, clampedSlideZ));
+							TEMP_VEC.set(clampedSlideX, (slideGroundY >= 0) ? (slideGroundY + GROUND_OFFSET) : bossPos.y, clampedSlideZ);
+							enemy.setPosition(TEMP_VEC);
 							faceDirection(enemy, dz, -dx);
 							enemy.setMoving(true);
 						}
@@ -1145,7 +1138,7 @@ public class EnemyAI
 				enemy.setMoving(false);
 			}
 		}
-		else if (!enemy.isBiteActive() && !enemy.isTailSwiping())
+		else if (!biteActive && !enemy.isTailSwiping())
 		{
 			// Close to player - face them and stop.
 			faceTarget(enemy, playerPos);
@@ -1178,8 +1171,7 @@ public class EnemyAI
 		final int checkFootY = (newGroundY >= 0) ? newGroundY : currentFootY;
 		
 		boolean hitBlock = false;
-		final int chargeHeadroom = getHeadroom(enemy);
-		for (int h = 0; h < chargeHeadroom; h++)
+		for (int h = 0; h < getHeadroom(enemy); h++)
 		{
 			final Block ahead = world.getBlock(bx, checkFootY + h, bz);
 			if (ahead != Block.AIR && !ahead.isLiquid())
@@ -1210,14 +1202,15 @@ public class EnemyAI
 		}
 		
 		// Move along charge line.
-		final float chargeY = (newGroundY >= 0) ? (newGroundY + GROUND_OFFSET) : pos.y;
-		enemy.setPosition(new Vector3f(newX, chargeY, newZ));
+		TEMP_VEC.set(newX, (newGroundY >= 0) ? (newGroundY + GROUND_OFFSET) : pos.y, newZ);
+		enemy.setPosition(TEMP_VEC);
 		faceDirection(enemy, dir.x, dir.z);
 		enemy.setMoving(true);
 		
-		enemy.setChargeDistanceRemaining(enemy.getChargeDistanceRemaining() - step);
+		final float distanceRemaining = enemy.getChargeDistanceRemaining() - step;
+		enemy.setChargeDistanceRemaining(distanceRemaining);
 		
-		if (enemy.getChargeDistanceRemaining() <= 0)
+		if (distanceRemaining <= 0)
 		{
 			// Charge complete - normal recovery.
 			enemy.setChargeActive(false);
@@ -1338,9 +1331,8 @@ public class EnemyAI
 		
 		// Get dragon's facing direction from its root node rotation.
 		// The dragon faces -Z at identity, so the forward vector is derived from the node's rotation.
-		final float[] angles = new float[3];
-		enemy.getNode().getLocalRotation().toAngles(angles);
-		final float yaw = angles[1]; // Y-axis rotation.
+		enemy.getNode().getLocalRotation().toAngles(TEMP_ANGLES);
+		final float yaw = TEMP_ANGLES[1]; // Y-axis rotation.
 		
 		// Dragon's forward direction in world space.
 		final float forwardX = -FastMath.sin(yaw);
@@ -1359,17 +1351,15 @@ public class EnemyAI
 		toPlayerZ /= dist;
 		
 		// Dot product: positive = in front, negative = behind.
-		final float dot = forwardX * toPlayerX + forwardZ * toPlayerZ;
 		
 		// Convert rear arc from degrees to a cosine threshold.
 		// 90° rear = dot < 0 (behind); 120° rear = dot < cos(60°) = 0.5; 180° = any direction.
-		final float halfFrontArc = (180.0f - rearArcDegrees) * FastMath.DEG_TO_RAD;
-		return dot < FastMath.cos(halfFrontArc);
+		return (forwardX * toPlayerX + forwardZ * toPlayerZ) < FastMath.cos((180.0f - rearArcDegrees) * FastMath.DEG_TO_RAD);
 	}
 	
-	// ==================================================================
+	// ------------------------------------------------------------------
 	// State transition helpers.
-	// ==================================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Enters the IDLE state with a random idle duration.
@@ -1403,17 +1393,15 @@ public class EnemyAI
 			final float tz = pos.z + FastMath.sin(angle) * radius;
 			final int bx = (int) Math.floor(tx);
 			final int bz = (int) Math.floor(tz);
-			final int currentFootY = (int) Math.floor(pos.y);
 			
-			final int groundY = findGroundY(world, bx, bz, currentFootY);
+			final int groundY = findGroundY(world, bx, bz, ((int) Math.floor(pos.y)));
 			if (groundY < 0)
 			{
 				continue;
 			}
 			
 			// Make sure the target isn't in water.
-			final Block footBlock = world.getBlock(bx, groundY, bz);
-			if (footBlock.isLiquid())
+			if (world.getBlock(bx, groundY, bz).isLiquid())
 			{
 				continue;
 			}
@@ -1479,11 +1467,7 @@ public class EnemyAI
 			final float tz = pos.z + FastMath.sin(angle) * radius;
 			final float ty = pos.y + (Rnd.nextFloat() - 0.5f) * PIRANHA_DEPTH_VARIATION;
 			
-			final int bx = (int) Math.floor(tx);
-			final int by = (int) Math.floor(ty);
-			final int bz = (int) Math.floor(tz);
-			
-			if (world.getBlock(bx, by, bz).isLiquid())
+			if (world.getBlock(((int) Math.floor(tx)), ((int) Math.floor(ty)), ((int) Math.floor(tz))).isLiquid())
 			{
 				enemy.setWanderTarget(new Vector3f(tx, ty, tz));
 				return;
@@ -1494,9 +1478,9 @@ public class EnemyAI
 		enterAquaticIdle(enemy);
 	}
 	
-	// ==================================================================
+	// ------------------------------------------------------------------
 	// Pathfinding helpers.
-	// ==================================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the headroom (number of air blocks needed above ground) for the given enemy type.<br>
@@ -1528,13 +1512,13 @@ public class EnemyAI
 		}
 	}
 	
-	// ==================================================================
+	// ------------------------------------------------------------------
 	// Facing helpers.
-	// ==================================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Smoothly rotates the enemy's root node toward a direction on the XZ plane.<br>
-	 * Uses slerp at {@link #TURN_SPEED} radians per second for natural turning.<br>
+	 * Uses slerp at {@code TURN_SPEED} radians per second for natural turning.<br>
 	 * jME3 models face -Z at identity rotation, so we negate the direction components to produce the correct yaw angle.
 	 * @param enemy the enemy to rotate
 	 * @param dx X component of the movement direction
@@ -1542,14 +1526,12 @@ public class EnemyAI
 	 */
 	private static void faceDirection(Enemy enemy, float dx, float dz)
 	{
-		final float angle = FastMath.atan2(-dx, -dz);
-		TEMP_QUAT.fromAngleAxis(angle, Vector3f.UNIT_Y);
+		TEMP_QUAT.fromAngleAxis(FastMath.atan2(-dx, -dz), Vector3f.UNIT_Y);
 		
 		// Slerp from current rotation toward target.
 		final Node node = enemy.getNode();
 		SLERP_QUAT.set(node.getLocalRotation());
-		final float t = Math.min(1.0f, TURN_SPEED * _tpf);
-		SLERP_QUAT.slerp(TEMP_QUAT, t);
+		SLERP_QUAT.slerp(TEMP_QUAT, Math.min(1.0f, TURN_SPEED * _tpf));
 		node.setLocalRotation(SLERP_QUAT);
 	}
 	
@@ -1568,9 +1550,9 @@ public class EnemyAI
 		}
 	}
 	
-	// ==================================================================
+	// ------------------------------------------------------------------
 	// Math helpers.
-	// ==================================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the horizontal (XZ) distance between two positions, ignoring Y.

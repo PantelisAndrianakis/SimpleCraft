@@ -26,9 +26,7 @@ import simplecraft.world.World;
  */
 public class DoorTileEntity extends TileEntity
 {
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	/** Whether the door panel is currently open (slid to one side). */
 	private boolean _open = false;
@@ -46,9 +44,7 @@ public class DoorTileEntity extends TileEntity
 	/** True if this is the bottom half (DOOR_BOTTOM), false if this is the top half (DOOR_TOP). */
 	private boolean _isBottom;
 	
-	// ========================================================
-	// Constructor.
-	// ========================================================
+	// ========== CONSTRUCTOR ==========
 	
 	/**
 	 * Creates a new door tile entity at the given position.
@@ -65,9 +61,7 @@ public class DoorTileEntity extends TileEntity
 		_isBottom = isBottom;
 	}
 	
-	// ========================================================
-	// Lifecycle Hooks.
-	// ========================================================
+	// ========== LIFECYCLE HOOKS ==========
 	
 	@Override
 	public void onPlaced(World world)
@@ -102,9 +96,8 @@ public class DoorTileEntity extends TileEntity
 			// Check for adjacent door/window on the swing side.
 			// If found, flip direction so both panels swing away from each other.
 			final Vector3i swingSide = getSwingSideAdjacentPosition();
-			final Block swingBlock = world.getBlock(swingSide.x, swingSide.y, swingSide.z);
 			
-			_flippedOpen = swingBlock.isFlatPanel();
+			_flippedOpen = world.getBlock(swingSide.x, swingSide.y, swingSide.z).isFlatPanel();
 		}
 		else
 		{
@@ -114,8 +107,7 @@ public class DoorTileEntity extends TileEntity
 		// Synchronize the partner half.
 		if (_partnerPos != null)
 		{
-			final TileEntityManager manager = world.getTileEntityManager();
-			final TileEntity partnerEntity = manager.get(_partnerPos);
+			final TileEntity partnerEntity = world.getTileEntityManager().get(_partnerPos);
 			if (partnerEntity instanceof DoorTileEntity)
 			{
 				final DoorTileEntity partner = (DoorTileEntity) partnerEntity;
@@ -125,8 +117,7 @@ public class DoorTileEntity extends TileEntity
 		}
 		
 		// Trigger mesh rebuild for both halves.
-		// Cannot use setBlockNoRebuild - the block types haven't changed (still DOOR_BOTTOM/TOP),
-		// so Region.setBlock skips the dirty flag. Force rebuild via markRegionDirtyAt.
+		// Cannot use setBlockNoRebuild - the block types haven't changed (still DOOR_BOTTOM/TOP), so Region.setBlock skips the dirty flag. Force rebuild via markRegionDirtyAt.
 		world.markRegionDirtyAt(_position.x, _position.y, _position.z);
 		if (_partnerPos != null)
 		{
@@ -162,9 +153,7 @@ public class DoorTileEntity extends TileEntity
 		world.rebuildDirtyRegionsImmediate();
 	}
 	
-	// ========================================================
-	// State Accessors.
-	// ========================================================
+	// ========== STATE ACCESSORS ==========
 	
 	/**
 	 * Returns whether the door is currently open.
@@ -234,9 +223,7 @@ public class DoorTileEntity extends TileEntity
 		_isBottom = isBottom;
 	}
 	
-	// ========================================================
-	// Helpers.
-	// ========================================================
+	// ========== HELPERS ==========
 	
 	/**
 	 * Returns the world position of the block adjacent to this door on the<br>
@@ -247,10 +234,7 @@ public class DoorTileEntity extends TileEntity
 	private Vector3i getSwingSideAdjacentPosition()
 	{
 		// Left side from the perspective of someone looking at the panel's front face:
-		// NORTH facing (+Z front): left = -X
-		// SOUTH facing (-Z front): left = +X
-		// EAST facing (+X front): left = +Z
-		// WEST facing (-X front): left = -Z
+		// NORTH facing (+Z front): left = -X sOUTH facing (-Z front): left = +X eAST facing (+X front): left = +Z wEST facing (-X front): left = -Z
 		switch (_facing)
 		{
 			case NORTH:
@@ -276,9 +260,7 @@ public class DoorTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	// ========== SERIALIZATION ==========
 	
 	/**
 	 * Serializes this door tile entity to a key=value string.<br>

@@ -6,13 +6,16 @@ import simplecraft.world.Block.ToolType;
 
 /**
  * Defines what an item IS (template/prototype, not an instance).<br>
- * Created via static factory methods: {@link #block}, {@link #weapon}, {@link #tool}, {@link #consumable}, {@link #material}, {@link #armor}.
+ * Created via static factory methods: {@code block}, {@code weapon}, {@code tool}, {@code consumable}, {@code material}, {@code armor}.
  * @author Pantelis Andrianakis
  * @since March 13th 2026
  */
 public class ItemTemplate
 {
 	private final String _id;
+	
+	/** Precomputed language lookup key ("item." + id), built once per template. */
+	private final String _nameKey;
 	private final String _displayName;
 	private final ItemType _type;
 	private final int _maxStackSize;
@@ -32,6 +35,7 @@ public class ItemTemplate
 	private ItemTemplate(String id, String displayName, ItemType type, int maxStackSize, Block placesBlock, float weaponDamage, float weaponSpeed, float healAmount, ToolType toolType, int maxDurability, ArmorSlot armorSlot, float damageReduction, float viewmodelScale)
 	{
 		_id = id;
+		_nameKey = "item." + id;
 		_displayName = displayName;
 		_type = type;
 		_maxStackSize = maxStackSize;
@@ -46,9 +50,9 @@ public class ItemTemplate
 		_viewmodelScale = viewmodelScale;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Static Factory Methods.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a placeable block item. Stack size 64, no durability.
@@ -150,9 +154,9 @@ public class ItemTemplate
 		return new ItemTemplate(id, displayName, ItemType.ARMOR, 1, null, 0.0f, 0.0f, 0.0f, ToolType.NONE, durability, armorSlot, damageReduction, viewmodelScale);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Getters.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Unique key for this item (e.g. "dirt", "stone_sword", "wood_pickaxe").
@@ -167,7 +171,7 @@ public class ItemTemplate
 	 */
 	public String getDisplayName()
 	{
-		return LanguageManager.get("item." + _id);
+		return LanguageManager.get(_nameKey);
 	}
 	
 	public ItemType getType()
@@ -213,16 +217,6 @@ public class ItemTemplate
 	public float getHealAmount()
 	{
 		return _healAmount;
-	}
-	
-	/**
-	 * Returns true if this item is a TOOL type (pickaxe, axe, shovel).<br>
-	 * Tools have a tool affinity that speeds up breaking matching blocks.
-	 * @return true for TOOL items, false for everything else
-	 */
-	public boolean hasTool()
-	{
-		return _type == ItemType.TOOL;
 	}
 	
 	/**

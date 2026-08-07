@@ -13,9 +13,7 @@ import java.util.Random;
  */
 public class TreeGenerator
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Minimum distance from region edge to place a tree (avoids cross-region leaf overflow). */
 	private static final int EDGE_PADDING = 3;
@@ -35,9 +33,7 @@ public class TreeGenerator
 	/** Maximum iterations for tree post-processing to prevent infinite loops. */
 	private static final int MAX_POST_PROCESS_ITERATIONS = 10;
 	
-	// ========================================================
-	// Tree Types.
-	// ========================================================
+	// ========== TREE TYPES ==========
 	
 	private static final int TREE_SMALL_OAK = 0;
 	private static final int TREE_TALL_OAK = 1;
@@ -45,9 +41,7 @@ public class TreeGenerator
 	private static final int TREE_SHRUB = 3;
 	private static final int TREE_SPRUCE = 4;
 	
-	// ========================================================
-	// Public API.
-	// ========================================================
+	// ========== PUBLIC API ==========
 	
 	/**
 	 * Generates trees for the given region using the world seed.<br>
@@ -70,15 +64,12 @@ public class TreeGenerator
 		{
 			for (int z = EDGE_PADDING; z < Region.SIZE_XZ - EDGE_PADDING; z++)
 			{
-				final int worldX = regionWorldX + x;
-				final int worldZ = regionWorldZ + z;
 				
 				// Seeded random for this column.
-				final Random columnRandom = new Random(treeSeed ^ (worldX * HASH_PRIME_X) ^ (worldZ * HASH_PRIME_Z));
-				final double roll = columnRandom.nextDouble();
+				final Random columnRandom = new Random(treeSeed ^ ((regionWorldX + x) * HASH_PRIME_X) ^ ((regionWorldZ + z) * HASH_PRIME_Z));
 				
 				// 3% chance to attempt a tree.
-				if (roll >= TREE_CHANCE)
+				if (columnRandom.nextDouble() >= TREE_CHANCE)
 				{
 					continue;
 				}
@@ -103,10 +94,9 @@ public class TreeGenerator
 				}
 				
 				// Select tree type.
-				final int treeType = selectTreeType(columnRandom);
 				
 				// Place the tree.
-				placeTree(region, x, z, groundY, treeType, columnRandom);
+				placeTree(region, x, z, groundY, selectTreeType(columnRandom), columnRandom);
 				
 				// Mark trunk position for spacing checks.
 				trunkPlaced[x][z] = true;
@@ -117,9 +107,7 @@ public class TreeGenerator
 		postProcessTreesRepeatedly(region);
 	}
 	
-	// ========================================================
-	// Post-Processing.
-	// ========================================================
+	// ========== POST-PROCESSING ==========
 	
 	/**
 	 * Repeatedly post-processes trees until no more changes are made or max iterations reached.
@@ -331,9 +319,7 @@ public class TreeGenerator
 		return false;
 	}
 	
-	// ========================================================
-	// Ground Detection.
-	// ========================================================
+	// ========== GROUND DETECTION ==========
 	
 	/**
 	 * Finds the Y coordinate of the highest GRASS block in the given column.<br>
@@ -369,9 +355,7 @@ public class TreeGenerator
 		return -1;
 	}
 	
-	// ========================================================
-	// Spacing Check.
-	// ========================================================
+	// ========== SPACING CHECK ==========
 	
 	/**
 	 * Returns true if any column within the given radius already has a trunk placed.
@@ -397,9 +381,7 @@ public class TreeGenerator
 		return false;
 	}
 	
-	// ========================================================
-	// Tree Type Selection.
-	// ========================================================
+	// ========== TREE TYPE SELECTION ==========
 	
 	/**
 	 * Selects a tree type based on weighted probabilities.<br>
@@ -431,9 +413,7 @@ public class TreeGenerator
 		}
 	}
 	
-	// ========================================================
-	// Tree Placement.
-	// ========================================================
+	// ========== TREE PLACEMENT ==========
 	
 	/**
 	 * Places a tree of the given type at the specified position.
@@ -473,12 +453,14 @@ public class TreeGenerator
 				placeSpruce(region, x, z, groundY, random);
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 	}
 	
-	// ========================================================
-	// SMALL_OAK (40%) - compact rounded canopy.
-	// ========================================================
+	// ========== SMALL_OAK (40%) - COMPACT ROUNDED CANOPY ==========
 	
 	/**
 	 * Places a small oak tree with a layered rounded canopy.<br>
@@ -528,9 +510,7 @@ public class TreeGenerator
 		placeTopLayer(region, x, trunkTop + 3, z, random);
 	}
 	
-	// ========================================================
-	// TALL_OAK (25%) - large rounded canopy.
-	// ========================================================
+	// ========== TALL_OAK (25%) - LARGE ROUNDED CANOPY ==========
 	
 	/**
 	 * Places a tall oak tree with a wide layered canopy.<br>
@@ -584,9 +564,7 @@ public class TreeGenerator
 		placeTopLayer(region, x, trunkTop + 3, z, random);
 	}
 	
-	// ========================================================
-	// BIRCH (20%) - narrow columnar canopy.
-	// ========================================================
+	// ========== BIRCH (20%) - NARROW COLUMNAR CANOPY ==========
 	
 	/**
 	 * Places a birch tree with a narrow, tall canopy.<br>
@@ -635,9 +613,7 @@ public class TreeGenerator
 		placeTopLayer(region, x, trunkTop + 2, z, random);
 	}
 	
-	// ========================================================
-	// SHRUB (15%) - short but elevated canopy.
-	// ========================================================
+	// ========== SHRUB (15%) - SHORT BUT ELEVATED CANOPY ==========
 	
 	/**
 	 * Places a shrub tree with a short trunk and compact canopy.<br>
@@ -675,9 +651,7 @@ public class TreeGenerator
 		placeTopLayer(region, x, trunkTop + 2, z, random);
 	}
 	
-	// ========================================================
-	// SPRUCE (20%) - conical layered canopy.
-	// ========================================================
+	// ========== SPRUCE (20%) - CONICAL LAYERED CANOPY ==========
 	
 	/**
 	 * Places a spruce tree with a distinctive conical silhouette.<br>
@@ -753,23 +727,12 @@ public class TreeGenerator
 		
 		// Add a top spike (single block) above the highest layer.
 		// final int spikeY = trunkTop + 2;
-		// if (spikeY < Region.SIZE_Y)
-		// {
-		// Check if there's leaf support below.
+		// if (spikeY < Region.SIZE_Y) { check if there's leaf support below.
 		// boolean hasSupport = false;
-		// for (int dy = 1; dy <= 2 && !hasSupport; dy++)
-		// {
-		// if (spikeY - dy >= 0 && region.getBlock(x, spikeY - dy, z) == Block.LEAVES)
-		// {
-		// hasSupport = true;
-		// }
-		// }
-		//
-		// if (hasSupport)
-		// {
-		// placeLeaf(region, x, spikeY, z);
-		// }
-		// }
+		// for (int dy = 1; dy <= 2 && !hasSupport; dy++) { if (spikeY - dy >= 0 && region.getBlock(x, spikeY - dy, z) == Block.LEAVES) { hasSupport = true;
+		// } }
+		//  if (hasSupport) { placeLeaf(region, x, spikeY, z);
+		// } }
 		
 		// Re-place trunk through canopy (trunk takes priority over leaves).
 		for (int y = canopyBase; y <= trunkTop; y++)
@@ -778,9 +741,7 @@ public class TreeGenerator
 		}
 	}
 	
-	// ========================================================
-	// Block Placement Helpers.
-	// ========================================================
+	// ========== BLOCK PLACEMENT HELPERS ==========
 	
 	/**
 	 * Places a WOOD block at the given position.<br>
@@ -894,10 +855,7 @@ public class TreeGenerator
 					}
 				}
 				
-				final int lx = centerX + dx;
-				final int lz = centerZ + dz;
-				
-				placeLeaf(region, lx, y, lz);
+				placeLeaf(region, (centerX + dx), y, (centerZ + dz));
 			}
 		}
 	}

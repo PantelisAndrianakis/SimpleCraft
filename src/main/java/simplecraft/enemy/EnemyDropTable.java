@@ -114,10 +114,57 @@ public class EnemyDropTable
 	 */
 	public static List<ItemInstance> rollDrops(EnemyType type, float enemyX, float enemyZ)
 	{
-		final DropEntry[] table = getTable(type);
 		final List<ItemInstance> results = new ArrayList<>();
+		final DropEntry[] table;
+		switch (type)
+		{
+			case ZOMBIE:
+			{
+				table = ZOMBIE_DROPS;
+				break;
+			}
+			case SKELETON:
+			{
+				table = SKELETON_DROPS;
+				break;
+			}
+			case WOLF:
+			{
+				table = WOLF_DROPS;
+				break;
+			}
+			case SPIDER:
+			{
+				table = SPIDER_DROPS;
+				break;
+			}
+			case SLIME:
+			{
+				table = SLIME_DROPS;
+				break;
+			}
+			case PIRANHA:
+			{
+				table = PIRANHA_DROPS;
+				break;
+			}
+			case DRAGON:
+			{
+				table = DRAGON_DROPS;
+				break;
+			}
+			case SHADOW:
+			{
+				table = SHADOW_DROPS;
+				break;
+			}
+			default:
+			{
+				return results;
+			}
+		}
 		
-		if (table == null || table.length == 0)
+		if (table.length == 0)
 		{
 			return results;
 		}
@@ -157,52 +204,5 @@ public class EnemyDropTable
 		
 		return results;
 	}
-	
-	/**
-	 * Returns the drop table for the given enemy type, or null if none defined.
-	 * @param type the enemy type
-	 * @return the drop entry array, or null
-	 */
-	private static DropEntry[] getTable(EnemyType type)
-	{
-		switch (type)
-		{
-			case ZOMBIE:
-			{
-				return ZOMBIE_DROPS;
-			}
-			case SKELETON:
-			{
-				return SKELETON_DROPS;
-			}
-			case WOLF:
-			{
-				return WOLF_DROPS;
-			}
-			case SPIDER:
-			{
-				return SPIDER_DROPS;
-			}
-			case SLIME:
-			{
-				return SLIME_DROPS;
-			}
-			case PIRANHA:
-			{
-				return PIRANHA_DROPS;
-			}
-			case DRAGON:
-			{
-				return DRAGON_DROPS;
-			}
-			case SHADOW:
-			{
-				return SHADOW_DROPS;
-			}
-			default:
-			{
-				return null;
-			}
-		}
-	}
+
 }

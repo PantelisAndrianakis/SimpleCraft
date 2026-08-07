@@ -10,15 +10,15 @@ import java.util.Map.Entry;
  * Central registry of crafting recipes for the Crafting Table.<br>
  * Each recipe maps a set of ingredient requirements to an output item and quantity.<br>
  * <br>
- * Call {@link #registerDefaults()} once at startup after {@link ItemRegistry#registerDefaults()}.
+ * Call {@code registerDefaults()} once at startup after {@code ItemRegistry.registerDefaults()}.
  * @author Pantelis Andrianakis
  * @since March 17th 2026
  */
 public class CraftingRegistry
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Recipe Inner Class.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * A crafting recipe with ingredients and output.
@@ -36,21 +36,6 @@ public class CraftingRegistry
 			_ingredientCounts = ingredientCounts;
 			_output = output;
 			_outputCount = outputCount;
-		}
-		
-		public String[] getIngredientIds()
-		{
-			return _ingredientIds;
-		}
-		
-		public int[] getIngredientCounts()
-		{
-			return _ingredientCounts;
-		}
-		
-		public ItemTemplate getOutput()
-		{
-			return _output;
 		}
 		
 		public int getOutputCount()
@@ -71,12 +56,13 @@ public class CraftingRegistry
 		 */
 		public String getOutputDisplayName()
 		{
+			final String displayName = _output.getDisplayName();
 			if (_outputCount > 1)
 			{
-				return _outputCount + "× " + _output.getDisplayName();
+				return _outputCount + "× " + displayName;
 			}
 			
-			return _output.getDisplayName();
+			return displayName;
 		}
 		
 		/**
@@ -134,91 +120,91 @@ public class CraftingRegistry
 			}
 			
 			// Removing ingredients frees slots, so the output usually fits. If it still does not,
-			// refund the ingredients so crafting stays all-or-nothing instead of consuming ingredients and losing the output.
+			// Refund the ingredients so crafting stays all-or-nothing instead of consuming ingredients and losing the output.
 			if (!inventory.addItem(new ItemInstance(_output, _outputCount)))
 			{
 				for (int i = 0; i < _ingredientIds.length; i++)
 				{
 					inventory.addItem(new ItemInstance(ItemRegistry.get(_ingredientIds[i]), _ingredientCounts[i]));
 				}
-
+				
 				return false;
 			}
-
+			
 			return true;
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Registry.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** All registered crafting recipes. */
 	private static final List<CraftingRecipe> RECIPES = new ArrayList<>();
 	
 	/**
 	 * Registers all default crafting recipes.<br>
-	 * Must be called after {@link ItemRegistry#registerDefaults()} so that item lookups work.
+	 * Must be called after {@code ItemRegistry.registerDefaults()} so that item lookups work.
 	 */
 	public static void registerDefaults()
 	{
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Basic Materials.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("wood_plank", 4, ingredients("wood", 1));
 		register("stone_shard", 4, ingredients("stone", 1));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Wood Tools & Weapons.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("wood_pickaxe", 1, ingredients("wood_plank", 4));
 		register("wood_axe", 1, ingredients("wood_plank", 4));
 		register("wood_shovel", 1, ingredients("wood_plank", 4));
 		register("wood_sword", 1, ingredients("wood_plank", 4));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Stone Tools & Weapons.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("stone_pickaxe", 1, ingredients("stone_shard", 5, "wood_plank", 1));
 		register("stone_axe", 1, ingredients("stone_shard", 5, "wood_plank", 1));
 		register("stone_shovel", 1, ingredients("stone_shard", 5, "wood_plank", 1));
 		register("stone_sword", 1, ingredients("stone_shard", 5, "wood_plank", 1));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Armor - Iron Set.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("iron_helmet", 1, ingredients("iron_bar", 5));
 		register("iron_chestplate", 1, ingredients("iron_bar", 8));
 		register("iron_pants", 1, ingredients("iron_bar", 7));
 		register("iron_boots", 1, ingredients("iron_bar", 4));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Iron Tools & Weapons.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("iron_pickaxe", 1, ingredients("iron_bar", 3, "wood_plank", 1));
 		register("iron_axe", 1, ingredients("iron_bar", 3, "wood_plank", 1));
 		register("iron_shovel", 1, ingredients("iron_bar", 3, "wood_plank", 1));
 		register("iron_sword", 1, ingredients("iron_bar", 3, "wood_plank", 1));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Armor - Gold Set.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("gold_helmet", 1, ingredients("gold_bar", 5));
 		register("gold_chestplate", 1, ingredients("gold_bar", 8));
 		register("gold_pants", 1, ingredients("gold_bar", 7));
 		register("gold_boots", 1, ingredients("gold_bar", 4));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Gold Tools & Weapons.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("gold_pickaxe", 1, ingredients("gold_bar", 3, "wood_plank", 1));
 		register("gold_axe", 1, ingredients("gold_bar", 3, "wood_plank", 1));
 		register("gold_shovel", 1, ingredients("gold_bar", 3, "wood_plank", 1));
 		register("gold_sword", 1, ingredients("gold_bar", 3, "wood_plank", 1));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Utility / Furniture.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("torch", 1, ingredients("wood_plank", 1, "coal", 1));
 		register("campfire", 1, ingredients("wood", 2, "stone_shard", 4));
 		register("crafting_table", 1, ingredients("wood", 4));
@@ -227,23 +213,23 @@ public class CraftingRegistry
 		register("door", 1, ingredients("wood_plank", 12, "glass", 1));
 		register("window", 1, ingredients("wood_plank", 6, "glass", 4));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Consumables.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("health_potion", 1, ingredients("meat", 2, "glass", 1));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Special Orbs.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register("dragon_orb", 1, ingredients("iron_bar", 10, "stone_shard", 50, "glass", 10));
 		register("shadow_orb", 1, ingredients("gold_bar", 10, "iron_bar", 20, "glass", 10));
 		
 		System.out.println("CraftingRegistry: Registered " + RECIPES.size() + " recipes.");
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Registration Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds a paired ingredient map from alternating (itemId, count) varargs.<br>
@@ -277,8 +263,9 @@ public class CraftingRegistry
 			return;
 		}
 		
-		final String[] ids = new String[ingredientMap.size()];
-		final int[] counts = new int[ingredientMap.size()];
+		final int ingredientCount = ingredientMap.size();
+		final String[] ids = new String[ingredientCount];
+		final int[] counts = new int[ingredientCount];
 		int idx = 0;
 		for (Entry<String, Integer> entry : ingredientMap.entrySet())
 		{
@@ -290,9 +277,9 @@ public class CraftingRegistry
 		RECIPES.add(new CraftingRecipe(ids, counts, output, outputCount));
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Lookup Methods.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns all registered crafting recipes.

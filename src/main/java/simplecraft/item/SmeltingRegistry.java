@@ -12,15 +12,15 @@ import java.util.Map.Entry;
  * Each recipe maps an input item ID to an output ItemTemplate and a smelt time in seconds.<br>
  * Each fuel item has a burn duration in seconds (how long a single unit sustains the fire).<br>
  * <br>
- * Call {@link #registerDefaults()} once at startup after {@link ItemRegistry#registerDefaults()}.
+ * Call {@code registerDefaults()} once at startup after {@code ItemRegistry.registerDefaults()}.
  * @author Pantelis Andrianakis
  * @since March 19th 2026
  */
 public class SmeltingRegistry
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Smelting Recipe Inner Class.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Holds the result of a smelting recipe: the output item and the time required to smelt.
@@ -53,9 +53,9 @@ public class SmeltingRegistry
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Registries.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Maps input item ID -> smelting result (output + time). */
 	private static final Map<String, SmeltResult> SMELT_RECIPES = new HashMap<>();
@@ -65,20 +65,20 @@ public class SmeltingRegistry
 	
 	/**
 	 * Registers all default smelting recipes and fuel burn times.<br>
-	 * Must be called after {@link ItemRegistry#registerDefaults()} so that item lookups work.
+	 * Must be called after {@code ItemRegistry.registerDefaults()} so that item lookups work.
 	 */
 	public static void registerDefaults()
 	{
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Smelting Recipes.
-		// ========================================================
+		// ------------------------------------------------------------------
 		registerRecipe("iron_ore", "iron_bar", 10.0f);
 		registerRecipe("sand", "glass", 8.0f);
 		registerRecipe("wood", "coal", 5.0f);
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Fuel Burn Times.
-		// ========================================================
+		// ------------------------------------------------------------------
 		registerFuel("wood", 10.0f);
 		registerFuel("wood_plank", 8.0f);
 		registerFuel("coal", 60.0f);
@@ -87,9 +87,9 @@ public class SmeltingRegistry
 		System.out.println("SmeltingRegistry: Registered " + SMELT_RECIPES.size() + " recipes, " + FUEL_BURN_TIMES.size() + " fuels.");
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Registration Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Registers a smelting recipe.
@@ -116,12 +116,12 @@ public class SmeltingRegistry
 	 */
 	private static void registerFuel(String fuelItemId, float burnTime)
 	{
-		FUEL_BURN_TIMES.put(fuelItemId, burnTime);
+		FUEL_BURN_TIMES.put(fuelItemId, Float.valueOf(burnTime));
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Lookup Methods.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the smelting result for the given input item, or null if not smeltable.
@@ -161,7 +161,7 @@ public class SmeltingRegistry
 	 */
 	public static boolean isFuel(String itemId)
 	{
-		return FUEL_BURN_TIMES.containsKey(itemId) && FUEL_BURN_TIMES.get(itemId) > 0;
+		return getBurnTime(itemId) > 0;
 	}
 	
 	/**

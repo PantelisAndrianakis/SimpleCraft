@@ -20,16 +20,14 @@ import com.jme3.texture.Texture2D;
 /**
  * Builds a texture atlas by stitching individual 32×32 block PNGs into an 8×8 grid.<br>
  * Missing textures are filled with magenta as a visible indicator.<br>
- * Provides a shared {@link Material} for all region geometries.<br>
+ * Provides a shared {@link com.jme3.material.Material} for all region geometries.<br>
  * Uses Unshaded materials with vertex colors for sky-light-based lighting.
  * @author Pantelis Andrianakis
  * @since February 22nd 2026
  */
 public class TextureAtlas
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Pixels per individual block texture. */
 	public static final int TILE_SIZE = 32;
@@ -43,9 +41,7 @@ public class TextureAtlas
 	/** Relative path to block texture PNGs within the assets directory. */
 	private static final String TEXTURE_PATH = "images/blocks/";
 	
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	private BufferedImage _atlasImage;
 	private Material _sharedMaterial;
@@ -53,14 +49,12 @@ public class TextureAtlas
 	/** Static reference to the atlas texture for use by tile entities (torch billboard, etc.). */
 	private static Texture2D _atlasTexture;
 	
-	// ========================================================
-	// Atlas Building.
-	// ========================================================
+	// ========== ATLAS BUILDING ==========
 	
 	/**
 	 * Builds the texture atlas by loading individual PNGs and stitching them into an 8×8 grid.<br>
 	 * Missing textures are filled with magenta (255, 0, 255) as a visible indicator.<br>
-	 * Must be called before {@link #createMaterial(AssetManager)}.
+	 * Must be called before {@code createMaterial(AssetManager)}.
 	 * @param assetManager the jME3 AssetManager (used for texture conversion)
 	 */
 	public void buildAtlas(AssetManager assetManager)
@@ -76,9 +70,18 @@ public class TextureAtlas
 		final List<String> textureFiles = Block.collectTextureFiles();
 		
 		// Stitch each texture into its atlas slot and register the index.
+		final int slotCount = GRID_SIZE * GRID_SIZE;
+		final int textureCount = textureFiles.size();
 		int loadedCount = 0;
-		for (int i = 0; i < textureFiles.size(); i++)
+		for (int i = 0; i < textureCount; i++)
 		{
+			// Past the last slot the draw clips away silently while the index still resolves, so every later block would sample garbage UVs. Fail loudly instead.
+			if (i >= slotCount)
+			{
+				System.err.println("ERROR: Texture atlas is full (" + slotCount + " slots). Increase GRID_SIZE. Dropped " + (textureCount - slotCount) + " texture(s), starting with: " + textureFiles.get(i));
+				break;
+			}
+			
 			final String filename = textureFiles.get(i);
 			if (filename.isEmpty())
 			{
@@ -121,16 +124,14 @@ public class TextureAtlas
 		System.out.println("TextureAtlas built: " + ATLAS_SIZE + "x" + ATLAS_SIZE + " (" + loadedCount + "/" + textureFiles.size() + " textures loaded)");
 	}
 	
-	// ========================================================
-	// Material Creation.
-	// ========================================================
+	// ========== MATERIAL CREATION ==========
 	
 	/**
-	 * Creates a shared {@link Material} using the built atlas texture.<br>
+	 * Creates a shared {@link com.jme3.material.Material} using the built atlas texture.<br>
 	 * Uses Unshaded.j3md with VertexColor enabled for sky-light-based lighting.<br>
 	 * Vertex colors are multiplied with the texture to produce baked lighting.<br>
 	 * No scene lights (DirectionalLight, AmbientLight) are needed.<br>
-	 * Call {@link #buildAtlas(AssetManager)} first.
+	 * Call {@code buildAtlas(AssetManager)} first.
 	 * @param assetManager the jME3 AssetManager
 	 * @return a Material with the atlas as its ColorMap and VertexColor enabled
 	 */
@@ -164,9 +165,7 @@ public class TextureAtlas
 			_sharedMaterial.setBoolean("VertexColor", true);
 			
 			// Discard pixels with alpha below 50%. This enables:
-			// - Leaves alpha cutout (see-through canopy holes)
-			// - Billboard transparency (flowers, torches, campfires)
-			// Opaque blocks are unaffected since all their pixels have alpha=1.
+			// - Leaves alpha cutout (see-through canopy holes) - Billboard transparency (flowers, torches, campfires) opaque blocks are unaffected since all their pixels have alpha=1.
 			_sharedMaterial.setFloat("AlphaDiscardThreshold", 0.5f);
 			
 			System.out.println("TextureAtlas: Material created (Unshaded + VertexColor) from " + tempAtlas.getAbsolutePath());
@@ -180,7 +179,7 @@ public class TextureAtlas
 	}
 	
 	/**
-	 * Returns the shared material created by {@link #createMaterial(AssetManager)}.<br>
+	 * Returns the shared material created by {@code createMaterial(AssetManager)}.<br>
 	 * Returns null if not yet created.
 	 */
 	public Material getSharedMaterial()
@@ -198,9 +197,7 @@ public class TextureAtlas
 		return _atlasTexture;
 	}
 	
-	// ========================================================
-	// Debug Helper.
-	// ========================================================
+	// ========== DEBUG HELPER ==========
 	
 	/**
 	 * Saves the atlas image to disk for visual inspection.<br>

@@ -1,7 +1,11 @@
 package simplecraft.player;
 
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
 import java.awt.Font;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.InputManager;
@@ -68,9 +72,24 @@ import simplecraft.world.World;
  */
 public class InventoryScreen implements ActionListener
 {
-	// ========================================================
+	/** Language keys for the four armor slot labels, indexed by armor slot. */
+	private static final String[] ARMOR_LABEL_KEYS =
+	{
+		"screen.armor_head",
+		"screen.armor_chest",
+		"screen.armor_pants",
+		"screen.armor_boots"
+	};
+	
+	/** Cached display colors keyed by item template (refreshAllSlots asks per frame; results are never mutated). */
+	private static final Map<ItemTemplate, ColorRGBA> ITEM_COLOR_CACHE = new HashMap<>();
+	
+	/** Cached display colors keyed by block type. */
+	private static final Map<Block, ColorRGBA> BLOCK_COLOR_CACHE = new EnumMap<>(Block.class);
+	
+	// ------------------------------------------------------------------
 	// Layout Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Number of columns in the grid. */
 	private static final int GRID_COLS = 9;
@@ -111,9 +130,9 @@ public class InventoryScreen implements ActionListener
 	/** Z-depth for tooltip text. */
 	private static final float Z_TOOLTIP = 16f;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Player Model Colors (matching EnemyFactory.buildPlayer).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private static final ColorRGBA COLOR_SKIN = new ColorRGBA(0.67f, 0.5f, 0.36f, 1.0f);
 	private static final ColorRGBA COLOR_HAIR = new ColorRGBA(0.20f, 0.12f, 0.06f, 1.0f);
@@ -127,9 +146,9 @@ public class InventoryScreen implements ActionListener
 	private static final ColorRGBA COLOR_EYE_WHITE = new ColorRGBA(0.92f, 0.92f, 0.92f, 1.0f);
 	private static final ColorRGBA COLOR_PANTS_BROWN = new ColorRGBA(0.35f, 0.25f, 0.15f, 1.0f);
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Colors.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private static final ColorRGBA COLOR_OVERLAY = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.65f);
 	private static final ColorRGBA COLOR_SLOT_BG = new ColorRGBA(0.15f, 0.15f, 0.15f, 0.85f);
@@ -144,9 +163,9 @@ public class InventoryScreen implements ActionListener
 	private static final ColorRGBA COLOR_DURABILITY_RED = new ColorRGBA(0.9f, 0.2f, 0.2f, 1.0f);
 	private static final ColorRGBA COLOR_ARMOR_SLOT_EMPTY = new ColorRGBA(0.30f, 0.30f, 0.35f, 0.6f);
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final Inventory _inventory;
 	private final PlayerController _playerController;
@@ -234,6 +253,13 @@ public class InventoryScreen implements ActionListener
 	/** Model Y-axis rotation angle in radians (mouse-drag controlled). */
 	private float _modelRotation;
 	
+	/** Reused quaternion for the per-frame model rotation (setLocalRotation copies the value). */
+	private final Quaternion _modelRotQuat = new Quaternion();
+	
+	/** Last tooltip background size (avoids per-frame mesh rebuilds while the tooltip is visible). */
+	private float _tooltipBgWidth = -1;
+	private float _tooltipBgHeight = -1;
+	
 	/** Whether the left mouse button is currently held. */
 	private boolean _mouseDown;
 	
@@ -298,9 +324,9 @@ public class InventoryScreen implements ActionListener
 	/** Y position of the armor panel area (bottom). */
 	private float _armorPanelY;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates the inventory screen (hidden initially).
@@ -314,20 +340,21 @@ public class InventoryScreen implements ActionListener
 		_inventory = playerController.getInventory();
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final Camera camera = app.getCamera();
 		_guiNode = app.getGuiNode();
 		_inputManager = app.getInputManager();
-		_screenWidth = app.getCamera().getWidth();
-		_screenHeight = app.getCamera().getHeight();
+		_screenWidth = camera.getWidth();
+		_screenHeight = camera.getHeight();
 		
 		// Slot size proportional to screen height.
 		_slotSize = Math.max(36f, _screenHeight * 0.05f);
 		
 		// Fonts.
-		final int fontSize = Math.max(10, (int) (_screenHeight * 0.016f));
-		_font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, fontSize);
+		final AssetManager assetManager = app.getAssetManager();
+		final String regularFontPath = FontManager.getRegularPath();
+		_font = FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, Math.max(10, (int) (_screenHeight * 0.016f)));
 		
-		final int tooltipSize = Math.max(12, (int) (_screenHeight * 0.018f));
-		_tooltipFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, tooltipSize);
+		_tooltipFont = FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, Math.max(12, (int) (_screenHeight * 0.018f)));
 		
 		// Build all UI elements.
 		_screenNode = new Node("InventoryScreen");
@@ -347,16 +374,14 @@ public class InventoryScreen implements ActionListener
 		_guiNode.attachChild(_screenNode);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Build Methods.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private void buildOverlay(SimpleCraft app)
 	{
-		final Quad overlayQuad = new Quad(_screenWidth, _screenHeight);
-		final Geometry overlay = new Geometry("InvOverlay", overlayQuad);
-		final Material mat = createColorMaterial(COLOR_OVERLAY, app);
-		overlay.setMaterial(mat);
+		final Geometry overlay = new Geometry("InvOverlay", new Quad(_screenWidth, _screenHeight));
+		overlay.setMaterial(createColorMaterial(COLOR_OVERLAY, app));
 		overlay.setQueueBucket(Bucket.Gui);
 		overlay.setLocalTranslation(0, 0, Z_OVERLAY);
 		_screenNode.attachChild(overlay);
@@ -376,22 +401,16 @@ public class InventoryScreen implements ActionListener
 		final float totalGridHeight = GRID_ROWS * _slotSize + (GRID_ROWS - 1) * SLOT_SPACING + SECTION_GAP;
 		
 		// Armor panel dimensions.
-		final float armorPanelWidth = _slotSize;
-		final float playerModelWidth = _slotSize * 1.6f;
-		final float armorGap = _slotSize * 0.5f;
-		final float panelGridGap = _slotSize * 0.5f;
-		final float armorAreaWidth = armorPanelWidth + armorGap + playerModelWidth + panelGridGap;
+		final float armorAreaWidth = _slotSize + (_slotSize * 0.5f) + (_slotSize * 1.6f) + (_slotSize * 0.5f);
 		
 		// Combined width of armor area + grid, centered on screen.
-		final float combinedWidth = armorAreaWidth + totalGridWidth;
-		final float combinedStartX = (_screenWidth - combinedWidth) / 2f;
+		final float combinedStartX = (_screenWidth - (armorAreaWidth + totalGridWidth)) / 2f;
 		
 		// Grid starts after the armor area.
 		final float gridStartX = combinedStartX + armorAreaWidth;
-		final float gridStartY = (_screenHeight - totalGridHeight) / 2f;
 		
 		// Hotbar row (slots 0-8): bottom row.
-		final float hotbarY = gridStartY;
+		final float hotbarY = ((_screenHeight - totalGridHeight) / 2f);
 		for (int col = 0; col < GRID_COLS; col++)
 		{
 			_slotX[col] = gridStartX + col * (_slotSize + SLOT_SPACING);
@@ -413,10 +432,9 @@ public class InventoryScreen implements ActionListener
 		}
 		
 		// Armor panel: 4 slots, helmet aligned with the top inventory row.
-		final float topInvRowY = mainStartY + 2 * (_slotSize + SLOT_SPACING);
 		
 		// Helmet (i=0) is at armorStartY + 3*(slotSize+spacing), so solve for armorStartY.
-		final float armorStartY = topInvRowY - 3 * (_slotSize + SLOT_SPACING);
+		final float armorStartY = (mainStartY + 2 * (_slotSize + SLOT_SPACING)) - 3 * (_slotSize + SLOT_SPACING);
 		
 		_armorPanelX = combinedStartX;
 		_armorPanelY = armorStartY;
@@ -430,6 +448,9 @@ public class InventoryScreen implements ActionListener
 	
 	private void buildSlots(SimpleCraft app)
 	{
+		final GameInputManager gim = SimpleCraft.getInstance().getGameInputManager();
+		final float fontSize = _font.getCharSet().getRenderedSize();
+		
 		for (int i = 0; i < Inventory.TOTAL_SLOTS; i++)
 		{
 			// Background quad (slightly larger than fill for border effect).
@@ -447,7 +468,7 @@ public class InventoryScreen implements ActionListener
 			// Label text (W, P, A, S, +, etc.) - centered in slot.
 			_slotLabel[i] = new BitmapText(_font);
 			_slotLabel[i].setText("");
-			_slotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+			_slotLabel[i].setSize(fontSize * 1.2f);
 			_slotLabel[i].setColor(COLOR_TEXT.clone());
 			_slotLabel[i].setLocalTranslation(_slotX[i], _slotY[i] + _slotSize, Z_TEXT);
 			_slotLabel[i].setCullHint(BitmapText.CullHint.Always);
@@ -456,14 +477,14 @@ public class InventoryScreen implements ActionListener
 			// Count text (bottom-right corner of slot).
 			_slotCountShadow[i] = new BitmapText(_font);
 			_slotCountShadow[i].setText("");
-			_slotCountShadow[i].setSize(_font.getCharSet().getRenderedSize());
+			_slotCountShadow[i].setSize(fontSize);
 			_slotCountShadow[i].setColor(COLOR_TEXT_SHADOW.clone());
 			_slotCountShadow[i].setCullHint(BitmapText.CullHint.Always);
 			_screenNode.attachChild(_slotCountShadow[i]);
 			
 			_slotCount[i] = new BitmapText(_font);
 			_slotCount[i].setText("");
-			_slotCount[i].setSize(_font.getCharSet().getRenderedSize());
+			_slotCount[i].setSize(fontSize);
 			_slotCount[i].setColor(COLOR_TEXT.clone());
 			_slotCount[i].setCullHint(BitmapText.CullHint.Always);
 			_screenNode.attachChild(_slotCount[i]);
@@ -478,15 +499,11 @@ public class InventoryScreen implements ActionListener
 			// Hotbar slot key labels shown faintly (displays current keybind).
 			if (i < Inventory.HOTBAR_SLOTS)
 			{
-				final GameInputManager gim = SimpleCraft.getInstance().getGameInputManager();
-				final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i]));
 				_hotbarNumbers[i] = new BitmapText(_font);
-				_hotbarNumbers[i].setText(keyName);
+				_hotbarNumbers[i].setText(GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i])));
 				_hotbarNumbers[i].setSize(_font.getCharSet().getRenderedSize() * 0.8f);
 				_hotbarNumbers[i].setColor(COLOR_HOTBAR_LABEL.clone());
-				final float numX = _slotX[i] + 2;
-				final float numY = _slotY[i] + _slotSize - 2;
-				_hotbarNumbers[i].setLocalTranslation(numX, numY, Z_TEXT);
+				_hotbarNumbers[i].setLocalTranslation((_slotX[i] + 2), (_slotY[i] + _slotSize - 2), Z_TEXT);
 				_screenNode.attachChild(_hotbarNumbers[i]);
 			}
 		}
@@ -516,11 +533,7 @@ public class InventoryScreen implements ActionListener
 			_armorSlotLabel[i].setText(getArmorSlotLabel(i));
 			_armorSlotLabel[i].setSize(_font.getCharSet().getRenderedSize() * 1.2f);
 			_armorSlotLabel[i].setColor(new ColorRGBA(0.5f, 0.5f, 0.55f, 0.5f));
-			final float labelWidth = _armorSlotLabel[i].getLineWidth();
-			final float labelHeight = _armorSlotLabel[i].getLineHeight();
-			final float labelX = _armorSlotX[i] + (_slotSize - labelWidth) / 2f;
-			final float labelY = _armorSlotY[i] + (_slotSize + labelHeight) / 2f;
-			_armorSlotLabel[i].setLocalTranslation(labelX, labelY, Z_TEXT);
+			_armorSlotLabel[i].setLocalTranslation((_armorSlotX[i] + (_slotSize - _armorSlotLabel[i].getLineWidth()) / 2f), (_armorSlotY[i] + (_slotSize + _armorSlotLabel[i].getLineHeight()) / 2f), Z_TEXT);
 			_screenNode.attachChild(_armorSlotLabel[i]);
 			
 			// Durability bar.
@@ -534,15 +547,7 @@ public class InventoryScreen implements ActionListener
 	
 	private static String getArmorSlotLabel(int index)
 	{
-		final String[] keys =
-		{
-			"screen.armor_head",
-			"screen.armor_chest",
-			"screen.armor_pants",
-			"screen.armor_boots"
-		};
-		
-		return LanguageManager.get(keys[index]);
+		return LanguageManager.get(ARMOR_LABEL_KEYS[index]);
 	}
 	
 	/**
@@ -575,14 +580,13 @@ public class InventoryScreen implements ActionListener
 			_armorMatsLight[i] = makeModelMaterial(COLOR_IRON_LIGHT, app);
 		}
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Base player model (always visible - skin with brown pants).
 		// Proportions match EnemyFactory.buildPlayer() / buildZombie().
-		// ========================================================
+		// ------------------------------------------------------------------
 		
 		// Body (skin - armor will overlay this when chestplate is equipped).
-		final Node bodyNode = makeModelPivot("Body", makeModelBox("BodyBox", 0.3f, 0.33f, 0.15f, skinMat, 0, 0, 0), 0, 1.27f, 0);
-		_modelRootNode.attachChild(bodyNode);
+		_modelRootNode.attachChild(makeModelPivot("Body", makeModelBox("BodyBox", 0.3f, 0.33f, 0.15f, skinMat, 0, 0, 0), 0, 1.27f, 0));
 		
 		// Brown waistband.
 		_baseWaistband = makeModelBox("Waistband", 0.31f, 0.12f, 0.16f, pantsMat, 0, 0.88f, 0);
@@ -630,16 +634,14 @@ public class InventoryScreen implements ActionListener
 		rightLeg.attachChild(_basePantsRight);
 		
 		// Arms (skin only - shoulder plates are part of chestplate armor).
-		final Node leftArm = makeModelPivot("LeftArm", makeModelBox("LeftArmBox", 0.125f, 0.4f, 0.125f, skinMat, 0, -0.4f, 0), -0.425f, 1.55f, 0);
-		_modelRootNode.attachChild(leftArm);
+		_modelRootNode.attachChild(makeModelPivot("LeftArm", makeModelBox("LeftArmBox", 0.125f, 0.4f, 0.125f, skinMat, 0, -0.4f, 0), -0.425f, 1.55f, 0));
 		
-		final Node rightArm = makeModelPivot("RightArm", makeModelBox("RightArmBox", 0.125f, 0.4f, 0.125f, skinMat, 0, -0.4f, 0), 0.425f, 1.55f, 0);
-		_modelRootNode.attachChild(rightArm);
+		_modelRootNode.attachChild(makeModelPivot("RightArm", makeModelBox("RightArmBox", 0.125f, 0.4f, 0.125f, skinMat, 0, -0.4f, 0), 0.425f, 1.55f, 0));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Toggleable 3D armor overlay nodes (hidden by default).
 		// Positions are absolute since the model is static (no limb animation).
-		// ========================================================
+		// ------------------------------------------------------------------
 		
 		// Helmet (attaches to head pivot node so it rotates with head).
 		_armor3dHelmet = new Node("ArmorHelmet");
@@ -674,9 +676,9 @@ public class InventoryScreen implements ActionListener
 		_armor3dBoots.attachChild(makeModelBox("RBoots", 0.145f, 0.21f, 0.145f, _armorMatsMain[3], 0.175f, 0.2f, 0));
 		_armor3dBoots.setCullHint(Node.CullHint.Always);
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Offscreen viewport: renders the 3D model to a texture.
-		// ========================================================
+		// ------------------------------------------------------------------
 		
 		// Camera framing the full model (feet to head).
 		_modelCamera = new Camera(MODEL_TEX_WIDTH, MODEL_TEX_HEIGHT);
@@ -705,12 +707,11 @@ public class InventoryScreen implements ActionListener
 		// Initialize scene graph state.
 		_modelScene.updateGeometricState();
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// GUI display quad: shows the rendered model texture.
-		// ========================================================
+		// ------------------------------------------------------------------
 		
-		final float armorGap = _slotSize * 0.5f;
-		_modelDisplayX = _armorPanelX + _slotSize + armorGap;
+		_modelDisplayX = _armorPanelX + _slotSize + (_slotSize * 0.5f);
 		_modelDisplayWidth = _slotSize * 1.6f;
 		final float armorTotalHeight = 4 * _slotSize + 3 * SLOT_SPACING;
 		_modelDisplayY = _armorPanelY;
@@ -720,8 +721,7 @@ public class InventoryScreen implements ActionListener
 		_modelDisplayMat.setTexture("ColorMap", _modelRenderTexture);
 		_modelDisplayMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		
-		final Quad displayQuad = new Quad(_modelDisplayWidth, _modelDisplayHeight);
-		_modelDisplayQuad = new Geometry("ModelDisplay", displayQuad);
+		_modelDisplayQuad = new Geometry("ModelDisplay", new Quad(_modelDisplayWidth, _modelDisplayHeight));
 		_modelDisplayQuad.setMaterial(_modelDisplayMat);
 		_modelDisplayQuad.setQueueBucket(Bucket.Gui);
 		_modelDisplayQuad.setLocalTranslation(_modelDisplayX, _modelDisplayY, Z_SLOT_FILL);
@@ -745,16 +745,17 @@ public class InventoryScreen implements ActionListener
 		_tooltipBg.setCullHint(Geometry.CullHint.Always);
 		_screenNode.attachChild(_tooltipBg);
 		
+		final float tooltipFontSize = _tooltipFont.getCharSet().getRenderedSize();
 		_tooltipTextShadow = new BitmapText(_tooltipFont);
 		_tooltipTextShadow.setText("");
-		_tooltipTextShadow.setSize(_tooltipFont.getCharSet().getRenderedSize());
+		_tooltipTextShadow.setSize(tooltipFontSize);
 		_tooltipTextShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_tooltipTextShadow.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_tooltipTextShadow);
 		
 		_tooltipText = new BitmapText(_tooltipFont);
 		_tooltipText.setText("");
-		_tooltipText.setSize(_tooltipFont.getCharSet().getRenderedSize());
+		_tooltipText.setSize(tooltipFontSize);
 		_tooltipText.setColor(COLOR_TEXT.clone());
 		_tooltipText.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_tooltipText);
@@ -768,23 +769,24 @@ public class InventoryScreen implements ActionListener
 		_heldQuad.setCullHint(Geometry.CullHint.Always);
 		_screenNode.attachChild(_heldQuad);
 		
+		final float heldFontSize = _font.getCharSet().getRenderedSize();
 		_heldLabel = new BitmapText(_font);
 		_heldLabel.setText("");
-		_heldLabel.setSize(_font.getCharSet().getRenderedSize() * 1.2f);
+		_heldLabel.setSize(heldFontSize * 1.2f);
 		_heldLabel.setColor(COLOR_TEXT.clone());
 		_heldLabel.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_heldLabel);
 		
 		_heldCountShadow = new BitmapText(_font);
 		_heldCountShadow.setText("");
-		_heldCountShadow.setSize(_font.getCharSet().getRenderedSize());
+		_heldCountShadow.setSize(heldFontSize);
 		_heldCountShadow.setColor(COLOR_TEXT_SHADOW.clone());
 		_heldCountShadow.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_heldCountShadow);
 		
 		_heldCount = new BitmapText(_font);
 		_heldCount.setText("");
-		_heldCount.setSize(_font.getCharSet().getRenderedSize());
+		_heldCount.setSize(heldFontSize);
 		_heldCount.setColor(COLOR_TEXT.clone());
 		_heldCount.setCullHint(BitmapText.CullHint.Always);
 		_screenNode.attachChild(_heldCount);
@@ -793,7 +795,9 @@ public class InventoryScreen implements ActionListener
 	private void buildTitle(SimpleCraft app)
 	{
 		final int titleSize = Math.max(14, (int) (_screenHeight * 0.022f));
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, titleSize);
+		final AssetManager assetManager = app.getAssetManager();
+		final String regularFontPath = FontManager.getRegularPath();
+		final BitmapFont titleFont = FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, titleSize);
 		
 		// Grid center X for label centering.
 		final float gridCenterX = (_slotX[0] + _slotX[8] + _slotSize) / 2f;
@@ -812,8 +816,7 @@ public class InventoryScreen implements ActionListener
 		_screenNode.attachChild(_titleText);
 		
 		// _slotY[9] is the top row of main inventory (slots 9-17).
-		final float titleWidth = _titleText.getLineWidth();
-		final float titleX = gridCenterX - titleWidth / 2f;
+		final float titleX = gridCenterX - _titleText.getLineWidth() / 2f;
 		final float titleY = _slotY[9] + _slotSize + SLOT_PADDING + _titleText.getLineHeight() + 2;
 		_titleText.setLocalTranslation(titleX, titleY, Z_TEXT);
 		_titleTextShadow.setLocalTranslation(titleX + 1, titleY - 1, Z_TEXT - 0.1f);
@@ -832,8 +835,7 @@ public class InventoryScreen implements ActionListener
 		_screenNode.attachChild(_actionBarText);
 		
 		// Position above the hotbar row, below the inventory.
-		final float abWidth = _actionBarText.getLineWidth();
-		final float abX = gridCenterX - abWidth / 2f;
+		final float abX = gridCenterX - _actionBarText.getLineWidth() / 2f;
 		final float abY = _slotY[0] + _slotSize + SLOT_PADDING + _actionBarText.getLineHeight() + 2;
 		_actionBarText.setLocalTranslation(abX, abY, Z_TEXT);
 		_actionBarTextShadow.setLocalTranslation(abX + 1, abY - 1, Z_TEXT - 0.1f);
@@ -852,15 +854,14 @@ public class InventoryScreen implements ActionListener
 		_screenNode.attachChild(_armorTitleText);
 		
 		// Position above the top armor slot.
-		final float armorTitleWidth = _armorTitleText.getLineWidth();
-		final float armorTitleX = _armorSlotX[0] + (_slotSize - armorTitleWidth) / 2f;
+		final float armorTitleX = _armorSlotX[0] + (_slotSize - _armorTitleText.getLineWidth()) / 2f;
 		final float armorTitleY = _armorSlotY[0] + _slotSize + SLOT_PADDING + _armorTitleText.getLineHeight() + 2;
 		_armorTitleText.setLocalTranslation(armorTitleX, armorTitleY, Z_TEXT);
 		_armorTitleTextShadow.setLocalTranslation(armorTitleX + 1, armorTitleY - 1, Z_TEXT - 0.1f);
 		
 		// "TIP" note at bottom-right of the screen.
 		final int tipSize = Math.max(11, (int) (_screenHeight * 0.015f));
-		final BitmapFont tipFont = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, tipSize);
+		final BitmapFont tipFont = FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, tipSize);
 		final ColorRGBA tipColor = new ColorRGBA(0.35f, 0.35f, 0.35f, 0.7f);
 		
 		_tipTextShadow = new BitmapText(tipFont);
@@ -882,9 +883,9 @@ public class InventoryScreen implements ActionListener
 		_tipTextShadow.setLocalTranslation(tipX + 1, tipY - 1, Z_TEXT - 0.1f);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Open / Close.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Opens the inventory screen, showing the cursor and disabling player controls.
@@ -992,9 +993,9 @@ public class InventoryScreen implements ActionListener
 		return _open;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Update.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates hover detection, tooltip and held item position each frame.
@@ -1030,7 +1031,7 @@ public class InventoryScreen implements ActionListener
 		
 		_prevCursorX = cx;
 		
-		_modelRootNode.setLocalRotation(new Quaternion().fromAngleAxis(_modelRotation, Vector3f.UNIT_Y));
+		_modelRootNode.setLocalRotation(_modelRotQuat.fromAngleAxis(_modelRotation, Vector3f.UNIT_Y));
 		
 		// Update offscreen scene graph state for rendering.
 		_modelScene.updateLogicalState(tpf);
@@ -1070,16 +1071,13 @@ public class InventoryScreen implements ActionListener
 	{
 		for (int i = 0; i < Inventory.TOTAL_SLOTS; i++)
 		{
-			final ItemInstance stack = _inventory.getSlot(i);
-			updateSlotVisual(i, stack);
+			updateSlotVisual(i, _inventory.getSlot(i));
 		}
 		
 		// Refresh armor slots and player model overlays.
 		for (int i = 0; i < ArmorSlot.COUNT; i++)
 		{
-			final ArmorSlot slot = ArmorSlot.fromIndex(i);
-			final ItemInstance armorItem = _inventory.getArmorSlot(slot);
-			updateArmorSlotVisual(i, armorItem);
+			updateArmorSlotVisual(i, _inventory.getArmorSlot(ArmorSlot.fromIndex(i)));
 		}
 		
 		updatePlayerModelOverlays();
@@ -1118,19 +1116,14 @@ public class InventoryScreen implements ActionListener
 		{
 			// No sprite - use colored quad with type label.
 			_slotFillMat[index].clearParam("ColorMap");
-			final ColorRGBA fillColor = getItemColor(template);
-			_slotFillMat[index].setColor("Color", fillColor);
+			_slotFillMat[index].setColor("Color", getItemColor(template));
 			
 			// Label (type indicator).
 			final String label = getItemLabel(template);
 			if (label != null && !label.isEmpty())
 			{
 				_slotLabel[index].setText(label);
-				final float labelWidth = _slotLabel[index].getLineWidth();
-				final float labelHeight = _slotLabel[index].getLineHeight();
-				final float labelX = _slotX[index] + (_slotSize - labelWidth) / 2f;
-				final float labelY = _slotY[index] + (_slotSize + labelHeight) / 2f;
-				_slotLabel[index].setLocalTranslation(labelX, labelY, Z_TEXT);
+				_slotLabel[index].setLocalTranslation((_slotX[index] + (_slotSize - _slotLabel[index].getLineWidth()) / 2f), (_slotY[index] + (_slotSize + _slotLabel[index].getLineHeight()) / 2f), Z_TEXT);
 				_slotLabel[index].setCullHint(BitmapText.CullHint.Never);
 			}
 			else
@@ -1148,8 +1141,7 @@ public class InventoryScreen implements ActionListener
 			_slotCountShadow[index].setText(countStr);
 			
 			// Position at bottom-right corner of slot.
-			final float countWidth = _slotCount[index].getLineWidth();
-			final float countX = _slotX[index] + _slotSize - countWidth - 2;
+			final float countX = _slotX[index] + _slotSize - _slotCount[index].getLineWidth() - 2;
 			final float countY = _slotY[index] + _slotCount[index].getLineHeight() + 1;
 			_slotCount[index].setLocalTranslation(countX, countY, Z_TEXT);
 			_slotCountShadow[index].setLocalTranslation(countX + 1, countY - 1, Z_TEXT - 0.1f);
@@ -1300,9 +1292,9 @@ public class InventoryScreen implements ActionListener
 	private void recolorArmorMaterials(int index, String itemId)
 	{
 		final boolean isGold = itemId.startsWith("gold_");
-		_armorMatsMain[index].setColor("Color", isGold ? COLOR_GOLD.clone() : COLOR_IRON.clone());
-		_armorMatsDark[index].setColor("Color", isGold ? COLOR_GOLD_DARK.clone() : COLOR_IRON_DARK.clone());
-		_armorMatsLight[index].setColor("Color", isGold ? COLOR_GOLD_LIGHT.clone() : COLOR_IRON_LIGHT.clone());
+		_armorMatsMain[index].setColor("Color", isGold ? COLOR_GOLD : COLOR_IRON);
+		_armorMatsDark[index].setColor("Color", isGold ? COLOR_GOLD_DARK : COLOR_IRON_DARK);
+		_armorMatsLight[index].setColor("Color", isGold ? COLOR_GOLD_LIGHT : COLOR_IRON_LIGHT);
 	}
 	
 	private void updateTooltip(float cx, float cy)
@@ -1328,10 +1320,11 @@ public class InventoryScreen implements ActionListener
 		}
 		
 		// Build tooltip text.
-		String text = tooltipStack.getTemplate().getDisplayName();
+		final ItemTemplate tooltipTemplate = tooltipStack.getTemplate();
+		String text = tooltipTemplate.getDisplayName();
 		if (tooltipStack.hasDurability())
 		{
-			text += " [" + tooltipStack.getDurability() + "/" + tooltipStack.getTemplate().getMaxDurability() + "]";
+			text += " [" + tooltipStack.getDurability() + "/" + tooltipTemplate.getMaxDurability() + "]";
 		}
 		
 		_tooltipText.setText(text);
@@ -1356,13 +1349,16 @@ public class InventoryScreen implements ActionListener
 			tipY = _screenHeight - 4;
 		}
 		
-		// Background.
-		_tooltipBg.getMesh().updateBound();
-		
-		// Recreate tooltip bg at the right size.
-		final float bgW = tipWidth + padding * 2;
+		// Background - rebuild the mesh only when its size changes.
+		final float bgW = tipWidth + (padding * 2);
 		final float bgH = tipHeight + padding;
-		_tooltipBg.setMesh(new Quad(bgW, bgH));
+		if ((bgW != _tooltipBgWidth) || (bgH != _tooltipBgHeight))
+		{
+			_tooltipBg.setMesh(new Quad(bgW, bgH));
+			_tooltipBgWidth = bgW;
+			_tooltipBgHeight = bgH;
+		}
+		
 		_tooltipBg.setLocalTranslation(tipX - padding, tipY - tipHeight - padding / 2f, Z_TOOLTIP - 0.1f);
 		_tooltipBg.setCullHint(Geometry.CullHint.Never);
 		
@@ -1400,17 +1396,14 @@ public class InventoryScreen implements ActionListener
 		else
 		{
 			_heldQuadMat.clearParam("ColorMap");
-			final ColorRGBA color = getItemColor(heldTemplate);
-			_heldQuadMat.setColor("Color", color);
+			_heldQuadMat.setColor("Color", getItemColor(heldTemplate));
 			
 			// Label.
 			final String label = getItemLabel(heldTemplate);
 			if (label != null && !label.isEmpty())
 			{
 				_heldLabel.setText(label);
-				final float labelWidth = _heldLabel.getLineWidth();
-				final float labelHeight = _heldLabel.getLineHeight();
-				_heldLabel.setLocalTranslation(heldX + (heldSize - labelWidth) / 2f, heldY + (heldSize + labelHeight) / 2f, Z_HELD + 0.1f);
+				_heldLabel.setLocalTranslation(heldX + (heldSize - _heldLabel.getLineWidth()) / 2f, heldY + (heldSize + _heldLabel.getLineHeight()) / 2f, Z_HELD + 0.1f);
 				_heldLabel.setCullHint(BitmapText.CullHint.Never);
 			}
 			else
@@ -1444,9 +1437,9 @@ public class InventoryScreen implements ActionListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Input Handling.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	@Override
 	public void onAction(String name, boolean isPressed, float tpf)
@@ -1666,19 +1659,19 @@ public class InventoryScreen implements ActionListener
 		if (_heldStack == null)
 		{
 			final ItemInstance target = _inventory.getSlot(slot);
-			if (target != null && !target.isEmpty() && "wood".equals(target.getTemplate().getId()))
+			if ((target == null) || target.isEmpty() || !"wood".equals(target.getTemplate().getId()) || !_inventory.hasItem("wood", 4))
 			{
-				if (_inventory.hasItem("wood", 4))
-				{
-					_inventory.removeItem("wood", 4);
-					final ItemTemplate craftingTable = ItemRegistry.get("crafting_table");
-					if (craftingTable != null)
-					{
-						_inventory.addItem(new ItemInstance(craftingTable, 1));
-						System.out.println("Quick-crafted: Crafting Table (4× Wood)");
-					}
-				}
+				return;
 			}
+			
+			_inventory.removeItem("wood", 4);
+			final ItemTemplate craftingTable = ItemRegistry.get("crafting_table");
+			if (craftingTable != null)
+			{
+				_inventory.addItem(new ItemInstance(craftingTable, 1));
+				System.out.println("Quick-crafted: Crafting Table (4× Wood)");
+			}
+			
 			return;
 		}
 		
@@ -1706,9 +1699,9 @@ public class InventoryScreen implements ActionListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Slot Hit Detection.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the inventory slot index at the given screen position, or -1 if outside all slots.
@@ -1750,9 +1743,9 @@ public class InventoryScreen implements ActionListener
 		return x >= _modelDisplayX && x < _modelDisplayX + _modelDisplayWidth && y >= _modelDisplayY && y < _modelDisplayY + _modelDisplayHeight;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// World Drop Support.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Sets the drop manager for spawning world drops when items are discarded.
@@ -1814,15 +1807,14 @@ public class InventoryScreen implements ActionListener
 		}
 		
 		// Find ground level below the drop position.
-		// Start one block above feet level - handles 1-block step-ups in terrain
-		// ahead while staying below ceilings and roofs.
+		// Start one block above feet level,
+		// Handles 1-block step-ups in terrain ahead while staying below ceilings and roofs.
 		final int bx = (int) Math.floor(dropX);
 		final int bz = (int) Math.floor(dropZ);
 		int groundY = (int) Math.ceil(playerPos.y);
 		if (_world != null)
 		{
-			final int startY = (int) Math.ceil(playerPos.y) + 1;
-			for (int y = startY; y >= 0; y--)
+			for (int y = ((int) Math.ceil(playerPos.y) + 1); y >= 0; y--)
 			{
 				if (_world.getBlock(bx, y, bz).isSolid())
 				{
@@ -1836,9 +1828,9 @@ public class InventoryScreen implements ActionListener
 		System.out.println("Dropped into world: " + stack);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Cleanup.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Removes all inventory screen elements from the GUI node.
@@ -1856,14 +1848,19 @@ public class InventoryScreen implements ActionListener
 		_guiNode.detachChild(_screenNode);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Item Visual Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns a display color for the given item based on its type.
 	 */
 	static ColorRGBA getItemColor(ItemTemplate template)
+	{
+		return ITEM_COLOR_CACHE.computeIfAbsent(template, InventoryScreen::computeItemColor);
+	}
+	
+	private static ColorRGBA computeItemColor(ItemTemplate template)
 	{
 		if (template == null)
 		{
@@ -1974,6 +1971,11 @@ public class InventoryScreen implements ActionListener
 	 */
 	static ColorRGBA getBlockColor(Block block)
 	{
+		return BLOCK_COLOR_CACHE.computeIfAbsent(block, InventoryScreen::computeBlockColor);
+	}
+	
+	private static ColorRGBA computeBlockColor(Block block)
+	{
 		if (block == null)
 		{
 			return new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f);
@@ -2070,20 +2072,18 @@ public class InventoryScreen implements ActionListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Geometry Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private Geometry createQuad(String name, float width, float height, ColorRGBA color, SimpleCraft app)
 	{
-		final Material mat = createColorMaterial(color, app);
-		return createQuadWithMaterial(name, width, height, mat);
+		return createQuadWithMaterial(name, width, height, createColorMaterial(color, app));
 	}
 	
 	private Geometry createQuadWithMaterial(String name, float width, float height, Material mat)
 	{
-		final Quad quad = new Quad(width, height);
-		final Geometry geom = new Geometry(name, quad);
+		final Geometry geom = new Geometry(name, new Quad(width, height));
 		geom.setMaterial(mat);
 		geom.setQueueBucket(Bucket.Gui);
 		return geom;
@@ -2097,9 +2097,9 @@ public class InventoryScreen implements ActionListener
 		return mat;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// 3D Model Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates an opaque Unshaded material for the offscreen 3D player model.
@@ -2116,8 +2116,7 @@ public class InventoryScreen implements ActionListener
 	 */
 	private Geometry makeModelBox(String name, float halfX, float halfY, float halfZ, Material mat, float tx, float ty, float tz)
 	{
-		final Box box = new Box(halfX, halfY, halfZ);
-		final Geometry geom = new Geometry(name, box);
+		final Geometry geom = new Geometry(name, new Box(halfX, halfY, halfZ));
 		geom.setMaterial(mat);
 		geom.setLocalTranslation(tx, ty, tz);
 		return geom;

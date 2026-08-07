@@ -28,11 +28,9 @@ import simplecraft.world.entity.WindowTileEntity;
  */
 public class RegionMeshBuilder
 {
-	// ========================================================
-	// Atlas Constants.
-	// ========================================================
+	// ========== ATLAS CONSTANTS ==========
 	
-	/** Number of tiles per row/column in the texture atlas (from {@link TextureAtlas}). */
+	/** Number of tiles per row/column in the texture atlas (from {@link simplecraft.world.TextureAtlas}). */
 	private static final int ATLAS_GRID_SIZE = TextureAtlas.GRID_SIZE;
 	
 	/** UV size of one tile in the atlas. */
@@ -41,9 +39,8 @@ public class RegionMeshBuilder
 	/** UV inset to prevent atlas bleeding (half-pixel padding). */
 	private static final float UV_PADDING = 0.001f;
 	
-	// ========================================================
-	// Face Shade Factors (simulates directional sunlight).
-	// ========================================================
+	// ========== FACE SHADE FACTORS (SIMULATES DIRECTIONAL SUNLIGHT) ==========
+	
 	// Indexed by Face ordinal: TOP, BOTTOM, NORTH, SOUTH, EAST, WEST.
 	// TOP = direct overhead sun (brightest), EAST = darker side, WEST = sun-facing side.
 	
@@ -65,9 +62,7 @@ public class RegionMeshBuilder
 	/** Minimum vertex brightness. Zero allows total darkness underground. */
 	private static final float MIN_BRIGHTNESS = 0.001f;
 	
-	// ========================================================
-	// Block Light Warm Tint (torch/campfire glow).
-	// ========================================================
+	// ========== BLOCK LIGHT WARM TINT (TORCH/CAMPFIRE GLOW) ==========
 	
 	/** Red component of warm block light tint. */
 	private static final float WARM_TINT_R = 1.0f;
@@ -78,9 +73,7 @@ public class RegionMeshBuilder
 	/** Blue component of warm block light tint. */
 	private static final float WARM_TINT_B = 0.55f;
 	
-	// ========================================================
-	// Day/Night Cycle Multipliers (global, updated by PlayingState).
-	// ========================================================
+	// ========== DAY/NIGHT CYCLE MULTIPLIERS (GLOBAL, UPDATED BY PLAYINGSTATE) ==========
 	
 	/** Sky brightness multiplier from the day/night cycle (0.1 at midnight, 1.0 at noon). */
 	private static volatile float _cycleBrightness = 1.0f;
@@ -102,9 +95,8 @@ public class RegionMeshBuilder
 	 */
 	private static volatile TileEntityManager _globalTileEntityManager;
 	
-	// ========================================================
-	// Face Vertex Positions (relative to block origin 0,0,0).
-	// ========================================================
+	// ========== FACE VERTEX POSITIONS (RELATIVE TO BLOCK ORIGIN 0,0,0) ==========
+	
 	// Each face has 4 vertices forming a quad. jME3 is Y-up.
 	// Winding order is counter-clockwise when viewed from outside.
 	// Flattened to float arrays for better performance: [x,y,z] per vertex, 4 vertices per face.
@@ -156,9 +148,7 @@ public class RegionMeshBuilder
 		}
 	};
 	
-	// ========================================================
-	// Face Normals.
-	// ========================================================
+	// ========== FACE NORMALS ==========
 	
 	private static final Vector3f[] FACE_NORMALS =
 	{
@@ -196,9 +186,7 @@ public class RegionMeshBuilder
 		}
 	}
 	
-	// ========================================================
-	// Face UV Coordinates (unit UV space).
-	// ========================================================
+	// ========== FACE UV COORDINATES (UNIT UV SPACE) ==========
 	
 	// @formatter:off
 	private static final float[] FACE_UVS =
@@ -213,18 +201,15 @@ public class RegionMeshBuilder
 	};
 	// @formatter:on
 	
-	// ========================================================
-	// Face Triangle Indices (two triangles per quad).
-	// ========================================================
+	// ========== FACE TRIANGLE INDICES (TWO TRIANGLES PER QUAD) ==========
+	
 	// Relative to first vertex of the face (0-based per face).
 	
 	// @formatter:off
 	private static final int[] FACE_INDICES = { 0, 1, 2, 0, 2, 3 };
 	// @formatter:on
 	
-	// ========================================================
-	// Neighbor Offsets (indexed by Face ordinal).
-	// ========================================================
+	// ========== NEIGHBOR OFFSETS (INDEXED BY FACE ORDINAL) ==========
 	
 	// @formatter:off
 	private static final int[][] NEIGHBOR_OFFSETS =
@@ -238,9 +223,8 @@ public class RegionMeshBuilder
 	};
 	// @formatter:on
 	
-	// ========================================================
-	// Billboard Quad Positions (relative to block origin).
-	// ========================================================
+	// ========== BILLBOARD QUAD POSITIONS (RELATIVE TO BLOCK ORIGIN) ==========
+	
 	// Two quads crossing at 45 degrees through the block center.
 	// Inset slightly (0.15) from edges to look more natural.
 	// Flattened for better performance.
@@ -279,9 +263,7 @@ public class RegionMeshBuilder
 		BILLBOARD_QUAD_B_FLAT[0][11] = 0.85f;
 	}
 	
-	// ========================================================
-	// Region Mesh Result Container.
-	// ========================================================
+	// ========== REGION MESH RESULT CONTAINER ==========
 	
 	/**
 	 * Holds the four meshes generated from a region.<br>
@@ -323,14 +305,12 @@ public class RegionMeshBuilder
 		}
 	}
 	
-	// ========================================================
-	// Region Mesh Data Container (thread-safe raw arrays).
-	// ========================================================
+	// ========== REGION MESH DATA CONTAINER (THREAD-SAFE RAW ARRAYS) ==========
 	
 	/**
 	 * Holds pre-built raw vertex arrays for a region's four meshes.<br>
-	 * Produced on a background thread by {@link #buildRegionMeshData}.<br>
-	 * Converted to jME3 Mesh objects on the main thread by {@link #createMeshes}.<br>
+	 * Produced on a background thread by {@code buildRegionMeshData}.<br>
+	 * Converted to jME3 Mesh objects on the main thread by {@code createMeshes}.<br>
 	 * This split allows the expensive iteration and vertex building to run off-thread<br>
 	 * while only the lightweight DirectBuffer allocation happens on the render thread.<br>
 	 * Includes per-vertex color arrays for sky-light-based lighting.
@@ -406,9 +386,7 @@ public class RegionMeshBuilder
 		}
 	}
 	
-	// ========================================================
-	// Cross-Region Block Access.
-	// ========================================================
+	// ========== CROSS-REGION BLOCK ACCESS ==========
 	
 	/**
 	 * Functional interface for looking up blocks at world coordinates.<br>
@@ -428,27 +406,23 @@ public class RegionMeshBuilder
 		}
 	}
 	
-	// ========================================================
-	// Private Constructor (static utility class).
-	// ========================================================
+	// ========== PRIVATE CONSTRUCTOR (STATIC UTILITY CLASS) ==========
 	
 	private RegionMeshBuilder()
 	{
 		// Static utility class - do not instantiate.
 	}
 	
-	// ========================================================
-	// Day/Night Cycle API.
-	// ========================================================
+	// ========== DAY/NIGHT CYCLE API ==========
 	
 	/**
 	 * Sets the day/night cycle parameters used when building vertex colors.<br>
 	 * Must be called before triggering mesh rebuilds so background threads pick up<br>
 	 * the current values. Fields are volatile for safe cross-thread reads.
 	 * @param brightness the sky brightness multiplier (0.1 at midnight, 1.0 at noon)
-	 * @param tintR red component of the sky tint (0.0 – 1.0)
-	 * @param tintG green component of the sky tint (0.0 – 1.0)
-	 * @param tintB blue component of the sky tint (0.0 – 1.0)
+	 * @param tintR red component of the sky tint (0.0 - 1.0)
+	 * @param tintG green component of the sky tint (0.0 - 1.0)
+	 * @param tintB blue component of the sky tint (0.0 - 1.0)
 	 */
 	public static void setDayNightParams(float brightness, float tintR, float tintG, float tintB)
 	{
@@ -470,9 +444,7 @@ public class RegionMeshBuilder
 		_globalTileEntityManager = manager;
 	}
 	
-	// ========================================================
-	// Full Region Mesh Building.
-	// ========================================================
+	// ========== FULL REGION MESH BUILDING ==========
 	
 	/**
 	 * Builds four separate meshes from the region's block data.<br>
@@ -494,13 +466,10 @@ public class RegionMeshBuilder
 	 */
 	public static RegionMeshResult buildRegionMesh(Region region, WorldBlockAccess worldAccess, TileEntityManager tileEntityManager)
 	{
-		final RegionMeshData data = buildRegionMeshData(region, worldAccess, tileEntityManager);
-		return createMeshes(data);
+		return createMeshes(buildRegionMeshData(region, worldAccess, tileEntityManager));
 	}
 	
-	// ========================================================
-	// Background-Safe Mesh Data Building.
-	// ========================================================
+	// ========== BACKGROUND-SAFE MESH DATA BUILDING ==========
 	
 	/**
 	 * Builds raw vertex arrays from the region's block data (background-thread safe).<br>
@@ -515,7 +484,7 @@ public class RegionMeshBuilder
 	 * Builds raw vertex arrays from the region's block data (background-thread safe).<br>
 	 * Optimized version with zero garbage collection during vertex building.<br>
 	 * Includes per-vertex color data computed from the region's sky light map, face shade factors,<br>
-	 * and the current day/night cycle brightness and tint (set via {@link #setDayNightParams}).<br>
+	 * and the current day/night cycle brightness and tint (set via {@code setDayNightParams}).<br>
 	 * <br>
 	 * When a TileEntityManager is provided, CUBE_SOLID tile entity blocks have their face-to-texture<br>
 	 * mapping rotated according to the stored facing direction. This makes the front texture<br>
@@ -528,8 +497,7 @@ public class RegionMeshBuilder
 	public static RegionMeshData buildRegionMeshData(Region region, WorldBlockAccess worldAccess, TileEntityManager tileEntityManager)
 	{
 		// Fall back to the global reference when no explicit manager is passed.
-		// This allows background threads (async remesh) to access tile entity state
-		// for FLAT_PANEL blocks without changing the RegionLoader call chain.
+		// This allows background threads (async remesh) to access tile entity state for FLAT_PANEL blocks without changing the RegionLoader call chain.
 		if (tileEntityManager == null)
 		{
 			tileEntityManager = _globalTileEntityManager;
@@ -629,11 +597,9 @@ public class RegionMeshBuilder
 									final int[] offset = NEIGHBOR_OFFSETS[faceOrdinal];
 									final int nx = x + offset[0];
 									final int ny = y + offset[1];
-									final int nz = z + offset[2];
-									final boolean buried = ny >= 0 && ny < Region.SIZE_Y && isBuriedUnderground(region, worldAccess, nx, ny, nz);
 									
 									// Blend sky light and block light for this face.
-									final float skyLight = buried ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
+									final float skyLight = (ny >= 0 && ny < Region.SIZE_Y && isBuriedUnderground(region, worldAccess, nx, ny, (z + offset[2]))) ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float blockLight = getNeighborBlockLight(region, x, y, z, face, worldAccess);
 									final float shade = FACE_SHADE[faceOrdinal];
 									final float skyB = skyLight * shade;
@@ -647,9 +613,8 @@ public class RegionMeshBuilder
 									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
 									
 									// Rotate face for texture lookup on oriented blocks.
-									final Face textureFace = rotateFace(face, blockFacing);
 									
-									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, textureFace, block, r, g, b, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
+									writeFace(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, x, y, z, face, rotateFace(face, blockFacing), block, r, g, b, opaqueVPtr, opaqueUPtr, opaqueCPtr, opaqueIPtr);
 									opaqueVPtr += 4 * 3; // 4 verts × 3 coords
 									opaqueUPtr += 4 * 2; // 4 verts × 2 UVs
 									opaqueCPtr += 4 * 4; // 4 verts × 4 RGBA
@@ -668,10 +633,8 @@ public class RegionMeshBuilder
 									final int[] offsetT = NEIGHBOR_OFFSETS[faceOrdinal];
 									final int nxT = x + offsetT[0];
 									final int nyT = y + offsetT[1];
-									final int nzT = z + offsetT[2];
-									final boolean buriedTrans = nyT >= 0 && nyT < Region.SIZE_Y && isBuriedUnderground(region, worldAccess, nxT, nyT, nzT);
 									
-									final float skyLight = buriedTrans ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
+									final float skyLight = (nyT >= 0 && nyT < Region.SIZE_Y && isBuriedUnderground(region, worldAccess, nxT, nyT, (z + offsetT[2]))) ? 0 : getNeighborSkyLight(region, x, y, z, face) * _cycleBrightness;
 									final float blockLight = getNeighborBlockLight(region, x, y, z, face, worldAccess);
 									final float shade = FACE_SHADE[faceOrdinal];
 									final float skyB = skyLight * shade;
@@ -719,10 +682,10 @@ public class RegionMeshBuilder
 							final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
 							
 							final float blkRatio = (finalB > MIN_BRIGHTNESS) ? (blkB / finalB) : 0;
+							
 							final float r = finalB * lerp(_cycleTintR, WARM_TINT_R, blkRatio);
 							final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
 							final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
-							
 							writeBillboard(billPos, billNorm, billUV, billCol, billIdx, x, y, z, block, r, g, b, billVPtr, billUPtr, billCPtr, billIPtr);
 							billVPtr += 8 * 3; // 8 verts × 3 coords
 							billUPtr += 8 * 2; // 8 verts × 2 UVs
@@ -734,9 +697,7 @@ public class RegionMeshBuilder
 						{
 							if (tileEntityManager != null)
 							{
-								final int worldX = regionWorldX + x;
-								final int worldZ = regionWorldZ + z;
-								final TileEntity te = tileEntityManager.get(worldX, y, worldZ);
+								final TileEntity te = tileEntityManager.get((regionWorldX + x), y, (regionWorldZ + z));
 								if (te != null)
 								{
 									final Facing facing = te.getFacing();
@@ -763,10 +724,10 @@ public class RegionMeshBuilder
 									final float finalB = Math.max(Math.max(skyB, blkB), MIN_BRIGHTNESS);
 									
 									final float blkRatio = (finalB > MIN_BRIGHTNESS) ? (blkB / finalB) : 0;
+									
 									final float r = finalB * lerp(_cycleTintR, WARM_TINT_R, blkRatio);
 									final float g = finalB * lerp(_cycleTintG, WARM_TINT_G, blkRatio);
 									final float b = finalB * lerp(_cycleTintB, WARM_TINT_B, blkRatio);
-									
 									writeFlatPanel(billPos, billNorm, billUV, billCol, billIdx, x, y, z, facing, isOpen, flipSide, block, r, g, b, billVPtr, billUPtr, billCPtr, billIPtr);
 									billVPtr += 4 * 3; // 4 verts × 3 coords
 									billUPtr += 4 * 2; // 4 verts × 2 UVs
@@ -774,6 +735,10 @@ public class RegionMeshBuilder
 									billIPtr += 6; // 6 indices
 								}
 							}
+							break;
+						}
+						default:
+						{
 							break;
 						}
 					}
@@ -784,14 +749,12 @@ public class RegionMeshBuilder
 		return new RegionMeshData(opaquePos, opaqueNorm, opaqueUV, opaqueCol, opaqueIdx, transPos, transNorm, transUV, transCol, transIdx, waterPos, waterNorm, waterUV, waterCol, waterIdx, billPos, billNorm, billUV, billCol, billIdx);
 	}
 	
-	// ========================================================
-	// Face Rotation for Directional Blocks.
-	// ========================================================
+	// ========== FACE ROTATION FOR DIRECTIONAL BLOCKS ==========
 	
 	/**
 	 * Maps a physical world face to a logical face for texture lookup based on block orientation.<br>
 	 * <br>
-	 * {@link Block#getAtlasIndex(Face)} assumes NORTH = front. When the block faces a different<br>
+	 * {@code Block.getAtlasIndex(Face)} assumes NORTH = front. When the block faces a different<br>
 	 * direction, the physical face that should display the front texture is not NORTH.<br>
 	 * This method translates: "I'm rendering the physical SOUTH face of a block facing SOUTH"<br>
 	 * -> "ask getAtlasIndex(NORTH) to get the front texture."<br>
@@ -799,7 +762,7 @@ public class RegionMeshBuilder
 	 * TOP and BOTTOM faces are not affected by horizontal rotation.
 	 * @param physicalFace the actual world face being rendered
 	 * @param blockFacing which direction the block's front points
-	 * @return the logical face to pass to {@link Block#getAtlasIndex(Face)}
+	 * @return the logical face to pass to {@code Block.getAtlasIndex(Face)}
 	 */
 	private static Face rotateFace(Face physicalFace, Facing blockFacing)
 	{
@@ -902,9 +865,7 @@ public class RegionMeshBuilder
 		}
 	}
 	
-	// ========================================================
-	// Sky Light and Block Light Helpers.
-	// ========================================================
+	// ========== SKY LIGHT AND BLOCK LIGHT HELPERS ==========
 	
 	/**
 	 * Returns the sky light at the neighbor position for a given face.<br>
@@ -982,7 +943,7 @@ public class RegionMeshBuilder
 	
 	/**
 	 * Returns the block light (artificial light) at the neighbor position for a given face.<br>
-	 * Parallel to {@link #getNeighborSkyLight} - samples the air space the face looks at.<br>
+	 * Parallel to {@code getNeighborSkyLight} - samples the air space the face looks at.<br>
 	 * When worldAccess is provided, cross-region neighbors are resolved from adjacent regions.
 	 * @return block light level normalized to [0.0, 1.0]
 	 */
@@ -1006,9 +967,7 @@ public class RegionMeshBuilder
 		// Cross-region boundary - use world access for accurate block light lookup.
 		if (worldAccess != null)
 		{
-			final int worldX = region.getWorldX() + nx;
-			final int worldZ = region.getWorldZ() + nz;
-			return worldAccess.getBlockLight(worldX, ny, worldZ) / 15.0f;
+			return worldAccess.getBlockLight((region.getWorldX() + nx), ny, (region.getWorldZ() + nz)) / 15.0f;
 		}
 		
 		return 0.0f;
@@ -1098,12 +1057,15 @@ public class RegionMeshBuilder
 						case FLAT_PANEL:
 						{
 							// Only count if tile entity manager is available and the entity exists.
-							// This must match the main build loop condition exactly to prevent
-							// array misalignment (counted but unwritten vertices).
+							// This must match the main build loop condition exactly to prevent array misalignment (counted but unwritten vertices).
 							if (tileEntityManager != null && tileEntityManager.get(regionWorldX + x, y, regionWorldZ + z) != null)
 							{
 								billboard += 4;
 							}
+							break;
+						}
+						default:
+						{
 							break;
 						}
 					}
@@ -1245,9 +1207,7 @@ public class RegionMeshBuilder
 		indices[iPtr + 5] = baseVertex + 3;
 	}
 	
-	// ========================================================
-	// Flat Panel Quad (windows, doors).
-	// ========================================================
+	// ========== FLAT PANEL QUAD (WINDOWS, DOORS) ==========
 	
 	/** Small offset to prevent z-fighting when panel is flush against a wall. */
 	private static final float PANEL_FLUSH_OFFSET = 0.01f;
@@ -1334,32 +1294,28 @@ public class RegionMeshBuilder
 				{
 					// Front faces +Z. Knob at -X (player left). Swings to +X (hinge right).
 					nx = 1.0f;
-					final float fx = flipSide ? (bx + 1.0f - PANEL_FLUSH_OFFSET) : (bx + PANEL_FLUSH_OFFSET);
-					writeQuadX(positions, vPtr, fx, by, bz);
+					writeQuadX(positions, vPtr, (flipSide ? (bx + 1.0f - PANEL_FLUSH_OFFSET) : (bx + PANEL_FLUSH_OFFSET)), by, bz);
 					break;
 				}
 				case SOUTH:
 				{
 					// Front faces -Z. Knob at +X (player left). Swings to -X (hinge right).
 					nx = -1.0f;
-					final float fx = flipSide ? (bx + PANEL_FLUSH_OFFSET) : (bx + 1.0f - PANEL_FLUSH_OFFSET);
-					writeQuadX(positions, vPtr, fx, by, bz);
+					writeQuadX(positions, vPtr, (flipSide ? (bx + PANEL_FLUSH_OFFSET) : (bx + 1.0f - PANEL_FLUSH_OFFSET)), by, bz);
 					break;
 				}
 				case EAST:
 				{
 					// Front faces +X. Knob at +Z (player left). Swings to -Z (hinge right).
 					nz = -1.0f;
-					final float fz = flipSide ? (bz + PANEL_FLUSH_OFFSET) : (bz + 1.0f - PANEL_FLUSH_OFFSET);
-					writeQuadZ(positions, vPtr, bx, by, fz);
+					writeQuadZ(positions, vPtr, bx, by, (flipSide ? (bz + PANEL_FLUSH_OFFSET) : (bz + 1.0f - PANEL_FLUSH_OFFSET)));
 					break;
 				}
 				case WEST:
 				{
 					// Front faces -X. Knob at -Z (player left). Swings to +Z (hinge right).
 					nz = 1.0f;
-					final float fz = flipSide ? (bz + 1.0f - PANEL_FLUSH_OFFSET) : (bz + PANEL_FLUSH_OFFSET);
-					writeQuadZ(positions, vPtr, bx, by, fz);
+					writeQuadZ(positions, vPtr, bx, by, (flipSide ? (bz + 1.0f - PANEL_FLUSH_OFFSET) : (bz + PANEL_FLUSH_OFFSET)));
 					break;
 				}
 				default:
@@ -1384,12 +1340,8 @@ public class RegionMeshBuilder
 			colors[cPtr + v * 4 + 3] = 1.0f;
 		}
 		
-		// Write UVs. Flip horizontally so the door handle (right side of texture)
-		// appears correctly from the player's perspective:
-		// - Closed: knob on player's left (SOUTH and WEST facings need flip)
-		// - Open: knob on free edge (SOUTH and EAST facings need flip)
-		// When the panel swings 90°, the vertex ordering changes axis,
-		// so the flip condition is different for the open vs closed state.
+		// Write UVs. Flip horizontally so the door handle (right side of texture) appears correctly from the player's perspective:
+		// - Closed: knob on player's left (SOUTH and WEST facings need flip) - Open: knob on free edge (SOUTH and EAST facings need flip) when the panel swings 90°, the vertex ordering changes axis, so the flip condition is different for the open vs closed state.
 		final boolean flipU;
 		if (!isOpen)
 		{
@@ -1503,16 +1455,16 @@ public class RegionMeshBuilder
 	 * This is the lightweight step: only DirectBuffer allocation and GPU upload.<br>
 	 * Typically completes in under 1ms per region.<br>
 	 * Now includes Color buffer for vertex-color-based lighting.
-	 * @param data the pre-built mesh data from {@link #buildRegionMeshData}
+	 * @param data the pre-built mesh data from {@code buildRegionMeshData}
 	 * @return a RegionMeshResult containing the four meshes (any may be null)
 	 */
 	public static RegionMeshResult createMeshes(RegionMeshData data)
 	{
-		final Mesh opaqueMesh = data.hasOpaque() ? assembleFromArrays(data._opaquePositions, data._opaqueNormals, data._opaqueTexCoords, data._opaqueColors, data._opaqueIndices) : null;
-		final Mesh transparentMesh = data.hasTransparent() ? assembleFromArrays(data._transparentPositions, data._transparentNormals, data._transparentTexCoords, data._transparentColors, data._transparentIndices) : null;
-		final Mesh waterMesh = data.hasWater() ? assembleFromArrays(data._waterPositions, data._waterNormals, data._waterTexCoords, data._waterColors, data._waterIndices) : null;
-		final Mesh billboardMesh = data.hasBillboard() ? assembleFromArrays(data._billboardPositions, data._billboardNormals, data._billboardTexCoords, data._billboardColors, data._billboardIndices) : null;
-		return new RegionMeshResult(opaqueMesh, transparentMesh, waterMesh, billboardMesh);
+		final Mesh opaque = data.hasOpaque() ? assembleFromArrays(data._opaquePositions, data._opaqueNormals, data._opaqueTexCoords, data._opaqueColors, data._opaqueIndices) : null;
+		final Mesh transparent = data.hasTransparent() ? assembleFromArrays(data._transparentPositions, data._transparentNormals, data._transparentTexCoords, data._transparentColors, data._transparentIndices) : null;
+		final Mesh water = data.hasWater() ? assembleFromArrays(data._waterPositions, data._waterNormals, data._waterTexCoords, data._waterColors, data._waterIndices) : null;
+		final Mesh billboard = data.hasBillboard() ? assembleFromArrays(data._billboardPositions, data._billboardNormals, data._billboardTexCoords, data._billboardColors, data._billboardIndices) : null;
+		return new RegionMeshResult(opaque, transparent, water, billboard);
 	}
 	
 	/**
@@ -1530,9 +1482,7 @@ public class RegionMeshBuilder
 		return mesh;
 	}
 	
-	// ========================================================
-	// Face Visibility - CUBE_SOLID.
-	// ========================================================
+	// ========== FACE VISIBILITY - CUBE_SOLID ==========
 	
 	/**
 	 * Returns true if the given face of a CUBE_SOLID block at (x, y, z) should be rendered.<br>
@@ -1552,9 +1502,7 @@ public class RegionMeshBuilder
 			if (worldAccess != null && ny >= 0 && ny < Region.SIZE_Y)
 			{
 				// Convert to world coordinates and query across region boundaries.
-				final int worldX = region.getWorldX() + nx;
-				final int worldZ = region.getWorldZ() + nz;
-				neighbor = worldAccess.getBlock(worldX, ny, worldZ);
+				neighbor = worldAccess.getBlock((region.getWorldX() + nx), ny, (region.getWorldZ() + nz));
 			}
 			else
 			{
@@ -1571,9 +1519,7 @@ public class RegionMeshBuilder
 		return neighbor == Block.AIR || neighbor.getRenderMode() != RenderMode.CUBE_SOLID;
 	}
 	
-	// ========================================================
-	// Face Visibility - CUBE_TRANSPARENT.
-	// ========================================================
+	// ========== FACE VISIBILITY - CUBE_TRANSPARENT ==========
 	
 	/**
 	 * Positive-direction faces used for leaves single-face rendering.<br>
@@ -1617,9 +1563,7 @@ public class RegionMeshBuilder
 			if (worldAccess != null && ny >= 0 && ny < Region.SIZE_Y)
 			{
 				// Convert to world coordinates and query across region boundaries.
-				final int worldX = region.getWorldX() + nx;
-				final int worldZ = region.getWorldZ() + nz;
-				neighbor = worldAccess.getBlock(worldX, ny, worldZ);
+				neighbor = worldAccess.getBlock((region.getWorldX() + nx), ny, (region.getWorldZ() + nz));
 			}
 			else
 			{
@@ -1655,9 +1599,7 @@ public class RegionMeshBuilder
 		return true;
 	}
 	
-	// ========================================================
-	// Single Cube Test Mesh.
-	// ========================================================
+	// ========== SINGLE CUBE TEST MESH ==========
 	
 	/**
 	 * Generates a Mesh for a single block at (0,0,0) with all 6 faces visible.<br>
@@ -1680,9 +1622,7 @@ public class RegionMeshBuilder
 		return assembleMesh(positions, normals, texCoords, colors, indices);
 	}
 	
-	// ========================================================
-	// Legacy Face Building (unit UVs for single cube test).
-	// ========================================================
+	// ========== LEGACY FACE BUILDING (UNIT UVS FOR SINGLE CUBE TEST) ==========
 	
 	/**
 	 * Appends one face (4 vertices, 6 indices) to the buffer lists.
@@ -1735,9 +1675,7 @@ public class RegionMeshBuilder
 		}
 	}
 	
-	// ========================================================
-	// Mesh Assembly (Legacy).
-	// ========================================================
+	// ========== MESH ASSEMBLY (LEGACY) ==========
 	
 	/**
 	 * Converts the buffer lists into a jME3 Mesh, including vertex colors.
@@ -1763,9 +1701,7 @@ public class RegionMeshBuilder
 		return mesh;
 	}
 	
-	// ========================================================
-	// Array Conversion Utilities.
-	// ========================================================
+	// ========== ARRAY CONVERSION UTILITIES ==========
 	
 	private static float[] toFloatArray(List<Float> list)
 	{

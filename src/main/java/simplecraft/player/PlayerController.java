@@ -26,7 +26,7 @@ import simplecraft.world.World;
  * Handles mouse look and WASD movement relative to camera facing direction.<br>
  * Horizontal movement uses yaw-only forward/right vectors so the player always<br>
  * moves on the horizontal plane regardless of where the camera is looking.<br>
- * Vertical movement is governed by gravity and ground detection via {@link PlayerCollision}.<br>
+ * Vertical movement is governed by gravity and ground detection via {@link simplecraft.player.PlayerCollision}.<br>
  * <br>
  * Horizontal movement deltas are passed to the collision system which resolves<br>
  * axis-separated AABB sweeps with step-up support for 1-block ledges.<br>
@@ -39,13 +39,13 @@ import simplecraft.world.World;
  * head is submerged; when air reaches zero, drowning damage is applied<br>
  * continuously until the player surfaces.<br>
  * <br>
- * All damage sources funnel through {@link #takeDamage(float, String)} and all<br>
- * healing through {@link #heal(float)} for consistent health management and<br>
+ * All damage sources funnel through {@code takeDamage(float, String)} and all<br>
+ * healing through {@code heal(float)} for consistent health management and<br>
  * death cause tracking.<br>
  * <br>
- * Registers as both {@link ActionListener} (movement key flags) and<br>
- * {@link AnalogListener} (mouse axes) on the jME3 {@link InputManager}.<br>
- * Call {@link #update(float)} each frame from the owning state.
+ * Registers as both {@link com.jme3.input.controls.ActionListener} (movement key flags) and<br>
+ * {@link com.jme3.input.controls.AnalogListener} (mouse axes) on the jME3 {@link com.jme3.input.InputManager}.<br>
+ * Call {@code update(float)} each frame from the owning state.
  * @author Pantelis Andrianakis
  * @since February 27th 2026
  */
@@ -214,22 +214,12 @@ public class PlayerController implements ActionListener, AnalogListener
 		_audioManager = audioManager;
 		_inventory = new Inventory();
 		
-		// Reduce near clip so geometry at the player's collision boundary (0.3 blocks
-		// from walls) is never clipped. setFrustumPerspective rebuilds the full
-		// projection matrix cleanly - earlier attempts using setFrustumNear alone
-		// caused distortion because they only modified one frustum parameter.
-		final float aspect = (float) _camera.getWidth() / _camera.getHeight();
-		_camera.setFrustumPerspective(_fov, aspect, 0.1f, 1000f);
+		// Reduce near clip so geometry at the player's collision boundary (0.3 blocks from walls) is never clipped.
+		// setFrustumPerspective rebuilds the full projection matrix cleanly;
+		// Earlier attempts using setFrustumNear alone caused distortion because they only modified one frustum parameter.
+		_camera.setFrustumPerspective(_fov, (float) _camera.getWidth() / _camera.getHeight(), 0.1f, 1000f);
 		
-		// Give starting inventory.
-		initStartingInventory();
-	}
-	
-	/**
-	 * Populates the hotbar with default starting items.
-	 */
-	private void initStartingInventory()
-	{
+		// Give starting inventory: a crafting table on the hotbar.
 		final ItemTemplate craftingTable = ItemRegistry.get("crafting_table");
 		if (craftingTable != null)
 		{
@@ -299,13 +289,10 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 		
 		// Safety net: if the region at the player's feet isn't loaded yet,
-		// float in place (zero velocity, no movement) to prevent falling through
-		// unloaded terrain. This can happen during respawn or world re-entry
-		// when the loading screen finishes but surrounding regions are still
-		// being built by background threads.
-		final int playerRegionX = Math.floorDiv((int) Math.floor(_position.x), Region.SIZE_XZ);
-		final int playerRegionZ = Math.floorDiv((int) Math.floor(_position.z), Region.SIZE_XZ);
-		if (_world.getRegion(playerRegionX, playerRegionZ) == null)
+		// float in place (zero velocity, no movement) to prevent falling through unloaded terrain.
+		// This can happen during respawn or world re-entry,
+		// When the loading screen finishes but surrounding regions are still being built by background threads.
+		if (_world.getRegion(Math.floorDiv((int) Math.floor(_position.x), Region.SIZE_XZ), Math.floorDiv((int) Math.floor(_position.z), Region.SIZE_XZ)) == null)
 		{
 			_velocity.set(0, 0, 0);
 			_eyePos.set(_position.x, _position.y + EYE_HEIGHT, _position.z);
@@ -314,7 +301,7 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 		
 		// Apply camera rotation from accumulated yaw and pitch first,
-		// then derive movement vectors from the actual camera orientation.
+		// Then derive movement vectors from the actual camera orientation.
 		// This guarantees movement always matches the visual look direction.
 		_rotation.fromAngles(_pitch, _yaw, 0);
 		_camera.setRotation(_rotation);
@@ -390,15 +377,12 @@ public class PlayerController implements ActionListener, AnalogListener
 		}
 		
 		// --- Swimming state ---
-		final boolean hasMovementInput = _moveForward || _moveBack || _moveLeft || _moveRight || _moveUp || _moveDown;
-		_isSwimming = _inWater && hasMovementInput;
+		_isSwimming = _inWater && (_moveForward || _moveBack || _moveLeft || _moveRight || _moveUp || _moveDown);
 		
-		// Resolve collision. Pass swim input flags
-		// so the collision system can handle swim-up (Space) and swim-down (Shift) when in water.
-		// Don't pass swimUp when doing a surface jump - let the jump impulse work.
-		final boolean swimUp = _inWater && _moveUp && !waterSurfaceJump;
-		final boolean swimDown = _inWater && _moveDown;
-		final CollisionResult result = _collision.resolveCollision(_position, _velocity, deltaX, deltaZ, _world, tpf, swimUp, swimDown);
+		// Resolve collision.
+		// Pass swim input flags so the collision system can handle swim-up (Space) and swim-down (Shift) when in water.
+		// Don't pass swim-up when doing a surface jump - let the jump impulse work.
+		final CollisionResult result = _collision.resolveCollision(_position, _velocity, deltaX, deltaZ, _world, tpf, _inWater && _moveUp && !waterSurfaceJump, _inWater && _moveDown);
 		_onGround = result.isOnGround();
 		_inWater = result.isInWater();
 		_headSubmerged = result.isHeadSubmerged();
@@ -548,12 +532,8 @@ public class PlayerController implements ActionListener, AnalogListener
 	 */
 	private String getFootstepSound()
 	{
-		final int bx = (int) Math.floor(_position.x);
-		final int by = (int) Math.floor(_position.y - 0.1f);
-		final int bz = (int) Math.floor(_position.z);
-		final Block block = _world.getBlock(bx, by, bz);
 		
-		switch (block)
+		switch (_world.getBlock((int) Math.floor(_position.x), (int) Math.floor(_position.y - 0.1f), (int) Math.floor(_position.z)))
 		{
 			case GRASS:
 			{
@@ -666,6 +646,10 @@ public class PlayerController implements ActionListener, AnalogListener
 				_moveDown = isPressed;
 				break;
 			}
+			default:
+			{
+				break;
+			}
 		}
 	}
 	
@@ -697,6 +681,10 @@ public class PlayerController implements ActionListener, AnalogListener
 			case GameInputManager.LOOK_DOWN:
 			{
 				_pitch -= delta;
+				break;
+			}
+			default:
+			{
 				break;
 			}
 		}
@@ -826,8 +814,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	public void setFov(float fov)
 	{
 		_fov = fov;
-		final float aspect = (float) _camera.getWidth() / _camera.getHeight();
-		_camera.setFrustumPerspective(_fov, aspect, 0.1f, 1000f);
+		_camera.setFrustumPerspective(_fov, (float) _camera.getWidth() / _camera.getHeight(), 0.1f, 1000f);
 	}
 	
 	public float getHealth()
@@ -968,7 +955,7 @@ public class PlayerController implements ActionListener, AnalogListener
 	
 	/**
 	 * Sets the campfire respawn point directly from a saved world position.<br>
-	 * Unlike {@link #setRespawnCampfire()}, this does NOT capture the player's<br>
+	 * Unlike {@code setRespawnCampfire()}, this does NOT capture the player's<br>
 	 * current position - the vector is used as-is (it was already saved).
 	 * @param spawnPos the exact respawn position (feet level)
 	 */

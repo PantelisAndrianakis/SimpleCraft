@@ -1,6 +1,7 @@
 package simplecraft.world.entity;
 
 import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.influencers.ParticleInfluencer;
 import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
@@ -23,7 +24,7 @@ import simplecraft.world.World;
 /**
  * Tile entity for the Furnace block.<br>
  * Contains three item slots (input, fuel, output) and runs a smelting simulation<br>
- * every frame via {@link #update(float)}, called by {@link TileEntityManager}.<br>
+ * every frame via {@code update(float)}, called by {@link simplecraft.world.entity.TileEntityManager}.<br>
  * <br>
  * <b>Key behavior:</b> Smelting continues even when the UI is closed. The player<br>
  * can load ore and fuel, walk away and return to find finished bars.<br>
@@ -38,9 +39,7 @@ import simplecraft.world.World;
  */
 public class FurnaceTileEntity extends TileEntity
 {
-	// ========================================================
-	// Slots.
-	// ========================================================
+	// ========== SLOTS ==========
 	
 	/** The ore or material being smelted (top slot). */
 	private ItemInstance _inputSlot;
@@ -51,9 +50,7 @@ public class FurnaceTileEntity extends TileEntity
 	/** The smelted result (right slot). */
 	private ItemInstance _outputSlot;
 	
-	// ========================================================
-	// Smelting State.
-	// ========================================================
+	// ========== SMELTING STATE ==========
 	
 	/** Current smelt progress in seconds (0 to _smeltTimeRequired). */
 	private float _smeltProgress;
@@ -76,9 +73,7 @@ public class FurnaceTileEntity extends TileEntity
 	/** Tracks previous burning state to toggle smoke only on transitions. */
 	private boolean _wasBurning;
 	
-	// ========================================================
-	// Constructor.
-	// ========================================================
+	// ========== CONSTRUCTOR ==========
 	
 	/**
 	 * Creates a new furnace tile entity at the given world position.
@@ -89,9 +84,7 @@ public class FurnaceTileEntity extends TileEntity
 		super(position, Block.FURNACE);
 	}
 	
-	// ========================================================
-	// Lifecycle Hooks.
-	// ========================================================
+	// ========== LIFECYCLE HOOKS ==========
 	
 	@Override
 	public void onPlaced(World world)
@@ -114,8 +107,9 @@ public class FurnaceTileEntity extends TileEntity
 		_smokeEmitter.setGravity(0, -0.3f, 0); // Drifts upward (negative gravity = up).
 		_smokeEmitter.setLowLife(1.0f);
 		_smokeEmitter.setHighLife(2.0f);
-		_smokeEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.5f, 0));
-		_smokeEmitter.getParticleInfluencer().setVelocityVariation(0.3f);
+		final ParticleInfluencer smokeInfluencer = _smokeEmitter.getParticleInfluencer();
+		smokeInfluencer.setInitialVelocity(new Vector3f(0, 0.5f, 0));
+		smokeInfluencer.setVelocityVariation(0.3f);
 		_smokeEmitter.setParticlesPerSec(0); // Off by default - toggled in update().
 		
 		_visualNode.attachChild(_smokeEmitter);
@@ -124,8 +118,7 @@ public class FurnaceTileEntity extends TileEntity
 	@Override
 	public void onInteract(PlayerController player, World world)
 	{
-		// FurnaceScreen opening is handled by BlockInteraction,
-		// which calls setActiveScreen() and then opens the UI.
+		// FurnaceScreen opening is handled by BlockInteraction, which calls setActiveScreen() and then opens the UI.
 	}
 	
 	@Override
@@ -145,9 +138,7 @@ public class FurnaceTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Update (called every frame by TileEntityManager).
-	// ========================================================
+	// ========== UPDATE (CALLED EVERY FRAME BY TILEENTITYMANAGER) ==========
 	
 	@Override
 	public void update(float tpf)
@@ -205,9 +196,7 @@ public class FurnaceTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Smelting Logic.
-	// ========================================================
+	// ========== SMELTING LOGIC ==========
 	
 	/**
 	 * Returns true if smelting can proceed:<br>
@@ -328,9 +317,7 @@ public class FurnaceTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// State Queries.
-	// ========================================================
+	// ========== STATE QUERIES ==========
 	
 	/**
 	 * Returns true if the furnace is currently burning fuel.
@@ -368,9 +355,7 @@ public class FurnaceTileEntity extends TileEntity
 		return Math.min(1.0f, _fuelRemaining / _fuelTotalBurnTime);
 	}
 	
-	// ========================================================
-	// Slot Access.
-	// ========================================================
+	// ========== SLOT ACCESS ==========
 	
 	public ItemInstance getInputSlot()
 	{
@@ -420,9 +405,7 @@ public class FurnaceTileEntity extends TileEntity
 		return _activeScreen;
 	}
 	
-	// ========================================================
-	// Item Drop (on block break).
-	// ========================================================
+	// ========== ITEM DROP (ON BLOCK BREAK) ==========
 	
 	/**
 	 * Drops all furnace slot contents as world items via the DropManager.<br>
@@ -459,9 +442,7 @@ public class FurnaceTileEntity extends TileEntity
 		}
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	// ========== SERIALIZATION ==========
 	
 	@Override
 	public String serialize()
@@ -575,6 +556,10 @@ public class FurnaceTileEntity extends TileEntity
 				case "fuelTotalBurnTime":
 				{
 					fuelTotalBurnTime = Float.parseFloat(value);
+					break;
+				}
+				default:
+				{
 					break;
 				}
 			}

@@ -4,6 +4,7 @@ import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.InputManager;
@@ -41,15 +42,18 @@ import simplecraft.ui.FontManager;
  * are greyed out. Clicking [Craft] consumes ingredients and adds the output.<br>
  * <br>
  * While open, player movement and block interaction input are unregistered<br>
- * (same pattern as {@link InventoryScreen}). Close with Escape or Tab.
+ * (same pattern as {@link simplecraft.player.InventoryScreen}). Close with Escape or Tab.
  * @author Pantelis Andrianakis
  * @since March 17th 2026
  */
 public class CraftingScreen implements ActionListener, AnalogListener
 {
-	// ========================================================
+	/** Dimmed icon tint for uncraftable recipes. */
+	private static final ColorRGBA COLOR_ICON_DIMMED = new ColorRGBA(0.4f, 0.4f, 0.4f, 0.6f);
+	
+	// ------------------------------------------------------------------
 	// Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Font size for recipe text. */
 	private static final int FONT_SIZE = 16;
@@ -109,9 +113,9 @@ public class CraftingScreen implements ActionListener, AnalogListener
 	private static final ColorRGBA COLOR_HINT = new ColorRGBA(0.6f, 0.6f, 0.6f, 1.0f);
 	private static final ColorRGBA COLOR_TEXT_SHADOW = new ColorRGBA(0.0f, 0.0f, 0.0f, 0.8f);
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final PlayerController _playerController;
 	private final BlockInteraction _blockInteraction;
@@ -150,9 +154,9 @@ public class CraftingScreen implements ActionListener, AnalogListener
 	/** Bottom Y of the recipe area (above the hint text). */
 	private float _recipeAreaBottom;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Recipe Row Data.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Tracks the UI elements and bounds for a single recipe row.
@@ -183,9 +187,9 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		boolean hasTexture;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a new crafting screen (initially hidden).
@@ -200,9 +204,9 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		_audioManager = audioManager;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Open / Close.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Opens the crafting screen: builds the UI, disables player input, shows cursor.
@@ -229,11 +233,10 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		// Attach to guiNode.
 		app.getGuiNode().attachChild(_rootNode);
 		
-		// Show cursor.
-		app.getInputManager().setCursorVisible(true);
-		
-		// Register crafting screen input (click and scroll).
-		registerInput(app.getInputManager());
+		// Show cursor and register crafting screen input (click and scroll).
+		final InputManager inputManager = app.getInputManager();
+		inputManager.setCursorVisible(true);
+		registerInput(inputManager);
 		
 		// Set initial recipe colors.
 		refreshRecipeColors();
@@ -254,7 +257,8 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
 		// Unregister crafting screen input.
-		unregisterInput(app.getInputManager());
+		final InputManager inputManager = app.getInputManager();
+		unregisterInput(inputManager);
 		
 		// Detach UI.
 		if (_rootNode != null)
@@ -271,7 +275,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		_blockInteraction.registerInput();
 		
 		// Hide cursor.
-		app.getInputManager().setCursorVisible(false);
+		inputManager.setCursorVisible(false);
 	}
 	
 	/**
@@ -282,9 +286,9 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		return _open;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// UI Construction.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds all UI elements for the crafting screen.
@@ -298,13 +302,14 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		final float screenH = cam.getHeight();
 		
 		// Load fonts.
-		_recipeFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, FONT_SIZE);
-		_titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, TITLE_FONT_SIZE);
+		final AssetManager assetManager = app.getAssetManager();
+		final String titleFontPath = FontManager.getTitlePath();
+		_recipeFont = FontManager.getFont(assetManager, titleFontPath, Font.PLAIN, FONT_SIZE);
+		_titleFont = FontManager.getFont(assetManager, titleFontPath, Font.PLAIN, TITLE_FONT_SIZE);
 		
 		// ---- Full-screen dark overlay ----
-		final Quad overlayQuad = new Quad(screenW, screenH);
-		final Geometry overlay = new Geometry("CraftingOverlay", overlayQuad);
-		final Material overlayMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		final Geometry overlay = new Geometry("CraftingOverlay", new Quad(screenW, screenH));
+		final Material overlayMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		overlayMat.setColor("Color", new ColorRGBA(0, 0, 0, OVERLAY_ALPHA));
 		overlayMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		overlay.setMaterial(overlayMat);
@@ -318,9 +323,8 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		_panelX = (screenW - _panelWidth) / 2;
 		_panelY = (screenH - _panelHeight) / 2;
 		
-		final Quad panelQuad = new Quad(_panelWidth, _panelHeight);
-		final Geometry panelBg = new Geometry("CraftingPanel", panelQuad);
-		final Material panelMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		final Geometry panelBg = new Geometry("CraftingPanel", new Quad(_panelWidth, _panelHeight));
+		final Material panelMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		panelMat.setColor("Color", new ColorRGBA(0.1f, 0.1f, 0.12f, PANEL_ALPHA));
 		panelMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		panelBg.setMaterial(panelMat);
@@ -329,15 +333,17 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		_rootNode.attachChild(panelBg);
 		
 		// ---- Title ----
+		final String title = LanguageManager.get("screen.crafting_table");
+		final float titleFontSize = _titleFont.getCharSet().getRenderedSize();
 		final BitmapText titleShadow = new BitmapText(_titleFont);
-		titleShadow.setText(LanguageManager.get("screen.crafting_table"));
+		titleShadow.setText(title);
 		titleShadow.setColor(COLOR_TEXT_SHADOW);
-		titleShadow.setSize(_titleFont.getCharSet().getRenderedSize());
+		titleShadow.setSize(titleFontSize);
 		
 		final BitmapText titleText = new BitmapText(_titleFont);
-		titleText.setText(LanguageManager.get("screen.crafting_table"));
+		titleText.setText(title);
 		titleText.setColor(COLOR_TITLE);
-		titleText.setSize(_titleFont.getCharSet().getRenderedSize());
+		titleText.setSize(titleFontSize);
 		
 		final float titleX = _panelX + (_panelWidth - titleText.getLineWidth()) / 2;
 		final float titleY = _panelY + _panelHeight - PANEL_PADDING;
@@ -351,9 +357,8 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		hintText.setText(LanguageManager.get("screen.crafting_hint"));
 		hintText.setColor(COLOR_HINT);
 		hintText.setSize(_recipeFont.getCharSet().getRenderedSize());
-		final float hintX = _panelX + (_panelWidth - hintText.getLineWidth()) / 2;
 		final float hintY = _panelY + PANEL_PADDING + hintText.getLineHeight();
-		hintText.setLocalTranslation(hintX, hintY, Z_TEXT);
+		hintText.setLocalTranslation(_panelX + ((_panelWidth - hintText.getLineWidth()) / 2), hintY, Z_TEXT);
 		_rootNode.attachChild(hintText);
 		
 		// ---- Recipe area bounds ----
@@ -363,10 +368,8 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		// ---- Build recipe rows ----
 		buildRecipeRows(app);
 		
-		// Calculate max scroll offset.
-		final float contentHeight = _rows.size() * ROW_HEIGHT;
-		final float visibleHeight = _recipeAreaTop - _recipeAreaBottom;
-		_maxScrollOffset = Math.max(0, contentHeight - visibleHeight);
+		// Calculate max scroll offset (content height minus visible height).
+		_maxScrollOffset = Math.max(0, (_rows.size() * ROW_HEIGHT) - (_recipeAreaTop - _recipeAreaBottom));
 		
 		// Position rows.
 		layoutRecipeRows();
@@ -379,6 +382,8 @@ public class CraftingScreen implements ActionListener, AnalogListener
 	{
 		_rows.clear();
 		
+		final AssetManager assetManager = SimpleCraft.getInstance().getAssetManager();
+		final float fontSize = _recipeFont.getCharSet().getRenderedSize();
 		final List<CraftingRecipe> allRecipes = CraftingRegistry.getAllRecipes();
 		// final float leftX = _panelX + PANEL_PADDING;
 		final float rightX = _panelX + _panelWidth - PANEL_PADDING;
@@ -394,11 +399,11 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			final ItemTemplate outputTemplate = ItemRegistry.get(recipe.getOutputItemId());
 			
 			// Create icon material.
-			row.iconMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+			row.iconMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 			row.iconMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 			
 			// Try to resolve a sprite texture (same as InventoryScreen).
-			final Texture iconTexture = outputTemplate != null ? ItemTextureResolver.resolve(app.getAssetManager(), outputTemplate) : null;
+			final Texture iconTexture = (outputTemplate != null) ? ItemTextureResolver.resolve(assetManager, outputTemplate) : null;
 			
 			if (iconTexture != null)
 			{
@@ -409,13 +414,11 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			else
 			{
 				// Fallback: colored quad with type label (same helpers as InventoryScreen).
-				final ColorRGBA itemColor = InventoryScreen.getItemColor(outputTemplate);
-				row.iconMat.setColor("Color", itemColor);
+				row.iconMat.setColor("Color", InventoryScreen.getItemColor(outputTemplate));
 				row.hasTexture = false;
 			}
 			
-			final Quad iconQuad = new Quad(ICON_SIZE, ICON_SIZE);
-			row.iconQuad = new Geometry("CraftIcon" + i, iconQuad);
+			row.iconQuad = new Geometry("CraftIcon" + i, new Quad(ICON_SIZE, ICON_SIZE));
 			row.iconQuad.setMaterial(row.iconMat);
 			row.iconQuad.setQueueBucket(Bucket.Gui);
 			_rootNode.attachChild(row.iconQuad);
@@ -428,7 +431,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 				{
 					row.iconLabel = new BitmapText(_recipeFont);
 					row.iconLabel.setText(label);
-					row.iconLabel.setSize(_recipeFont.getCharSet().getRenderedSize() * 1.2f);
+					row.iconLabel.setSize(fontSize * 1.2f);
 					row.iconLabel.setColor(ColorRGBA.White);
 					_rootNode.attachChild(row.iconLabel);
 				}
@@ -438,27 +441,28 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			// final float textX = leftX + ICON_SIZE + ICON_TEXT_GAP;
 			
 			// Output name + count (line 1) with shadow.
+			final String outputName = recipe.getOutputDisplayName();
 			row.outputTextShadow = new BitmapText(_recipeFont);
-			row.outputTextShadow.setText(recipe.getOutputDisplayName());
-			row.outputTextShadow.setSize(_recipeFont.getCharSet().getRenderedSize());
+			row.outputTextShadow.setText(outputName);
+			row.outputTextShadow.setSize(fontSize);
 			row.outputTextShadow.setColor(COLOR_TEXT_SHADOW);
 			_rootNode.attachChild(row.outputTextShadow);
 			
 			row.outputText = new BitmapText(_recipeFont);
-			row.outputText.setText(recipe.getOutputDisplayName());
-			row.outputText.setSize(_recipeFont.getCharSet().getRenderedSize());
+			row.outputText.setText(outputName);
+			row.outputText.setSize(fontSize);
 			_rootNode.attachChild(row.outputText);
 			
 			// Ingredient list (line 2).
 			row.ingredientText = new BitmapText(_recipeFont);
 			row.ingredientText.setText(LanguageManager.get("screen.crafting_needs") + " " + recipe.getIngredientsDisplayString());
-			row.ingredientText.setSize(_recipeFont.getCharSet().getRenderedSize());
+			row.ingredientText.setSize(fontSize);
 			_rootNode.attachChild(row.ingredientText);
 			
 			// [Craft] button text (right-aligned).
 			row.buttonText = new BitmapText(_recipeFont);
 			row.buttonText.setText(LanguageManager.get("screen.craft_button"));
-			row.buttonText.setSize(_recipeFont.getCharSet().getRenderedSize());
+			row.buttonText.setSize(fontSize);
 			row.buttonX = rightX - row.buttonText.getLineWidth();
 			_rootNode.attachChild(row.buttonText);
 			
@@ -482,11 +486,8 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			final float rowScreenY = _recipeAreaTop - row.localY + _scrollOffset;
 			
 			// Visibility check.
-			final float rowTop = rowScreenY;
-			final float rowBottom = rowScreenY - ROW_HEIGHT;
-			final boolean visible = rowTop > _recipeAreaBottom && rowBottom < _recipeAreaTop;
 			
-			final Node.CullHint hint = visible ? Node.CullHint.Inherit : Node.CullHint.Always;
+			final Node.CullHint hint = (rowScreenY > _recipeAreaBottom) && ((rowScreenY - ROW_HEIGHT) < _recipeAreaTop) ? Node.CullHint.Inherit : Node.CullHint.Always;
 			
 			// Icon position: vertically centered in the row.
 			final float iconY = rowScreenY - (ROW_HEIGHT + ICON_SIZE) / 2;
@@ -496,11 +497,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			// Fallback label centered in icon quad.
 			if (row.iconLabel != null)
 			{
-				final float labelWidth = row.iconLabel.getLineWidth();
-				final float labelHeight = row.iconLabel.getLineHeight();
-				final float labelX = leftX + (ICON_SIZE - labelWidth) / 2;
-				final float labelY = iconY + (ICON_SIZE + labelHeight) / 2;
-				row.iconLabel.setLocalTranslation(labelX, labelY, Z_TEXT);
+				row.iconLabel.setLocalTranslation(leftX + ((ICON_SIZE - row.iconLabel.getLineWidth()) / 2), iconY + ((ICON_SIZE + row.iconLabel.getLineHeight()) / 2), Z_TEXT);
 				row.iconLabel.setCullHint(hint);
 			}
 			
@@ -512,20 +509,18 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			row.outputTextShadow.setCullHint(hint);
 			
 			// Line 2 (ingredients): below line 1.
-			final float line2Y = line1Y - lineHeight - 2;
-			row.ingredientText.setLocalTranslation(textX, line2Y, Z_TEXT);
+			row.ingredientText.setLocalTranslation(textX, line1Y - lineHeight - 2, Z_TEXT);
 			row.ingredientText.setCullHint(hint);
 			
 			// Button: vertically centered in the row.
-			final float buttonY = rowScreenY - (ROW_HEIGHT - lineHeight) / 2;
-			row.buttonText.setLocalTranslation(row.buttonX, buttonY, Z_TEXT);
+			row.buttonText.setLocalTranslation(row.buttonX, rowScreenY - ((ROW_HEIGHT - lineHeight) / 2), Z_TEXT);
 			row.buttonText.setCullHint(hint);
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Recipe State Refresh.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates recipe row colors based on current inventory contents.
@@ -536,9 +531,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		
 		for (RecipeRow row : _rows)
 		{
-			final boolean craftable = row.recipe.canCraft(inventory);
-			
-			if (craftable)
+			if (row.recipe.canCraft(inventory))
 			{
 				row.outputText.setColor(COLOR_CRAFTABLE_OUTPUT);
 				row.ingredientText.setColor(COLOR_CRAFTABLE_INGREDIENTS);
@@ -561,28 +554,15 @@ public class CraftingScreen implements ActionListener, AnalogListener
 				// Icon dimmed.
 				if (row.hasTexture)
 				{
-					row.iconMat.setColor("Color", new ColorRGBA(0.4f, 0.4f, 0.4f, 0.6f));
+					row.iconMat.setColor("Color", COLOR_ICON_DIMMED);
 				}
 			}
 		}
 	}
 	
-	// ========================================================
-	// Update.
-	// ========================================================
-	
-	/**
-	 * Per-frame update. Currently a no-op - recipe colors refresh on craft events.
-	 * @param tpf time per frame in seconds
-	 */
-	public void update(float tpf)
-	{
-		// No per-frame work needed.
-	}
-	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Input.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Registers mouse click and scroll input for the crafting screen.
@@ -638,20 +618,15 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			return;
 		}
 		
-		switch (name)
+		if (ACTION_CRAFT_SCROLL_UP.equals(name))
 		{
-			case ACTION_CRAFT_SCROLL_UP:
-			{
-				_scrollOffset = Math.max(0, _scrollOffset - SCROLL_SPEED);
-				layoutRecipeRows();
-				break;
-			}
-			case ACTION_CRAFT_SCROLL_DOWN:
-			{
-				_scrollOffset = Math.min(_maxScrollOffset, _scrollOffset + SCROLL_SPEED);
-				layoutRecipeRows();
-				break;
-			}
+			_scrollOffset = Math.max(0, _scrollOffset - SCROLL_SPEED);
+			layoutRecipeRows();
+		}
+		else if (ACTION_CRAFT_SCROLL_DOWN.equals(name))
+		{
+			_scrollOffset = Math.min(_maxScrollOffset, _scrollOffset + SCROLL_SPEED);
+			layoutRecipeRows();
 		}
 	}
 	
@@ -676,8 +651,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		for (RecipeRow row : _rows)
 		{
 			// Calculate the button's screen position.
-			final float rowScreenY = _recipeAreaTop - row.localY + _scrollOffset;
-			final float buttonY = rowScreenY - (ROW_HEIGHT - lineHeight) / 2;
+			final float buttonY = (_recipeAreaTop - row.localY + _scrollOffset) - ((ROW_HEIGHT - lineHeight) / 2);
 			final float buttonTop = buttonY;
 			final float buttonBottom = buttonY - lineHeight;
 			
@@ -695,8 +669,7 @@ public class CraftingScreen implements ActionListener, AnalogListener
 			
 			// Check horizontal hit (button is right-aligned).
 			final float buttonRight = _panelX + _panelWidth - PANEL_PADDING;
-			final float buttonLeft = buttonRight - BUTTON_WIDTH;
-			if (mx < buttonLeft || mx > buttonRight)
+			if ((mx < (buttonRight - BUTTON_WIDTH)) || (mx > buttonRight))
 			{
 				continue;
 			}
@@ -724,9 +697,9 @@ public class CraftingScreen implements ActionListener, AnalogListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Cleanup.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Full teardown: closes the screen and releases resources.

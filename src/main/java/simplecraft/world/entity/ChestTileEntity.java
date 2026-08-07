@@ -21,7 +21,7 @@ import simplecraft.world.World;
  * <br>
  * Serialization writes each slot as {@code slot_N=itemId:count} (or {@code slot_N=empty})<br>
  * appended to the base TileEntity key=value format. Deserialization reconstructs<br>
- * ItemInstances from saved item IDs via {@link ItemRegistry}.
+ * ItemInstances from saved item IDs via {@link simplecraft.item.ItemRegistry}.
  * @author Pantelis Andrianakis
  * @since March 18th 2026
  */
@@ -36,9 +36,7 @@ public class ChestTileEntity extends TileEntity
 	/** Stored items. Null elements are empty slots. */
 	private final ItemInstance[] _contents = new ItemInstance[CHEST_SLOTS];
 	
-	// ========================================================
-	// Constructors.
-	// ========================================================
+	// ========== CONSTRUCTORS ==========
 	
 	/**
 	 * Creates a new chest tile entity at the given world position.
@@ -49,16 +47,13 @@ public class ChestTileEntity extends TileEntity
 		super(position, Block.CHEST);
 	}
 	
-	// ========================================================
-	// Lifecycle Hooks.
-	// ========================================================
+	// ========== LIFECYCLE HOOKS ==========
 	
 	@Override
 	public void onInteract(PlayerController player, World world)
 	{
 		// Interaction is handled by BlockInteraction which opens ChestScreen.
-		// This hook is intentionally a no-op; the instanceof check in
-		// BlockInteraction.handlePlace() triggers the UI.
+		// This hook is intentionally a no-op; the instanceof check in blockInteraction.handlePlace() triggers the UI.
 	}
 	
 	/**
@@ -83,17 +78,13 @@ public class ChestTileEntity extends TileEntity
 			if (_contents[i] != null && !_contents[i].isEmpty())
 			{
 				// Slight random offset so items scatter.
-				final float dropX = centerX + (Rnd.nextFloat() - 0.5f) * 2.0f * DROP_SCATTER;
-				final float dropZ = centerZ + (Rnd.nextFloat() - 0.5f) * 2.0f * DROP_SCATTER;
-				dropManager.spawnDrop(new Vector3f(dropX, centerY, dropZ), _contents[i]);
+				dropManager.spawnDrop(new Vector3f((centerX + (Rnd.nextFloat() - 0.5f) * 2.0f * DROP_SCATTER), centerY, (centerZ + (Rnd.nextFloat() - 0.5f) * 2.0f * DROP_SCATTER)), _contents[i]);
 				_contents[i] = null;
 			}
 		}
 	}
 	
-	// ========================================================
-	// Contents Access.
-	// ========================================================
+	// ========== CONTENTS ACCESS ==========
 	
 	/**
 	 * Returns the chest's contents array (direct reference).<br>
@@ -136,9 +127,7 @@ public class ChestTileEntity extends TileEntity
 		_contents[index] = stack;
 	}
 	
-	// ========================================================
-	// Serialization.
-	// ========================================================
+	// ========== SERIALIZATION ==========
 	
 	@Override
 	public String serialize()
@@ -242,7 +231,7 @@ public class ChestTileEntity extends TileEntity
 			}
 			
 			final ItemInstance instance = new ItemInstance(template, count);
-
+			
 			// Restore saved durability for tools/weapons (parts[2]); older saves without it keep max durability.
 			if (parts.length >= 3 && instance.hasDurability())
 			{
@@ -255,7 +244,7 @@ public class ChestTileEntity extends TileEntity
 					// Leave durability at max if the saved value is malformed.
 				}
 			}
-
+			
 			_contents[slotIndex] = instance;
 		}
 	}

@@ -10,9 +10,7 @@ package simplecraft.util;
  */
 public class OpenSimplex2
 {
-	// ========================================================
-	// Constants
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Large primes for hashing grid coordinates. */
 	private static final long PRIME_X = 0x5205402B9270C86FL;
@@ -33,12 +31,10 @@ public class OpenSimplex2
 		{1, 1, 0}, {-1, 1, 0}, {1, -1, 0}, {-1, -1, 0},
 		{1, 0, 1}, {-1, 0, 1}, {1, 0, -1}, {-1, 0, -1},
 		{0, 1, 1}, {0, -1, 1}, {0, 1, -1}, {0, -1, -1}
-		
+	
 	}; // @formatter:on
 	
-	// ========================================================
-	// 2D Noise
-	// ========================================================
+	// ========== 2D NOISE ==========
 	
 	/**
 	 * 2D seeded gradient noise.<br>
@@ -71,14 +67,10 @@ public class OpenSimplex2
 		final double n11 = gradDot2(hash2(seed, x1, y1), fx - 1, fy - 1);
 		
 		// Bilinear interpolation.
-		final double nx0 = lerp(n00, n10, u);
-		final double nx1 = lerp(n01, n11, u);
-		return (float) lerp(nx0, nx1, v);
+		return (float) lerp(lerp(n00, n10, u), lerp(n01, n11, u), v);
 	}
 	
-	// ========================================================
-	// 3D Noise
-	// ========================================================
+	// ========== 3D NOISE ==========
 	
 	/**
 	 * 3D seeded gradient noise.<br>
@@ -120,18 +112,10 @@ public class OpenSimplex2
 		final double n111 = gradDot3(hash3(seed, x1, y1, z1), fx - 1, fy - 1, fz - 1);
 		
 		// Trilinear interpolation.
-		final double nx00 = lerp(n000, n100, u);
-		final double nx10 = lerp(n010, n110, u);
-		final double nx01 = lerp(n001, n101, u);
-		final double nx11 = lerp(n011, n111, u);
-		final double nxy0 = lerp(nx00, nx10, v);
-		final double nxy1 = lerp(nx01, nx11, v);
-		return (float) lerp(nxy0, nxy1, w);
+		return (float) lerp(lerp(lerp(n000, n100, u), lerp(n010, n110, u), v), lerp(lerp(n001, n101, u), lerp(n011, n111, u), v), w);
 	}
 	
-	// ========================================================
-	// Hash Functions
-	// ========================================================
+	// ========== HASH FUNCTIONS ==========
 	
 	/**
 	 * Hashes seed and 2D grid coordinates to a deterministic integer.
@@ -164,9 +148,7 @@ public class OpenSimplex2
 		return (int) h;
 	}
 	
-	// ========================================================
-	// Gradient Dot Products
-	// ========================================================
+	// ========== GRADIENT DOT PRODUCTS ==========
 	
 	/**
 	 * Selects a 2D gradient from the hash and computes the dot product with (dx, dy).
@@ -186,9 +168,7 @@ public class OpenSimplex2
 		return g[0] * dx + g[1] * dy + g[2] * dz;
 	}
 	
-	// ========================================================
-	// Interpolation
-	// ========================================================
+	// ========== INTERPOLATION ==========
 	
 	/**
 	 * Quintic smoothstep curve: 6t^5 - 15t^4 + 10t^3.<br>
@@ -207,9 +187,7 @@ public class OpenSimplex2
 		return a + t * (b - a);
 	}
 	
-	// ========================================================
-	// Utility
-	// ========================================================
+	// ========== UTILITY ==========
 	
 	private static int fastFloor(double x)
 	{

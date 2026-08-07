@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.jme3.material.Material;
+import com.jme3.material.RenderState;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.material.RenderState.FaceCullMode;
 import com.jme3.math.ColorRGBA;
@@ -37,9 +38,9 @@ import simplecraft.world.entity.WindowTileEntity;
  * Provides world-coordinate block access that automatically resolves to the correct region.<br>
  * Dynamically loads and unloads regions around the camera position each frame.<br>
  * <br>
- * Terrain generation and mesh vertex building run on background threads via {@link RegionLoader}.<br>
+ * Terrain generation and mesh vertex building run on background threads via {@link simplecraft.world.RegionLoader}.<br>
  * Each frame the main thread polls for completed results and performs only the lightweight<br>
- * jME3 Mesh creation and scene-graph attach, limited to {@link #ATTACHES_PER_FRAME}.<br>
+ * jME3 Mesh creation and scene-graph attach, limited to {@code ATTACHES_PER_FRAME}.<br>
  * The first update bypasses the throttle so the initial view is fully populated<br>
  * (hidden behind the fade-in transition).<br>
  * <br>
@@ -50,31 +51,27 @@ import simplecraft.world.entity.WindowTileEntity;
  */
 public class World
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
-
+	// ========== CONSTANTS ==========
+	
 	/** Water level constant exposed for gameplay systems (e.g. player swimming). */
 	public static final int WATER_LEVEL = TerrainGenerator.WATER_LEVEL;
-
+	
 	/** Maximum number of regions to attach per frame (main-thread budget). */
 	private static final int ATTACHES_PER_FRAME = 2;
-
+	
 	/** Maximum number of block changes to process per frame. */
 	private static final int BLOCK_CHANGES_PER_FRAME = 5;
-
+	
 	/** Maximum number of remesh requests to submit per frame. */
 	private static final int REMESH_REQUESTS_PER_FRAME = 4;
-
+	
 	/** Cardinal neighbor offsets for region remeshing (N, S, E, W). */
 	// @formatter:off
 	private static final int[][] NEIGHBOR_OFFSETS = { { 0, 1 }, { 0, -1 }, { 1, 0 }, { -1, 0 } };
 	// @formatter:on
-
-	// ========================================================
-	// Inner Classes.
-	// ========================================================
-
+	
+	// ========== INNER CLASSES ==========
+	
 	/**
 	 * Represents a pending block change.
 	 */
@@ -84,7 +81,7 @@ public class World
 		final int _worldY;
 		final int _worldZ;
 		final Block _newBlock;
-
+		
 		BlockChange(int x, int y, int z, Block block)
 		{
 			_worldX = x;
@@ -93,11 +90,9 @@ public class World
 			_newBlock = block;
 		}
 	}
-
-	// ========================================================
-	// Fields.
-	// ========================================================
-
+	
+	// ========== FIELDS ==========
+	
 	private final Map<Long, Region> _regions = new HashMap<>();
 	private final Map<Long, List<Geometry>> _regionGeometries = new HashMap<>();
 	private final Node _worldNode = new Node("WorldNode");
@@ -106,38 +101,38 @@ public class World
 	private final Material _waterMaterial;
 	private final Material _billboardMaterial;
 	private final long _seed;
-
+	
 	/** Background terrain generator and mesh builder. */
 	private final RegionLoader _regionLoader;
-
+	
 	/** Central registry for all active tile entities. */
 	private final TileEntityManager _tileEntityManager;
-
+	
 	/** Day/night cycle reference for vertex color modulation during mesh rebuilds. */
 	private DayNightCycle _dayNightCycle;
-
+	
 	/** Cached set of desired region keys for the current camera position and render distance. */
 	private Set<Long> _desiredRegions = new HashSet<>();
-
+	
 	/** Last known camera region coordinate. Initialized to MIN_VALUE so the first update always triggers. */
 	private int _lastCameraRegionX = Integer.MIN_VALUE;
 	private int _lastCameraRegionZ = Integer.MIN_VALUE;
-
+	
 	/** Last known render distance. Initialized to -1 so the first update always triggers. */
 	private int _lastRenderDistance = -1;
-
+	
 	/** True until the first batch of regions is attached. Bypasses throttle for initial view. */
 	private boolean _initialLoad = true;
-
+	
 	/** Queue of pending block changes. */
 	private final ConcurrentLinkedQueue<BlockChange> _pendingChanges = new ConcurrentLinkedQueue<>();
-
+	
 	/** Set of regions needing remesh due to block changes. */
 	private final Set<Long> _pendingRemesh = new HashSet<>();
-
+	
 	/** Set of region keys dirtied during a batch operation (tree felling, block support). */
 	private final Set<Long> _batchDirtyRegions = new HashSet<>();
-
+	
 	/**
 	 * Saved region data from a previous session or unloaded modified regions.<br>
 	 * Shared with RegionLoader (ConcurrentHashMap for thread-safe access).<br>
@@ -145,18 +140,16 @@ public class World
 	 * entries when unloading modified regions mid-session.
 	 */
 	private ConcurrentHashMap<Long, SavedRegionData> _savedRegionData;
-
+	
 	/**
 	 * When true, this world is static (e.g. boss arena) and skips dynamic region<br>
-	 * loading/unloading in {@link #update(Vector3f, int)}. Regions must be created<br>
-	 * manually via {@link #createEmptyRegion(int, int)}.
+	 * loading/unloading in {@code update(Vector3f, int)}. Regions must be created<br>
+	 * manually via {@code createEmptyRegion(int, int)}.
 	 */
 	private boolean _staticWorld;
-
-	// ========================================================
-	// Constructor.
-	// ========================================================
-
+	
+	// ========== CONSTRUCTOR ==========
+	
 	/**
 	 * Creates a new World with the given seed and shared atlas material.
 	 * @param seed the numeric seed from WorldInfo for terrain generation
@@ -165,42 +158,37 @@ public class World
 	public World(long seed, Material sharedMaterial)
 	{
 		_seed = seed;
-
+		
 		// Opaque material - used as-is for solid blocks.
 		_opaqueMaterial = sharedMaterial;
-
+		
 		// Transparent material - shared by all transparent geometry (water, leaves, glass).
-		// No BlendMode.Alpha here: the shared material already has AlphaDiscardThreshold=0.5,
-		// so transparent pixels are discarded by the shader rather than alpha-blended.
-		// Keeping this in the Opaque render bucket (no explicit Bucket.Transparent below)
-		// ensures the transparent mesh is drawn BEFORE particle emitters. Particles are in
-		// Bucket.Translucent which renders after Opaque, so their depth test runs against
-		// the correct leaf/glass depths (solid pixels written, transparent holes never written).
+		// No BlendMode.Alpha here: the shared material already has AlphaDiscardThreshold=0.5, so transparent pixels are discarded by the shader rather than alpha-blended.
+		// Keeping this in the Opaque render bucket (no explicit Bucket.Transparent below) ensures the transparent mesh is drawn BEFORE particle emitters. Particles are in bucket.Translucent which renders after Opaque, so their depth test runs against the correct leaf/glass depths (solid pixels written, transparent holes never written).
 		_transparentMaterial = sharedMaterial.clone();
 		_transparentMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
-
+		
 		// Water material: alpha-blended to restore semi-transparent water surface.
 		// Kept separate so leaves/glass/seaweed still use alpha discard in the opaque bucket.
 		_waterMaterial = sharedMaterial.clone();
-		_waterMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
-		_waterMaterial.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
-
+		final RenderState waterRenderState = _waterMaterial.getAdditionalRenderState();
+		waterRenderState.setFaceCullMode(FaceCullMode.Off);
+		waterRenderState.setBlendMode(BlendMode.Alpha);
+		
 		// Water must be alpha-blended (not alpha-cutout), otherwise most pixels are discarded.
 		_waterMaterial.setFloat("AlphaDiscardThreshold", 0.0f);
 		_waterMaterial.setColor("Color", new ColorRGBA(1f, 1f, 1f, 0.6f));
-
+		
 		// Billboard material - shared by all billboard geometry (flowers, torches).
 		_billboardMaterial = sharedMaterial.clone();
 		_billboardMaterial.getAdditionalRenderState().setFaceCullMode(FaceCullMode.Off);
-
+		
 		_regionLoader = new RegionLoader(seed);
 		_tileEntityManager = new TileEntityManager();
 	}
-
-	// ========================================================
-	// Static World Support.
-	// ========================================================
-
+	
+	// ========== STATIC WORLD SUPPORT ==========
+	
 	/**
 	 * Sets whether this world is static (no dynamic region loading/unloading).<br>
 	 * Used for special worlds like the boss arena where regions are pre-generated.
@@ -210,7 +198,7 @@ public class World
 	{
 		_staticWorld = staticWorld;
 	}
-
+	
 	/**
 	 * Creates an empty region at the given region coordinates and registers it.<br>
 	 * Used for static worlds (boss arena) where regions are filled manually.
@@ -221,16 +209,13 @@ public class World
 	public Region createEmptyRegion(int regionX, int regionZ)
 	{
 		final Region region = new Region(regionX, regionZ);
-		final long key = regionKey(regionX, regionZ);
-		_regions.put(key, region);
+		_regions.put(regionKey(regionX, regionZ), region);
 		_regionLoader.updateRegionCache(region);
 		return region;
 	}
-
-	// ========================================================
-	// Region Key Encoding.
-	// ========================================================
-
+	
+	// ========== REGION KEY ENCODING ==========
+	
 	/**
 	 * Packs two int region coordinates into a single long key.<br>
 	 * Upper 32 bits = regionX, lower 32 bits = regionZ (unsigned).
@@ -239,7 +224,7 @@ public class World
 	{
 		return ((long) regionX << 32) | (regionZ & 0xFFFFFFFFL);
 	}
-
+	
 	/**
 	 * Public accessor for packing region coordinates into a key.<br>
 	 * Used by SaveManager to match saved data to loaded regions.
@@ -248,7 +233,7 @@ public class World
 	{
 		return regionKey(regionX, regionZ);
 	}
-
+	
 	/**
 	 * Extracts the regionX (upper 32 bits) from a packed region key.<br>
 	 * Public so SaveManager can unpack keys from the saved-region-data map.
@@ -257,7 +242,7 @@ public class World
 	{
 		return (int) (key >> 32);
 	}
-
+	
 	/**
 	 * Extracts the regionZ (lower 32 bits) from a packed region key.<br>
 	 * Public so SaveManager can unpack keys from the saved-region-data map.
@@ -266,11 +251,9 @@ public class World
 	{
 		return (int) key;
 	}
-
-	// ========================================================
-	// Dynamic Region Loading.
-	// ========================================================
-
+	
+	// ========== DYNAMIC REGION LOADING ==========
+	
 	/**
 	 * Updates the loaded region set based on the camera position.<br>
 	 * Also processes pending block changes and remesh requests.
@@ -281,47 +264,45 @@ public class World
 	{
 		// Process pending block changes (limited per frame).
 		processBlockChanges();
-
+		
 		// Keep RegionLoader's total-days value current so berry respawn checks are accurate.
 		if (_dayNightCycle != null)
 		{
 			_regionLoader.setTotalDays(_dayNightCycle.getTotalDays());
 		}
-
+		
 		// Static worlds (e.g. boss arena) skip dynamic region loading/unloading.
 		if (_staticWorld)
 		{
 			return;
 		}
-
+		
 		// Calculate which region the camera is currently in.
 		final int camRegionX = Math.floorDiv((int) Math.floor(cameraPos.x), Region.SIZE_XZ);
 		final int camRegionZ = Math.floorDiv((int) Math.floor(cameraPos.z), Region.SIZE_XZ);
-
+		
 		// -------------------------------------------------------
 		// Phase 1: Diff detection (only when camera region or render distance changes).
 		// -------------------------------------------------------
-		final boolean changed = (camRegionX != _lastCameraRegionX) || (camRegionZ != _lastCameraRegionZ) || (renderDistance != _lastRenderDistance);
-
-		if (changed)
+		
+		if (((camRegionX != _lastCameraRegionX) || (camRegionZ != _lastCameraRegionZ) || (renderDistance != _lastRenderDistance)))
 		{
 			_lastCameraRegionX = camRegionX;
 			_lastCameraRegionZ = camRegionZ;
 			_lastRenderDistance = renderDistance;
-
+			
 			// Determine which regions should be loaded.
 			_desiredRegions = getDesiredRegions(camRegionX, camRegionZ, renderDistance);
 			final Set<Long> loaded = new HashSet<>(_regions.keySet());
-
+			
 			// --- Unload (immediate - removing geometry is cheap) ---
 			final Set<Long> toUnload = new HashSet<>(loaded);
 			toUnload.removeAll(_desiredRegions);
-
-			for (long key : toUnload)
+			
+			for (Long key : toUnload)
 			{
 				// Preserve current-session modifications before unloading.
-				// Without this, modified regions regenerate from seed when reloaded
-				// (e.g. after death respawn far from the modified area).
+				// Without this, modified regions regenerate from seed when reloaded (e.g. after death respawn far from the modified area).
 				final Region unloadRegion = _regions.get(key);
 				if (unloadRegion != null && unloadRegion.isModified())
 				{
@@ -330,28 +311,28 @@ public class World
 						_savedRegionData = new ConcurrentHashMap<>();
 						_regionLoader.setSavedRegionData(_savedRegionData);
 					}
-
+					
 					_savedRegionData.put(key, new SavedRegionData(unloadRegion.getRawBlockData(), new HashSet<>(unloadRegion.getPlayerPlacedSet()), new HashSet<>(unloadRegion.getPlayerRemovedSet()), new HashMap<>(unloadRegion.getBerryRespawnMap())));
 				}
-
+				
 				detachRegionGeometry(key);
 				_regions.remove(key);
 				_regionLoader.cancelPending(key);
 				_regionLoader.removeFromCache(regionKeyX(key), regionKeyZ(key));
 			}
-
+			
 			// Cancel any other pending tasks that are no longer desired.
-			for (long key : loaded)
+			for (Long key : loaded)
 			{
 				if (!_desiredRegions.contains(key))
 				{
 					_regionLoader.cancelPending(key);
 				}
 			}
-
+			
 			// Submit new regions to background loader, sorted by distance (closest first).
 			final List<long[]> toSubmit = new ArrayList<>();
-			for (long key : _desiredRegions)
+			for (Long key : _desiredRegions)
 			{
 				if (!_regions.containsKey(key) && !_regionLoader.isPending(key))
 				{
@@ -366,114 +347,106 @@ public class World
 					});
 				}
 			}
-
+			
 			toSubmit.sort(Comparator.comparingLong(a -> a[1]));
-
+			
 			for (long[] entry : toSubmit)
 			{
-				final int rx = regionKeyX(entry[0]);
-				final int rz = regionKeyZ(entry[0]);
-				_regionLoader.requestLoad(rx, rz);
+				_regionLoader.requestLoad(regionKeyX(entry[0]), regionKeyZ(entry[0]));
 			}
-
+			
 			// Mark neighbors of unloaded regions for async remesh (their boundary faces changed).
 			if (!toUnload.isEmpty())
 			{
 				markNeighborsForRemesh(toUnload, null);
 			}
 		}
-
+		
 		// -------------------------------------------------------
 		// Phase 2: Submit pending remesh requests (only if dirty).
 		// -------------------------------------------------------
 		submitRemeshRequests();
-
+		
 		// -------------------------------------------------------
 		// Phase 3: Poll completed regions, create meshes and attach (every frame).
 		// -------------------------------------------------------
 		int attachedCount = 0;
 		final Set<Long> newlyLoaded = new HashSet<>();
-
+		
 		ReadyRegion ready;
 		while ((ready = _regionLoader.pollReady()) != null)
 		{
 			final Region region = ready.getRegion();
-			final long key = regionKey(region.getRegionX(), region.getRegionZ());
-
+			final int regionX = region.getRegionX();
+			final int regionZ = region.getRegionZ();
+			final Long key = regionKey(regionX, regionZ);
+			
 			// Discard if no longer desired (camera moved away during generation).
 			if (!_desiredRegions.contains(key))
 			{
 				// Evict from the loader cache too - otherwise generated-then-discarded regions accumulate there forever.
-				_regionLoader.removeFromCache(region.getRegionX(), region.getRegionZ());
+				_regionLoader.removeFromCache(regionX, regionZ);
 				continue;
 			}
-
+			
 			if (_regions.containsKey(key))
 			{
-				// Skip stale async results - region was already rebuilt synchronously
-				// (e.g. by setBlockImmediate or rebuildDirtyRegionsImmediate).
+				// Skip stale async results - region was already rebuilt synchronously (e.g. by setBlockImmediate or rebuildDirtyRegionsImmediate).
 				final Region loadedRegion = _regions.get(key);
 				if (!loadedRegion.isMeshDirty())
 				{
 					continue;
 				}
-
-				// Reject stale async results: if the region's mesh version has changed
-				// since this async job was submitted, a sync rebuild occurred with newer
-				// block data. Applying this result would overwrite the correct mesh
-				// (e.g. replacing a mesh that includes a freshly placed block with one
-				// that was built from pre-placement data). Re-queue for a fresh remesh.
+				
+				// Reject stale async results: if the region's mesh version has changed Since this async job was submitted, a sync rebuild occurred with newer block data. Applying this result would overwrite the correct mesh (e.g. replacing a mesh that includes a freshly placed block with one that was built from pre-placement data). Re-queue for a fresh remesh.
 				if (ready.getMeshVersionAtSubmit() != loadedRegion.getMeshVersion())
 				{
 					markForRemesh(key);
 					continue;
 				}
-
+				
 				// Remesh result for an already-loaded region - swap geometry.
 				detachRegionGeometry(key);
 				attachRegionGeometryFromData(region, ready.getMeshData());
-
+				
 				// Mark clean on main thread (safe - no race with background markMeshDirty).
 				region.markMeshClean();
 			}
 			else
 			{
 				// New region - add to map and attach.
-				// Saved data (if any) was already applied by RegionLoader before mesh building,
-				// so the mesh is correct from the start - no flicker.
+				// Saved data (if any) was already applied by RegionLoader before mesh building, so the mesh is correct from the start - no flicker.
 				_regions.put(key, region);
-
-				// If saved data was applied on the background thread, update the cache reference
-				// so future remeshes and neighbor lookups see the modified block data.
+				
+				// If saved data was applied on the background thread, update the cache reference so future remeshes and neighbor lookups see the modified block data.
 				if (ready.hadSavedData())
 				{
 					_regionLoader.updateRegionCache(region);
 				}
-
+				
 				attachRegionGeometryFromData(region, ready.getMeshData());
 				newlyLoaded.add(key);
 			}
-
+			
 			attachedCount++;
-
+			
 			// Throttle: limit main-thread work per frame (bypass during initial load).
 			if (!_initialLoad && attachedCount >= ATTACHES_PER_FRAME)
 			{
 				break;
 			}
 		}
-
+		
 		// Mark existing neighbors of newly loaded regions for remesh.
 		// Their boundary faces changed because a new region appeared next to them.
-		// New regions themselves are already clean if all neighbors were cached during build,
-		// or dirty if not (will be remeshed when their missing neighbors eventually load).
+		// New regions themselves are already clean if all neighbors were cached during build, or dirty if not (will be remeshed when their missing neighbors eventually load).
 		if (!newlyLoaded.isEmpty())
 		{
 			_initialLoad = false;
 			markNeighborsForRemesh(newlyLoaded, newlyLoaded);
 		}
 	}
-
+	
 	/**
 	 * Processes pending block changes (limited per frame).
 	 */
@@ -487,7 +460,7 @@ public class World
 			processed++;
 		}
 	}
-
+	
 	/**
 	 * Applies a single block change to the world.
 	 */
@@ -498,32 +471,30 @@ public class World
 		{
 			return;
 		}
-
+		
 		// Convert world to region coordinates using floor division.
 		final int regionX = Math.floorDiv(change._worldX, Region.SIZE_XZ);
 		final int regionZ = Math.floorDiv(change._worldZ, Region.SIZE_XZ);
-		final long key = regionKey(regionX, regionZ);
-
+		final Long key = regionKey(regionX, regionZ);
+		
 		final Region region = _regions.get(key);
 		if (region == null)
 		{
 			return;
 		}
-
+		
 		// Convert world to local coordinates using floor modulus.
-		final int localX = Math.floorMod(change._worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(change._worldZ, Region.SIZE_XZ);
-
+		
 		// Update block (this will mark region dirty if block actually changed).
-		region.setBlock(localX, change._worldY, localZ, change._newBlock);
+		region.setBlock(Math.floorMod(change._worldX, Region.SIZE_XZ), change._worldY, Math.floorMod(change._worldZ, Region.SIZE_XZ), change._newBlock);
 		region.markModified();
-
+		
 		// Update cache.
 		_regionLoader.updateRegionCache(region);
-
+		
 		// Mark for remesh (will only rebuild if dirty).
 		markForRemesh(key);
-
+		
 		// Also mark neighbors (since their faces might change).
 		for (int[] offset : NEIGHBOR_OFFSETS)
 		{
@@ -538,11 +509,11 @@ public class World
 			}
 		}
 	}
-
+	
 	/**
 	 * Marks a region for remesh due to block changes.
 	 */
-	private void markForRemesh(long key)
+	private void markForRemesh(Long key)
 	{
 		if (_regions.containsKey(key))
 		{
@@ -552,7 +523,7 @@ public class World
 			}
 		}
 	}
-
+	
 	/**
 	 * Submits pending remesh requests to the background loader.<br>
 	 * Skips regions that are already clean (no changes).
@@ -566,24 +537,21 @@ public class World
 				return;
 			}
 		}
-
+		
 		int submitted = 0;
 		final Set<Long> toRemove = new HashSet<>();
-
+		
 		synchronized (_pendingRemesh)
 		{
-			for (long key : _pendingRemesh)
+			for (Long key : _pendingRemesh)
 			{
 				if (submitted >= REMESH_REQUESTS_PER_FRAME)
 				{
 					break;
 				}
-
-				final int rx = regionKeyX(key);
-				final int rz = regionKeyZ(key);
-
+				
 				// Submit remesh request (uses thread-safe cache for neighbor lookups).
-				if (_regionLoader.requestRemesh(rx, rz))
+				if (_regionLoader.requestRemesh(regionKeyX(key), regionKeyZ(key)))
 				{
 					toRemove.add(key);
 					submitted++;
@@ -594,11 +562,11 @@ public class World
 					toRemove.add(key);
 				}
 			}
-
+			
 			_pendingRemesh.removeAll(toRemove);
 		}
 	}
-
+	
 	/**
 	 * Returns the set of region keys within the given radius of the center region.<br>
 	 * Produces a (2×radius+1)² square grid of keys.
@@ -617,14 +585,12 @@ public class World
 				keys.add(regionKey(cx, cz));
 			}
 		}
-
+		
 		return keys;
 	}
-
-	// ========================================================
-	// Region Geometry.
-	// ========================================================
-
+	
+	// ========== REGION GEOMETRY ==========
+	
 	/**
 	 * Creates jME3 Meshes from pre-built vertex arrays and attaches geometry to the world node.<br>
 	 * Used for newly loaded regions where mesh data was built on a background thread.<br>
@@ -632,10 +598,9 @@ public class World
 	 */
 	private void attachRegionGeometryFromData(Region region, RegionMeshBuilder.RegionMeshData meshData)
 	{
-		final RegionMeshResult meshResult = RegionMeshBuilder.createMeshes(meshData);
-		attachGeometries(region, meshResult);
+		attachGeometries(region, RegionMeshBuilder.createMeshes(meshData));
 	}
-
+	
 	/**
 	 * Attaches up to four geometries (opaque, transparent, water, billboard) from a mesh result.<br>
 	 * Shared by both the background-data path and the remesh path.
@@ -644,12 +609,12 @@ public class World
 	{
 		final int cx = region.getRegionX();
 		final int cz = region.getRegionZ();
-		final long key = regionKey(cx, cz);
+		final Long key = regionKey(cx, cz);
 		final String regionName = "Region_" + cx + "_" + cz;
 		final Vector3f regionOffset = new Vector3f(cx * Region.SIZE_XZ, 0, cz * Region.SIZE_XZ);
-
+		
 		final List<Geometry> geometries = new ArrayList<>(4);
-
+		
 		// Opaque mesh (solid cubes: grass, dirt, stone, wood, sand, ores, etc.).
 		final Mesh opaqueMesh = meshResult.getOpaqueMesh();
 		if (opaqueMesh != null)
@@ -660,12 +625,10 @@ public class World
 			_worldNode.attachChild(opaqueGeometry);
 			geometries.add(opaqueGeometry);
 		}
-
+		
 		// Transparent mesh (leaves, water, glass, seaweed).
-		// Rendered in the Opaque bucket (default) using AlphaDiscardThreshold from the shared
-		// material. Transparent pixels are discarded by the shader; solid pixels write depth.
-		// This guarantees the mesh draws before particle emitters (Bucket.Translucent),
-		// so particles depth-test correctly through leaf alpha holes instead of being occluded.
+		// Rendered in the Opaque bucket (default) using AlphaDiscardThreshold from the shared material. Transparent pixels are discarded by the shader; solid pixels write depth.
+		// This guarantees the mesh draws before particle emitters (Bucket.Translucent), so particles depth-test correctly through leaf alpha holes instead of being occluded.
 		final Mesh transparentMesh = meshResult.getTransparentMesh();
 		if (transparentMesh != null)
 		{
@@ -675,7 +638,7 @@ public class World
 			_worldNode.attachChild(transparentGeometry);
 			geometries.add(transparentGeometry);
 		}
-
+		
 		// Water mesh only - rendered alpha-blended in the transparent bucket.
 		final Mesh waterMesh = meshResult.getWaterMesh();
 		if (waterMesh != null)
@@ -687,7 +650,7 @@ public class World
 			_worldNode.attachChild(waterGeometry);
 			geometries.add(waterGeometry);
 		}
-
+		
 		// Billboard mesh (flowers, torches, campfires, berry bushes).
 		final Mesh billboardMesh = meshResult.getBillboardMesh();
 		if (billboardMesh != null)
@@ -698,10 +661,10 @@ public class World
 			_worldNode.attachChild(billboardGeometry);
 			geometries.add(billboardGeometry);
 		}
-
+		
 		_regionGeometries.put(key, geometries);
 	}
-
+	
 	/**
 	 * Detaches all geometries for the region at the given key from the world node.<br>
 	 * Removes the geometry references from the tracking map.
@@ -717,21 +680,19 @@ public class World
 			}
 		}
 	}
-
-	// ========================================================
-	// Neighbor Remeshing.
-	// ========================================================
-
+	
+	// ========== NEIGHBOR REMESHING ==========
+	
 	/**
 	 * Marks loaded cardinal neighbors of the given region keys for async remesh.<br>
 	 * Used after loading or unloading regions to queue boundary face updates.<br>
-	 * The actual mesh rebuild runs on background threads via {@link #submitRemeshRequests()}.
+	 * The actual mesh rebuild runs on background threads via {@code submitRemeshRequests()}.
 	 * @param regionKeys the keys whose neighbors should be marked for remesh
 	 * @param exclude optional set of keys to skip (e.g. newly loaded regions already marked), may be null
 	 */
 	private void markNeighborsForRemesh(Set<Long> regionKeys, Set<Long> exclude)
 	{
-		for (long key : regionKeys)
+		for (Long key : regionKeys)
 		{
 			final int cx = regionKeyX(key);
 			final int cz = regionKeyZ(key);
@@ -751,11 +712,9 @@ public class World
 			}
 		}
 	}
-
-	// ========================================================
-	// World-Coordinate Block Access.
-	// ========================================================
-
+	
+	// ========== WORLD-COORDINATE BLOCK ACCESS ==========
+	
 	/**
 	 * Returns the block at the given world coordinates.<br>
 	 * Converts world coordinates to region + local coordinates automatically.<br>
@@ -768,24 +727,20 @@ public class World
 		{
 			return Block.AIR;
 		}
-
+		
 		// Convert world to region coordinates using floor division.
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return Block.AIR;
 		}
-
+		
 		// Convert world to local coordinates using floor modulus.
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-
-		return region.getBlock(localX, worldY, localZ);
+		
+		return region.getBlock(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Returns true if the block at the given world coordinates prevents player movement.<br>
 	 * Blocks movement for solid blocks (standard collision) and for closed FLAT_PANEL<br>
@@ -799,13 +754,13 @@ public class World
 	public boolean isBlockingMovement(int worldX, int worldY, int worldZ)
 	{
 		final Block block = getBlock(worldX, worldY, worldZ);
-
+		
 		// Standard solid blocks always block movement.
 		if (block.isSolid())
 		{
 			return true;
 		}
-
+		
 		// FLAT_PANEL blocks (windows, doors) block movement when closed.
 		if (block.isFlatPanel())
 		{
@@ -815,24 +770,24 @@ public class World
 				// No tile entity registered - treat as blocking (safety).
 				return true;
 			}
-
+			
 			if (te instanceof WindowTileEntity)
 			{
 				return !((WindowTileEntity) te).isOpen();
 			}
-
+			
 			if (te instanceof DoorTileEntity)
 			{
 				return !((DoorTileEntity) te).isOpen();
 			}
-
+			
 			// Unknown FLAT_PANEL tile entity - block by default.
 			return true;
 		}
-
+		
 		return false;
 	}
-
+	
 	/**
 	 * Returns the sky light factor at the given world coordinates.<br>
 	 * Converts world coordinates to region + local coordinates automatically.<br>
@@ -849,27 +804,23 @@ public class World
 		{
 			return 1.0f;
 		}
-
+		
 		// Convert world to region coordinates using floor division.
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return 1.0f;
 		}
-
+		
 		// Ensure sky light is computed before querying.
 		region.ensureSkyLightComputed();
-
+		
 		// Convert world to local coordinates using floor modulus.
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-
-		return region.getSkyLight(localX, worldY, localZ);
+		
+		return region.getSkyLight(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Sets the block at the given world coordinates.<br>
 	 * Converts world coordinates to region + local coordinates automatically.<br>
@@ -879,7 +830,7 @@ public class World
 	{
 		_pendingChanges.add(new BlockChange(worldX, worldY, worldZ, block));
 	}
-
+	
 	/**
 	 * Sets the block at the given world coordinates immediately with instant visual update.<br>
 	 * The block data is updated on the region and the affected region's mesh is rebuilt<br>
@@ -894,29 +845,29 @@ public class World
 		{
 			return;
 		}
-
+		
 		// Convert world to region coordinates.
 		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
 		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final long key = regionKey(regionX, regionZ);
-
+		final Long key = regionKey(regionX, regionZ);
+		
 		final Region region = _regions.get(key);
 		if (region == null)
 		{
 			return;
 		}
-
+		
 		// Convert world to local coordinates.
 		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
 		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-
+		
 		final Block oldBlock = region.getBlock(localX, worldY, localZ);
-
+		
 		// Update block data.
 		region.setBlock(localX, worldY, localZ, block);
 		region.markModified();
 		_regionLoader.updateRegionCache(region);
-
+		
 		// When a solid block is removed, propagate block light into the new air space from neighboring lit blocks.
 		// Without this the new position keeps blockLight=0 and adjacent faces render black even when a torch is nearby.
 		if (oldBlock.isSolid() && !block.isSolid())
@@ -930,39 +881,39 @@ public class World
 					maxNeighborLight = nl;
 				}
 			}
-
+			
 			if (maxNeighborLight > 1)
 			{
-				// propagateBlockLight rebuilds affected regions internally.
+				// PropagateBlockLight rebuilds affected regions internally.
 				propagateBlockLight(worldX, worldY, worldZ, maxNeighborLight - 1);
 			}
 		}
-
+		
 		// Immediate synchronous mesh rebuild for the affected region.
 		rebuildRegionSync(key, region);
-
+		
 		// If block is at a region boundary, rebuild the neighbor too.
 		if (localX == 0)
 		{
 			rebuildNeighborSync(regionX - 1, regionZ);
 		}
-
+		
 		if (localX == Region.SIZE_XZ - 1)
 		{
 			rebuildNeighborSync(regionX + 1, regionZ);
 		}
-
+		
 		if (localZ == 0)
 		{
 			rebuildNeighborSync(regionX, regionZ - 1);
 		}
-
+		
 		if (localZ == Region.SIZE_XZ - 1)
 		{
 			rebuildNeighborSync(regionX, regionZ + 1);
 		}
 	}
-
+	
 	/**
 	 * Rebuilds a region's mesh synchronously on the main thread and swaps the scene geometry.<br>
 	 * Removes the region from the async pending-remesh set since it's already up to date.
@@ -976,35 +927,35 @@ public class World
 			{
 				return World.this.getBlock(worldX, worldY, worldZ);
 			}
-
+			
 			@Override
 			public int getBlockLight(int worldX, int worldY, int worldZ)
 			{
 				return World.this.getBlockLight(worldX, worldY, worldZ);
 			}
 		};
-
+		
 		final RegionMeshResult meshResult = RegionMeshBuilder.buildRegionMesh(region, worldAccess, _tileEntityManager);
 		detachRegionGeometry(key);
 		attachGeometries(region, meshResult);
 		region.markMeshClean();
-
+		
 		// Cancel any pending async remesh - this sync rebuild supersedes it.
 		_regionLoader.cancelPending(key);
-
+		
 		// Remove from async pending set - already rebuilt.
 		synchronized (_pendingRemesh)
 		{
 			_pendingRemesh.remove(key);
 		}
 	}
-
+	
 	/**
 	 * Rebuilds a neighbor region's mesh synchronously if it is loaded.
 	 */
 	private void rebuildNeighborSync(int regionX, int regionZ)
 	{
-		final long key = regionKey(regionX, regionZ);
+		final Long key = regionKey(regionX, regionZ);
 		final Region region = _regions.get(key);
 		if (region != null)
 		{
@@ -1012,14 +963,14 @@ public class World
 			rebuildRegionSync(key, region);
 		}
 	}
-
+	
 	/**
 	 * Sets the block at the given world coordinates without triggering a mesh rebuild.<br>
 	 * The region is marked dirty and neighbor regions at boundaries are also marked dirty.<br>
 	 * Affected region keys are tracked internally so that<br>
-	 * {@link #rebuildDirtyRegionsImmediate()} only rebuilds the regions touched by this batch.<br>
+	 * {@code rebuildDirtyRegionsImmediate()} only rebuilds the regions touched by this batch.<br>
 	 * Used for batch operations (tree felling, block support cascades) where the caller<br>
-	 * will invoke {@link #rebuildDirtyRegionsImmediate()} once all changes are applied.
+	 * will invoke {@code rebuildDirtyRegionsImmediate()} once all changes are applied.
 	 */
 	public void setBlockNoRebuild(int worldX, int worldY, int worldZ, Block block)
 	{
@@ -1028,56 +979,56 @@ public class World
 		{
 			return;
 		}
-
+		
 		// Convert world to region coordinates.
 		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
 		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final long key = regionKey(regionX, regionZ);
-
+		final Long key = regionKey(regionX, regionZ);
+		
 		final Region region = _regions.get(key);
 		if (region == null)
 		{
 			return;
 		}
-
+		
 		// Convert world to local coordinates.
 		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
 		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-
+		
 		// Update block data (marks region dirty if block changed).
 		region.setBlock(localX, worldY, localZ, block);
 		region.markModified();
 		_regionLoader.updateRegionCache(region);
 		_batchDirtyRegions.add(key);
-
+		
 		// Mark neighbor regions dirty if at boundary.
 		if (localX == 0)
 		{
 			markNeighborDirtyBatch(regionX - 1, regionZ);
 		}
-
+		
 		if (localX == Region.SIZE_XZ - 1)
 		{
 			markNeighborDirtyBatch(regionX + 1, regionZ);
 		}
-
+		
 		if (localZ == 0)
 		{
 			markNeighborDirtyBatch(regionX, regionZ - 1);
 		}
-
+		
 		if (localZ == Region.SIZE_XZ - 1)
 		{
 			markNeighborDirtyBatch(regionX, regionZ + 1);
 		}
 	}
-
+	
 	/**
 	 * Marks a neighbor region as dirty and adds it to the batch tracking set.
 	 */
 	private void markNeighborDirtyBatch(int regionX, int regionZ)
 	{
-		final long key = regionKey(regionX, regionZ);
+		final Long key = regionKey(regionX, regionZ);
 		final Region neighbor = _regions.get(key);
 		if (neighbor != null)
 		{
@@ -1086,7 +1037,7 @@ public class World
 			_batchDirtyRegions.add(key);
 		}
 	}
-
+	
 	/**
 	 * Rebuilds only the regions that were dirtied during the current batch operation.<br>
 	 * Call after batch operations (tree felling, block support cascades).<br>
@@ -1094,7 +1045,7 @@ public class World
 	 */
 	public void rebuildDirtyRegionsImmediate()
 	{
-		for (long key : _batchDirtyRegions)
+		for (Long key : _batchDirtyRegions)
 		{
 			final Region region = _regions.get(key);
 			if (region != null && region.isMeshDirty())
@@ -1102,10 +1053,10 @@ public class World
 				rebuildRegionSync(key, region);
 			}
 		}
-
+		
 		_batchDirtyRegions.clear();
 	}
-
+	
 	/**
 	 * Sets the block at the given world coordinates silently (no dirty flag, no rebuild).<br>
 	 * The block data is updated immediately for game logic correctness (collision, etc.)<br>
@@ -1119,25 +1070,21 @@ public class World
 		{
 			return;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		region.setBlockSilent(localX, worldY, localZ, block);
+		
+		region.setBlockSilent(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ), block);
 		region.markModified();
 		_regionLoader.updateRegionCache(region);
 	}
-
+	
 	/**
 	 * Marks the region containing the given world position (and boundary neighbors) as dirty<br>
-	 * and adds them to the batch tracking set for rebuild by {@link #rebuildDirtyRegionsImmediate()}.<br>
+	 * and adds them to the batch tracking set for rebuild by {@code rebuildDirtyRegionsImmediate()}.<br>
 	 * Used by the destruction queue to trigger visual updates for specific positions.
 	 */
 	public void markRegionDirtyAt(int worldX, int worldY, int worldZ)
@@ -1146,49 +1093,47 @@ public class World
 		{
 			return;
 		}
-
+		
 		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
 		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final long key = regionKey(regionX, regionZ);
+		final Long key = regionKey(regionX, regionZ);
 		final Region region = _regions.get(key);
 		if (region == null)
 		{
 			return;
 		}
-
+		
 		region.markMeshDirty();
 		_regionLoader.updateRegionCache(region);
 		_batchDirtyRegions.add(key);
-
+		
 		// Mark boundary neighbors if block is at region edge.
 		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
 		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-
+		
 		if (localX == 0)
 		{
 			markNeighborDirtyBatch(regionX - 1, regionZ);
 		}
-
+		
 		if (localX == Region.SIZE_XZ - 1)
 		{
 			markNeighborDirtyBatch(regionX + 1, regionZ);
 		}
-
+		
 		if (localZ == 0)
 		{
 			markNeighborDirtyBatch(regionX, regionZ - 1);
 		}
-
+		
 		if (localZ == Region.SIZE_XZ - 1)
 		{
 			markNeighborDirtyBatch(regionX, regionZ + 1);
 		}
 	}
-
-	// ========================================================
-	// Player-Placed Block Tracking.
-	// ========================================================
-
+	
+	// ========== PLAYER-PLACED BLOCK TRACKING ==========
+	
 	/**
 	 * Returns true if the block at the given world coordinates was placed by the player.
 	 */
@@ -1198,20 +1143,16 @@ public class World
 		{
 			return false;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return false;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		return region.isPlayerPlaced(localX, worldY, localZ);
+		
+		return region.isPlayerPlaced(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Marks the block at the given world coordinates as player-placed.
 	 */
@@ -1221,20 +1162,16 @@ public class World
 		{
 			return;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		region.markPlayerPlaced(localX, worldY, localZ);
+		
+		region.markPlayerPlaced(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Clears the player-placed flag for the block at the given world coordinates.
 	 */
@@ -1244,20 +1181,16 @@ public class World
 		{
 			return;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		region.clearPlayerPlaced(localX, worldY, localZ);
+		
+		region.clearPlayerPlaced(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Returns whether the block at the given world coordinates was removed by the player.
 	 */
@@ -1267,20 +1200,16 @@ public class World
 		{
 			return false;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return false;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		return region.isPlayerRemoved(localX, worldY, localZ);
+		
+		return region.isPlayerRemoved(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Marks the block at the given world coordinates as player-removed.
 	 */
@@ -1290,20 +1219,16 @@ public class World
 		{
 			return;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		region.markPlayerRemoved(localX, worldY, localZ);
+		
+		region.markPlayerRemoved(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Clears the player-removed flag for the block at the given world coordinates.
 	 */
@@ -1313,27 +1238,21 @@ public class World
 		{
 			return;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		region.clearPlayerRemoved(localX, worldY, localZ);
+		
+		region.clearPlayerRemoved(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
-	// ========================================================
-	// Berry Bush Respawn.
-	// ========================================================
-
+	
+	// ========== BERRY BUSH RESPAWN ==========
+	
 	/** Number of in-game days before a destroyed natural berry bush may respawn. */
 	private static final double BERRY_RESPAWN_DAYS = 2.0;
-
+	
 	/**
 	 * Records a pending berry bush respawn at the given world coordinates.<br>
 	 * Called when a naturally-generated (non-player-placed) berry bush is destroyed.<br>
@@ -1348,25 +1267,19 @@ public class World
 		{
 			return;
 		}
-
-		final int regionX = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int regionZ = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(regionX, regionZ));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return;
 		}
-
-		final int localX = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int localZ = Math.floorMod(worldZ, Region.SIZE_XZ);
-		region.addBerryRespawn(localX, worldY, localZ, _dayNightCycle.getTotalDays() + BERRY_RESPAWN_DAYS);
+		
+		region.addBerryRespawn(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ), _dayNightCycle.getTotalDays() + BERRY_RESPAWN_DAYS);
 		region.markModified();
 	}
-
-	// ========================================================
-	// Day/Night Cycle.
-	// ========================================================
-
+	
+	// ========== DAY/NIGHT CYCLE ==========
+	
 	/**
 	 * Sets the day/night cycle reference used for vertex color modulation.<br>
 	 * RegionMeshBuilder queries this to apply sky brightness and tint during mesh builds.
@@ -1376,7 +1289,7 @@ public class World
 	{
 		_dayNightCycle = dayNightCycle;
 	}
-
+	
 	/**
 	 * Returns the day/night cycle, or null if not set.
 	 */
@@ -1384,7 +1297,7 @@ public class World
 	{
 		return _dayNightCycle;
 	}
-
+	
 	/**
 	 * Marks all currently loaded regions as mesh-dirty and queues them for async remesh.<br>
 	 * Called by PlayingState when the day/night cycle's sky brightness changes enough<br>
@@ -1393,25 +1306,23 @@ public class World
 	 * multiple frames and avoid stalling on a large number of loaded regions.<br>
 	 * FLAT_PANEL blocks (doors, windows) remain visible because the async builder<br>
 	 * falls back to the global TileEntityManager set via<br>
-	 * {@link RegionMeshBuilder#setGlobalTileEntityManager}.
+	 * {@code RegionMeshBuilder.setGlobalTileEntityManager}.
 	 */
 	public void rebuildVisibleMeshes()
 	{
 		for (Entry<Long, Region> entry : _regions.entrySet())
 		{
-			final long key = entry.getKey();
+			final Long key = entry.getKey();
 			final Region region = entry.getValue();
-
-			// Cancel any in-flight async job first. Without this, a stale async result
-			// (started before a window/door was placed) can arrive later and overwrite
-			// the sync-built mesh that included the panel, making it briefly invisible.
+			
+			// Cancel any in-flight async job first. Without this, a stale async result (started before a window/door was placed) can arrive later and overwrite the sync-built mesh that included the panel, making it briefly invisible.
 			_regionLoader.cancelPending(key);
 			region.markMeshDirty();
 			_regionLoader.updateRegionCache(region);
 			markForRemesh(key);
 		}
 	}
-
+	
 	/**
 	 * Rebuilds all currently loaded region meshes synchronously on the main thread.<br>
 	 * Called once after tile entity deserialization during world load to ensure<br>
@@ -1424,21 +1335,19 @@ public class World
 	{
 		for (Entry<Long, Region> entry : _regions.entrySet())
 		{
-			final long key = entry.getKey();
+			final Long key = entry.getKey();
 			final Region region = entry.getValue();
 			_regionLoader.cancelPending(key);
 			region.markMeshDirty();
 			_regionLoader.updateRegionCache(region);
 			_batchDirtyRegions.add(key);
 		}
-
+		
 		rebuildDirtyRegionsImmediate();
 	}
-
-	// ========================================================
-	// Tile Entity Manager.
-	// ========================================================
-
+	
+	// ========== TILE ENTITY MANAGER ==========
+	
 	/**
 	 * Returns the tile entity manager for this world.
 	 */
@@ -1446,11 +1355,9 @@ public class World
 	{
 		return _tileEntityManager;
 	}
-
-	// ========================================================
-	// Block Light System.
-	// ========================================================
-
+	
+	// ========== BLOCK LIGHT SYSTEM ==========
+	
 	/** Six-directional offsets for BFS light propagation. */
 	private static final int[][] LIGHT_DIRS =
 	{
@@ -1463,7 +1370,7 @@ public class World
 		{ 0, 0, -1 }
 		// @formatter:on
 	};
-
+	
 	/**
 	 * Propagates block light from a light source using BFS flood-fill.<br>
 	 * Light decays by 1 per block and does not pass through solid blocks.<br>
@@ -1480,7 +1387,7 @@ public class World
 		{
 			return;
 		}
-
+		
 		final Queue<int[]> queue = new LinkedList<>();
 		queue.add(new int[]
 		{
@@ -1489,7 +1396,7 @@ public class World
 			worldZ,
 			lightLevel
 		});
-
+		
 		while (!queue.isEmpty())
 		{
 			final int[] entry = queue.poll();
@@ -1497,43 +1404,40 @@ public class World
 			final int y = entry[1];
 			final int z = entry[2];
 			final int light = entry[3];
-
+			
 			if (light <= 0 || y < 0 || y >= Region.SIZE_Y)
 			{
 				continue;
 			}
-
+			
 			// Resolve region and local coordinates.
-			final int rx = Math.floorDiv(x, Region.SIZE_XZ);
-			final int rz = Math.floorDiv(z, Region.SIZE_XZ);
-			final long key = regionKey(rx, rz);
+			final Long key = regionKey(Math.floorDiv(x, Region.SIZE_XZ), Math.floorDiv(z, Region.SIZE_XZ));
 			final Region region = _regions.get(key);
 			if (region == null)
 			{
 				continue;
 			}
-
+			
 			final int lx = Math.floorMod(x, Region.SIZE_XZ);
 			final int lz = Math.floorMod(z, Region.SIZE_XZ);
-
+			
 			// Only set if new light is brighter than existing.
 			if (region.getBlockLight(lx, y, lz) >= light)
 			{
 				continue;
 			}
-
+			
 			// Don't propagate through solid blocks (except the source itself).
-			final Block block = region.getBlock(lx, y, lz);
-			if (block.isSolid() && !(x == worldX && y == worldY && z == worldZ))
+			if (region.getBlock(lx, y, lz).isSolid() && !(x == worldX && y == worldY && z == worldZ))
 			{
 				continue;
 			}
-
+			
 			region.setBlockLight(lx, y, lz, light);
 			region.markMeshDirty();
 			_regionLoader.updateRegionCache(region);
 			_batchDirtyRegions.add(key);
-
+			
 			// Propagate to 6 neighbors with decay.
 			if (light > 1)
 			{
@@ -1550,10 +1454,10 @@ public class World
 				}
 			}
 		}
-
+		
 		rebuildDirtyRegionsImmediate();
 	}
-
+	
 	/**
 	 * Removes block light contribution from the given world position.<br>
 	 * Uses BFS to clear light values that originated from this source,<br>
@@ -1566,29 +1470,24 @@ public class World
 	public void removeBlockLight(int worldX, int worldY, int worldZ)
 	{
 		// Get the current light level at the source.
-		final int rx = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int rz = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region sourceRegion = _regions.get(regionKey(rx, rz));
+		final Region sourceRegion = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (sourceRegion == null)
 		{
 			return;
 		}
-
-		final int slx = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int slz = Math.floorMod(worldZ, Region.SIZE_XZ);
-		final int sourceLevel = sourceRegion.getBlockLight(slx, worldY, slz);
+		
+		final int sourceLevel = sourceRegion.getBlockLight(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 		if (sourceLevel <= 0)
 		{
 			return;
 		}
-
+		
 		// BFS removal: clear light that was contributed by this source.
-		// Track blocks at the boundary that still have light (from other sources)
-		// so we can re-propagate from them after clearing.
+		// Track blocks at the boundary that still have light (from other sources) so we can re-propagate from them after clearing.
 		final Queue<int[]> removeQueue = new LinkedList<>();
 		final Queue<int[]> repropQueue = new LinkedList<>();
 		final Set<Long> visited = new HashSet<>();
-
+		
 		removeQueue.add(new int[]
 		{
 			worldX,
@@ -1596,7 +1495,7 @@ public class World
 			worldZ,
 			sourceLevel
 		});
-
+		
 		while (!removeQueue.isEmpty())
 		{
 			final int[] entry = removeQueue.poll();
@@ -1604,33 +1503,31 @@ public class World
 			final int y = entry[1];
 			final int z = entry[2];
 			final int expectedLight = entry[3];
-
+			
 			if (y < 0 || y >= Region.SIZE_Y)
 			{
 				continue;
 			}
-
-			final long posKey = ((long) (x & 0xFFFFF) << 40) | ((long) (y & 0xFF) << 32) | ((long) (z & 0xFFFFF));
+			
+			final Long posKey = ((long) (x & 0xFFFFF) << 40) | ((long) (y & 0xFF) << 32) | ((long) (z & 0xFFFFF));
 			if (visited.contains(posKey))
 			{
 				continue;
 			}
-
+			
 			visited.add(posKey);
-
-			final int crx = Math.floorDiv(x, Region.SIZE_XZ);
-			final int crz = Math.floorDiv(z, Region.SIZE_XZ);
-			final long cKey = regionKey(crx, crz);
+			
+			final Long cKey = regionKey(Math.floorDiv(x, Region.SIZE_XZ), Math.floorDiv(z, Region.SIZE_XZ));
 			final Region region = _regions.get(cKey);
 			if (region == null)
 			{
 				continue;
 			}
-
+			
 			final int lx = Math.floorMod(x, Region.SIZE_XZ);
 			final int lz = Math.floorMod(z, Region.SIZE_XZ);
 			final int currentLight = region.getBlockLight(lx, y, lz);
-
+			
 			if (currentLight > 0 && currentLight <= expectedLight)
 			{
 				// This block was lit by the removed source - clear it.
@@ -1638,7 +1535,7 @@ public class World
 				region.markMeshDirty();
 				_regionLoader.updateRegionCache(region);
 				_batchDirtyRegions.add(cKey);
-
+				
 				// Continue clearing outward.
 				if (expectedLight > 1)
 				{
@@ -1667,7 +1564,7 @@ public class World
 				});
 			}
 		}
-
+		
 		// Re-propagate from remaining light sources at the boundary.
 		while (!repropQueue.isEmpty())
 		{
@@ -1676,40 +1573,37 @@ public class World
 			final int y = entry[1];
 			final int z = entry[2];
 			final int light = entry[3];
-
+			
 			if (light <= 1 || y < 0 || y >= Region.SIZE_Y)
 			{
 				continue;
 			}
-
+			
 			final int nextLight = light - 1;
 			for (int[] dir : LIGHT_DIRS)
 			{
 				final int nx = x + dir[0];
 				final int ny = y + dir[1];
 				final int nz = z + dir[2];
-
+				
 				if (ny < 0 || ny >= Region.SIZE_Y)
 				{
 					continue;
 				}
-
-				final int nrx = Math.floorDiv(nx, Region.SIZE_XZ);
-				final int nrz = Math.floorDiv(nz, Region.SIZE_XZ);
-				final long nKey = regionKey(nrx, nrz);
+				
+				final Long nKey = regionKey(Math.floorDiv(nx, Region.SIZE_XZ), Math.floorDiv(nz, Region.SIZE_XZ));
 				final Region nRegion = _regions.get(nKey);
 				if (nRegion == null)
 				{
 					continue;
 				}
-
+				
 				final int nlx = Math.floorMod(nx, Region.SIZE_XZ);
 				final int nlz = Math.floorMod(nz, Region.SIZE_XZ);
-
+				
 				if (nRegion.getBlockLight(nlx, ny, nlz) < nextLight)
 				{
-					final Block block = nRegion.getBlock(nlx, ny, nlz);
-					if (!block.isSolid())
+					if (!nRegion.getBlock(nlx, ny, nlz).isSolid())
 					{
 						nRegion.setBlockLight(nlx, ny, nlz, nextLight);
 						nRegion.markMeshDirty();
@@ -1726,10 +1620,10 @@ public class World
 				}
 			}
 		}
-
+		
 		rebuildDirtyRegionsImmediate();
 	}
-
+	
 	/**
 	 * Returns the block light level at the given world coordinates.<br>
 	 * Returns 0 if the region is not loaded or coordinates are out of bounds.
@@ -1744,37 +1638,33 @@ public class World
 		{
 			return 0;
 		}
-
-		final int rx = Math.floorDiv(worldX, Region.SIZE_XZ);
-		final int rz = Math.floorDiv(worldZ, Region.SIZE_XZ);
-		final Region region = _regions.get(regionKey(rx, rz));
+		
+		final Region region = _regions.get(regionKey(Math.floorDiv(worldX, Region.SIZE_XZ), Math.floorDiv(worldZ, Region.SIZE_XZ)));
 		if (region == null)
 		{
 			return 0;
 		}
-
-		final int lx = Math.floorMod(worldX, Region.SIZE_XZ);
-		final int lz = Math.floorMod(worldZ, Region.SIZE_XZ);
-		return region.getBlockLight(lx, worldY, lz);
+		
+		return region.getBlockLight(Math.floorMod(worldX, Region.SIZE_XZ), worldY, Math.floorMod(worldZ, Region.SIZE_XZ));
 	}
-
+	
 	/**
 	 * Scans all loaded regions for light-emitting blocks and re-propagates their light.<br>
 	 * Called after loading a saved world to restore block light data, which is not persisted<br>
 	 * (only block types and tile entities are saved - light is derived from block placement).<br>
 	 * <br>
-	 * Uses {@link Block#getLightLevel()} to identify emitters and their intensity.<br>
+	 * Uses {@code Block.getLightLevel()} to identify emitters and their intensity.<br>
 	 * Dirty regions are rebuilt once after all lights have been propagated.
 	 */
 	public void repropagateAllBlockLights()
 	{
 		int lightCount = 0;
-
+		
 		for (Region region : _regions.values())
 		{
 			final int originX = region.getRegionX() * Region.SIZE_XZ;
 			final int originZ = region.getRegionZ() * Region.SIZE_XZ;
-
+			
 			for (int x = 0; x < Region.SIZE_XZ; x++)
 			{
 				for (int z = 0; z < Region.SIZE_XZ; z++)
@@ -1782,7 +1672,17 @@ public class World
 					for (int y = 0; y < Region.SIZE_Y; y++)
 					{
 						final Block block = region.getBlock(x, y, z);
-						final int lightLevel = block.getLightLevel();
+						int lightLevel = block.getLightLevel();
+						if (lightLevel > 0 && block.isTileEntity())
+						{
+							// A tile entity carries per-instance state the block default cannot express (an unlit campfire is dimmer than a lit one), so it wins when one is placed here.
+							final TileEntity emitter = _tileEntityManager.get(originX + x, y, originZ + z);
+							if (emitter != null)
+							{
+								lightLevel = emitter.getLightLevel();
+							}
+						}
+						
 						if (lightLevel > 0)
 						{
 							propagateBlockLight(originX + x, y, originZ + z, lightLevel);
@@ -1792,18 +1692,16 @@ public class World
 				}
 			}
 		}
-
+		
 		if (lightCount > 0)
 		{
 			rebuildDirtyRegionsImmediate();
 			System.out.println("World: Re-propagated " + lightCount + " block light sources.");
 		}
 	}
-
-	// ========================================================
-	// Lifecycle.
-	// ========================================================
-
+	
+	// ========== LIFECYCLE ==========
+	
 	/**
 	 * Shuts down background threads and releases resources.<br>
 	 * Must be called when the world is destroyed (e.g. returning to main menu).
@@ -1818,11 +1716,9 @@ public class World
 			_pendingRemesh.clear();
 		}
 	}
-
-	// ========================================================
-	// Accessors.
-	// ========================================================
-
+	
+	// ========== ACCESSORS ==========
+	
 	/**
 	 * Returns the world scene node containing all region geometries.
 	 */
@@ -1830,7 +1726,7 @@ public class World
 	{
 		return _worldNode;
 	}
-
+	
 	/**
 	 * Returns the numeric seed used for this world.
 	 */
@@ -1838,7 +1734,7 @@ public class World
 	{
 		return _seed;
 	}
-
+	
 	/**
 	 * Returns the region at the given region coordinates, or null if not loaded.
 	 */
@@ -1846,7 +1742,7 @@ public class World
 	{
 		return _regions.get(regionKey(regionX, regionZ));
 	}
-
+	
 	/**
 	 * Returns the number of loaded regions.
 	 */
@@ -1854,7 +1750,7 @@ public class World
 	{
 		return _regions.size();
 	}
-
+	
 	/**
 	 * Returns a list of all loaded regions that have been modified by the player.<br>
 	 * Used by SaveManager to determine which regions need saving.
@@ -1870,10 +1766,10 @@ public class World
 				modified.add(region);
 			}
 		}
-
+		
 		return modified;
 	}
-
+	
 	/**
 	 * Sets saved region data to be applied as regions load.<br>
 	 * Called during world initialization when loading a previously saved world.<br>
@@ -1885,7 +1781,7 @@ public class World
 		_savedRegionData = savedData;
 		_regionLoader.setSavedRegionData(_savedRegionData);
 	}
-
+	
 	/**
 	 * Returns the map of unloaded saved region data.<br>
 	 * Contains entries for regions that were either loaded from disk but never re-applied,<br>
@@ -1897,23 +1793,21 @@ public class World
 	{
 		return _savedRegionData;
 	}
-
-	// ========================================================
-	// Underground Detection.
-	// ========================================================
-
+	
+	// ========== UNDERGROUND DETECTION ==========
+	
 	/** Horizontal search radius (in blocks) for nearest natural dirt/grass. */
 	private static final int UNDERGROUND_SEARCH_RADIUS_XZ = 3;
-
+	
 	/** Downward search distance from the player (catches dirt under feet on surface). */
 	private static final int UNDERGROUND_SEARCH_DOWN = 5;
-
+	
 	/** Upward search distance from the player (reaches surface layer from caves). */
 	private static final int UNDERGROUND_SEARCH_UP = 40;
-
+	
 	/** Player must be at least this many blocks below the nearest natural dirt to be underground. */
 	private static final int UNDERGROUND_DEPTH_THRESHOLD = 4;
-
+	
 	/**
 	 * Returns whether the player is underground - at least {@value #UNDERGROUND_DEPTH_THRESHOLD}<br>
 	 * blocks below the nearest non-player-placed DIRT or GRASS block.<br>
@@ -1934,10 +1828,10 @@ public class World
 	{
 		final int yMin = Math.max(0, worldY - UNDERGROUND_SEARCH_DOWN);
 		final int yMax = Math.min(Region.SIZE_Y - 1, worldY + UNDERGROUND_SEARCH_UP);
-
+		
 		int closestDirtY = -1;
 		int closestDistSq = Integer.MAX_VALUE;
-
+		
 		for (int dx = -UNDERGROUND_SEARCH_RADIUS_XZ; dx <= UNDERGROUND_SEARCH_RADIUS_XZ; dx++)
 		{
 			for (int dz = -UNDERGROUND_SEARCH_RADIUS_XZ; dz <= UNDERGROUND_SEARCH_RADIUS_XZ; dz++)
@@ -1945,7 +1839,7 @@ public class World
 				final int cx = worldX + dx;
 				final int cz = worldZ + dz;
 				final int hDistSq = dx * dx + dz * dz;
-
+				
 				for (int y = yMin; y <= yMax; y++)
 				{
 					final Block block = getBlock(cx, y, cz);
@@ -1962,12 +1856,12 @@ public class World
 				}
 			}
 		}
-
+		
 		if (closestDirtY < 0)
 		{
 			return false; // No natural dirt found nearby - surface or void.
 		}
-
+		
 		return worldY <= (closestDirtY - UNDERGROUND_DEPTH_THRESHOLD);
 	}
 }

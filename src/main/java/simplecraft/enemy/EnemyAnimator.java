@@ -168,6 +168,27 @@ public class EnemyAnimator
 	/** Second shared quaternion for rotation composition. */
 	private static final Quaternion TEMP_QUAT2 = new Quaternion();
 	
+	/** Shared angle buffer for preserving yaw in the boss death animation. */
+	private static final float[] TEMP_ANGLES = new float[3];
+	
+	/** Cached spider leg child names (avoids per-frame string concatenation). */
+	private static final String[] LEFT_SPIDER_LEGS =
+	{
+		"LeftSpiderLeg0",
+		"LeftSpiderLeg1",
+		"LeftSpiderLeg2",
+		"LeftSpiderLeg3"
+	};
+	
+	/** Cached spider leg child names (avoids per-frame string concatenation). */
+	private static final String[] RIGHT_SPIDER_LEGS =
+	{
+		"RightSpiderLeg0",
+		"RightSpiderLeg1",
+		"RightSpiderLeg2",
+		"RightSpiderLeg3"
+	};
+	
 	/**
 	 * Private constructor - utility class with only static methods.
 	 */
@@ -177,7 +198,7 @@ public class EnemyAnimator
 	
 	/**
 	 * Updates the procedural animation for one enemy.<br>
-	 * Called once per frame from {@link Enemy#update(float)}.
+	 * Called once per frame from {@code Enemy.update(float)}.
 	 * @param enemy the enemy to animate
 	 * @param tpf time per frame in seconds
 	 * @param isMoving whether the enemy is currently walking / swimming
@@ -188,9 +209,10 @@ public class EnemyAnimator
 		EnemyLighting.updateLighting(enemy);
 		
 		// Death animation overrides everything else.
+		final EnemyType type = enemy.getType();
 		if (enemy.isDying())
 		{
-			if (enemy.getType() == EnemyType.DRAGON || enemy.getType() == EnemyType.SHADOW)
+			if ((type == EnemyType.DRAGON) || (type == EnemyType.SHADOW))
 			{
 				animateDragonDeath(enemy, tpf);
 			}
@@ -202,17 +224,17 @@ public class EnemyAnimator
 		}
 		
 		// Advance animation clock.
-		enemy.setAnimTime(enemy.getAnimTime() + tpf);
+		final float time = enemy.getAnimTime() + tpf;
+		enemy.setAnimTime(time);
 		
-		// Smooth walk blend factor toward 1 (moving) or 0 (stopped).
+		// Smooth walk blend factor toward 1 (moving) or 0 (stopped), clamped to not overshoot.
 		final float targetBlend = isMoving ? 1.0f : 0.0f;
 		float blend = enemy.getWalkBlend();
-		blend = approach(blend, targetBlend, WALK_BLEND_RATE * tpf);
+		final float maxDelta = WALK_BLEND_RATE * tpf;
+		blend = (blend < targetBlend) ? Math.min(blend + maxDelta, targetBlend) : Math.max(blend - maxDelta, targetBlend);
 		enemy.setWalkBlend(blend);
 		
-		final float time = enemy.getAnimTime();
-		
-		switch (enemy.getType())
+		switch (type)
 		{
 			case ZOMBIE:
 			case SKELETON:
@@ -255,6 +277,10 @@ public class EnemyAnimator
 			case SHADOW:
 			{
 				animateShadow(enemy, time, tpf, blend);
+				break;
+			}
+			default:
+			{
 				break;
 			}
 		}
@@ -324,8 +350,8 @@ public class EnemyAnimator
 			// Same-index left and right legs swing in opposite directions.
 			final float phase = ((i % 2) == 0) ? sweep : -sweep;
 			
-			final Spatial leftLeg = root.getChild("LeftSpiderLeg" + i);
-			final Spatial rightLeg = root.getChild("RightSpiderLeg" + i);
+			final Spatial leftLeg = root.getChild(LEFT_SPIDER_LEGS[i]);
+			final Spatial rightLeg = root.getChild(RIGHT_SPIDER_LEGS[i]);
 			
 			if (leftLeg != null)
 			{
@@ -372,10 +398,9 @@ public class EnemyAnimator
 		body.setLocalScale(scaleXZ, scaleY, scaleXZ);
 		
 		// Translate upward during stretch (positive cycle).
-		final float hopY = Math.max(0, cycle * SLIME_HOP_HEIGHT);
 		
 		// Body pivot is at Y=0.4 (from factory). Add hop offset.
-		body.setLocalTranslation(0, 0.4f + hopY, 0);
+		body.setLocalTranslation(0, 0.4f + Math.max(0, cycle * SLIME_HOP_HEIGHT), 0);
 	}
 	
 	// ------------------------------------------------------------------
@@ -395,17 +420,15 @@ public class EnemyAnimator
 		}
 		
 		final float swimBlend = Math.max(blend, 0.4f); // Piranha always swims a little, even "idle".
-		final float sway = FastMath.sin(time * PIRANHA_SWIM_SPEED) * PIRANHA_SWAY_AMPLITUDE * swimBlend;
 		
 		// Sway the whole body around Y axis.
-		setYRotation(body, sway);
+		setYRotation(body, (FastMath.sin(time * PIRANHA_SWIM_SPEED) * PIRANHA_SWAY_AMPLITUDE * swimBlend));
 		
 		// Wag the tail fin faster and wider.
 		final Spatial tailFin = body.getChild("TailFin");
 		if (tailFin != null)
 		{
-			final float tailWag = FastMath.sin(time * PIRANHA_SWIM_SPEED * 1.5f) * PIRANHA_TAIL_AMPLITUDE * swimBlend;
-			setYRotation(tailFin, tailWag);
+			setYRotation(tailFin, (FastMath.sin(time * PIRANHA_SWIM_SPEED * 1.5f) * PIRANHA_TAIL_AMPLITUDE * swimBlend));
 		}
 	}
 	
@@ -420,8 +443,7 @@ public class EnemyAnimator
 	 */
 	private static void animateIdle(Enemy enemy, float time, float walkBlend)
 	{
-		final float idleStrength = 1.0f - walkBlend;
-		final float bobY = FastMath.sin(time * IDLE_BOB_SPEED) * IDLE_BOB_AMPLITUDE * idleStrength;
+		final float bobY = FastMath.sin(time * IDLE_BOB_SPEED) * IDLE_BOB_AMPLITUDE * (1.0f - walkBlend);
 		
 		// Offset root node Y relative to the enemy's base position.
 		final Node root = enemy.getNode();
@@ -474,10 +496,9 @@ public class EnemyAnimator
 		else if (timer <= DEATH_TOTAL_DURATION)
 		{
 			// Phase 2: Shrink to nothing.
-			final float t = (timer - DEATH_TOPPLE_DURATION) / DEATH_SHRINK_DURATION;
 			
 			// Ease-out (inverse quadratic) for a smooth vanish.
-			final float eased = 1.0f - t;
+			final float eased = 1.0f - ((timer - DEATH_TOPPLE_DURATION) / DEATH_SHRINK_DURATION);
 			final float scale = eased * eased;
 			
 			// Keep the toppled rotation.
@@ -491,8 +512,8 @@ public class EnemyAnimator
 		else
 		{
 			// Animation complete - mark for removal.
-			// Set stateTimer high so SpawnSystem's death-linger check passes immediately
-			// (the visual death has already played; no need to linger further).
+			// Set stateTimer high so SpawnSystem's death-linger check passes immediately.
+			// The visual death has already played; no need to linger further.
 			root.setLocalScale(0.01f);
 			enemy.setAlive(false);
 			enemy.setStateTimer(999f);
@@ -528,8 +549,7 @@ public class EnemyAnimator
 		// Body sway while walking.
 		if (body != null)
 		{
-			final float sway = FastMath.sin(time * DRAGON_WALK_SPEED * 0.5f) * DRAGON_BODY_SWAY * blend;
-			TEMP_QUAT.fromAngleAxis(sway, Vector3f.UNIT_Y);
+			TEMP_QUAT.fromAngleAxis((FastMath.sin(time * DRAGON_WALK_SPEED * 0.5f) * DRAGON_BODY_SWAY * blend), Vector3f.UNIT_Y);
 			body.setLocalRotation(TEMP_QUAT);
 		}
 		
@@ -537,49 +557,48 @@ public class EnemyAnimator
 		final float tailBlend = Math.max(blend, 0.4f);
 		if (tail1 != null)
 		{
-			final float t1 = FastMath.sin(time * DRAGON_TAIL_SPEED) * DRAGON_TAIL_AMPLITUDE * tailBlend;
-			TEMP_QUAT.fromAngleAxis(t1, Vector3f.UNIT_Y);
+			TEMP_QUAT.fromAngleAxis((FastMath.sin(time * DRAGON_TAIL_SPEED) * DRAGON_TAIL_AMPLITUDE * tailBlend), Vector3f.UNIT_Y);
 			tail1.setLocalRotation(TEMP_QUAT);
 		}
 		
 		if (tail2 != null)
 		{
-			final float t2 = FastMath.sin(time * DRAGON_TAIL_SPEED + DRAGON_TAIL_PHASE_OFFSET) * DRAGON_TAIL_AMPLITUDE * 1.3f * tailBlend;
-			TEMP_QUAT.fromAngleAxis(t2, Vector3f.UNIT_Y);
+			TEMP_QUAT.fromAngleAxis((FastMath.sin(time * DRAGON_TAIL_SPEED + DRAGON_TAIL_PHASE_OFFSET) * DRAGON_TAIL_AMPLITUDE * 1.3f * tailBlend), Vector3f.UNIT_Y);
 			tail2.setLocalRotation(TEMP_QUAT);
 		}
 		
 		if (tail3 != null)
 		{
-			final float t3 = FastMath.sin(time * DRAGON_TAIL_SPEED + DRAGON_TAIL_PHASE_OFFSET * 2) * DRAGON_TAIL_AMPLITUDE * 1.6f * tailBlend;
-			TEMP_QUAT.fromAngleAxis(t3, Vector3f.UNIT_Y);
+			TEMP_QUAT.fromAngleAxis((FastMath.sin(time * DRAGON_TAIL_SPEED + DRAGON_TAIL_PHASE_OFFSET * 2) * DRAGON_TAIL_AMPLITUDE * 1.6f * tailBlend), Vector3f.UNIT_Y);
 			tail3.setLocalRotation(TEMP_QUAT);
 		}
 		
 		// --- Idle breathing (body scale Y on slow sine) ---
 		if (blend < 0.5f && body != null)
 		{
-			final float breathe = 1.0f + FastMath.sin(time * 1.2f) * 0.02f * (1.0f - blend);
-			body.setLocalScale(1.0f, breathe, 1.0f);
+			body.setLocalScale(1.0f, (1.0f + FastMath.sin(time * 1.2f) * 0.02f * (1.0f - blend)), 1.0f);
 		}
 		else if (body != null)
 		{
 			body.setLocalScale(1.0f);
 		}
 		
+		final boolean biteActive = enemy.isBiteActive();
+		final boolean chargeTelegraph = enemy.isChargeTelegraph();
+		final boolean roaring = enemy.isRoaring();
+		
 		// --- Idle head turn ---
-		if (blend < 0.3f && head != null && !enemy.isBiteActive() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		if (blend < 0.3f && head != null && !biteActive && !chargeTelegraph && !roaring)
 		{
-			final float headTurn = FastMath.sin(time * 0.8f) * 0.15f * (1.0f - blend);
-			TEMP_QUAT.fromAngleAxis(headTurn, Vector3f.UNIT_Y);
+			TEMP_QUAT.fromAngleAxis((FastMath.sin(time * 0.8f) * 0.15f * (1.0f - blend)), Vector3f.UNIT_Y);
 			head.setLocalRotation(TEMP_QUAT);
 		}
 		
 		// --- Bite animation (with fire visual) ---
-		if (enemy.isBiteActive())
+		if (biteActive)
 		{
-			enemy.setBiteTimer(enemy.getBiteTimer() + tpf);
-			final float bt = enemy.getBiteTimer();
+			final float bt = enemy.getBiteTimer() + tpf;
+			enemy.setBiteTimer(bt);
 			
 			if (head != null)
 			{
@@ -660,8 +679,8 @@ public class EnemyAnimator
 		// --- Tail swipe animation ---
 		if (enemy.isTailSwiping())
 		{
-			enemy.setTailSwipeTimer(enemy.getTailSwipeTimer() + tpf);
-			final float st = enemy.getTailSwipeTimer();
+			final float st = enemy.getTailSwipeTimer() + tpf;
+			enemy.setTailSwipeTimer(st);
 			
 			// Rapid sweep to one side.
 			final float swipeAngle;
@@ -700,7 +719,7 @@ public class EnemyAnimator
 		}
 		
 		// --- Charge telegraph: head lowers ---
-		if (enemy.isChargeTelegraph() && head != null)
+		if (chargeTelegraph && (head != null))
 		{
 			final float pitch = -15.0f * FastMath.DEG_TO_RAD * Math.min(1.0f, enemy.getTelegraphTimer() / 0.3f);
 			TEMP_QUAT.fromAngleAxis(pitch, Vector3f.UNIT_X);
@@ -708,7 +727,7 @@ public class EnemyAnimator
 		}
 		
 		// --- Roar animation: head tilts up ---
-		if (enemy.isRoaring() && head != null)
+		if (roaring && (head != null))
 		{
 			final float roarT = enemy.getRoarTimer();
 			final float pitch;
@@ -731,14 +750,13 @@ public class EnemyAnimator
 			// Open jaw during roar.
 			if (jaw != null)
 			{
-				final float jawAngle = (roarT < 0.7f) ? 25.0f * FastMath.DEG_TO_RAD : 25.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f);
-				TEMP_QUAT.fromAngleAxis(jawAngle, Vector3f.UNIT_X);
+				TEMP_QUAT.fromAngleAxis((roarT < 0.7f) ? 25.0f * FastMath.DEG_TO_RAD : 25.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f), Vector3f.UNIT_X);
 				jaw.setLocalRotation(TEMP_QUAT);
 			}
 		}
 		
 		// --- Idle bob (subtle, when not attacking) ---
-		if (blend < 0.3f && !enemy.isBiteActive() && !enemy.isTailSwiping() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		if (blend < 0.3f && !biteActive && !enemy.isTailSwiping() && !chargeTelegraph && !roaring)
 		{
 			final float bobY = FastMath.sin(time * IDLE_BOB_SPEED) * IDLE_BOB_AMPLITUDE * (1.0f - blend);
 			final Node root = enemy.getNode();
@@ -760,8 +778,8 @@ public class EnemyAnimator
 			breathEmitter.setParticlesPerSec(0);
 		}
 		
-		enemy.setBossDeathTimer(enemy.getBossDeathTimer() + tpf);
-		final float timer = enemy.getBossDeathTimer();
+		final float timer = enemy.getBossDeathTimer() + tpf;
+		enemy.setBossDeathTimer(timer);
 		final float t = Math.min(1.0f, timer / DRAGON_DEATH_DURATION);
 		
 		final Node root = enemy.getNode();
@@ -774,13 +792,11 @@ public class EnemyAnimator
 		root.setLocalTranslation(pos.x, pos.y - eased * 0.8f, pos.z);
 		
 		// Tilt sideways slightly.
-		final float tiltAngle = eased * 15.0f * FastMath.DEG_TO_RAD;
-		TEMP_QUAT.fromAngleAxis(tiltAngle, Vector3f.UNIT_Z);
+		TEMP_QUAT.fromAngleAxis((eased * 15.0f * FastMath.DEG_TO_RAD), Vector3f.UNIT_Z);
 		
 		// Preserve current Y rotation (facing direction).
-		final float[] angles = new float[3];
-		root.getLocalRotation().toAngles(angles);
-		TEMP_QUAT2.fromAngleAxis(angles[1], Vector3f.UNIT_Y);
+		root.getLocalRotation().toAngles(TEMP_ANGLES);
+		TEMP_QUAT2.fromAngleAxis(TEMP_ANGLES[1], Vector3f.UNIT_Y);
 		TEMP_QUAT2.multLocal(TEMP_QUAT);
 		root.setLocalRotation(TEMP_QUAT2);
 		
@@ -818,8 +834,7 @@ public class EnemyAnimator
 		final Node head = enemy.getHead();
 		if (head != null)
 		{
-			final float headDrop = eased * 30.0f * FastMath.DEG_TO_RAD;
-			TEMP_QUAT.fromAngleAxis(-headDrop, Vector3f.UNIT_X);
+			TEMP_QUAT.fromAngleAxis(-(eased * 30.0f * FastMath.DEG_TO_RAD), Vector3f.UNIT_X);
 			head.setLocalRotation(TEMP_QUAT);
 		}
 		
@@ -886,35 +901,36 @@ public class EnemyAnimator
 		// Body sway while walking.
 		if (body != null)
 		{
-			final float sway = FastMath.sin(time * SHADOW_WALK_SPEED * 0.5f) * SHADOW_BODY_SWAY * blend;
-			TEMP_QUAT.fromAngleAxis(sway, Vector3f.UNIT_Y);
+			TEMP_QUAT.fromAngleAxis((FastMath.sin(time * SHADOW_WALK_SPEED * 0.5f) * SHADOW_BODY_SWAY * blend), Vector3f.UNIT_Y);
 			body.setLocalRotation(TEMP_QUAT);
 		}
 		
 		// --- Idle breathing (body scale Y on slow sine) ---
 		if (blend < 0.5f && body != null)
 		{
-			final float breathe = 1.0f + FastMath.sin(time * 1.0f) * 0.025f * (1.0f - blend);
-			body.setLocalScale(1.0f, breathe, 1.0f);
+			body.setLocalScale(1.0f, (1.0f + FastMath.sin(time * 1.0f) * 0.025f * (1.0f - blend)), 1.0f);
 		}
 		else if (body != null)
 		{
 			body.setLocalScale(1.0f);
 		}
 		
+		final boolean biteActive = enemy.isBiteActive();
+		final boolean chargeTelegraph = enemy.isChargeTelegraph();
+		final boolean roaring = enemy.isRoaring();
+		
 		// --- Idle head turn ---
-		if (blend < 0.3f && head != null && !enemy.isBiteActive() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		if (blend < 0.3f && head != null && !biteActive && !chargeTelegraph && !roaring)
 		{
-			final float headTurn = FastMath.sin(time * 0.7f) * 0.12f * (1.0f - blend);
-			TEMP_QUAT.fromAngleAxis(headTurn, Vector3f.UNIT_Y);
+			TEMP_QUAT.fromAngleAxis((FastMath.sin(time * 0.7f) * 0.12f * (1.0f - blend)), Vector3f.UNIT_Y);
 			head.setLocalRotation(TEMP_QUAT);
 		}
 		
 		// --- Bite animation (with fire visual) ---
-		if (enemy.isBiteActive())
+		if (biteActive)
 		{
-			enemy.setBiteTimer(enemy.getBiteTimer() + tpf);
-			final float bt = enemy.getBiteTimer();
+			final float bt = enemy.getBiteTimer() + tpf;
+			enemy.setBiteTimer(bt);
 			
 			if (head != null)
 			{
@@ -993,7 +1009,7 @@ public class EnemyAnimator
 		}
 		
 		// --- Charge telegraph: head lowers ---
-		if (enemy.isChargeTelegraph() && head != null)
+		if (chargeTelegraph && (head != null))
 		{
 			final float pitch = -20.0f * FastMath.DEG_TO_RAD * Math.min(1.0f, enemy.getTelegraphTimer() / 0.3f);
 			TEMP_QUAT.fromAngleAxis(pitch, Vector3f.UNIT_X);
@@ -1001,7 +1017,7 @@ public class EnemyAnimator
 		}
 		
 		// --- Roar animation: head tilts up ---
-		if (enemy.isRoaring() && head != null)
+		if (roaring && (head != null))
 		{
 			final float roarT = enemy.getRoarTimer();
 			final float pitch;
@@ -1024,14 +1040,13 @@ public class EnemyAnimator
 			// Open jaw during roar.
 			if (jaw != null)
 			{
-				final float jawAngle = (roarT < 0.7f) ? 30.0f * FastMath.DEG_TO_RAD : 30.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f);
-				TEMP_QUAT.fromAngleAxis(jawAngle, Vector3f.UNIT_X);
+				TEMP_QUAT.fromAngleAxis((roarT < 0.7f) ? 30.0f * FastMath.DEG_TO_RAD : 30.0f * FastMath.DEG_TO_RAD * (1.0f - (roarT - 0.7f) / 0.3f), Vector3f.UNIT_X);
 				jaw.setLocalRotation(TEMP_QUAT);
 			}
 		}
 		
 		// --- Idle bob (subtle, when not attacking) ---
-		if (blend < 0.3f && !enemy.isBiteActive() && !enemy.isChargeTelegraph() && !enemy.isRoaring())
+		if (blend < 0.3f && !biteActive && !chargeTelegraph && !roaring)
 		{
 			final float bobY = FastMath.sin(time * IDLE_BOB_SPEED) * IDLE_BOB_AMPLITUDE * (1.0f - blend);
 			final Node root = enemy.getNode();
@@ -1077,21 +1092,5 @@ public class EnemyAnimator
 	// ------------------------------------------------------------------
 	// Math helpers.
 	// ------------------------------------------------------------------
-	
-	/**
-	 * Linearly moves {@code current} toward {@code target} by at most {@code maxDelta}.
-	 * @param current the current value
-	 * @param target the target value
-	 * @param maxDelta the maximum change per call
-	 * @return the new value, clamped to not overshoot target
-	 */
-	private static float approach(float current, float target, float maxDelta)
-	{
-		if (current < target)
-		{
-			return Math.min(current + maxDelta, target);
-		}
-		
-		return Math.max(current - maxDelta, target);
-	}
+
 }

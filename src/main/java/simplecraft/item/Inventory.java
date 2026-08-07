@@ -31,9 +31,9 @@ public class Inventory
 	/** Currently selected hotbar index (0-8). */
 	private int _selectedHotbarIndex;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Slot Access.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the ItemInstance at the given slot index, or null if empty.
@@ -66,9 +66,9 @@ public class Inventory
 		_slots[index] = stack;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Armor Slot Access.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the item equipped in the given armor slot, or null if empty.
@@ -131,8 +131,7 @@ public class Inventory
 			final ItemInstance armor = _armorSlots[i];
 			if (armor != null && !armor.isEmpty() && armor.hasDurability())
 			{
-				final boolean broken = armor.loseDurability(1);
-				if (broken)
+				if (armor.loseDurability(1))
 				{
 					System.out.println("Armor broke: " + armor.getTemplate().getDisplayName());
 					_armorSlots[i] = null;
@@ -141,9 +140,9 @@ public class Inventory
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Hotbar Selection.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns the ItemInstance in the currently selected hotbar slot, or null if empty.
@@ -196,9 +195,9 @@ public class Inventory
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Item Operations.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Attempts to add an ItemInstance to the inventory.<br>
@@ -214,9 +213,10 @@ public class Inventory
 			return true;
 		}
 		
-		final int maxStackSize = stack.getTemplate().getMaxStackSize();
+		final ItemTemplate template = stack.getTemplate();
+		final int maxStackSize = template.getMaxStackSize();
 		final int amount = stack.getCount();
-
+		
 		// Pass 1: Verify the whole stack fits before mutating anything.
 		// A partial merge followed by a false return would let the caller re-drop the source, duplicating the items already merged.
 		int capacity = 0;
@@ -231,18 +231,18 @@ public class Inventory
 			{
 				capacity += maxStackSize - slot.getCount();
 			}
-
+			
 			if (capacity >= amount)
 			{
 				break;
 			}
 		}
-
+		
 		if (capacity < amount)
 		{
 			return false;
 		}
-
+		
 		// Pass 2: Commit. Merge into existing matching stacks first, then fill empty slots.
 		int remaining = amount;
 		for (int i = 0; i < TOTAL_SLOTS; i++)
@@ -251,29 +251,29 @@ public class Inventory
 			{
 				return true;
 			}
-
+			
 			final ItemInstance slot = _slots[i];
 			if (slot != null && slot.canStackWith(stack))
 			{
 				remaining = slot.add(remaining);
 			}
 		}
-
+		
 		for (int i = 0; i < TOTAL_SLOTS; i++)
 		{
 			if (remaining <= 0)
 			{
 				return true;
 			}
-
+			
 			if (_slots[i] == null)
 			{
 				final int placed = Math.min(remaining, maxStackSize);
-				_slots[i] = new ItemInstance(stack.getTemplate(), placed);
+				_slots[i] = new ItemInstance(template, placed);
 				remaining -= placed;
 			}
 		}
-
+		
 		return remaining <= 0;
 	}
 	
@@ -382,9 +382,9 @@ public class Inventory
 		_slots[b] = temp;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Serialization.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Serializes the inventory to a string for saving to disk.<br>
@@ -452,7 +452,7 @@ public class Inventory
 	 * Deserializes inventory data from a saved string and restores all slots.<br>
 	 * Clears any existing inventory contents before restoring.<br>
 	 * Unknown item IDs are skipped (slot left empty) with a warning logged.
-	 * @param data the serialized inventory string from {@link #serialize()}
+	 * @param data the serialized inventory string from {@code serialize()}
 	 */
 	public void deserialize(String data)
 	{
@@ -481,8 +481,7 @@ public class Inventory
 		{
 			try
 			{
-				final int index = Integer.parseInt(hotbarLine.substring("hotbar:".length()));
-				_selectedHotbarIndex = Math.max(0, Math.min(index, HOTBAR_SLOTS - 1));
+				_selectedHotbarIndex = Math.max(0, Math.min(Integer.parseInt(hotbarLine.substring("hotbar:".length())), HOTBAR_SLOTS - 1));
 			}
 			catch (NumberFormatException e)
 			{
@@ -529,7 +528,7 @@ public class Inventory
 				final ItemInstance instance = new ItemInstance(template, count);
 				
 				// Restore durability for weapons/tools/armor. The constructor sets max durability,
-				// so we override it with the saved value for items that have durability.
+				// So we override it with the saved value for items that have durability.
 				if (instance.hasDurability())
 				{
 					instance.setDurability(durability);

@@ -309,9 +309,6 @@ public class GameInputManager
 	 */
 	private final Map<String, List<ActionListener>> _trackedListeners = new LinkedHashMap<>();
 	
-	/** Stored reference to the screenshot listener so it survives mapping recreation. */
-	private ActionListener _screenshotListener;
-	
 	private final InputManager _inputManager;
 	
 	public GameInputManager(InputManager inputManager)
@@ -324,21 +321,21 @@ public class GameInputManager
 		
 		// Apply any saved overrides from SettingsManager.
 		final SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
-		final Map<String, Integer> savedKeys = settings.getKeybindings();
-		for (Entry<String, Integer> entry : savedKeys.entrySet())
+		for (Entry<String, Integer> entry : settings.getKeybindings().entrySet())
 		{
-			if (DEFAULT_KEY_CODES.containsKey(entry.getKey()))
+			final String action = entry.getKey();
+			if (DEFAULT_KEY_CODES.containsKey(action))
 			{
-				_currentKeyCodes.put(entry.getKey(), entry.getValue());
+				_currentKeyCodes.put(action, entry.getValue());
 			}
 		}
 		
-		final Map<String, Integer> savedMouse = settings.getMouseBindings();
-		for (Entry<String, Integer> entry : savedMouse.entrySet())
+		for (Entry<String, Integer> entry : settings.getMouseBindings().entrySet())
 		{
-			if (DEFAULT_MOUSE_CODES.containsKey(entry.getKey()))
+			final String action = entry.getKey();
+			if (DEFAULT_MOUSE_CODES.containsKey(action))
 			{
-				_currentMouseCodes.put(entry.getKey(), entry.getValue());
+				_currentMouseCodes.put(action, entry.getValue());
 			}
 		}
 		
@@ -442,10 +439,9 @@ public class GameInputManager
 		
 		// Initialize screenshot functionality. Saves to Pictures/SimpleCraft/ folder.
 		final String userHome = System.getProperty("user.home");
-		final String os = System.getProperty("os.name").toLowerCase();
 		
 		final String picturesPath;
-		if (os.contains("win"))
+		if (System.getProperty("os.name").toLowerCase().contains("win"))
 		{
 			picturesPath = userHome + "\\Pictures\\SimpleCraft\\";
 		}
@@ -464,8 +460,8 @@ public class GameInputManager
 		
 		// Use F2 instead of Print Screen to avoid Windows interception.
 		// Note: The SCREENSHOT mapping is already added via setupKeyboardMappings()
-		// from _currentKeyCodes, so we just need to add the listener.
-		_screenshotListener = new ActionListener()
+		// From _currentKeyCodes, so we just need to add the listener.
+		final ActionListener screenshotListener = new ActionListener()
 		{
 			@Override
 			public void onAction(String name, boolean isPressed, float tpf)
@@ -473,8 +469,7 @@ public class GameInputManager
 				if (isPressed && name.equals(SCREENSHOT))
 				{
 					// Timestamp filename prevents overwrites across sessions.
-					final String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
-					screenshotState.setFileName("Screenshot_" + timestamp);
+					screenshotState.setFileName("Screenshot_" + new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date()));
 					screenshotState.takeScreenshot();
 					
 					// Show confirmation message with a 0.5 second delay to avoid capturing it in the screenshot.
@@ -484,7 +479,7 @@ public class GameInputManager
 		};
 		
 		// Use tracked listener so it survives mapping recreation during rebinding.
-		addTrackedListener(_screenshotListener, SCREENSHOT);
+		addTrackedListener(screenshotListener, SCREENSHOT);
 		
 		System.out.println("Screenshots will be saved to: " + picturesPath);
 	}
@@ -493,7 +488,7 @@ public class GameInputManager
 	
 	/**
 	 * Register an ActionListener that survives mapping recreation during rebinding.<br>
-	 * When {@link #reregisterMapping(String)} or {@link #reregisterMouseMapping(String)}<br>
+	 * When {@code reregisterMapping(String)} or {@code reregisterMouseMapping(String)}<br>
 	 * rebuilds a mapping, all tracked listeners for that action are automatically re-added.<br>
 	 * Use this instead of {@code InputManager.addListener()} for any listener that must<br>
 	 * persist across keybinding changes.
@@ -532,12 +527,14 @@ public class GameInputManager
 	private void readdTrackedListeners(String action)
 	{
 		final List<ActionListener> listeners = _trackedListeners.get(action);
-		if (listeners != null)
+		if (listeners == null)
 		{
-			for (ActionListener listener : listeners)
-			{
-				_inputManager.addListener(listener, action);
-			}
+			return;
+		}
+		
+		for (ActionListener listener : listeners)
+		{
+			_inputManager.addListener(listener, action);
 		}
 	}
 	
@@ -568,7 +565,7 @@ public class GameInputManager
 			return null;
 		}
 		
-		final int oldKeyCode = _currentKeyCodes.get(action);
+		final Integer oldKeyCode = _currentKeyCodes.get(action);
 		if (oldKeyCode == newKeyCode)
 		{
 			return null;
@@ -578,9 +575,10 @@ public class GameInputManager
 		String swappedAction = null;
 		for (Entry<String, Integer> entry : _currentKeyCodes.entrySet())
 		{
-			if (entry.getValue() == newKeyCode && !entry.getKey().equals(action))
+			final String entryAction = entry.getKey();
+			if ((entry.getValue() == newKeyCode) && !entryAction.equals(action))
 			{
-				swappedAction = entry.getKey();
+				swappedAction = entryAction;
 				break;
 			}
 		}
@@ -593,12 +591,11 @@ public class GameInputManager
 		}
 		
 		// Apply the new binding.
-		_currentKeyCodes.put(action, newKeyCode);
+		_currentKeyCodes.put(action, Integer.valueOf(newKeyCode));
 		reregisterMapping(action);
 		
 		// Persist to settings.
-		final SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
-		settings.setKeybindings(_currentKeyCodes);
+		SimpleCraft.getInstance().getSettingsManager().setKeybindings(_currentKeyCodes);
 		
 		return swappedAction;
 	}
@@ -655,7 +652,7 @@ public class GameInputManager
 			return null;
 		}
 		
-		final int oldButtonCode = _currentMouseCodes.get(action);
+		final Integer oldButtonCode = _currentMouseCodes.get(action);
 		if (oldButtonCode == newButtonCode)
 		{
 			return null;
@@ -665,9 +662,10 @@ public class GameInputManager
 		String swappedAction = null;
 		for (Entry<String, Integer> entry : _currentMouseCodes.entrySet())
 		{
-			if (entry.getValue() == newButtonCode && !entry.getKey().equals(action))
+			final String entryAction = entry.getKey();
+			if ((entry.getValue() == newButtonCode) && !entryAction.equals(action))
 			{
-				swappedAction = entry.getKey();
+				swappedAction = entryAction;
 				break;
 			}
 		}
@@ -680,7 +678,7 @@ public class GameInputManager
 		}
 		
 		// Apply the new binding.
-		_currentMouseCodes.put(action, newButtonCode);
+		_currentMouseCodes.put(action, Integer.valueOf(newButtonCode));
 		reregisterMouseMapping(action);
 		
 		// Persist to settings.
@@ -718,13 +716,6 @@ public class GameInputManager
 		if (buttonCode != null)
 		{
 			_inputManager.addMapping(action, new MouseButtonTrigger(buttonCode));
-		}
-		
-		// Re-add keyboard trigger if this action also has one (e.g., future expansion).
-		final Integer keyCode = _currentKeyCodes.get(action);
-		if (keyCode != null)
-		{
-			_inputManager.addMapping(action, new KeyTrigger(keyCode));
 		}
 		
 		// Re-add all tracked listeners that were stripped by deleteMapping.

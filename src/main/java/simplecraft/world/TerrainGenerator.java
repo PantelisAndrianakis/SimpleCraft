@@ -14,9 +14,7 @@ import simplecraft.util.OpenSimplex2;
  */
 public class TerrainGenerator
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Sea level. Valleys below this height are filled with water. */
 	public static final int WATER_LEVEL = 28;
@@ -42,9 +40,7 @@ public class TerrainGenerator
 	/** Hashing prime for column-based seeded random (Z component). */
 	private static final long HASH_PRIME_Z = 19349669L;
 	
-	// ========================================================
-	// Public API.
-	// ========================================================
+	// ========== PUBLIC API ==========
 	
 	/**
 	 * Generates terrain for the given region using the world seed.<br>
@@ -80,9 +76,7 @@ public class TerrainGenerator
 		generateSeaweed(region, seed, regionWorldX, regionWorldZ, heights);
 	}
 	
-	// ========================================================
-	// Height Computation.
-	// ========================================================
+	// ========== HEIGHT COMPUTATION ==========
 	
 	/**
 	 * Computes terrain height at a world column using 3-octave noise with terracing.<br>
@@ -108,9 +102,7 @@ public class TerrainGenerator
 		return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, (int) height));
 	}
 	
-	// ========================================================
-	// Terrain Filling.
-	// ========================================================
+	// ========== TERRAIN FILLING ==========
 	
 	/**
 	 * Fills each column with bedrock, stone, dirt, grass/sand, water and air layers.
@@ -172,9 +164,7 @@ public class TerrainGenerator
 		}
 	}
 	
-	// ========================================================
-	// Ore Generation.
-	// ========================================================
+	// ========== ORE GENERATION ==========
 	
 	/**
 	 * Scatters iron ore veins in stone using 3D noise.<br>
@@ -192,17 +182,15 @@ public class TerrainGenerator
 				final int worldZ = regionWorldZ + z;
 				
 				// Only check below ore ceiling and below dirt layer.
-				final int maxY = Math.min(ORE_MAX_Y, heights[x][z] - 4);
 				
-				for (int y = 1; y <= maxY; y++)
+				for (int y = 1; y <= Math.min(ORE_MAX_Y, heights[x][z] - 4); y++)
 				{
 					if (region.getBlock(x, y, z) != Block.STONE)
 					{
 						continue;
 					}
 					
-					final float oreNoise = OpenSimplex2.noise3(oreSeed, worldX * 0.08, y * 0.08, worldZ * 0.08);
-					if (oreNoise > ORE_THRESHOLD)
+					if (OpenSimplex2.noise3(oreSeed, worldX * 0.08, y * 0.08, worldZ * 0.08) > ORE_THRESHOLD)
 					{
 						region.setBlock(x, y, z, Block.IRON_ORE);
 					}
@@ -211,9 +199,7 @@ public class TerrainGenerator
 		}
 	}
 	
-	// ========================================================
-	// Surface Decorations.
-	// ========================================================
+	// ========== SURFACE DECORATIONS ==========
 	
 	/**
 	 * Places berry bushes, tall grass and flowers on grass surface blocks.<br>
@@ -273,8 +259,7 @@ public class TerrainGenerator
 				else if (roll < 0.1105)
 				{
 					// 1% chance: flower.
-					final Block flower = pickFlower(columnRandom, heights, x, z);
-					region.setBlock(x, decoY, z, flower);
+					region.setBlock(x, decoY, z, pickFlower(columnRandom, heights, x, z));
 				}
 			}
 		}
@@ -328,9 +313,7 @@ public class TerrainGenerator
 		return flower;
 	}
 	
-	// ========================================================
-	// Underwater Seaweed.
-	// ========================================================
+	// ========== UNDERWATER SEAWEED ==========
 	
 	/**
 	 * Places tall and short seaweed on sand blocks that are underwater.<br>
@@ -365,18 +348,14 @@ public class TerrainGenerator
 					continue;
 				}
 				
-				final int worldX = regionWorldX + x;
-				final int worldZ = regionWorldZ + z;
-				
 				// Seeded random for this column.
-				final Random columnRandom = new Random(seaweedSeed ^ (worldX * HASH_PRIME_X) ^ (worldZ * HASH_PRIME_Z));
+				final Random columnRandom = new Random(seaweedSeed ^ ((regionWorldX + x) * HASH_PRIME_X) ^ ((regionWorldZ + z) * HASH_PRIME_Z));
 				final double roll = columnRandom.nextDouble();
 				
 				if (roll < 0.01)
 				{
 					// 1% chance: tall seaweed (2-4 blocks high).
-					final int waterDepth = WATER_LEVEL - terrainHeight;
-					final int maxHeight = Math.min(waterDepth, 4);
+					final int maxHeight = Math.min((WATER_LEVEL - terrainHeight), 4);
 					final int seaweedHeight = maxHeight <= 2 ? maxHeight : (2 + columnRandom.nextInt(3)); // 2 to 4
 					
 					for (int dy = 0; dy < seaweedHeight; dy++)
@@ -400,9 +379,7 @@ public class TerrainGenerator
 		}
 	}
 	
-	// ========================================================
-	// Adjacency Checks.
-	// ========================================================
+	// ========== ADJACENCY CHECKS ==========
 	
 	/**
 	 * Returns true if any of the 4 cardinal neighbors has terrain at or below water level.

@@ -20,13 +20,13 @@ import simplecraft.world.World;
 /**
  * Base class for all enemies.<br>
  * Holds the visual model (a hierarchy of Nodes and Geometries built from box primitives),<br>
- * combat stats, positional data and AI state. The model is assembled by {@link EnemyFactory}.<br>
- * Each frame, {@link EnemyAI} drives behavior and {@link EnemyAnimator} drives procedural animations.<br>
+ * combat stats, positional data and AI state. The model is assembled by {@link simplecraft.enemy.EnemyFactory}.<br>
+ * Each frame, {@link simplecraft.enemy.EnemyAI} drives behavior and {@link simplecraft.enemy.EnemyAnimator} drives procedural animations.<br>
  * <br>
- * <b>Player combat:</b> {@link #takeDamage(float)} reduces health and triggers a 0.1-second white hit flash<br>
+ * <b>Player combat:</b> {@code takeDamage(float)} reduces health and triggers a 0.1-second white hit flash<br>
  * across all geometry materials. When health reaches zero the enemy dies - {@code isAlive()} returns false,<br>
  * the state timer resets for death-linger tracking in {@link simplecraft.enemy.SpawnSystem} and the model<br>
- * scales down to zero over the linger duration via {@link EnemyAnimator}.
+ * scales down to zero over the linger duration via {@link simplecraft.enemy.EnemyAnimator}.
  * @author Pantelis Andrianakis
  * @since March 4th 2026
  */
@@ -45,13 +45,6 @@ public class Enemy
 		DRAGON,
 		SHADOW
 	}
-	
-	// ------------------------------------------------------------------
-	// Hit flash constants.
-	// ------------------------------------------------------------------
-	
-	/** Duration of the white hit flash in seconds. */
-	private static final float HIT_FLASH_DURATION = 0.1f;
 	
 	/** Minimum interval between ambient sounds (seconds). */
 	private static final float AMBIENT_SOUND_MIN_INTERVAL = 5.0f;
@@ -305,7 +298,7 @@ public class Enemy
 	/**
 	 * Initializes combat-related visuals: caches all geometry materials and creates<br>
 	 * the shared white material used for hit flashes. Must be called after the model<br>
-	 * is fully assembled by {@link EnemyFactory}.
+	 * is fully assembled by {@link simplecraft.enemy.EnemyFactory}.
 	 * @param assetManager the asset manager for material creation
 	 */
 	public void initCombat(AssetManager assetManager)
@@ -377,9 +370,16 @@ public class Enemy
 			audioManager.playSfx(AudioManager.SFX_ENEMY_HIT);
 		}
 		
-		// Trigger hit flash (white materials for HIT_FLASH_DURATION).
-		applyWhiteMaterial();
-		_hitFlashTimer = HIT_FLASH_DURATION;
+		// Trigger hit flash: set all cached geometries to the white flash material.
+		if (_materialCache != null)
+		{
+			for (Object[] pair : _materialCache)
+			{
+				((Geometry) pair[0]).setMaterial(_whiteMaterial);
+			}
+		}
+		
+		_hitFlashTimer = 0.1f; // White flash duration in seconds.
 		_hitFlashActive = true;
 	}
 	
@@ -397,44 +397,20 @@ public class Enemy
 			if (_hitFlashTimer <= 0)
 			{
 				_hitFlashActive = false;
-				restoreOriginalMaterials();
+				
+				// Restore all cached geometries to their original materials.
+				if (_materialCache != null)
+				{
+					for (Object[] pair : _materialCache)
+					{
+						((Geometry) pair[0]).setMaterial((Material) pair[1]);
+					}
+					
+					// Mark lighting dirty so EnemyLighting re-applies the correct light level.
+					_lightingDirty = true;
+				}
 			}
 		}
-	}
-	
-	/**
-	 * Sets all cached geometries to the white flash material.
-	 */
-	private void applyWhiteMaterial()
-	{
-		if (_materialCache == null)
-		{
-			return;
-		}
-		
-		for (Object[] pair : _materialCache)
-		{
-			((Geometry) pair[0]).setMaterial(_whiteMaterial);
-		}
-	}
-	
-	/**
-	 * Restores all cached geometries to their original materials.
-	 */
-	private void restoreOriginalMaterials()
-	{
-		if (_materialCache == null)
-		{
-			return;
-		}
-		
-		for (Object[] pair : _materialCache)
-		{
-			((Geometry) pair[0]).setMaterial((Material) pair[1]);
-		}
-		
-		// Mark lighting dirty so EnemyLighting re-applies the correct light level.
-		_lightingDirty = true;
 	}
 	
 	// ------------------------------------------------------------------
@@ -442,8 +418,8 @@ public class Enemy
 	// ------------------------------------------------------------------
 	
 	/**
-	 * Per-frame update. Drives AI behavior via {@link EnemyAI} and then<br>
-	 * procedural animation via {@link EnemyAnimator}.<br>
+	 * Per-frame update. Drives AI behavior via {@link simplecraft.enemy.EnemyAI} and then<br>
+	 * procedural animation via {@link simplecraft.enemy.EnemyAnimator}.<br>
 	 * Also plays positional ambient sounds when the enemy is within range of the player.
 	 * @param playerPos the player's current world position
 	 * @param playerInWater true if the player's feet are in water
@@ -469,18 +445,11 @@ public class Enemy
 		EnemyAnimator.update(this, tpf, _isMoving);
 		
 		// Ambient sounds - only while alive and within range of the player.
-		if (_alive && !_dying)
+		if (!_alive || _dying)
 		{
-			updateAmbientSound(playerPos, audioManager, tpf);
+			return;
 		}
-	}
-	
-	/**
-	 * Ticks the ambient sound timer and plays a positional type-specific sound<br>
-	 * when the timer expires and the player is within {@link #AMBIENT_SOUND_RANGE}.
-	 */
-	private void updateAmbientSound(Vector3f playerPos, AudioManager audioManager, float tpf)
-	{
+		
 		_ambientSoundTimer -= tpf;
 		if (_ambientSoundTimer > 0)
 		{
@@ -488,11 +457,10 @@ public class Enemy
 		}
 		
 		// Reset timer for next ambient sound.
-		_ambientSoundTimer = AMBIENT_SOUND_MIN_INTERVAL + Rnd.nextFloat() * (AMBIENT_SOUND_MAX_INTERVAL - AMBIENT_SOUND_MIN_INTERVAL);
+		_ambientSoundTimer = AMBIENT_SOUND_MIN_INTERVAL + (Rnd.nextFloat() * (AMBIENT_SOUND_MAX_INTERVAL - AMBIENT_SOUND_MIN_INTERVAL));
 		
 		// Only play if the player is within audible range.
-		final float distSq = _position.distanceSquared(playerPos);
-		if (distSq > AMBIENT_SOUND_RANGE * AMBIENT_SOUND_RANGE)
+		if (_position.distanceSquared(playerPos) > (AMBIENT_SOUND_RANGE * AMBIENT_SOUND_RANGE))
 		{
 			return;
 		}
@@ -508,7 +476,7 @@ public class Enemy
 	 * Returns the ambient sound asset path for this enemy's type, or null if none.
 	 * @return the SFX asset path, or null for types with no ambient sound
 	 */
-	public String getAmbientSoundPath()
+	private String getAmbientSoundPath()
 	{
 		switch (_type)
 		{

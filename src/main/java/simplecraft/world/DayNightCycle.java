@@ -20,7 +20,7 @@ import com.jme3.math.FastMath;
  * The viewport background color smoothly transitions through day blue,<br>
  * sunset orange-pink, night dark blue-black and sunrise warm tones.<br>
  * <br>
- * A full cycle takes {@link #DAY_LENGTH_SECONDS} real-time seconds (default 1200 = 20 minutes).
+ * A full cycle takes {@code DAY_LENGTH_SECONDS} real-time seconds (default 1200 = 20 minutes).
  * @author Pantelis Andrianakis
  * @since March 7th 2026
  */
@@ -247,9 +247,9 @@ public class DayNightCycle
 	 */
 	public void update(float tpf)
 	{
-		// Advance time.
+		// Advance time. Loop rather than branch so a single long frame cannot leave the time past 1.0.
 		_timeOfDay += tpf / DAY_LENGTH_SECONDS;
-		if (_timeOfDay >= 1.0f)
+		while (_timeOfDay >= 1.0f)
 		{
 			_timeOfDay -= 1.0f;
 			_totalDays++;
@@ -288,9 +288,9 @@ public class DayNightCycle
 	{
 		// Sinusoidal curve: peaks at noon (0.5), troughs at midnight (0.0).
 		// sin((0.5 - 0.25) * TWO_PI) = sin(PI/2) = 1.0 -> 0.55 + 0.45 = 1.0
+		
 		// sin((0.0 - 0.25) * TWO_PI) = sin(-PI/2) = -1.0 -> 0.55 - 0.45 = 0.1
-		final float raw = 0.55f + 0.45f * FastMath.sin((_timeOfDay - 0.25f) * TWO_PI);
-		_skyBrightness = Math.max(MIN_BRIGHTNESS, Math.min(1.0f, raw));
+		_skyBrightness = Math.max(MIN_BRIGHTNESS, Math.min(1.0f, (0.55f + 0.45f * FastMath.sin((_timeOfDay - 0.25f) * TWO_PI))));
 	}
 	
 	// ------------------------------------------------------------------
@@ -376,7 +376,7 @@ public class DayNightCycle
 	/**
 	 * Starts a gradual terrain transition toward the new phase's brightness and tint.<br>
 	 * Captures the current values as the start point and sets the target based on<br>
-	 * whether it is now night or day. The transition lerps over {@link #TERRAIN_TRANSITION_DURATION}.
+	 * whether it is now night or day. The transition lerps over {@code TERRAIN_TRANSITION_DURATION}.
 	 */
 	private void startTerrainTransition()
 	{
@@ -454,7 +454,7 @@ public class DayNightCycle
 	
 	/**
 	 * Returns whether it is currently night.<br>
-	 * Night spans from {@link #NIGHT_START} (0.8) through midnight to {@link #NIGHT_END} (0.2).
+	 * Night spans from {@code NIGHT_START} (0.8) through midnight to {@code NIGHT_END} (0.2).
 	 * @return true if the current time is within the night range
 	 */
 	public boolean isNight()
@@ -527,7 +527,7 @@ public class DayNightCycle
 	/**
 	 * Returns the current terrain brightness (lerped during transitions).<br>
 	 * Gradually moves from the previous phase's value to the target over<br>
-	 * {@link #TERRAIN_TRANSITION_DURATION} seconds using smooth-step interpolation.
+	 * {@code TERRAIN_TRANSITION_DURATION} seconds using smooth-step interpolation.
 	 * @return terrain brightness multiplier for vertex colors
 	 */
 	public float getTerrainBrightness()

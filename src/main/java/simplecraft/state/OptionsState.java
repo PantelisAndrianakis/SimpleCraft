@@ -22,6 +22,7 @@ import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.asset.AssetManager;
 import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -37,6 +38,7 @@ import com.simsilica.lemur.FillMode;
 import com.simsilica.lemur.HAlignment;
 import com.simsilica.lemur.Label;
 import com.simsilica.lemur.Panel;
+import com.simsilica.lemur.RangedValueModel;
 import com.simsilica.lemur.Slider;
 import com.simsilica.lemur.VAlignment;
 import com.simsilica.lemur.component.SpringGridLayout;
@@ -95,6 +97,7 @@ public class OptionsState extends FadeableAppState
 	private static final ColorRGBA KEY_BUTTON_COLOR = new ColorRGBA(0.7f, 0.85f, 1f, 1f);
 	private static final ColorRGBA KEY_LISTENING_COLOR = new ColorRGBA(1f, 1f, 0.3f, 1f);
 	private static final ColorRGBA FIXED_KEY_COLOR = new ColorRGBA(0.5f, 0.5f, 0.5f, 1f);
+	private static final ColorRGBA FIXED_BINDING_COLOR = new ColorRGBA(0.7f, 0.7f, 0.7f, 1f);
 	
 	private static final int TAB_DISPLAY = 0;
 	private static final int TAB_AUDIO = 1;
@@ -275,9 +278,8 @@ public class OptionsState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 		
 		// Detect screen size change after live display settings apply.
-		final int currentWidth = app.getCamera().getWidth();
-		final int currentHeight = app.getCamera().getHeight();
-		if (currentWidth != _lastScreenWidth || currentHeight != _lastScreenHeight)
+		final Camera camera = app.getCamera();
+		if (camera.getWidth() != _lastScreenWidth || camera.getHeight() != _lastScreenHeight)
 		{
 			_navigation.unregister();
 			detachAllGui();
@@ -318,8 +320,11 @@ public class OptionsState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final SettingsManager settings = app.getSettingsManager();
-		final float screenWidth = app.getCamera().getWidth();
-		final float screenHeight = app.getCamera().getHeight();
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
+		final Camera camera = app.getCamera();
+		final float screenWidth = camera.getWidth();
+		final float screenHeight = camera.getHeight();
 		final float screenCenterX = screenWidth / 2f;
 		
 		// Compute scaled font sizes and layout values.
@@ -339,7 +344,7 @@ public class OptionsState extends FadeableAppState
 		
 		// --- Background ---
 		_background = new Picture("Options Background");
-		_background.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
+		_background.setImage(assetManager, BACKGROUND_PATH, true);
 		_background.setWidth(screenWidth);
 		_background.setHeight(screenHeight);
 		_background.setLocalTranslation(0, 0, -10);
@@ -347,11 +352,10 @@ public class OptionsState extends FadeableAppState
 		
 		// --- Title ---
 		_titleLabel = new Label(LanguageManager.get("menu.options_title"));
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, _titleFontSize));
+		_titleLabel.setFont(FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, _titleFontSize));
 		_titleLabel.setFontSize(_titleFontSize);
 		_titleLabel.setColor(ColorRGBA.White);
-		final float titleWidth = _titleLabel.getPreferredSize().x;
-		_titleLabel.setLocalTranslation(screenCenterX - (titleWidth / 2f), screenHeight * 0.94f, 0);
+		_titleLabel.setLocalTranslation(screenCenterX - (_titleLabel.getPreferredSize().x / 2f), screenHeight * 0.94f, 0);
 		
 		// --- Tab Row ---
 		_tabRow = new Container();
@@ -368,8 +372,7 @@ public class OptionsState extends FadeableAppState
 		_tabRow.addChild(createTabSpacer());
 		_tabRow.addChild(_tabKeybindingsButton);
 		
-		final float tabRowWidth = _tabRow.getPreferredSize().x;
-		_tabRow.setLocalTranslation(screenCenterX - (tabRowWidth / 2f), screenHeight * 0.82f, 0);
+		_tabRow.setLocalTranslation(screenCenterX - (_tabRow.getPreferredSize().x / 2f), screenHeight * 0.82f, 0);
 		
 		updateTabStyles();
 		
@@ -398,8 +401,7 @@ public class OptionsState extends FadeableAppState
 		_keybindingsSubTabRow.addChild(createSubTabSpacer());
 		_keybindingsSubTabRow.addChild(_subTabMouseButton);
 		
-		final float subTabRowWidth = _keybindingsSubTabRow.getPreferredSize().x;
-		_keybindingsSubTabRow.setLocalTranslation(screenCenterX - (subTabRowWidth / 2f), screenHeight * 0.76f, 0);
+		_keybindingsSubTabRow.setLocalTranslation(screenCenterX - (_keybindingsSubTabRow.getPreferredSize().x / 2f), screenHeight * 0.76f, 0);
 		
 		// --- Keybindings Sub-Tab Content ---
 		_keyMovementContent = new Container();
@@ -422,9 +424,9 @@ public class OptionsState extends FadeableAppState
 		_buttonRow.setBackground(null);
 		_buttonRow.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
-		final Panel defaultsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("options.defaults"), 0.15f, 0.065f, () ->
+		final Panel defaultsButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("options.defaults"), 0.15f, 0.065f, () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			QuestionManager.show(LanguageManager.get("options.reset_confirm"), this::applyDefaults, null);
 		});
 		_buttonRow.addChild(defaultsButton);
@@ -434,16 +436,15 @@ public class OptionsState extends FadeableAppState
 		buttonSpacer.setPreferredSize(new Vector3f(screenWidth * 0.016f, 1, 0));
 		_buttonRow.addChild(buttonSpacer);
 		
-		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("options.back"), 0.15f, 0.065f, () ->
+		final Panel backButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("options.back"), 0.15f, 0.065f, () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().returnToPrevious(true);
 		});
 		_buttonRow.addChild(backButton);
 		_backButton = backButton;
 		
-		final float buttonRowWidth = _buttonRow.getPreferredSize().x;
-		_buttonRow.setLocalTranslation(screenCenterX - (buttonRowWidth / 2f), screenHeight * 0.12f, 0);
+		_buttonRow.setLocalTranslation(screenCenterX - (_buttonRow.getPreferredSize().x / 2f), screenHeight * 0.12f, 0);
 		
 		// Track screen size for rebuild detection after live display changes.
 		_lastScreenWidth = (int) screenWidth;
@@ -467,7 +468,7 @@ public class OptionsState extends FadeableAppState
 		
 		// --- Language Flag Button (upper-right) ---
 		_flagButton = new Picture("LangFlag");
-		_flagButton.setImage(app.getAssetManager(), LanguageManager.getFlagPath(LanguageManager.getCurrentCode()), true);
+		_flagButton.setImage(assetManager, LanguageManager.getFlagPath(LanguageManager.getCurrentCode()), true);
 		_flagButton.setWidth(FLAG_WIDTH);
 		_flagButton.setHeight(FLAG_HEIGHT);
 		_flagButton.setLocalTranslation(screenWidth - FLAG_WIDTH - FLAG_MARGIN, screenHeight - FLAG_HEIGHT - FLAG_MARGIN, 1f);
@@ -502,7 +503,7 @@ public class OptionsState extends FadeableAppState
 		rebuildFocusList();
 		
 		// Pre-warm dialog fonts so language changes don't stall the next dialog open.
-		FontManager.warmup(app.getAssetManager(), screenHeight);
+		FontManager.warmup(assetManager, screenHeight);
 	}
 	
 	/**
@@ -510,8 +511,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void detachAllGui()
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final Node guiNode = app.getGuiNode();
+		final Node guiNode = SimpleCraft.getInstance().getGuiNode();
 		
 		if (_background != null)
 		{
@@ -651,6 +651,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void buildDisplayContent(SimpleCraft app, SettingsManager settings, float sliderWidth)
 	{
+		final AudioManager audioManager = app.getAudioManager();
 		_displayContentSlots.clear();
 		
 		// Resolution selector.
@@ -665,8 +666,8 @@ public class OptionsState extends FadeableAppState
 		_displayContent.addChild(createResolutionRow(app, resLabel));
 		// @formatter:off
 		_displayContentSlots.add(MenuNavigationManager.labelSlot(resLabel,
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(-1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(-1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleResolution(1); },
 			null));
 		// @formatter:on
 		addRowSpacer(_displayContent);
@@ -675,7 +676,7 @@ public class OptionsState extends FadeableAppState
 		_fullscreenToggle = createToggleButton(settings.isFullscreen());
 		_fullscreenToggle.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isFullscreen();
 			settings.setFullscreen(newValue);
 			updateToggleButton(_fullscreenToggle, newValue);
@@ -685,7 +686,7 @@ public class OptionsState extends FadeableAppState
 		_displayContent.addChild(createToggleRow(app, fsLabel, _fullscreenToggle));
 		final Runnable toggleFullscreen = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isFullscreen();
 			settings.setFullscreen(newValue);
 			updateToggleButton(_fullscreenToggle, newValue);
@@ -697,16 +698,18 @@ public class OptionsState extends FadeableAppState
 		// Render Distance slider.
 		_renderDistanceSlider = new Slider(Axis.X);
 		_renderDistanceSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
-		_renderDistanceSlider.getModel().setMinimum(SettingsManager.MIN_RENDER_DISTANCE);
-		_renderDistanceSlider.getModel().setMaximum(SettingsManager.MAX_RENDER_DISTANCE);
-		_renderDistanceSlider.getModel().setValue(settings.getDisplayRenderDistance());
-		_renderDistanceValueLabel = createValueLabel(String.valueOf(settings.getDisplayRenderDistance()));
+		final RangedValueModel renderDistanceModel = _renderDistanceSlider.getModel();
+		renderDistanceModel.setMinimum(SettingsManager.MIN_RENDER_DISTANCE);
+		renderDistanceModel.setMaximum(SettingsManager.MAX_RENDER_DISTANCE);
+		final int renderDistance = settings.getDisplayRenderDistance();
+		renderDistanceModel.setValue(renderDistance);
+		_renderDistanceValueLabel = createValueLabel(String.valueOf(renderDistance));
 		final Label rdLabel = createNameLabel(app, LanguageManager.get("options.render_distance"));
 		_displayContent.addChild(createSliderRow(app, rdLabel, _renderDistanceSlider, _renderDistanceValueLabel));
 		// @formatter:off
 		_displayContentSlots.add(MenuNavigationManager.labelSlot(rdLabel,
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, -1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, 1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, -1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_renderDistanceSlider, 1); },
 			null));
 		// @formatter:on
 		addRowSpacer(_displayContent);
@@ -714,16 +717,18 @@ public class OptionsState extends FadeableAppState
 		// Field of View slider.
 		_fovSlider = new Slider(Axis.X);
 		_fovSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
-		_fovSlider.getModel().setMinimum(SettingsManager.MIN_FOV);
-		_fovSlider.getModel().setMaximum(SettingsManager.MAX_FOV);
-		_fovSlider.getModel().setValue(settings.getFov());
-		_fovValueLabel = createValueLabel(String.valueOf(Math.round(settings.getFov())));
+		final RangedValueModel fovModel = _fovSlider.getModel();
+		fovModel.setMinimum(SettingsManager.MIN_FOV);
+		fovModel.setMaximum(SettingsManager.MAX_FOV);
+		final float fov = settings.getFov();
+		fovModel.setValue(fov);
+		_fovValueLabel = createValueLabel(String.valueOf(Math.round(fov)));
 		final Label fovLabel = createNameLabel(app, LanguageManager.get("options.fov"));
 		_displayContent.addChild(createSliderRow(app, fovLabel, _fovSlider, _fovValueLabel));
 		// @formatter:off
 		_displayContentSlots.add(MenuNavigationManager.labelSlot(fovLabel,
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_fovSlider, -1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_fovSlider, 1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_fovSlider, -1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_fovSlider, 1); },
 			null));
 		// @formatter:on
 		addRowSpacer(_displayContent);
@@ -732,7 +737,7 @@ public class OptionsState extends FadeableAppState
 		_showHighlightToggle = createToggleButton(settings.isShowHighlight());
 		_showHighlightToggle.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowHighlight();
 			settings.setShowHighlight(newValue);
 			updateToggleButton(_showHighlightToggle, newValue);
@@ -741,7 +746,7 @@ public class OptionsState extends FadeableAppState
 		_displayContent.addChild(createToggleRow(app, wfLabel, _showHighlightToggle));
 		final Runnable toggleHighlight = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowHighlight();
 			settings.setShowHighlight(newValue);
 			updateToggleButton(_showHighlightToggle, newValue);
@@ -753,7 +758,7 @@ public class OptionsState extends FadeableAppState
 		_showCrosshairToggle = createToggleButton(settings.isShowCrosshair());
 		_showCrosshairToggle.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowCrosshair();
 			settings.setShowCrosshair(newValue);
 			updateToggleButton(_showCrosshairToggle, newValue);
@@ -762,7 +767,7 @@ public class OptionsState extends FadeableAppState
 		_displayContent.addChild(createToggleRow(app, chLabel, _showCrosshairToggle));
 		final Runnable toggleCrosshair = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowCrosshair();
 			settings.setShowCrosshair(newValue);
 			updateToggleButton(_showCrosshairToggle, newValue);
@@ -774,7 +779,7 @@ public class OptionsState extends FadeableAppState
 		_showStatsToggle = createToggleButton(settings.isShowStats());
 		_showStatsToggle.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowStats();
 			settings.setShowStats(newValue);
 			updateToggleButton(_showStatsToggle, newValue);
@@ -784,7 +789,7 @@ public class OptionsState extends FadeableAppState
 		_displayContent.addChild(createToggleRow(app, ssLabel, _showStatsToggle));
 		final Runnable toggleStats = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowStats();
 			settings.setShowStats(newValue);
 			updateToggleButton(_showStatsToggle, newValue);
@@ -797,7 +802,7 @@ public class OptionsState extends FadeableAppState
 		_showFpsToggle = createToggleButton(settings.isShowFps());
 		_showFpsToggle.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowFps();
 			settings.setShowFps(newValue);
 			updateToggleButton(_showFpsToggle, newValue);
@@ -807,7 +812,7 @@ public class OptionsState extends FadeableAppState
 		_displayContent.addChild(createToggleRow(app, fpsLabel, _showFpsToggle));
 		final Runnable toggleFps = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			final boolean newValue = !settings.isShowFps();
 			settings.setShowFps(newValue);
 			updateToggleButton(_showFpsToggle, newValue);
@@ -817,9 +822,9 @@ public class OptionsState extends FadeableAppState
 		addRowSpacer(_displayContent);
 		
 		// Setup versioned references and style sliders.
-		_renderDistanceRef = _renderDistanceSlider.getModel().createReference();
+		_renderDistanceRef = renderDistanceModel.createReference();
 		styleSliderComponents(_renderDistanceSlider);
-		_fovRef = _fovSlider.getModel().createReference();
+		_fovRef = fovModel.createReference();
 		styleSliderComponents(_fovSlider);
 	}
 	
@@ -828,21 +833,24 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void buildAudioContent(SimpleCraft app, SettingsManager settings, float sliderWidth)
 	{
+		final AudioManager audioManager = app.getAudioManager();
 		_audioContentSlots.clear();
 		
 		// Master Volume.
 		_masterSlider = new Slider(Axis.X);
 		_masterSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
-		_masterSlider.getModel().setMinimum(0);
-		_masterSlider.getModel().setMaximum(100);
-		_masterSlider.getModel().setValue(settings.getMasterVolume() * 100.0);
-		_masterValueLabel = createValueLabel(String.format("%.2f", settings.getMasterVolume()));
+		final RangedValueModel masterModel = _masterSlider.getModel();
+		masterModel.setMinimum(0);
+		masterModel.setMaximum(100);
+		final float masterVolume = settings.getMasterVolume();
+		masterModel.setValue(masterVolume * 100.0);
+		_masterValueLabel = createValueLabel(String.format("%.2f", masterVolume));
 		final Label masterLabel = createNameLabel(app, LanguageManager.get("options.master_volume"));
 		_audioContent.addChild(createSliderRow(app, masterLabel, _masterSlider, _masterValueLabel));
 		// @formatter:off
 		_audioContentSlots.add(MenuNavigationManager.labelSlot(masterLabel,
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, -1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, 1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, -1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_masterSlider, 1); },
 			null));
 		// @formatter:on
 		addRowSpacer(_audioContent);
@@ -850,16 +858,18 @@ public class OptionsState extends FadeableAppState
 		// Music Volume.
 		_musicSlider = new Slider(Axis.X);
 		_musicSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
-		_musicSlider.getModel().setMinimum(0);
-		_musicSlider.getModel().setMaximum(100);
-		_musicSlider.getModel().setValue(settings.getMusicVolume() * 100.0);
-		_musicValueLabel = createValueLabel(String.format("%.2f", settings.getMusicVolume()));
+		final RangedValueModel musicModel = _musicSlider.getModel();
+		musicModel.setMinimum(0);
+		musicModel.setMaximum(100);
+		final float musicVolume = settings.getMusicVolume();
+		musicModel.setValue(musicVolume * 100.0);
+		_musicValueLabel = createValueLabel(String.format("%.2f", musicVolume));
 		final Label musicLabel = createNameLabel(app, LanguageManager.get("options.music_volume"));
 		_audioContent.addChild(createSliderRow(app, musicLabel, _musicSlider, _musicValueLabel));
 		// @formatter:off
 		_audioContentSlots.add(MenuNavigationManager.labelSlot(musicLabel,
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, -1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, 1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, -1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_musicSlider, 1); },
 			null));
 		// @formatter:on
 		addRowSpacer(_audioContent);
@@ -867,23 +877,25 @@ public class OptionsState extends FadeableAppState
 		// SFX Volume.
 		_sfxSlider = new Slider(Axis.X);
 		_sfxSlider.setPreferredSize(new Vector3f(sliderWidth, _sliderHeight, 0));
-		_sfxSlider.getModel().setMinimum(0);
-		_sfxSlider.getModel().setMaximum(100);
-		_sfxSlider.getModel().setValue(settings.getSfxVolume() * 100.0);
-		_sfxValueLabel = createValueLabel(String.format("%.2f", settings.getSfxVolume()));
+		final RangedValueModel sfxModel = _sfxSlider.getModel();
+		sfxModel.setMinimum(0);
+		sfxModel.setMaximum(100);
+		final float sfxVolume = settings.getSfxVolume();
+		sfxModel.setValue(sfxVolume * 100.0);
+		_sfxValueLabel = createValueLabel(String.format("%.2f", sfxVolume));
 		final Label sfxLabel = createNameLabel(app, LanguageManager.get("options.sfx_volume"));
 		_audioContent.addChild(createSliderRow(app, sfxLabel, _sfxSlider, _sfxValueLabel));
 		// @formatter:off
 		_audioContentSlots.add(MenuNavigationManager.labelSlot(sfxLabel,
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, -1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, 1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, -1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_sfxSlider, 1); },
 			null));
 		// @formatter:on
 		
 		// Setup versioned references and style sliders.
-		_masterVolumeRef = _masterSlider.getModel().createReference();
-		_musicVolumeRef = _musicSlider.getModel().createReference();
-		_sfxVolumeRef = _sfxSlider.getModel().createReference();
+		_masterVolumeRef = masterModel.createReference();
+		_musicVolumeRef = musicModel.createReference();
+		_sfxVolumeRef = sfxModel.createReference();
 		styleSliderComponents(_masterSlider);
 		styleSliderComponents(_musicSlider);
 		styleSliderComponents(_sfxSlider);
@@ -896,6 +908,8 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void buildKeybindingsContent(SimpleCraft app)
 	{
+		final AudioManager audioManager = app.getAudioManager();
+		final Camera camera = app.getCamera();
 		final GameInputManager input = app.getGameInputManager();
 		
 		_keybindButtons.clear();
@@ -926,15 +940,14 @@ public class OptionsState extends FadeableAppState
 			}
 			
 			// Create the key button for this action.
-			final String keyName = GameInputManager.getKeyName(input.getKeyCode(action));
-			final Button keyButton = createKeyButton(app, keyName);
+			final Button keyButton = createKeyButton(app, GameInputManager.getKeyName(input.getKeyCode(action)));
 			_keybindButtons.put(action, keyButton);
 			
 			// Click handler: start listening for a new key.
 			final String actionRef = action;
 			keyButton.addClickCommands(source ->
 			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				startListening(actionRef, keyButton, false);
 			});
 			
@@ -945,7 +958,7 @@ public class OptionsState extends FadeableAppState
 			// Focus slot: Enter starts listening.
 			targetSlots.add(MenuNavigationManager.labelSlot(nameLabel, null, null, () ->
 			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				startListening(actionRef, keyButton, false);
 			}));
 		}
@@ -956,14 +969,13 @@ public class OptionsState extends FadeableAppState
 			final String action = entry[0];
 			final String displayName = LanguageManager.get("keybind." + action);
 			
-			final String buttonName = GameInputManager.getMouseButtonName(input.getMouseCode(action));
-			final Button mouseButton = createKeyButton(app, buttonName);
+			final Button mouseButton = createKeyButton(app, GameInputManager.getMouseButtonName(input.getMouseCode(action)));
 			_mouseBindButtons.put(action, mouseButton);
 			
 			final String actionRef = action;
 			mouseButton.addClickCommands(source ->
 			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				startListening(actionRef, mouseButton, true);
 			});
 			
@@ -974,7 +986,7 @@ public class OptionsState extends FadeableAppState
 			// Focus slot: Enter starts listening.
 			_keyMouseSlots.add(MenuNavigationManager.labelSlot(nameLabel, null, null, () ->
 			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				startListening(actionRef, mouseButton, true);
 			}));
 		}
@@ -982,34 +994,34 @@ public class OptionsState extends FadeableAppState
 		// --- Fixed Mouse / System Bindings (styled but not clickable, no focus slots) ---
 		for (String[] entry : GameInputManager.FIXED_BINDINGS)
 		{
-			final String displayName = LanguageManager.get("keybind." + entry[0].toLowerCase().replace(" ", "_"));
-			final String keyText = entry[1];
-			_keyMouseContent.addChild(createFixedKeybindingRow(app, displayName, keyText));
+			_keyMouseContent.addChild(createFixedKeybindingRow(app, LanguageManager.get("keybind." + entry[0].toLowerCase().replace(" ", "_")), entry[1]));
 			addRowSpacer(_keyMouseContent);
 		}
 		
 		// Mouse sensitivity slider (placed at the bottom of Mouse sub-tab).
 		_mouseSensitivitySlider = new Slider(Axis.X);
-		_mouseSensitivitySlider.setPreferredSize(new Vector3f(app.getCamera().getWidth() * SLIDER_WIDTH_PERCENT, _sliderHeight, 0));
-		_mouseSensitivitySlider.getModel().setMinimum(1);
-		_mouseSensitivitySlider.getModel().setMaximum(300);
-		_mouseSensitivitySlider.getModel().setValue(sensitivityToSliderValue(app.getSettingsManager().getMouseSensitivity()));
-		_mouseSensitivityValueLabel = createValueLabel(String.format("%.2f", app.getSettingsManager().getMouseSensitivity()));
+		_mouseSensitivitySlider.setPreferredSize(new Vector3f(camera.getWidth() * SLIDER_WIDTH_PERCENT, _sliderHeight, 0));
+		final RangedValueModel sensitivityModel = _mouseSensitivitySlider.getModel();
+		sensitivityModel.setMinimum(1);
+		sensitivityModel.setMaximum(300);
+		final float currentSensitivity = app.getSettingsManager().getMouseSensitivity();
+		sensitivityModel.setValue(sensitivityToSliderValue(currentSensitivity));
+		_mouseSensitivityValueLabel = createValueLabel(String.format("%.2f", currentSensitivity));
 		final Label sensitivityLabel = createNameLabel(app, LanguageManager.get("options.sensitivity"));
 		
 		// Push sensitivity lower so it sits around the middle/lower area of the Mouse sub-tab.
 		final Label sensitivitySpacer = new Label("");
-		sensitivitySpacer.setPreferredSize(new Vector3f(1, app.getCamera().getHeight() * 0.08f, 0));
+		sensitivitySpacer.setPreferredSize(new Vector3f(1, camera.getHeight() * 0.08f, 0));
 		_keyMouseContent.addChild(sensitivitySpacer);
 		
 		_keyMouseContent.addChild(createSliderRow(app, sensitivityLabel, _mouseSensitivitySlider, _mouseSensitivityValueLabel));
 		// @formatter:off
 		_keyMouseSlots.add(MenuNavigationManager.labelSlot(sensitivityLabel,
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_mouseSensitivitySlider, -1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_mouseSensitivitySlider, 1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_mouseSensitivitySlider, -1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); adjustSlider(_mouseSensitivitySlider, 1); },
 			null));
 		// @formatter:on
-		_mouseSensitivityRef = _mouseSensitivitySlider.getModel().createReference();
+		_mouseSensitivityRef = sensitivityModel.createReference();
 		styleSliderComponents(_mouseSensitivitySlider);
 		
 		updateSubTabStyles();
@@ -1238,13 +1250,11 @@ public class OptionsState extends FadeableAppState
 		final SimpleCraft app = SimpleCraft.getInstance();
 		if (_listeningForMouse)
 		{
-			final int currentCode = app.getGameInputManager().getMouseCode(_listeningAction);
-			_listeningButton.setText(GameInputManager.getMouseButtonName(currentCode));
+			_listeningButton.setText(GameInputManager.getMouseButtonName(app.getGameInputManager().getMouseCode(_listeningAction)));
 		}
 		else
 		{
-			final int currentCode = app.getGameInputManager().getKeyCode(_listeningAction);
-			_listeningButton.setText(GameInputManager.getKeyName(currentCode));
+			_listeningButton.setText(GameInputManager.getKeyName(app.getGameInputManager().getKeyCode(_listeningAction)));
 		}
 		
 		_listeningButton.setColor(KEY_BUTTON_COLOR);
@@ -1275,16 +1285,16 @@ public class OptionsState extends FadeableAppState
 		final GameInputManager input = SimpleCraft.getInstance().getGameInputManager();
 		for (Entry<String, Button> entry : _keybindButtons.entrySet())
 		{
-			final int keyCode = input.getKeyCode(entry.getKey());
-			entry.getValue().setText(GameInputManager.getKeyName(keyCode));
-			entry.getValue().setColor(KEY_BUTTON_COLOR);
+			final Button keyButton = entry.getValue();
+			keyButton.setText(GameInputManager.getKeyName(input.getKeyCode(entry.getKey())));
+			keyButton.setColor(KEY_BUTTON_COLOR);
 		}
 		
 		for (Entry<String, Button> entry : _mouseBindButtons.entrySet())
 		{
-			final int buttonCode = input.getMouseCode(entry.getKey());
-			entry.getValue().setText(GameInputManager.getMouseButtonName(buttonCode));
-			entry.getValue().setColor(KEY_BUTTON_COLOR);
+			final Button mouseButton = entry.getValue();
+			mouseButton.setText(GameInputManager.getMouseButtonName(input.getMouseCode(entry.getKey())));
+			mouseButton.setColor(KEY_BUTTON_COLOR);
 		}
 	}
 	
@@ -1336,14 +1346,16 @@ public class OptionsState extends FadeableAppState
 	 */
 	private Container createFixedKeybindingRow(SimpleCraft app, String actionName, String keyText)
 	{
+		final AssetManager assetManager = app.getAssetManager();
+		final String regularFontPath = FontManager.getRegularPath();
 		final Container row = new Container();
 		row.setBackground(null);
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
 		
 		final Label nameLabel = new Label(actionName);
-		nameLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _labelFontSize));
+		nameLabel.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, _labelFontSize));
 		nameLabel.setFontSize(_labelFontSize);
-		nameLabel.setColor(new ColorRGBA(0.7f, 0.7f, 0.7f, 1f));
+		nameLabel.setColor(FIXED_BINDING_COLOR);
 		nameLabel.setTextHAlignment(HAlignment.Right);
 		nameLabel.setTextVAlignment(VAlignment.Center);
 		nameLabel.setPreferredSize(new Vector3f(_keybindLabelWidth, _sliderHeight, 0));
@@ -1354,7 +1366,7 @@ public class OptionsState extends FadeableAppState
 		row.addChild(gap);
 		
 		final Label keyLabel = new Label(keyText);
-		keyLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _valueFontSize));
+		keyLabel.setFont(FontManager.getFont(assetManager, regularFontPath, Font.PLAIN, _valueFontSize));
 		keyLabel.setFontSize(_valueFontSize);
 		keyLabel.setColor(FIXED_KEY_COLOR);
 		keyLabel.setTextHAlignment(HAlignment.Left);
@@ -1516,10 +1528,10 @@ public class OptionsState extends FadeableAppState
 			settings.setRenderDistance(value);
 			_renderDistanceValueLabel.setText(String.valueOf(value));
 			
-			final double currentModelValue = _renderDistanceSlider.getModel().getValue();
-			if (Math.abs(currentModelValue - value) > 0.01)
+			final RangedValueModel renderDistanceModel = _renderDistanceSlider.getModel();
+			if (Math.abs(renderDistanceModel.getValue() - value) > 0.01)
 			{
-				_renderDistanceSlider.getModel().setValue(value);
+				renderDistanceModel.setValue(value);
 			}
 		}
 		
@@ -1529,10 +1541,10 @@ public class OptionsState extends FadeableAppState
 			settings.setFov(value);
 			_fovValueLabel.setText(String.valueOf(value));
 			
-			final double currentModelValue = _fovSlider.getModel().getValue();
-			if (Math.abs(currentModelValue - value) > 0.01)
+			final RangedValueModel fovModel = _fovSlider.getModel();
+			if (Math.abs(fovModel.getValue() - value) > 0.01)
 			{
-				_fovSlider.getModel().setValue(value);
+				fovModel.setValue(value);
 			}
 			
 			applyFovToPlayingState(app, value);
@@ -1560,11 +1572,9 @@ public class OptionsState extends FadeableAppState
 	 */
 	private float sliderValueToSensitivity(double sliderValue)
 	{
-		final double sliderMin = _mouseSensitivitySlider.getModel().getMinimum();
-		final double sliderMax = _mouseSensitivitySlider.getModel().getMaximum();
-		final double normalized = Math.clamp((sliderValue - sliderMin) / (sliderMax - sliderMin), 0.0, 1.0);
-		final double curved = Math.pow(normalized, SENSITIVITY_CURVE_EXPONENT);
-		return (float) (SENSITIVITY_MIN + (SENSITIVITY_MAX - SENSITIVITY_MIN) * curved);
+		final RangedValueModel sensitivityModel = _mouseSensitivitySlider.getModel();
+		final double sliderMin = sensitivityModel.getMinimum();
+		return (float) (SENSITIVITY_MIN + (SENSITIVITY_MAX - SENSITIVITY_MIN) * Math.pow(Math.clamp((sliderValue - sliderMin) / (sensitivityModel.getMaximum() - sliderMin), 0.0, 1.0), SENSITIVITY_CURVE_EXPONENT));
 	}
 	
 	/**
@@ -1572,11 +1582,9 @@ public class OptionsState extends FadeableAppState
 	 */
 	private double sensitivityToSliderValue(float sensitivity)
 	{
-		final double sliderMin = 1.0;
-		final double sliderMax = 300.0;
-		final double normalized = Math.clamp((sensitivity - SENSITIVITY_MIN) / (SENSITIVITY_MAX - SENSITIVITY_MIN), 0.0f, 1.0f);
-		final double linear = Math.pow(normalized, 1.0 / SENSITIVITY_CURVE_EXPONENT);
-		return sliderMin + linear * (sliderMax - sliderMin);
+		final RangedValueModel sensitivityModel = _mouseSensitivitySlider.getModel();
+		final double sliderMin = sensitivityModel.getMinimum();
+		return sliderMin + Math.pow(Math.clamp((sensitivity - SENSITIVITY_MIN) / (SENSITIVITY_MAX - SENSITIVITY_MIN), 0.0f, 1.0f), 1.0 / SENSITIVITY_CURVE_EXPONENT) * (sensitivityModel.getMaximum() - sliderMin);
 	}
 	
 	// ========== UI FACTORY HELPERS ==========
@@ -1694,12 +1702,14 @@ public class OptionsState extends FadeableAppState
 		thumbButton.setColor(ColorRGBA.White);
 		
 		// Hide built-in arrow buttons completely.
-		slider.getDecrementButton().setText("");
-		slider.getDecrementButton().setPreferredSize(new Vector3f(0, 0, 0));
-		slider.getDecrementButton().setBackground(null);
-		slider.getIncrementButton().setText("");
-		slider.getIncrementButton().setPreferredSize(new Vector3f(0, 0, 0));
-		slider.getIncrementButton().setBackground(null);
+		final Button decrementButton = slider.getDecrementButton();
+		decrementButton.setText("");
+		decrementButton.setPreferredSize(new Vector3f(0, 0, 0));
+		decrementButton.setBackground(null);
+		final Button incrementButton = slider.getIncrementButton();
+		incrementButton.setText("");
+		incrementButton.setPreferredSize(new Vector3f(0, 0, 0));
+		incrementButton.setBackground(null);
 	}
 	
 	/**
@@ -1712,6 +1722,8 @@ public class OptionsState extends FadeableAppState
 	 */
 	private Container createSliderRow(SimpleCraft app, Label nameLabel, Slider slider, Label valueLabel)
 	{
+		final AudioManager audioManager = app.getAudioManager();
+		final RangedValueModel model = slider.getModel();
 		final Container row = new Container();
 		row.setBackground(null);
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
@@ -1729,9 +1741,8 @@ public class OptionsState extends FadeableAppState
 		leftArrow.setTextHAlignment(HAlignment.Center);
 		leftArrow.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			final double newVal = Math.max(slider.getModel().getMinimum(), slider.getModel().getValue() - 1.0);
-			slider.getModel().setValue(newVal);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			model.setValue(Math.max(model.getMinimum(), model.getValue() - 1.0));
 		});
 		row.addChild(leftArrow);
 		
@@ -1751,9 +1762,8 @@ public class OptionsState extends FadeableAppState
 		rightArrow.setTextHAlignment(HAlignment.Center);
 		rightArrow.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			final double newVal = Math.min(slider.getModel().getMaximum(), slider.getModel().getValue() + 1.0);
-			slider.getModel().setValue(newVal);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			model.setValue(Math.min(model.getMaximum(), model.getValue() + 1.0));
 		});
 		row.addChild(rightArrow);
 		
@@ -1774,6 +1784,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private Container createResolutionRow(SimpleCraft app, Label nameLabel)
 	{
+		final AudioManager audioManager = app.getAudioManager();
 		final Container row = new Container();
 		row.setBackground(null);
 		row.setLayout(new SpringGridLayout(Axis.X, Axis.Y, FillMode.None, FillMode.None));
@@ -1789,7 +1800,7 @@ public class OptionsState extends FadeableAppState
 		leftArrow.setBackground(null);
 		leftArrow.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			cycleResolution(-1);
 		});
 		row.addChild(leftArrow);
@@ -1813,7 +1824,7 @@ public class OptionsState extends FadeableAppState
 		rightArrow.setBackground(null);
 		rightArrow.addClickCommands(source ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			cycleResolution(1);
 		});
 		row.addChild(rightArrow);
@@ -1883,8 +1894,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private Button createToggleButton(boolean initialValue)
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _labelFontSize);
+		final BitmapFont font = FontManager.getFont(SimpleCraft.getInstance().getAssetManager(), FontManager.getRegularPath(), Font.PLAIN, _labelFontSize);
 		
 		final Button button = new Button(initialValue ? LanguageManager.get("options.on") : LanguageManager.get("options.off"));
 		button.setFont(font);
@@ -1937,9 +1947,8 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void positionContentContainer(Container container, float screenCenterX, float screenHeight)
 	{
-		final float width = container.getPreferredSize().x;
-		final float height = container.getPreferredSize().y;
-		container.setLocalTranslation(screenCenterX - (width / 2f), (screenHeight + height) / 2f - screenHeight * 0.06f, 0);
+		final Vector3f preferredSize = container.getPreferredSize();
+		container.setLocalTranslation(screenCenterX - (preferredSize.x / 2f), (screenHeight + preferredSize.y) / 2f - screenHeight * 0.06f, 0);
 	}
 	
 	// ========== KEYBOARD NAVIGATION ==========
@@ -1949,13 +1958,15 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void buildSpecialSlots(SimpleCraft app)
 	{
+		final AudioManager audioManager = app.getAudioManager();
+		
 		// Tab row slot: A/D cycle tabs.
 		// @formatter:off
 		_tabRowSlot = MenuNavigationManager.customSlot(
 			() -> highlightActiveTab(true),
 			() -> highlightActiveTab(false),
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleTabFromSlot(-1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleTabFromSlot(1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleTabFromSlot(-1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleTabFromSlot(1); },
 			null
 		);
 		// @formatter:on
@@ -1965,8 +1976,8 @@ public class OptionsState extends FadeableAppState
 		_subTabRowSlot = MenuNavigationManager.customSlot(
 			() -> highlightActiveSubTab(true),
 			() -> highlightActiveSubTab(false),
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleSubTabFromSlot(-1); },
-			() -> { app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleSubTabFromSlot(1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleSubTabFromSlot(-1); },
+			() -> { audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH); cycleSubTabFromSlot(1); },
 			null
 		);
 		// @formatter:on
@@ -2041,7 +2052,15 @@ public class OptionsState extends FadeableAppState
 						}
 						break;
 					}
+					default:
+					{
+						break;
+					}
 				}
+				break;
+			}
+			default:
+			{
 				break;
 			}
 		}
@@ -2059,8 +2078,7 @@ public class OptionsState extends FadeableAppState
 	private void cycleTabFromSlot(int direction)
 	{
 		final int tabCount = 3;
-		final int newTab = ((_activeTab + direction) % tabCount + tabCount) % tabCount;
-		showTab(newTab);
+		showTab((((_activeTab + direction) % tabCount + tabCount) % tabCount));
 		
 		// showTab calls rebuildFocusList; re-apply focus on the tab row.
 		_navigation.setFocusIndex(0);
@@ -2072,8 +2090,7 @@ public class OptionsState extends FadeableAppState
 	private void cycleSubTabFromSlot(int direction)
 	{
 		final int subTabCount = 3;
-		final int newSubTab = ((_activeSubTab + direction) % subTabCount + subTabCount) % subTabCount;
-		showSubTab(newSubTab);
+		showSubTab((((_activeSubTab + direction) % subTabCount + subTabCount) % subTabCount));
 		
 		// showSubTab calls rebuildFocusList; re-apply focus on the sub-tab row (index 1).
 		_navigation.setFocusIndex(1);
@@ -2161,14 +2178,15 @@ public class OptionsState extends FadeableAppState
 	private void activateBottomButton()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final AudioManager audioManager = app.getAudioManager();
 		if (_bottomFocusIndex == 0)
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			QuestionManager.show(LanguageManager.get("msg.reset_to_defaults"), this::applyDefaults, null);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			QuestionManager.show(LanguageManager.get("options.reset_confirm"), this::applyDefaults, null);
 		}
 		else
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().returnToPrevious(true);
 		}
 	}
@@ -2180,8 +2198,8 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void adjustSlider(Slider slider, double step)
 	{
-		final double newVal = Math.max(slider.getModel().getMinimum(), Math.min(slider.getModel().getMaximum(), slider.getModel().getValue() + step));
-		slider.getModel().setValue(newVal);
+		final RangedValueModel model = slider.getModel();
+		model.setValue(Math.max(model.getMinimum(), Math.min(model.getMaximum(), model.getValue() + step)));
 	}
 	
 	// ========== RESOLUTION / DEFAULTS ==========
@@ -2191,8 +2209,7 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void cycleResolution(int direction)
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final SettingsManager settings = app.getSettingsManager();
+		final SettingsManager settings = SimpleCraft.getInstance().getSettingsManager();
 		final int presetCount = SettingsManager.getAvailableResolutions().length;
 		
 		if (presetCount == 0)
@@ -2232,16 +2249,55 @@ public class OptionsState extends FadeableAppState
 		
 		settings.resetToDefaults();
 		
+		final float masterVolume = settings.getMasterVolume();
+		final float musicVolume = settings.getMusicVolume();
+		final float sfxVolume = settings.getSfxVolume();
+		final int renderDistance = settings.getDisplayRenderDistance();
+		final float fov = settings.getFov();
+		final float mouseSensitivity = settings.getMouseSensitivity();
+		final boolean showStats = settings.isShowStats();
+		final boolean showFps = settings.isShowFps();
+		
 		// Apply audio immediately.
-		audio.setMasterVolume(settings.getMasterVolume());
-		audio.setMusicVolume(settings.getMusicVolume());
-		audio.setSfxVolume(settings.getSfxVolume());
+		audio.setMasterVolume(masterVolume);
+		audio.setMusicVolume(musicVolume);
+		audio.setSfxVolume(sfxVolume);
 		
 		// Apply debug display immediately.
-		app.setDisplayStatView(settings.isShowStats());
-		app.setDisplayFps(settings.isShowFps());
-		applyMouseSensitivityToPlayingState(app, settings.getMouseSensitivity());
-		applyFovToPlayingState(app, settings.getFov());
+		app.setDisplayStatView(showStats);
+		app.setDisplayFps(showFps);
+		applyMouseSensitivityToPlayingState(app, mouseSensitivity);
+		applyFovToPlayingState(app, fov);
+		
+		// Refresh every control so the UI shows the values that were just reset.
+		_masterSlider.getModel().setValue(masterVolume * 100.0);
+		_masterValueLabel.setText(String.format("%.2f", masterVolume));
+		_musicSlider.getModel().setValue(musicVolume * 100.0);
+		_musicValueLabel.setText(String.format("%.2f", musicVolume));
+		_sfxSlider.getModel().setValue(sfxVolume * 100.0);
+		_sfxValueLabel.setText(String.format("%.2f", sfxVolume));
+		
+		_renderDistanceSlider.getModel().setValue(renderDistance);
+		_renderDistanceValueLabel.setText(String.valueOf(renderDistance));
+		_fovSlider.getModel().setValue(fov);
+		_fovValueLabel.setText(String.valueOf(Math.round(fov)));
+		_mouseSensitivitySlider.getModel().setValue(sensitivityToSliderValue(mouseSensitivity));
+		_mouseSensitivityValueLabel.setText(String.format("%.2f", mouseSensitivity));
+		
+		updateToggleButton(_fullscreenToggle, settings.isFullscreen());
+		updateToggleButton(_showHighlightToggle, settings.isShowHighlight());
+		updateToggleButton(_showCrosshairToggle, settings.isShowCrosshair());
+		updateToggleButton(_showStatsToggle, showStats);
+		updateToggleButton(_showFpsToggle, showFps);
+		
+		_resolutionIndex = settings.getResolutionIndex();
+		if (_resolutionIndex < 0)
+		{
+			// Find closest match or default to last available.
+			_resolutionIndex = SettingsManager.getAvailableResolutions().length - 1;
+		}
+		
+		_resolutionValueLabel.setText(formatResolution(_resolutionIndex));
 		
 		// Reset keybindings.
 		cancelListening();
@@ -2302,6 +2358,7 @@ public class OptionsState extends FadeableAppState
 		hideLanguagePopup();
 		
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final AudioManager audioManager = app.getAudioManager();
 		final Map<String, String> languages = LanguageManager.discoverLanguages();
 		if (languages.isEmpty())
 		{
@@ -2332,8 +2389,8 @@ public class OptionsState extends FadeableAppState
 			final boolean isCurrent = code.equals(LanguageManager.getCurrentCode());
 			final String flagPath = LanguageManager.getFlagPath(code);
 			
-			// Helper to create a fresh background instance (must not reuse - Lemur
-			// cannot reattach a component after it has been detached from a spatial).
+			// Helper to create a fresh background instance.
+			// Lemur cannot reattach a component after it has been detached from a spatial.
 			final Supplier<TbtQuadBackgroundComponent> normalBgFactory = () -> TbtQuadBackgroundComponent.create(flagPath, 1f, 0, 0, 0, 0, 0f, false);
 			final Supplier<TbtQuadBackgroundComponent> hoverBgFactory = () ->
 			{
@@ -2342,8 +2399,7 @@ public class OptionsState extends FadeableAppState
 				return bg;
 			};
 			
-			// Use a Label - same as ButtonManager - to avoid Panel's default style
-			// overriding the background.
+			// Use a Label, same as ButtonManager, so Panel's default style does not override the background.
 			final Label flagLabel = new Label("");
 			flagLabel.setPreferredSize(new Vector3f(FLAG_WIDTH, FLAG_HEIGHT, 0));
 			flagLabel.setBackground(isCurrent ? hoverBgFactory.get() : normalBgFactory.get());
@@ -2351,10 +2407,11 @@ public class OptionsState extends FadeableAppState
 			
 			final Runnable selectAction = () ->
 			{
-				app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+				audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 				LanguageManager.loadLanguage(code);
-				app.getSettingsManager().setLanguage(code);
-				app.getSettingsManager().save();
+				final SettingsManager settings = app.getSettingsManager();
+				settings.setLanguage(code);
+				settings.save();
 				hideLanguagePopup();
 				_navigation.unregister();
 				detachAllGui();
@@ -2395,11 +2452,12 @@ public class OptionsState extends FadeableAppState
 		bottomSpacer.setPreferredSize(new Vector3f(FLAG_WIDTH, LANG_POPUP_PADDING, 0));
 		_languagePopup.addChild(bottomSpacer);
 		
-		final float popupWidth = _languagePopup.getPreferredSize().x;
-		final float popupHeight = _languagePopup.getPreferredSize().y;
+		final Vector3f popupSize = _languagePopup.getPreferredSize();
+		final float popupWidth = popupSize.x;
+		final float popupHeight = popupSize.y;
 		
 		// Flag is in the upper-right; popup drops down and extends left from the flag's right edge.
-		final Camera popupCamera = SimpleCraft.getInstance().getCamera();
+		final Camera popupCamera = app.getCamera();
 		final float screenWidth = popupCamera.getWidth();
 		final float screenHeight = popupCamera.getHeight();
 		final float flagX = screenWidth - FLAG_WIDTH - FLAG_MARGIN;
@@ -2407,20 +2465,19 @@ public class OptionsState extends FadeableAppState
 		final float popupX = flagX + FLAG_WIDTH - popupWidth;
 		
 		// Container top-left = just below the flag bottom.
-		final float popupY = flagBottom - LANG_POPUP_GAP;
-		_languagePopup.setLocalTranslation(popupX, popupY, 3.1f);
+		_languagePopup.setLocalTranslation(popupX, (flagBottom - LANG_POPUP_GAP), 3.1f);
 		
 		// Dark backdrop behind the popup (Geometry = bottom-left corner).
-		final Quad quad = new Quad(popupWidth, popupHeight + LANG_POPUP_PADDING * 2);
-		_languagePopupBackdrop = new Geometry("LangPopupBackdrop", quad);
+		_languagePopupBackdrop = new Geometry("LangPopupBackdrop", new Quad(popupWidth, popupHeight + LANG_POPUP_PADDING * 2));
 		final Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setColor("Color", new ColorRGBA(0.05f, 0.05f, 0.05f, 0.92f));
 		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		_languagePopupBackdrop.setMaterial(mat);
 		_languagePopupBackdrop.setLocalTranslation(popupX, flagBottom - LANG_POPUP_GAP - popupHeight - LANG_POPUP_PADDING, 3f);
 		
-		app.getGuiNode().attachChild(_languagePopupBackdrop);
-		app.getGuiNode().attachChild(_languagePopup);
+		final Node guiNode = app.getGuiNode();
+		guiNode.attachChild(_languagePopupBackdrop);
+		guiNode.attachChild(_languagePopup);
 	}
 	
 	/**
@@ -2428,17 +2485,17 @@ public class OptionsState extends FadeableAppState
 	 */
 	private void hideLanguagePopup()
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = SimpleCraft.getInstance().getGuiNode();
 		
 		if (_languagePopupBackdrop != null)
 		{
-			app.getGuiNode().detachChild(_languagePopupBackdrop);
+			guiNode.detachChild(_languagePopupBackdrop);
 			_languagePopupBackdrop = null;
 		}
 		
 		if (_languagePopup != null)
 		{
-			app.getGuiNode().detachChild(_languagePopup);
+			guiNode.detachChild(_languagePopup);
 			_languagePopup = null;
 		}
 	}

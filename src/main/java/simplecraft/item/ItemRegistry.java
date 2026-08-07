@@ -8,7 +8,7 @@ import simplecraft.world.Block.ToolType;
 
 /**
  * Central catalog of all items in the game.<br>
- * Call {@link #registerDefaults()} once at startup from SimpleCraft.simpleInitApp().
+ * Call {@code registerDefaults()} once at startup from SimpleCraft.simpleInitApp().
  * @author Pantelis Andrianakis
  * @since March 13th 2026
  */
@@ -25,9 +25,9 @@ public class ItemRegistry
 	 */
 	public static void registerDefaults()
 	{
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Block Items.
-		// ========================================================
+		// ------------------------------------------------------------------
 		registerBlockItem(ItemTemplate.block("dirt", "Dirt", Block.DIRT, 1.0f), Block.DIRT);
 		registerBlockItem(ItemTemplate.block("grass", "Grass Block", Block.GRASS, 1.0f), Block.GRASS);
 		registerBlockItem(ItemTemplate.block("stone", "Stone", Block.STONE, 1.0f), Block.STONE);
@@ -51,73 +51,73 @@ public class ItemRegistry
 		// DOOR_TOP maps to same item as DOOR_BOTTOM (single "door" item).
 		BLOCK_TO_ITEM.put(Block.DOOR_TOP, "door");
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Weapons (Swords - no tool affinity, for combat).
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.weapon("wood_sword", "Wood Sword", 4.0f, 0.5f, 60, 1.0f));
 		register(ItemTemplate.weapon("stone_sword", "Stone Sword", 5.0f, 0.45f, 132, 1.0f));
 		register(ItemTemplate.weapon("iron_sword", "Iron Sword", 7.0f, 0.4f, 250, 1.0f));
 		register(ItemTemplate.weapon("gold_sword", "Gold Sword", 7.5f, 0.4f, 300, 1.0f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Tools - Pickaxes (for STONE, IRON_ORE).
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.tool("wood_pickaxe", "Wood Pickaxe", ToolType.PICKAXE, 2.0f, 0.5f, 60, 1.0f));
 		register(ItemTemplate.tool("stone_pickaxe", "Stone Pickaxe", ToolType.PICKAXE, 2.5f, 0.45f, 132, 1.0f));
 		register(ItemTemplate.tool("iron_pickaxe", "Iron Pickaxe", ToolType.PICKAXE, 3.0f, 0.4f, 250, 1.0f));
 		register(ItemTemplate.tool("gold_pickaxe", "Gold Pickaxe", ToolType.PICKAXE, 3.5f, 0.4f, 300, 1.0f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Tools - Axes (for WOOD, LEAVES, BERRY_BUSH).
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.tool("wood_axe", "Wood Axe", ToolType.AXE, 3.0f, 0.6f, 60, 1.0f));
 		register(ItemTemplate.tool("stone_axe", "Stone Axe", ToolType.AXE, 4.0f, 0.55f, 132, 1.0f));
 		register(ItemTemplate.tool("iron_axe", "Iron Axe", ToolType.AXE, 5.0f, 0.5f, 250, 1.0f));
 		register(ItemTemplate.tool("gold_axe", "Gold Axe", ToolType.AXE, 5.5f, 0.5f, 300, 1.0f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Tools - Shovels (for DIRT, GRASS, SAND).
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.tool("wood_shovel", "Wood Shovel", ToolType.SHOVEL, 1.5f, 0.5f, 60, 1.0f));
 		register(ItemTemplate.tool("stone_shovel", "Stone Shovel", ToolType.SHOVEL, 2.0f, 0.45f, 132, 1.0f));
 		register(ItemTemplate.tool("iron_shovel", "Iron Shovel", ToolType.SHOVEL, 2.5f, 0.4f, 250, 1.0f));
 		register(ItemTemplate.tool("gold_shovel", "Gold Shovel", ToolType.SHOVEL, 3.0f, 0.4f, 300, 1.0f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Armor - Iron Set (4 pieces, each reduces 1 damage, 250 durability).
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.armor("iron_helmet", "Iron Helmet", ArmorSlot.HELMET, 1.0f, 250, 0.7f));
 		register(ItemTemplate.armor("iron_chestplate", "Iron Chestplate", ArmorSlot.CHESTPLATE, 1.0f, 250, 0.7f));
 		register(ItemTemplate.armor("iron_pants", "Iron Pants", ArmorSlot.PANTS, 1.0f, 250, 0.7f));
 		register(ItemTemplate.armor("iron_boots", "Iron Boots", ArmorSlot.BOOTS, 1.0f, 250, 0.7f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Armor - Gold Set (6 total reduction: 1+2+2+1, 300 durability).
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.armor("gold_helmet", "Gold Helmet", ArmorSlot.HELMET, 1.0f, 300, 0.7f));
 		register(ItemTemplate.armor("gold_chestplate", "Gold Chestplate", ArmorSlot.CHESTPLATE, 2.0f, 300, 0.7f));
 		register(ItemTemplate.armor("gold_pants", "Gold Pants", ArmorSlot.PANTS, 2.0f, 300, 0.7f));
 		register(ItemTemplate.armor("gold_boots", "Gold Boots", ArmorSlot.BOOTS, 1.0f, 300, 0.7f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Consumables.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.consumable("health_potion", "Health Potion", 8.0f, 0.4f));
 		register(ItemTemplate.consumable("meat", "Meat", 4.0f, 0.4f));
 		register(ItemTemplate.consumable("berries", "Berries", 3.0f, 0.4f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Materials.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.material("wood_plank", "Wood Plank", 1.0f));
 		register(ItemTemplate.material("stone_shard", "Stone Shard", 0.5f));
 		register(ItemTemplate.material("coal", "Coal", 0.5f));
 		register(ItemTemplate.material("iron_bar", "Iron Bar", 0.5f));
 		register(ItemTemplate.material("gold_bar", "Gold Bar", 0.5f));
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Special Orbs.
-		// ========================================================
+		// ------------------------------------------------------------------
 		register(ItemTemplate.consumable("recall_orb", "Recall Orb", 0.0f, 1, 0.5f));
 		register(ItemTemplate.consumable("dragon_orb", "Dragon Orb", 0.0f, 1, 0.5f));
 		register(ItemTemplate.consumable("shadow_orb", "Shadow Orb", 0.0f, 1, 0.5f));
@@ -141,8 +141,9 @@ public class ItemRegistry
 	 */
 	private static void registerBlockItem(ItemTemplate template, Block block)
 	{
-		ITEMS.put(template.getId(), template);
-		BLOCK_TO_ITEM.put(block, template.getId());
+		final String itemId = template.getId();
+		ITEMS.put(itemId, template);
+		BLOCK_TO_ITEM.put(block, itemId);
 	}
 	
 	/**
@@ -216,8 +217,7 @@ public class ItemRegistry
 			case WINDOW:
 			case DOOR_BOTTOM:
 			{
-				final String itemId = BLOCK_TO_ITEM.get(block);
-				return itemId;
+				return BLOCK_TO_ITEM.get(block);
 			}
 			
 			// Blocks that drop nothing.

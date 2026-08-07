@@ -22,9 +22,7 @@ import java.util.Set;
  */
 public class TreeFeller
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	/** Maximum number of WOOD blocks to collect (safety cap). */
 	private static final int MAX_WOOD = 200;
@@ -50,9 +48,7 @@ public class TreeFeller
 	};
 	// @formatter:on
 	
-	// ========================================================
-	// Result Class.
-	// ========================================================
+	// ========== RESULT CLASS ==========
 	
 	/**
 	 * Contains the ordered list of blocks to destroy from a felled tree.<br>
@@ -91,9 +87,7 @@ public class TreeFeller
 		}
 	}
 	
-	// ========================================================
-	// Public API.
-	// ========================================================
+	// ========== PUBLIC API ==========
 	
 	/**
 	 * Identifies all blocks that should be destroyed when a tree is felled.<br>
@@ -131,7 +125,7 @@ public class TreeFeller
 		final List<Long> sortedWood = new ArrayList<>(woodToDestroy);
 		sortedWood.sort(Comparator.comparingInt(TreeFeller::unpackY));
 		
-		for (long key : sortedWood)
+		for (Long key : sortedWood)
 		{
 			final int bx = unpackX(key);
 			final int by = unpackY(key);
@@ -145,7 +139,7 @@ public class TreeFeller
 			});
 		}
 		
-		for (long key : leavesToDestroy)
+		for (Long key : leavesToDestroy)
 		{
 			final int bx = unpackX(key);
 			final int by = unpackY(key);
@@ -159,7 +153,7 @@ public class TreeFeller
 			});
 		}
 		
-		for (long key : decorationsToDestroy)
+		for (Long key : decorationsToDestroy)
 		{
 			final int bx = unpackX(key);
 			final int by = unpackY(key);
@@ -183,9 +177,7 @@ public class TreeFeller
 		return new FellingResult(blocks, blockTypes);
 	}
 	
-	// ========================================================
-	// Phase 1: Find Connected WOOD.
-	// ========================================================
+	// ========== PHASE 1: FIND CONNECTED WOOD ==========
 	
 	/**
 	 * BFS through WOOD blocks starting from the neighbors of the broken position.<br>
@@ -210,8 +202,7 @@ public class TreeFeller
 				continue;
 			}
 			
-			final long key = packPos(nx, ny, nz);
-			if (visited.add(key))
+			if (visited.add(packPos(nx, ny, nz)))
 			{
 				queue.add(new long[]
 				{
@@ -255,8 +246,7 @@ public class TreeFeller
 					continue;
 				}
 				
-				final long key = packPos(nx, ny, nz);
-				if (visited.add(key))
+				if (visited.add(packPos(nx, ny, nz)))
 				{
 					queue.add(new long[]
 					{
@@ -271,9 +261,7 @@ public class TreeFeller
 		return woodToDestroy;
 	}
 	
-	// ========================================================
-	// Phase 2: Find Unsupported LEAVES.
-	// ========================================================
+	// ========== PHASE 2: FIND UNSUPPORTED LEAVES ==========
 	
 	/**
 	 * For each destroyed WOOD block, searches within Manhattan distance 3 for LEAVES.<br>
@@ -285,7 +273,7 @@ public class TreeFeller
 		// Collect candidate LEAVES near destroyed WOOD.
 		final Set<Long> leavesToCheck = new HashSet<>();
 		
-		for (long woodKey : woodToDestroy)
+		for (Long woodKey : woodToDestroy)
 		{
 			final int wx = unpackX(woodKey);
 			final int wy = unpackY(woodKey);
@@ -316,13 +304,10 @@ public class TreeFeller
 		// Check each candidate leaf for surviving WOOD support.
 		final Set<Long> leavesToDestroy = new HashSet<>();
 		
-		for (long leafKey : leavesToCheck)
+		for (Long leafKey : leavesToCheck)
 		{
-			final int lx = unpackX(leafKey);
-			final int ly = unpackY(leafKey);
-			final int lz = unpackZ(leafKey);
 			
-			if (!hasSupport(world, lx, ly, lz, woodToDestroy))
+			if (!hasSupport(world, unpackX(leafKey), unpackY(leafKey), unpackZ(leafKey), woodToDestroy))
 			{
 				leavesToDestroy.add(leafKey);
 			}
@@ -333,7 +318,7 @@ public class TreeFeller
 	
 	/**
 	 * Checks if a leaf at the given position is supported by any WOOD block<br>
-	 * within Manhattan distance {@link #LEAF_SUPPORT_RADIUS} that is NOT in the destroy set.
+	 * within Manhattan distance {@code LEAF_SUPPORT_RADIUS} that is NOT in the destroy set.
 	 */
 	private static boolean hasSupport(World world, int lx, int ly, int lz, Set<Long> woodToDestroy)
 	{
@@ -360,24 +345,21 @@ public class TreeFeller
 		return false;
 	}
 	
-	// ========================================================
-	// Phase 3: Find Billboard Decorations.
-	// ========================================================
+	// ========== PHASE 3: FIND BILLBOARD DECORATIONS ==========
 	
 	private static Set<Long> findDecorations(World world, Set<Long> allDestroyed)
 	{
 		final Set<Long> decorationsToDestroy = new HashSet<>();
 		
-		for (long key : allDestroyed)
+		for (Long key : allDestroyed)
 		{
 			final int bx = unpackX(key);
 			final int by = unpackY(key);
 			final int bz = unpackZ(key);
 			
-			final Block above = world.getBlock(bx, by + 1, bz);
-			if (above.getRenderMode() == Block.RenderMode.CROSS_BILLBOARD)
+			if (world.getBlock(bx, by + 1, bz).getRenderMode() == Block.RenderMode.CROSS_BILLBOARD)
 			{
-				final long aboveKey = packPos(bx, by + 1, bz);
+				final Long aboveKey = packPos(bx, by + 1, bz);
 				if (!allDestroyed.contains(aboveKey))
 				{
 					decorationsToDestroy.add(aboveKey);
@@ -388,9 +370,7 @@ public class TreeFeller
 		return decorationsToDestroy;
 	}
 	
-	// ========================================================
-	// Position Packing Utilities.
-	// ========================================================
+	// ========== POSITION PACKING UTILITIES ==========
 	
 	/**
 	 * Packs world coordinates into a single long key.<br>

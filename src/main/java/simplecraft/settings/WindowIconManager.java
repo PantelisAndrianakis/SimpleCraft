@@ -25,10 +25,10 @@ public class WindowIconManager
 	};
 	
 	/**
-	 * Loads icons from the assets/images/app_icons/ directory and applies them to the given {@link AppSettings}.<br>
+	 * Loads icons from the assets/images/app_icons/ directory and applies them to the given {@link com.jme3.system.AppSettings}.<br>
 	 * Multiple sizes are provided so the OS can pick the best fit<br>
 	 * (16x16 for title bar, 32x32 for taskbar, 128x128 for alt-tab / dock).
-	 * @param settings the {@link AppSettings} to apply icons to
+	 * @param settings the {@link com.jme3.system.AppSettings} to apply icons to
 	 */
 	public static void applyIcons(AppSettings settings)
 	{
@@ -57,14 +57,13 @@ public class WindowIconManager
 			}
 		}
 		
-		if (!loadedIcons.isEmpty())
-		{
-			settings.setIcons(loadedIcons.toArray(new BufferedImage[0]));
-			System.out.println("Window icons set successfully (" + loadedIcons.size() + " sizes).");
-		}
-		else
+		if (loadedIcons.isEmpty())
 		{
 			System.err.println("No window icons found. Using default.");
+			return;
 		}
+		
+		settings.setIcons(loadedIcons.toArray(new BufferedImage[0]));
+		System.out.println("Window icons set successfully (" + loadedIcons.size() + " sizes).");
 	}
 }

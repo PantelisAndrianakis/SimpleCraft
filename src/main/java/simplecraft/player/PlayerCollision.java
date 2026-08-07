@@ -77,9 +77,9 @@ public class PlayerCollision
 	/** Upward impulse when pressing swim-up at the water surface near a solid edge. */
 	private static final float HOP_OUT_IMPULSE = 5.5f;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Collision Result.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Result of a single collision resolution step.<br>
@@ -127,9 +127,9 @@ public class PlayerCollision
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Y position when the player last left the ground. Used to calculate fall distance. */
 	private float _fallStartY = Float.NaN;
@@ -143,9 +143,9 @@ public class PlayerCollision
 	/** Reusable result object to avoid per-frame allocation. */
 	private final CollisionResult _result = new CollisionResult();
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Collision Resolution - Main Entry Point.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Resolves full player collision for one frame using axis-separated sweeps.<br>
@@ -263,8 +263,7 @@ public class PlayerCollision
 			// Just landed - calculate fall distance.
 			if (!Float.isNaN(_fallStartY))
 			{
-				final float distance = _fallStartY - position.y;
-				_result._fallDistance = Math.max(0, distance);
+				_result._fallDistance = Math.max(0, _fallStartY - position.y);
 			}
 			
 			_fallStartY = Float.NaN;
@@ -277,21 +276,19 @@ public class PlayerCollision
 		final int waterCheckZ = (int) Math.floor(position.z);
 		
 		// Check at body center (feet + 0.5).
-		final int waterBodyY = (int) Math.floor(position.y + WATER_BODY_OFFSET);
-		_result._inWater = world.getBlock(waterCheckX, waterBodyY, waterCheckZ).isLiquid();
+		_result._inWater = world.getBlock(waterCheckX, ((int) Math.floor(position.y + WATER_BODY_OFFSET)), waterCheckZ).isLiquid();
 		
 		// Check at eye level (feet + 1.6).
-		final int waterHeadY = (int) Math.floor(position.y + WATER_HEAD_OFFSET);
-		_result._headSubmerged = world.getBlock(waterCheckX, waterHeadY, waterCheckZ).isLiquid();
+		_result._headSubmerged = world.getBlock(waterCheckX, ((int) Math.floor(position.y + WATER_HEAD_OFFSET)), waterCheckZ).isLiquid();
 		
 		_wasInWater = _result._inWater;
 		
 		return _result;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Water Vertical Resolution.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Handles vertical movement while the player is in water.<br>
@@ -301,8 +298,8 @@ public class PlayerCollision
 	private void resolveWaterVertical(Vector3f position, Vector3f velocity, World world, float tpf, boolean swimUp, boolean swimDown)
 	{
 		// Determine the water surface Y level.
-		// Walk upward from feet to find the first non-liquid block - that block's
-		// bottom face is the water surface.
+		// Walk upward from feet to find the first non-liquid block;
+		// That block's bottom face is the water surface.
 		final int checkX = (int) Math.floor(position.x);
 		final int checkZ = (int) Math.floor(position.z);
 		final int feetBlockY = (int) Math.floor(position.y);
@@ -345,8 +342,7 @@ public class PlayerCollision
 			if (depthBelowSurface >= 0 && depthBelowSurface < SURFACE_BOB_RANGE)
 			{
 				// Strength increases the deeper below the surface the player is (within range).
-				final float bobStrength = (SURFACE_BOB_RANGE - depthBelowSurface) / SURFACE_BOB_RANGE;
-				velocity.y += SURFACE_BOB_FORCE * (1.0f - bobStrength) * tpf;
+				velocity.y += SURFACE_BOB_FORCE * (1.0f - ((SURFACE_BOB_RANGE - depthBelowSurface) / SURFACE_BOB_RANGE)) * tpf;
 				
 				// Dampen vertical velocity near the surface for gentle bobbing.
 				velocity.y *= 0.85f;
@@ -359,9 +355,9 @@ public class PlayerCollision
 		resolveVertical(position, velocity, world);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Water Position Check.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns true if the player body center is in a liquid block at the given position.<br>
@@ -369,10 +365,7 @@ public class PlayerCollision
 	 */
 	private boolean isPositionInWater(Vector3f position, World world)
 	{
-		final int bx = (int) Math.floor(position.x);
-		final int by = (int) Math.floor(position.y + WATER_BODY_OFFSET);
-		final int bz = (int) Math.floor(position.z);
-		return world.getBlock(bx, by, bz).isLiquid();
+		return world.getBlock((int) Math.floor(position.x), (int) Math.floor(position.y + WATER_BODY_OFFSET), (int) Math.floor(position.z)).isLiquid();
 	}
 	
 	/**
@@ -389,9 +382,9 @@ public class PlayerCollision
 		return world.getBlock(bx + 1, by, bz).isSolid() || world.getBlock(bx - 1, by, bz).isSolid() || world.getBlock(bx, by, bz + 1).isSolid() || world.getBlock(bx, by, bz - 1).isSolid();
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// AABB Overlap Test.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Returns true if the player AABB at the given position overlaps any block that<br>
@@ -423,9 +416,9 @@ public class PlayerCollision
 		return false;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Horizontal Push-Back.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Pushes the player out of blocking blocks along the X axis.<br>
@@ -531,9 +524,9 @@ public class PlayerCollision
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Vertical Collision (Ground Snap + Ceiling Bonk).
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Resolves vertical collision after gravity has been applied.<br>

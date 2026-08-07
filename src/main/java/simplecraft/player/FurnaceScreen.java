@@ -4,6 +4,7 @@ import java.awt.Font;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.InputManager;
@@ -17,6 +18,7 @@ import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -41,7 +43,7 @@ import simplecraft.world.entity.FurnaceTileEntity;
  * an arrow indicator for smelt progress and the player's inventory grid below.<br>
  * <br>
  * While open, player movement and block interaction input are unregistered<br>
- * (same pattern as {@link InventoryScreen} and {@link CraftingScreen}).<br>
+ * (same pattern as {@link simplecraft.player.InventoryScreen} and {@link simplecraft.player.CraftingScreen}).<br>
  * Close with Escape or Tab.<br>
  * <br>
  * <b>Interaction:</b><br>
@@ -51,15 +53,15 @@ import simplecraft.world.entity.FurnaceTileEntity;
  * - Fuel slot only accepts items with a positive burn time.<br>
  * <br>
  * The screen reads smelting progress and fuel state directly from the<br>
- * {@link FurnaceTileEntity} each frame via getters.
+ * {@link simplecraft.world.entity.FurnaceTileEntity} each frame via getters.
  * @author Pantelis Andrianakis
  * @since March 19th 2026
  */
 public class FurnaceScreen implements ActionListener
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Slot visual size in pixels (matches ChestScreen/InventoryScreen at 1080p: screenHeight * 0.05). */
 	private static final float SLOT_SIZE = 54;
@@ -68,8 +70,6 @@ public class FurnaceScreen implements ActionListener
 	private static final float ICON_SIZE = SLOT_SIZE;
 	
 	/** Icon padding inside a slot (zero - icon fills the slot). */
-	private static final float ICON_PAD = 0;
-	
 	/** Furnace slot visual size in pixels (doubled for prominence). */
 	private static final float FURNACE_SLOT_SIZE = 96;
 	
@@ -131,9 +131,9 @@ public class FurnaceScreen implements ActionListener
 	private static final float Z_TITLE = 15;
 	private static final float Z_CURSOR = 20;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final PlayerController _playerController;
 	private final BlockInteraction _blockInteraction;
@@ -214,9 +214,9 @@ public class FurnaceScreen implements ActionListener
 		}
 	};
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a new FurnaceScreen (hidden initially).
@@ -229,9 +229,9 @@ public class FurnaceScreen implements ActionListener
 		_blockInteraction = blockInteraction;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Open / Close.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Opens the furnace screen for the given furnace tile entity.
@@ -262,16 +262,15 @@ public class FurnaceScreen implements ActionListener
 		// Attach to guiNode.
 		app.getGuiNode().attachChild(_rootNode);
 		
-		// Show cursor.
-		app.getInputManager().setCursorVisible(true);
-		
-		// Register click listener.
-		registerInput(app.getInputManager());
+		// Show cursor and register click listener.
+		final InputManager inputManager = app.getInputManager();
+		inputManager.setCursorVisible(true);
+		registerInput(inputManager);
 		
 		// Register shift key listeners for split-stack detection.
-		app.getInputManager().addMapping("SHIFT_LEFT", new KeyTrigger(KeyInput.KEY_LSHIFT));
-		app.getInputManager().addMapping("SHIFT_RIGHT", new KeyTrigger(KeyInput.KEY_RSHIFT));
-		app.getInputManager().addListener(_shiftListener, "SHIFT_LEFT", "SHIFT_RIGHT");
+		inputManager.addMapping("SHIFT_LEFT", new KeyTrigger(KeyInput.KEY_LSHIFT));
+		inputManager.addMapping("SHIFT_RIGHT", new KeyTrigger(KeyInput.KEY_RSHIFT));
+		inputManager.addListener(_shiftListener, "SHIFT_LEFT", "SHIFT_RIGHT");
 		
 		System.out.println("FurnaceScreen: Opened.");
 	}
@@ -292,7 +291,7 @@ public class FurnaceScreen implements ActionListener
 		final InputManager inputManager = app.getInputManager();
 		
 		// Unregister click listener.
-		unregisterInput(inputManager);
+		inputManager.removeListener(this);
 		
 		// Remove shift listeners.
 		inputManager.removeListener(_shiftListener);
@@ -302,8 +301,7 @@ public class FurnaceScreen implements ActionListener
 		// Return cursor item to player inventory or drop it.
 		if (_cursorItem != null && !_cursorItem.isEmpty())
 		{
-			final boolean added = _playerController.getInventory().addItem(_cursorItem);
-			if (!added && _dropManager != null)
+			if (!_playerController.getInventory().addItem(_cursorItem) && (_dropManager != null))
 			{
 				final Vector3f pos = _playerController.getPosition();
 				_dropManager.spawnDrop(new Vector3f(pos.x, pos.y + 1.0f, pos.z), _cursorItem);
@@ -354,9 +352,9 @@ public class FurnaceScreen implements ActionListener
 		return _open;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Input Registration.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Registers mouse input for the furnace screen.
@@ -371,17 +369,9 @@ public class FurnaceScreen implements ActionListener
 		inputManager.addListener(this, ACTION_FURNACE_CLICK);
 	}
 	
-	/**
-	 * Unregisters mouse input for the furnace screen.
-	 */
-	private void unregisterInput(InputManager inputManager)
-	{
-		inputManager.removeListener(this);
-	}
-	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Update.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Updates the furnace screen each frame (slot icons, progress indicators, cursor).
@@ -421,14 +411,12 @@ public class FurnaceScreen implements ActionListener
 			_lastInvTemplates[i] = item != null ? item.getTemplate() : null;
 			
 			// Reposition count label and shadow to bottom-right of slot (matching ChestScreen).
-			if (item != null && item.getCount() > 1)
+			final int itemCount = (item != null) ? item.getCount() : 0;
+			if (itemCount > 1)
 			{
-				final int itemCount = item.getCount();
-				final String countStr = String.valueOf(itemCount);
-				_invCountShadows[i].setText(countStr);
+				_invCountShadows[i].setText(String.valueOf(itemCount));
 				
-				final float countWidth = _invCountLabels[i].getLineWidth();
-				final float countX = _invSlotX[i] + SLOT_SIZE - countWidth - 2;
+				final float countX = _invSlotX[i] + SLOT_SIZE - _invCountLabels[i].getLineWidth() - 2;
 				final float countY = _invSlotY[i] + _invCountLabels[i].getLineHeight() + 1;
 				_invCountLabels[i].setLocalTranslation(countX, countY, Z_LABEL);
 				_invCountShadows[i].setLocalTranslation(countX + 1, countY - 1, Z_LABEL - 0.1f);
@@ -452,15 +440,13 @@ public class FurnaceScreen implements ActionListener
 		// Update arrow fill (smelt progress).
 		if (_arrowFill != null)
 		{
-			final float progress = _furnace.getSmeltProgressFraction();
-			_arrowFill.setLocalScale(progress, 1, 1);
+			_arrowFill.setLocalScale(_furnace.getSmeltProgressFraction(), 1, 1);
 		}
 		
 		// Update flame fill (fuel remaining).
 		if (_flameFill != null)
 		{
-			final float fuel = _furnace.getFuelRemainingFraction();
-			_flameFill.setLocalScale(1, fuel, 1);
+			_flameFill.setLocalScale(1, _furnace.getFuelRemainingFraction(), 1);
 		}
 	}
 	
@@ -502,9 +488,10 @@ public class FurnaceScreen implements ActionListener
 		icon.setCullHint(Geometry.CullHint.Never);
 		
 		// Update count label (only show count if > 1).
-		if (item.getCount() > 1)
+		final int itemCount = item.getCount();
+		if (itemCount > 1)
 		{
-			countLabel.setText(String.valueOf(item.getCount()));
+			countLabel.setText(String.valueOf(itemCount));
 		}
 		else
 		{
@@ -512,22 +499,27 @@ public class FurnaceScreen implements ActionListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// UI Building.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds the complete furnace UI.
 	 */
 	private void buildUI(SimpleCraft app)
 	{
-		final int screenW = app.getCamera().getWidth();
-		final int screenH = app.getCamera().getHeight();
+		final Camera camera = app.getCamera();
+		final int screenW = camera.getWidth();
+		final int screenH = camera.getHeight();
 		
 		_rootNode = new Node("FurnaceScreen");
 		
-		final BitmapFont font = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, FONT_SIZE);
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, TITLE_FONT_SIZE);
+		final AssetManager assetManager = app.getAssetManager();
+		final String titleFontPath = FontManager.getTitlePath();
+		final BitmapFont font = FontManager.getFont(assetManager, titleFontPath, Font.PLAIN, FONT_SIZE);
+		final BitmapFont titleFont = FontManager.getFont(assetManager, titleFontPath, Font.PLAIN, TITLE_FONT_SIZE);
+		final float bodyFontSize = font.getCharSet().getRenderedSize();
+		final float titleFontSize = titleFont.getCharSet().getRenderedSize();
 		
 		// Dark overlay.
 		final Geometry overlay = createQuad("FurnaceOverlay", screenW, screenH, new ColorRGBA(0, 0, 0, OVERLAY_ALPHA));
@@ -541,7 +533,7 @@ public class FurnaceScreen implements ActionListener
 		
 		// Title.
 		final BitmapText titleText = new BitmapText(titleFont);
-		titleText.setSize(titleFont.getCharSet().getRenderedSize());
+		titleText.setSize(titleFontSize);
 		titleText.setText(LanguageManager.get("screen.furnace"));
 		titleText.setColor(ColorRGBA.White);
 		titleText.setLocalTranslation(furnacePanelX + furnacePanelW / 2 - titleText.getLineWidth() / 2, furnaceY + FURNACE_SLOT_SIZE + 40, Z_TITLE);
@@ -614,17 +606,16 @@ public class FurnaceScreen implements ActionListener
 		createFieldLabel(font, "Fuel", _fuelSlotX, _fuelSlotY + FURNACE_SLOT_SIZE + 16);
 		createFieldLabel(font, "Output", _outputSlotX, _outputSlotY + FURNACE_SLOT_SIZE + 16);
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Recipe Info Panel (left edge of screen).
-		// ========================================================
+		// ------------------------------------------------------------------
 		buildRecipePanel(app, font, furnaceY);
 		
 		// Player inventory grid.
 		final float invStartX = (screenW - (INV_COLS * (SLOT_SIZE + SLOT_GAP) - SLOT_GAP)) / 2;
 		
 		// Compute the full width of the inventory grid.
-		final float gridWidth = INV_COLS * SLOT_SIZE + (INV_COLS - 1) * SLOT_GAP;
-		final float gridCenterX = invStartX + gridWidth / 2;
+		final float gridCenterX = invStartX + (INV_COLS * SLOT_SIZE + (INV_COLS - 1) * SLOT_GAP) / 2;
 		
 		// Section gap for labels between hotbar and main inventory (matches ChestScreen).
 		final float sectionGap = 30f;
@@ -634,26 +625,25 @@ public class FurnaceScreen implements ActionListener
 		final float hotbarY = screenH * 0.24f;
 		
 		// Hotbar (slots 0-8) - bottom row.
+		final GameInputManager gim = app.getGameInputManager();
+		final float hotbarLabelSize = bodyFontSize * 0.8f;
+		final ColorRGBA hotbarLabelColor = new ColorRGBA(0.5f, 0.5f, 0.5f, 0.4f);
 		for (int i = 0; i < Inventory.HOTBAR_SLOTS; i++)
 		{
 			_invSlotX[i] = invStartX + i * (SLOT_SIZE + SLOT_GAP);
 			_invSlotY[i] = hotbarY;
 			createSlotBg("InvSlot" + i, _invSlotX[i], _invSlotY[i]);
 			_invIconMats[i] = createIconMaterial(app);
-			_invIcons[i] = createIconGeometry("InvIcon" + i, _invIconMats[i], _invSlotX[i] + ICON_PAD, _invSlotY[i] + ICON_PAD);
+			_invIcons[i] = createIconGeometry("InvIcon" + i, _invIconMats[i], _invSlotX[i], _invSlotY[i]);
 			_invCountLabels[i] = createCountLabel(font, _invSlotX[i], _invSlotY[i]);
 			_invCountShadows[i] = createCountShadow(font, _invSlotX[i], _invSlotY[i]);
 			
 			// Hotbar slot key labels (displays current keybind).
-			final GameInputManager gim = app.getGameInputManager();
-			final String keyName = GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i]));
 			_hotbarNumbers[i] = new BitmapText(font);
-			_hotbarNumbers[i].setText(keyName);
-			_hotbarNumbers[i].setSize(font.getCharSet().getRenderedSize() * 0.8f);
-			_hotbarNumbers[i].setColor(new ColorRGBA(0.5f, 0.5f, 0.5f, 0.4f));
-			final float numX = _invSlotX[i] + 2;
-			final float numY = _invSlotY[i] + SLOT_SIZE - 2;
-			_hotbarNumbers[i].setLocalTranslation(numX, numY, Z_TITLE);
+			_hotbarNumbers[i].setText(GameInputManager.getKeyName(gim.getKeyCode(GameInputManager.HOTBAR_ACTIONS[i])));
+			_hotbarNumbers[i].setSize(hotbarLabelSize);
+			_hotbarNumbers[i].setColor(hotbarLabelColor);
+			_hotbarNumbers[i].setLocalTranslation((_invSlotX[i] + 2), (_invSlotY[i] + SLOT_SIZE - 2), Z_TITLE);
 			_rootNode.attachChild(_hotbarNumbers[i]);
 		}
 		
@@ -662,22 +652,21 @@ public class FurnaceScreen implements ActionListener
 		for (int i = Inventory.HOTBAR_SLOTS; i < Inventory.TOTAL_SLOTS; i++)
 		{
 			final int row = (i - Inventory.HOTBAR_SLOTS) / INV_COLS;
-			final int col = (i - Inventory.HOTBAR_SLOTS) % INV_COLS;
-			_invSlotX[i] = invStartX + col * (SLOT_SIZE + SLOT_GAP);
+			_invSlotX[i] = invStartX + ((i - Inventory.HOTBAR_SLOTS) % INV_COLS) * (SLOT_SIZE + SLOT_GAP);
 			_invSlotY[i] = mainInvY + (INV_ROWS - 1 - row) * (SLOT_SIZE + SLOT_GAP);
 			createSlotBg("InvSlot" + i, _invSlotX[i], _invSlotY[i]);
 			_invIconMats[i] = createIconMaterial(app);
-			_invIcons[i] = createIconGeometry("InvIcon" + i, _invIconMats[i], _invSlotX[i] + ICON_PAD, _invSlotY[i] + ICON_PAD);
+			_invIcons[i] = createIconGeometry("InvIcon" + i, _invIconMats[i], _invSlotX[i], _invSlotY[i]);
 			_invCountLabels[i] = createCountLabel(font, _invSlotX[i], _invSlotY[i]);
 			_invCountShadows[i] = createCountShadow(font, _invSlotX[i], _invSlotY[i]);
 		}
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Action Bar and Inventory titles (matches ChestScreen layout)
-		// ========================================================
+		// ------------------------------------------------------------------
 		
 		// ----- "Action Bar" label above the hotbar row -----
-		final float abLabelY = _invSlotY[0] + SLOT_SIZE + 4 + titleFont.getCharSet().getRenderedSize() + 2;
+		final float abLabelY = _invSlotY[0] + SLOT_SIZE + 4 + titleFontSize + 2;
 		
 		BitmapText actionBarShadow = new BitmapText(titleFont);
 		actionBarShadow.setText(LanguageManager.get("screen.action_bar"));
@@ -689,14 +678,13 @@ public class FurnaceScreen implements ActionListener
 		actionBarText.setColor(ColorRGBA.White);
 		_rootNode.attachChild(actionBarText);
 		
-		float actionBarWidth = actionBarText.getLineWidth();
-		float actionBarX = gridCenterX - actionBarWidth / 2f;
+		final float actionBarX = gridCenterX - (actionBarText.getLineWidth() / 2f);
 		actionBarText.setLocalTranslation(actionBarX, abLabelY, Z_TITLE);
 		actionBarShadow.setLocalTranslation(actionBarX + 1, abLabelY - 1, Z_TITLE - 0.1f);
 		
 		// ----- "Inventory" label above the top main inventory row -----
-		final float topMainInvY = _invSlotY[Inventory.HOTBAR_SLOTS]; // slot 9 = top-left of main inv
-		final float invLabelY = topMainInvY + SLOT_SIZE + 4 + titleFont.getCharSet().getRenderedSize() + 2;
+		// Slot 9 is the top-left of the main inventory block.
+		final float invLabelY = _invSlotY[Inventory.HOTBAR_SLOTS] + SLOT_SIZE + 4 + titleFontSize + 2;
 		
 		BitmapText invShadow = new BitmapText(titleFont);
 		invShadow.setText(LanguageManager.get("screen.inventory"));
@@ -708,8 +696,7 @@ public class FurnaceScreen implements ActionListener
 		invText.setColor(ColorRGBA.White);
 		_rootNode.attachChild(invText);
 		
-		float invWidth = invText.getLineWidth();
-		float invX = gridCenterX - invWidth / 2f;
+		final float invX = gridCenterX - (invText.getLineWidth() / 2f);
 		invText.setLocalTranslation(invX, invLabelY, Z_TITLE);
 		invShadow.setLocalTranslation(invX + 1, invLabelY - 1, Z_TITLE - 0.1f);
 		
@@ -717,15 +704,15 @@ public class FurnaceScreen implements ActionListener
 		_cursorIconMat = createIconMaterial(app);
 		_cursorIcon = createIconGeometry("CursorIcon", _cursorIconMat, 0, 0);
 		_cursorCountLabel = new BitmapText(font);
-		_cursorCountLabel.setSize(font.getCharSet().getRenderedSize());
+		_cursorCountLabel.setSize(bodyFontSize);
 		_cursorCountLabel.setColor(ColorRGBA.White);
 		_cursorCountLabel.setLocalTranslation(0, 0, Z_CURSOR + 1);
 		_rootNode.attachChild(_cursorCountLabel);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// UI Helpers.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a slot background quad and attaches it to the root node.
@@ -760,8 +747,7 @@ public class FurnaceScreen implements ActionListener
 	 */
 	private Geometry createIconGeometry(String name, Material mat, float x, float y)
 	{
-		final Quad quad = new Quad(ICON_SIZE, ICON_SIZE);
-		final Geometry geom = new Geometry(name, quad);
+		final Geometry geom = new Geometry(name, new Quad(ICON_SIZE, ICON_SIZE));
 		geom.setMaterial(mat);
 		geom.setQueueBucket(Bucket.Gui);
 		geom.setLocalTranslation(x, y, Z_ICON);
@@ -814,8 +800,7 @@ public class FurnaceScreen implements ActionListener
 	 */
 	private Geometry createQuad(String name, float w, float h, ColorRGBA color)
 	{
-		final Quad quad = new Quad(w, h);
-		final Geometry geom = new Geometry(name, quad);
+		final Geometry geom = new Geometry(name, new Quad(w, h));
 		final Material mat = new Material(SimpleCraft.getInstance().getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
 		mat.setColor("Color", color);
 		mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
@@ -845,8 +830,7 @@ public class FurnaceScreen implements ActionListener
 	 */
 	private Geometry createFurnaceIconGeometry(String name, Material mat, float x, float y)
 	{
-		final Quad quad = new Quad(FURNACE_ICON_SIZE, FURNACE_ICON_SIZE);
-		final Geometry geom = new Geometry(name, quad);
+		final Geometry geom = new Geometry(name, new Quad(FURNACE_ICON_SIZE, FURNACE_ICON_SIZE));
 		geom.setMaterial(mat);
 		geom.setQueueBucket(Bucket.Gui);
 		geom.setLocalTranslation(x, y, Z_ICON);
@@ -890,8 +874,7 @@ public class FurnaceScreen implements ActionListener
 		if (text != null && !text.isEmpty())
 		{
 			shadow.setText(text);
-			final float countWidth = label.getLineWidth();
-			final float countX = slotX + FURNACE_SLOT_SIZE - countWidth - 4;
+			final float countX = slotX + FURNACE_SLOT_SIZE - label.getLineWidth() - 4;
 			final float countY = slotY + label.getLineHeight() + 2;
 			label.setLocalTranslation(countX, countY, Z_LABEL);
 			shadow.setLocalTranslation(countX + 1, countY - 1, Z_LABEL - 0.1f);
@@ -923,15 +906,16 @@ public class FurnaceScreen implements ActionListener
 		final float iconSlotSize = RECIPE_ICON_SIZE + 4;
 		float currentY = furnaceY + FURNACE_SLOT_SIZE;
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Recipes Section.
-		// ========================================================
+		// ------------------------------------------------------------------
+		final float fontSize = font.getCharSet().getRenderedSize();
 		final Map<ItemTemplate, SmeltingRegistry.SmeltResult> recipes = SmeltingRegistry.getRecipeMap();
 		if (recipes != null && !recipes.isEmpty())
 		{
 			// "Recipes" title.
 			final BitmapText recipeTitleText = new BitmapText(font);
-			recipeTitleText.setSize(font.getCharSet().getRenderedSize());
+			recipeTitleText.setSize(fontSize);
 			recipeTitleText.setText(LanguageManager.get("screen.recipes"));
 			recipeTitleText.setColor(new ColorRGBA(0.9f, 0.7f, 0.3f, 1.0f));
 			recipeTitleText.setLocalTranslation(panelX, currentY + 12, Z_TITLE);
@@ -939,28 +923,34 @@ public class FurnaceScreen implements ActionListener
 			currentY -= 8; // Gap below title before first row.
 			
 			// Recipe rows.
+			final AssetManager recipeAssetManager = app.getAssetManager();
+			final ColorRGBA slotBgColor = new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f);
+			final ColorRGBA inputColor = new ColorRGBA(0.8f, 0.8f, 0.8f, 1.0f);
+			final ColorRGBA arrowColor = new ColorRGBA(0.6f, 0.6f, 0.6f, 1.0f);
+			final ColorRGBA outputColor = new ColorRGBA(0.7f, 1.0f, 0.7f, 1.0f);
+			final ColorRGBA timeColor = new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f);
 			int rowIndex = 0;
 			for (Entry<ItemTemplate, SmeltingRegistry.SmeltResult> entry : recipes.entrySet())
 			{
 				final ItemTemplate input = entry.getKey();
-				final ItemTemplate output = entry.getValue().getOutput();
-				final float smeltTime = entry.getValue().getSmeltTime();
+				final SmeltingRegistry.SmeltResult result = entry.getValue();
+				final ItemTemplate output = result.getOutput();
+				final float smeltTime = result.getSmeltTime();
 				currentY -= RECIPE_ROW_HEIGHT;
 				float cursorX = panelX;
 				
 				// Input icon background.
-				final Geometry inputBg = createQuad("RecipeInputBg" + rowIndex, iconSlotSize, iconSlotSize, new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
+				final Geometry inputBg = createQuad("RecipeInputBg" + rowIndex, iconSlotSize, iconSlotSize, slotBgColor);
 				inputBg.setLocalTranslation(cursorX, currentY, Z_SLOT_BG);
 				_rootNode.attachChild(inputBg);
 				
 				// Input icon.
-				final Texture inputTex = ItemTextureResolver.resolve(app.getAssetManager(), input);
+				final Texture inputTex = ItemTextureResolver.resolve(recipeAssetManager, input);
 				if (inputTex != null)
 				{
 					final Material inputMat = createIconMaterial(app);
 					inputMat.setTexture("ColorMap", inputTex);
-					final Quad inputQuad = new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE);
-					final Geometry inputGeom = new Geometry("RecipeInputIcon" + rowIndex, inputQuad);
+					final Geometry inputGeom = new Geometry("RecipeInputIcon" + rowIndex, new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE));
 					inputGeom.setMaterial(inputMat);
 					inputGeom.setQueueBucket(Bucket.Gui);
 					inputGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
@@ -971,35 +961,34 @@ public class FurnaceScreen implements ActionListener
 				
 				// Input name text.
 				final BitmapText inputLabel = new BitmapText(font);
-				inputLabel.setSize(font.getCharSet().getRenderedSize());
+				inputLabel.setSize(fontSize);
 				inputLabel.setText(input.getDisplayName());
-				inputLabel.setColor(new ColorRGBA(0.8f, 0.8f, 0.8f, 1.0f));
+				inputLabel.setColor(inputColor);
 				inputLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
 				_rootNode.attachChild(inputLabel);
 				cursorX += inputLabel.getLineWidth() + 8;
 				
 				// Arrow ">".
 				final BitmapText arrowLabel = new BitmapText(font);
-				arrowLabel.setSize(font.getCharSet().getRenderedSize());
+				arrowLabel.setSize(fontSize);
 				arrowLabel.setText(LanguageManager.get("screen.arrow"));
-				arrowLabel.setColor(new ColorRGBA(0.6f, 0.6f, 0.6f, 1.0f));
+				arrowLabel.setColor(arrowColor);
 				arrowLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
 				_rootNode.attachChild(arrowLabel);
 				cursorX += arrowLabel.getLineWidth() + 8;
 				
 				// Output icon background.
-				final Geometry outputBg = createQuad("RecipeOutputBg" + rowIndex, iconSlotSize, iconSlotSize, new ColorRGBA(0.4f, 0.4f, 0.4f, 1.0f));
+				final Geometry outputBg = createQuad("RecipeOutputBg" + rowIndex, iconSlotSize, iconSlotSize, slotBgColor);
 				outputBg.setLocalTranslation(cursorX, currentY, Z_SLOT_BG);
 				_rootNode.attachChild(outputBg);
 				
 				// Output icon.
-				final Texture outputTex = ItemTextureResolver.resolve(app.getAssetManager(), output);
+				final Texture outputTex = ItemTextureResolver.resolve(recipeAssetManager, output);
 				if (outputTex != null)
 				{
 					final Material outputMat = createIconMaterial(app);
 					outputMat.setTexture("ColorMap", outputTex);
-					final Quad outputQuad = new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE);
-					final Geometry outputGeom = new Geometry("RecipeOutputIcon" + rowIndex, outputQuad);
+					final Geometry outputGeom = new Geometry("RecipeOutputIcon" + rowIndex, new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE));
 					outputGeom.setMaterial(outputMat);
 					outputGeom.setQueueBucket(Bucket.Gui);
 					outputGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
@@ -1010,9 +999,9 @@ public class FurnaceScreen implements ActionListener
 				
 				// Output name text.
 				final BitmapText outputLabel = new BitmapText(font);
-				outputLabel.setSize(font.getCharSet().getRenderedSize());
+				outputLabel.setSize(fontSize);
 				outputLabel.setText(output.getDisplayName());
-				outputLabel.setColor(new ColorRGBA(0.7f, 1.0f, 0.7f, 1.0f));
+				outputLabel.setColor(outputColor);
 				outputLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
 				_rootNode.attachChild(outputLabel);
 				cursorX += outputLabel.getLineWidth() + 8;
@@ -1020,9 +1009,9 @@ public class FurnaceScreen implements ActionListener
 				// Smelt duration text.
 				final String timeStr = "(" + formatSeconds(smeltTime) + ")";
 				final BitmapText timeLabel = new BitmapText(font);
-				timeLabel.setSize(font.getCharSet().getRenderedSize());
+				timeLabel.setSize(fontSize);
 				timeLabel.setText(timeStr);
-				timeLabel.setColor(new ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f));
+				timeLabel.setColor(timeColor);
 				timeLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
 				_rootNode.attachChild(timeLabel);
 				
@@ -1030,9 +1019,9 @@ public class FurnaceScreen implements ActionListener
 			}
 		}
 		
-		// ========================================================
+		// ------------------------------------------------------------------
 		// Fuels Section.
-		// ========================================================
+		// ------------------------------------------------------------------
 		final Map<ItemTemplate, Float> fuels = SmeltingRegistry.getFuelMap();
 		if (fuels != null && !fuels.isEmpty())
 		{
@@ -1041,7 +1030,7 @@ public class FurnaceScreen implements ActionListener
 			
 			// "Fuels" title.
 			final BitmapText fuelTitleText = new BitmapText(font);
-			fuelTitleText.setSize(font.getCharSet().getRenderedSize());
+			fuelTitleText.setSize(fontSize);
 			fuelTitleText.setText(LanguageManager.get("screen.fuels"));
 			fuelTitleText.setColor(new ColorRGBA(0.9f, 0.5f, 0.2f, 1.0f));
 			fuelTitleText.setLocalTranslation(panelX, currentY, Z_TITLE);
@@ -1068,8 +1057,7 @@ public class FurnaceScreen implements ActionListener
 				{
 					final Material fuelMat = createIconMaterial(app);
 					fuelMat.setTexture("ColorMap", fuelTex);
-					final Quad fuelQuad = new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE);
-					final Geometry fuelGeom = new Geometry("FuelInfoIcon" + fuelIndex, fuelQuad);
+					final Geometry fuelGeom = new Geometry("FuelInfoIcon" + fuelIndex, new Quad(RECIPE_ICON_SIZE, RECIPE_ICON_SIZE));
 					fuelGeom.setMaterial(fuelMat);
 					fuelGeom.setQueueBucket(Bucket.Gui);
 					fuelGeom.setLocalTranslation(cursorX + 2, currentY + 2, Z_ICON);
@@ -1080,7 +1068,7 @@ public class FurnaceScreen implements ActionListener
 				
 				// Fuel name text.
 				final BitmapText fuelLabel = new BitmapText(font);
-				fuelLabel.setSize(font.getCharSet().getRenderedSize());
+				fuelLabel.setSize(fontSize);
 				fuelLabel.setText(fuel.getDisplayName());
 				fuelLabel.setColor(new ColorRGBA(0.8f, 0.8f, 0.8f, 1.0f));
 				fuelLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
@@ -1090,7 +1078,7 @@ public class FurnaceScreen implements ActionListener
 				// Burn duration text.
 				final String burnStr = "(" + formatSeconds(burnTime) + " burn)";
 				final BitmapText burnLabel = new BitmapText(font);
-				burnLabel.setSize(font.getCharSet().getRenderedSize());
+				burnLabel.setSize(fontSize);
 				burnLabel.setText(burnStr);
 				burnLabel.setColor(new ColorRGBA(1.0f, 0.6f, 0.2f, 1.0f));
 				burnLabel.setLocalTranslation(cursorX, currentY + iconSlotSize / 2 + 6, Z_LABEL);
@@ -1115,9 +1103,9 @@ public class FurnaceScreen implements ActionListener
 		return String.format("%.1fs", seconds);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Click Handling.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	@Override
 	public void onAction(String name, boolean isPressed, float tpf)
@@ -1132,8 +1120,7 @@ public class FurnaceScreen implements ActionListener
 			return;
 		}
 		
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final Vector2f cursor = app.getInputManager().getCursorPosition();
+		final Vector2f cursor = SimpleCraft.getInstance().getInputManager().getCursorPosition();
 		final float mx = cursor.x;
 		final float my = cursor.y;
 		
@@ -1557,9 +1544,9 @@ public class FurnaceScreen implements ActionListener
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Accessors.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Sets the drop manager for spawning world drops.
@@ -1569,9 +1556,9 @@ public class FurnaceScreen implements ActionListener
 		_dropManager = dropManager;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Cleanup.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Cleans up the furnace screen. Closes if open and removes all UI elements.

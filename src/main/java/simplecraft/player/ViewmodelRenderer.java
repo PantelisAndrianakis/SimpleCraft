@@ -8,6 +8,7 @@ import com.jme3.asset.AssetManager;
 import com.jme3.asset.TextureKey;
 import com.jme3.asset.plugins.FileLocator;
 import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.influencers.ParticleInfluencer;
 import com.jme3.effect.ParticleMesh;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
@@ -40,11 +41,11 @@ import simplecraft.world.Block.RenderMode;
 /**
  * Renders the held item in 3D space near the player's right hand.<br>
  * <br>
- * <b>Block items</b> render as a small 3D cube ({@link Box}), textured on all faces.<br>
- * <b>Tools, weapons and fist</b> render as a flat sprite ({@link Quad}), same as how<br>
+ * <b>Block items</b> render as a small 3D cube ({@link com.jme3.scene.shape.Box}), textured on all faces.<br>
+ * <b>Tools, weapons and fist</b> render as a flat sprite ({@link com.jme3.scene.shape.Quad}), same as how<br>
  * billboard decorations (flowers, torches) are displayed in the world.<br>
  * <br>
- * Both geometries are children of a parent {@link Node} on {@code rootNode}.<br>
+ * Both geometries are children of a parent {@link com.jme3.scene.Node} on {@code rootNode}.<br>
  * Each frame, the node is positioned using camera direction/left/up vectors.<br>
  * Only one geometry is visible at a time - the other is culled via CullHint.
  * @author Pantelis Andrianakis
@@ -52,9 +53,9 @@ import simplecraft.world.Block.RenderMode;
  */
 public class ViewmodelRenderer
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** How far in front of the eye the held item sits. */
 	private static final float FORWARD = 0.6f;
@@ -110,8 +111,6 @@ public class ViewmodelRenderer
 	private static final String FIST_ID = "fist";
 	
 	/** Flame effect image path (same as TorchTileEntity). */
-	private static final String FLAME_IMAGE_PATH = "assets/images/effects/flame.png";
-	
 	/**
 	 * Flame position relative to the hand node.<br>
 	 * The sprite quad extends from (-SPRITE_SIZE, 0, 0) to (0, SPRITE_SIZE, 0)
@@ -123,15 +122,18 @@ public class ViewmodelRenderer
 	/** Fixed vertical field-of-view (degrees) for the viewmodel viewport, independent of world FOV. */
 	private static final float VIEWMODEL_FOV = 45f;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final RenderManager _renderManager;
 	private final Camera _viewmodelCamera;
 	private final ViewPort _viewport;
 	private final Node _scene;
 	private final AssetManager _assetManager;
+	
+	/** True once the project-root FileLocator has been registered (registerLocator calls accumulate globally). */
+	private boolean _locatorRegistered;
 	
 	/** Parent node positioned at the hand each frame. */
 	private final Node _handNode;
@@ -177,18 +179,18 @@ public class ViewmodelRenderer
 	private final Quaternion _rot = new Quaternion();
 	private final Quaternion _worldRot = new Quaternion();
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	public ViewmodelRenderer(AssetManager assetManager, RenderManager renderManager, Camera worldCamera)
 	{
 		_assetManager = assetManager;
 		_renderManager = renderManager;
 		
-		// Dedicated camera and viewport for the held item so its FOV stays fixed
-		// regardless of the world FOV. The world view renders first,
-		// then the viewmodel viewport clears the depth buffer and draws on top.
+		// Dedicated camera and viewport for the held item so its FOV stays fixed regardless of the world FOV.
+		// The world view renders first,
+		// Then the viewmodel viewport clears the depth buffer and draws on top.
 		_viewmodelCamera = worldCamera.clone();
 		_viewmodelCamera.setFrustumPerspective(VIEWMODEL_FOV, (float) _viewmodelCamera.getWidth() / _viewmodelCamera.getHeight(), 0.1f, 1000f);
 		
@@ -207,8 +209,7 @@ public class ViewmodelRenderer
 		_scene.attachChild(_handNode);
 		
 		// Block geometry - small cube, hidden initially.
-		final Box box = new Box(BLOCK_HALF_SIZE, BLOCK_HALF_SIZE, BLOCK_HALF_SIZE);
-		_blockGeo = new Geometry("ViewmodelBlock", box);
+		_blockGeo = new Geometry("ViewmodelBlock", new Box(BLOCK_HALF_SIZE, BLOCK_HALF_SIZE, BLOCK_HALF_SIZE));
 		_blockGeo.setCullHint(CullHint.Always); // hidden
 		_blockGeo.setQueueBucket(Bucket.Translucent);
 		_handNode.attachChild(_blockGeo);
@@ -245,8 +246,9 @@ public class ViewmodelRenderer
 		// Apply fallback material to both so they never have null material.
 		final Material fallback = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		fallback.setColor("Color", ColorRGBA.Magenta);
-		fallback.getAdditionalRenderState().setDepthTest(false);
-		fallback.getAdditionalRenderState().setDepthWrite(false);
+		final RenderState fallbackState = fallback.getAdditionalRenderState();
+		fallbackState.setDepthTest(false);
+		fallbackState.setDepthWrite(false);
 		_blockGeo.setMaterial(fallback);
 		_spriteGeo.setMaterial(fallback);
 		
@@ -256,30 +258,31 @@ public class ViewmodelRenderer
 		_handNode.attachChild(_flameEmitter);
 		
 		// Start with fist.
-		updateSprite(FIST_ID);
+		updateSprite(FIST_ID, null);
 		
-		// Initialize the scene's transforms/bounds so the first render pass
-		// — which may fire before our first update() — has valid state. Without this, jME3
-		// throws "Scene graph is not properly updated for rendering" on frame 1.
+		// Initialize the scene's transforms/bounds so the first render pass,
+		// which may fire before our first update(), has valid state.
+		// Without this, jME3 throws "Scene graph is not properly updated for rendering" on frame 1.
 		_scene.updateLogicalState(0f);
 		_scene.updateGeometricState();
 		
 		System.out.println("ViewmodelRenderer: Initialized.");
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Update.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	public void update(Camera camera, Inventory inventory, boolean isMoving, float tpf)
 	{
 		_isMoving = isMoving;
 		
-		// Mirror world camera position/rotation onto the viewmodel camera, but keep
-		// our fixed FOV so changing world FOV no longer stretches the held item.
-		_viewmodelCamera.setLocation(camera.getLocation());
-		_viewmodelCamera.setRotation(camera.getRotation());
-		_viewmodelCamera.setFrustumPerspective(VIEWMODEL_FOV, (float) _viewmodelCamera.getWidth() / _viewmodelCamera.getHeight(), 0.1f, 1000f);
+		// Mirror world camera position/rotation onto the viewmodel camera.
+		// The fixed FOV frustum was set once at construction; setLocation/setRotation never touch it.
+		final Vector3f camLocation = camera.getLocation();
+		final Quaternion camRotation = camera.getRotation();
+		_viewmodelCamera.setLocation(camLocation);
+		_viewmodelCamera.setRotation(camRotation);
 		
 		// --- Item change detection ---
 		final ItemInstance held = inventory.getSelectedItem();
@@ -373,8 +376,8 @@ public class ViewmodelRenderer
 		camera.getLeft(_left);
 		camera.getUp(_up);
 		
-		// Scaled-down sprite items are shifted right and up proportionally
-		// so they stay centered in the hand rather than drifting to the bottom-left.
+		// Scaled-down sprite items are shifted right and up proportionally,
+		// So they stay centered in the hand rather than drifting to the bottom-left.
 		final float reduction = _showingBlock ? 0f : (1.0f - _currentViewmodelScale);
 		final float scaleShiftRight = SPRITE_SIZE * reduction * 0.3f;
 		final float scaleShiftUp = SPRITE_SIZE * reduction * 0.2f;
@@ -384,7 +387,7 @@ public class ViewmodelRenderer
 		final float r = -(rightOffset + bobR);
 		final float d = -(downOffset - bobU);
 		
-		_pos.set(camera.getLocation());
+		_pos.set(camLocation);
 		_pos.x += _dir.x * FORWARD + _left.x * r + _up.x * d;
 		_pos.y += _dir.y * FORWARD + _left.y * r + _up.y * d;
 		_pos.z += _dir.z * FORWARD + _left.z * r + _up.z * d;
@@ -393,71 +396,52 @@ public class ViewmodelRenderer
 		
 		// --- Rotation: camera * base tilt (no swing here - swing is on geometry) ---
 		final Quaternion baseRot = _showingBlock ? _baseBlockRot : _baseRot;
-		_worldRot.set(camera.getRotation());
+		_worldRot.set(camRotation);
 		_worldRot.multLocal(baseRot);
 		_handNode.setLocalRotation(_worldRot);
 		
 		// The viewmodel scene is outside the main app's root-node hierarchy,
 		// so we must drive its logical/geometric state ourselves each frame;
-		// otherwise transforms, bounds, and particles won't update.
+		// Otherwise transforms, bounds and particles won't update.
 		_scene.updateLogicalState(tpf);
 		_scene.updateGeometricState();
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Swing.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	public void triggerSwing()
 	{
-		if (!_swinging)
+		if (_swinging)
 		{
-			_swinging = true;
-			_swingTimer = 0f;
+			return;
 		}
+		
+		_swinging = true;
+		_swingTimer = 0f;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Sprite Swap.
-	// ========================================================
-	
-	private void updateSprite(String itemId)
-	{
-		updateSprite(itemId, null);
-	}
+	// ------------------------------------------------------------------
 	
 	private void updateSprite(String itemId, ItemInstance item)
 	{
-		final boolean isBlock = (item != null && item.getTemplate().getType() == ItemType.BLOCK);
+		final ItemTemplate template = (item != null) ? item.getTemplate() : null;
+		final boolean isBlock = (template != null) && (template.getType() == ItemType.BLOCK);
 		
 		// CROSS_BILLBOARD and FLAT_PANEL blocks (torch, flowers, campfire, etc.) render as flat sprites, not 3D cubes.
 		// They should look the same as when placed in-world.
-		final boolean isBillboardBlock;
-		if (isBlock)
-		{
-			final Block block = item.getTemplate().getPlacesBlock();
-			final RenderMode blockRenderMode = block != null ? block.getRenderMode() : null;
-			isBillboardBlock = (block != null && (blockRenderMode == RenderMode.CROSS_BILLBOARD || blockRenderMode == RenderMode.FLAT_PANEL));
-		}
-		else
-		{
-			isBillboardBlock = false;
-		}
+		final Block placedBlock = isBlock ? template.getPlacesBlock() : null;
+		final RenderMode blockRenderMode = (placedBlock != null) ? placedBlock.getRenderMode() : null;
+		final boolean isBillboardBlock = (blockRenderMode == RenderMode.CROSS_BILLBOARD) || (blockRenderMode == RenderMode.FLAT_PANEL);
 		
 		// Show cube only for non-billboard blocks. Billboard blocks use the sprite quad.
 		final boolean showCube = isBlock && !isBillboardBlock;
 		
 		// Detect held torch for flame particle effect.
-		final boolean isTorch;
-		if (isBillboardBlock)
-		{
-			final Block block = item.getTemplate().getPlacesBlock();
-			isTorch = (block == Block.TORCH);
-		}
-		else
-		{
-			isTorch = false;
-		}
+		final boolean isTorch = isBillboardBlock && (placedBlock == Block.TORCH);
 		
 		// Show the right geometry, hide the other.
 		if (showCube)
@@ -475,7 +459,7 @@ public class ViewmodelRenderer
 			
 			// Apply per-item viewmodel scale to the sprite quad.
 			// Fist (item == null) stays full size; everything else reads from template.
-			final float scale = (item != null) ? item.getTemplate().getViewmodelScale() : 1.0f;
+			final float scale = (template != null) ? template.getViewmodelScale() : 1.0f;
 			_spriteGeo.setLocalScale(scale);
 			_spriteGeo.setLocalTranslation(-SPRITE_SIZE * scale, 0, 0);
 			_currentViewmodelScale = scale;
@@ -525,16 +509,16 @@ public class ViewmodelRenderer
 		{
 			if (showCube)
 			{
-				mat = loadBlockItemMaterial(item.getTemplate());
+				mat = loadBlockItemMaterial(template);
 			}
 			else if (isBillboardBlock)
 			{
 				// Billboard block held as sprite - load from block textures directory.
-				mat = loadBillboardBlockMaterial(item.getTemplate());
+				mat = loadBillboardBlockMaterial(template);
 			}
 			else
 			{
-				mat = loadItemMaterial(itemId);
+				mat = loadMaterialFromFile(ITEM_TEX_DIR, itemId + ".png", true);
 			}
 		}
 		
@@ -550,11 +534,6 @@ public class ViewmodelRenderer
 				_spriteGeo.setMaterial(mat);
 			}
 		}
-	}
-	
-	private Material loadItemMaterial(String itemId)
-	{
-		return loadMaterialFromFile(ITEM_TEX_DIR, itemId + ".png", true);
 	}
 	
 	private Material loadBlockItemMaterial(ItemTemplate template)
@@ -609,7 +588,8 @@ public class ViewmodelRenderer
 	 */
 	private Material loadMaterialFromFile(String directory, String filename, boolean isSprite)
 	{
-		final File file = new File(directory + filename);
+		final String fullPath = directory + filename;
+		final File file = new File(fullPath);
 		if (!file.exists())
 		{
 			System.out.println("ViewmodelRenderer: Missing: " + file.getAbsolutePath());
@@ -618,9 +598,13 @@ public class ViewmodelRenderer
 		
 		try
 		{
-			// Register project root so full-path TextureKeys resolve unambiguously.
-			_assetManager.registerLocator("", FileLocator.class);
-			final String fullPath = directory + filename;
+			// Register project root once so full-path TextureKeys resolve unambiguously.
+			if (!_locatorRegistered)
+			{
+				_assetManager.registerLocator("", FileLocator.class);
+				_locatorRegistered = true;
+			}
+			
 			final TextureKey key = new TextureKey(fullPath, false);
 			key.setGenerateMips(false);
 			final Texture2D tex = (Texture2D) _assetManager.loadTexture(key);
@@ -631,8 +615,9 @@ public class ViewmodelRenderer
 			mat.setTexture("ColorMap", tex);
 			
 			// Always render on top of world geometry.
-			mat.getAdditionalRenderState().setDepthTest(false);
-			mat.getAdditionalRenderState().setDepthWrite(false);
+			final RenderState renderState = mat.getAdditionalRenderState();
+			renderState.setDepthTest(false);
+			renderState.setDepthWrite(false);
 			
 			// Alpha cutout for all items - blocks like leaves/glass have transparent pixels too.
 			mat.setFloat("AlphaDiscardThreshold", 0.5f);
@@ -640,7 +625,7 @@ public class ViewmodelRenderer
 			if (isSprite)
 			{
 				// Flat sprite: no face culling (visible from both sides).
-				mat.getAdditionalRenderState().setFaceCullMode(RenderState.FaceCullMode.Off);
+				renderState.setFaceCullMode(RenderState.FaceCullMode.Off);
 			}
 			
 			// Block cube: default depth - renders like any world block.
@@ -655,9 +640,9 @@ public class ViewmodelRenderer
 		}
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Flame Particles.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a small flame particle emitter for the held torch tip.<br>
@@ -672,10 +657,11 @@ public class ViewmodelRenderer
 		_flameEmitter = new ParticleEmitter("ViewmodelFlame", ParticleMesh.Type.Triangle, 8);
 		
 		final Material mat = new Material(_assetManager, "Common/MatDefs/Misc/Particle.j3md");
-		mat.setTexture("Texture", _assetManager.loadTexture(FLAME_IMAGE_PATH));
-		mat.getAdditionalRenderState().setBlendMode(BlendMode.Additive);
-		mat.getAdditionalRenderState().setDepthTest(false);
-		mat.getAdditionalRenderState().setDepthWrite(false);
+		mat.setTexture("Texture", _assetManager.loadTexture("assets/images/effects/flame.png"));
+		final RenderState flameState = mat.getAdditionalRenderState();
+		flameState.setBlendMode(BlendMode.Additive);
+		flameState.setDepthTest(false);
+		flameState.setDepthWrite(false);
 		_flameEmitter.setMaterial(mat);
 		_flameEmitter.setQueueBucket(Bucket.Transparent);
 		
@@ -692,8 +678,9 @@ public class ViewmodelRenderer
 		_flameEmitter.setLowLife(0.15f);
 		_flameEmitter.setHighLife(0.3f);
 		
-		_flameEmitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 0.3f, 0));
-		_flameEmitter.getParticleInfluencer().setVelocityVariation(0.2f);
+		final ParticleInfluencer influencer = _flameEmitter.getParticleInfluencer();
+		influencer.setInitialVelocity(new Vector3f(0, 0.3f, 0));
+		influencer.setVelocityVariation(0.2f);
 		_flameEmitter.setGravity(0, -0.15f, 0);
 		
 		// Position at the torch tip.
@@ -701,9 +688,9 @@ public class ViewmodelRenderer
 		_flameEmitter.setParticlesPerSec(0); // Off until torch is equipped.
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Visibility Toggle.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Sets the visibility of the held item viewmodel.<br>
@@ -715,9 +702,9 @@ public class ViewmodelRenderer
 		_handNode.setCullHint(visible ? CullHint.Never : CullHint.Always);
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Cleanup.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	public void cleanup()
 	{

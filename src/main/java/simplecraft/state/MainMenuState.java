@@ -2,10 +2,12 @@ package simplecraft.state;
 
 import java.awt.Font;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.app.Application;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
 
@@ -33,9 +35,6 @@ import simplecraft.ui.QuestionManager;
  */
 public class MainMenuState extends FadeableAppState
 {
-	private static final String BACKGROUND_PATH = "assets/images/backgrounds/main_menu.png";
-	private static final String TITLE_LOGO_PATH = "assets/images/app_icons/icon_128.png";
-	
 	private static final int LOGO_SIZE = 128;
 	private static final int LOGO_TITLE_SPACING = 5;
 	private static final int BUTTON_SPACING = 22;
@@ -72,6 +71,10 @@ public class MainMenuState extends FadeableAppState
 	protected void onEnterState()
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
+		final GameStateManager gameStateManager = app.getGameStateManager();
+		final Node guiNode = app.getGuiNode();
 		
 		System.out.println("MainMenuState entered.");
 		MouseSensitivityManager.setEnabled(true);
@@ -84,7 +87,7 @@ public class MainMenuState extends FadeableAppState
 		
 		// --- Background Image (stretched to fill screen) ---
 		_background = new Picture("Menu Background");
-		_background.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
+		_background.setImage(assetManager, "assets/images/backgrounds/main_menu.png", true);
 		_background.setWidth(screenWidth);
 		_background.setHeight(screenHeight);
 		_background.setLocalTranslation(0, 0, -10);
@@ -92,7 +95,7 @@ public class MainMenuState extends FadeableAppState
 		
 		// --- Title Label ---
 		_titleLabel = new Label("SimpleCraft");
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, 72));
+		_titleLabel.setFont(FontManager.getFont(assetManager, FontManager.BLUE_HIGHWAY_LINOCUT_PATH, Font.PLAIN, 72));
 		_titleLabel.setFontSize(72);
 		_titleLabel.setColor(ColorRGBA.White);
 		
@@ -102,7 +105,7 @@ public class MainMenuState extends FadeableAppState
 		
 		// --- Logo ---
 		_logo = new Picture("Menu Logo");
-		_logo.setImage(app.getAssetManager(), TITLE_LOGO_PATH, true);
+		_logo.setImage(assetManager, "assets/images/app_icons/icon_128.png", true);
 		_logo.setWidth(LOGO_SIZE);
 		_logo.setHeight(LOGO_SIZE);
 		
@@ -119,10 +122,10 @@ public class MainMenuState extends FadeableAppState
 		// Start Game button - transitions to World Select.
 		final Runnable startAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			app.getGameStateManager().switchTo(GameState.WORLD_SELECT, true);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			gameStateManager.switchTo(GameState.WORLD_SELECT, true);
 		};
-		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.start"), 0.18f, 0.065f, startAction);
+		final Panel startButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.start"), 0.18f, 0.065f, startAction);
 		_buttonContainer.addChild(startButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(startButton, startAction));
 		
@@ -131,10 +134,10 @@ public class MainMenuState extends FadeableAppState
 		// Options button.
 		final Runnable optionsAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
-			app.getGameStateManager().switchTo(GameState.OPTIONS, true);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			gameStateManager.switchTo(GameState.OPTIONS, true);
 		};
-		final Panel optionsButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.options"), 0.18f, 0.065f, optionsAction);
+		final Panel optionsButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.options"), 0.18f, 0.065f, optionsAction);
 		_buttonContainer.addChild(optionsButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(optionsButton, optionsAction));
 		
@@ -143,10 +146,10 @@ public class MainMenuState extends FadeableAppState
 		// Exit button.
 		final Runnable exitAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			QuestionManager.show(LanguageManager.get("menu.exit_confirm"), () -> app.stop(), null);
 		};
-		final Panel exitButton = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.exit"), 0.18f, 0.065f, exitAction);
+		final Panel exitButton = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.exit"), 0.18f, 0.065f, exitAction);
 		_buttonContainer.addChild(exitButton);
 		_navigation.addSlot(MenuNavigationManager.buttonSlot(exitButton, exitAction));
 		
@@ -161,49 +164,43 @@ public class MainMenuState extends FadeableAppState
 		_titleLabel.setLocalTranslation(titleGroupX, titleY, 0);
 		
 		// Logo: to the right of the title, vertically centered with title.
-		final float logoX = titleGroupX + titleWidth + LOGO_TITLE_SPACING;
-		final float logoY = titleY - (titleHeight * 0.52f) - (LOGO_SIZE / 2f);
-		_logo.setLocalTranslation(logoX, logoY, 0);
+		_logo.setLocalTranslation((titleGroupX + titleWidth + LOGO_TITLE_SPACING), (titleY - (titleHeight * 0.52f) - (LOGO_SIZE / 2f)), 0);
 		
 		// Button container: centered on screen independently.
-		final float buttonContainerX = screenCenterX - (buttonContainerWidth / 2f);
-		final float buttonContainerY = (screenHeight + buttonContainerHeight) / 2f;
-		_buttonContainer.setLocalTranslation(buttonContainerX, buttonContainerY, 0);
+		_buttonContainer.setLocalTranslation((screenCenterX - (buttonContainerWidth / 2f)), ((screenHeight + buttonContainerHeight) / 2f), 0);
 		
 		// --- Version Label (bottom-right) ---
 		_versionLabel = new Label("Dev Edition");
-		_versionLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 14));
+		_versionLabel.setFont(FontManager.getFont(assetManager, FontManager.BLUE_HIGHWAY_REGULAR_PATH, Font.PLAIN, 14));
 		_versionLabel.setFontSize(14);
 		_versionLabel.setColor(new ColorRGBA(0.6f, 0.6f, 0.6f, 0.8f));
 		
 		final Vector3f versionSize = _versionLabel.getPreferredSize();
-		final float versionWidth = versionSize.x;
-		final float versionHeight = versionSize.y;
-		_versionLabel.setLocalTranslation(screenWidth - versionWidth - VERSION_MARGIN, versionHeight + VERSION_MARGIN, 0);
+		_versionLabel.setLocalTranslation(screenWidth - versionSize.x - VERSION_MARGIN, versionSize.y + VERSION_MARGIN, 0);
 		
 		// Attach all elements to the GUI node (background first so it's behind everything).
-		app.getGuiNode().attachChild(_background);
-		app.getGuiNode().attachChild(_titleLabel);
-		app.getGuiNode().attachChild(_logo);
-		app.getGuiNode().attachChild(_buttonContainer);
-		app.getGuiNode().attachChild(_versionLabel);
+		guiNode.attachChild(_background);
+		guiNode.attachChild(_titleLabel);
+		guiNode.attachChild(_logo);
+		guiNode.attachChild(_buttonContainer);
+		guiNode.attachChild(_versionLabel);
 		
 		// Register navigation (Escape shows exit confirmation).
 		_navigation.setBackAction(() ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			QuestionManager.show(LanguageManager.get("menu.exit_confirm"), () -> app.stop(), null);
 		});
 		_navigation.register();
 		
 		// Start menu music.
-		app.getAudioManager().playMusic(MusicManager.DAY_MUSIC_PATH);
+		audioManager.playMusic(MusicManager.DAY_MUSIC_PATH);
 	}
 	
 	@Override
 	protected void onExitState()
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = SimpleCraft.getInstance().getGuiNode();
 		MouseSensitivityManager.setEnabled(false);
 		
 		if (_navigation != null)
@@ -218,31 +215,31 @@ public class MainMenuState extends FadeableAppState
 		// Remove all GUI elements.
 		if (_background != null)
 		{
-			app.getGuiNode().detachChild(_background);
+			guiNode.detachChild(_background);
 			_background = null;
 		}
 		
 		if (_titleLabel != null)
 		{
-			app.getGuiNode().detachChild(_titleLabel);
+			guiNode.detachChild(_titleLabel);
 			_titleLabel = null;
 		}
 		
 		if (_logo != null)
 		{
-			app.getGuiNode().detachChild(_logo);
+			guiNode.detachChild(_logo);
 			_logo = null;
 		}
 		
 		if (_buttonContainer != null)
 		{
-			app.getGuiNode().detachChild(_buttonContainer);
+			guiNode.detachChild(_buttonContainer);
 			_buttonContainer = null;
 		}
 		
 		if (_versionLabel != null)
 		{
-			app.getGuiNode().detachChild(_versionLabel);
+			guiNode.detachChild(_versionLabel);
 			_versionLabel = null;
 		}
 		

@@ -3,9 +3,11 @@ package simplecraft.state;
 import java.awt.Font;
 
 import com.jme3.app.Application;
+import com.jme3.asset.AssetManager;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
+import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.ui.Picture;
 
@@ -115,23 +117,26 @@ public class PauseMenuState extends FadeableAppState
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		final Camera camera = app.getCamera();
+		final AssetManager assetManager = app.getAssetManager();
+		final AudioManager audioManager = app.getAudioManager();
+		final Node guiNode = app.getGuiNode();
 		final int screenWidth = camera.getWidth();
 		final int screenHeight = camera.getHeight();
 		final float centerX = screenWidth / 2f;
 		
 		// --- Background Image (stretched to fill screen) ---
 		_background = new Picture("Pause Background");
-		_background.setImage(app.getAssetManager(), BACKGROUND_PATH, true);
+		_background.setImage(assetManager, BACKGROUND_PATH, true);
 		_background.setWidth(screenWidth);
 		_background.setHeight(screenHeight);
 		_background.setLocalTranslation(0, 0, -10); // Behind everything.
 		_background.setCullHint(Spatial.CullHint.Never);
-		app.getGuiNode().attachChild(_background);
+		guiNode.attachChild(_background);
 		
 		// --- Title label (same as main menu) ---
 		final int titleFontSize = Math.max(24, Math.round(screenHeight * TITLE_FONT_RATIO));
 		_titleLabel = new Label("SimpleCraft");
-		_titleLabel.setFont(FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, titleFontSize));
+		_titleLabel.setFont(FontManager.getFont(assetManager, FontManager.getTitlePath(), Font.PLAIN, titleFontSize));
 		_titleLabel.setFontSize(titleFontSize);
 		_titleLabel.setColor(ColorRGBA.White);
 		_titleLabel.setBackground(null);
@@ -142,51 +147,47 @@ public class PauseMenuState extends FadeableAppState
 		
 		// --- Logo (to the right of title, same as main menu) ---
 		_logo = new Picture("Pause Logo");
-		_logo.setImage(app.getAssetManager(), TITLE_LOGO_PATH, true);
+		_logo.setImage(assetManager, TITLE_LOGO_PATH, true);
 		_logo.setWidth(LOGO_SIZE);
 		_logo.setHeight(LOGO_SIZE);
 		
 		// Center the title+logo group horizontally.
-		final float titleGroupWidth = titleWidth + LOGO_TITLE_SPACING + LOGO_SIZE;
-		final float titleGroupX = centerX - (titleGroupWidth / 2.3f);
+		final float titleGroupX = centerX - ((titleWidth + LOGO_TITLE_SPACING + LOGO_SIZE) / 2.3f);
 		final float titleY = screenHeight * 0.85f;
 		_titleLabel.setLocalTranslation(titleGroupX, titleY, 1);
-		app.getGuiNode().attachChild(_titleLabel);
+		guiNode.attachChild(_titleLabel);
 		
 		// Logo: to the right of title, vertically centered with text.
-		final float logoX = titleGroupX + titleWidth + LOGO_TITLE_SPACING;
-		final float logoY = titleY - (titleHeight * 0.52f) - (LOGO_SIZE / 2f);
-		_logo.setLocalTranslation(logoX, logoY, 1);
-		app.getGuiNode().attachChild(_logo);
+		_logo.setLocalTranslation((titleGroupX + titleWidth + LOGO_TITLE_SPACING), (titleY - (titleHeight * 0.52f) - (LOGO_SIZE / 2f)), 1);
+		guiNode.attachChild(_logo);
 		
 		// --- Button actions ---
 		final Runnable resumeAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			resumeGame();
 		};
 		final Runnable optionsAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			app.getGameStateManager().switchTo(GameState.OPTIONS, true);
 		};
 		final Runnable quitAction = () ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			QuestionManager.show(LanguageManager.get("menu.quit_confirm"), this::quitToMenu, null);
 		};
 		
 		// --- Buttons ---
 		_buttons = new Panel[BUTTON_COUNT];
-		_buttons[0] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.resume"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, resumeAction);
-		_buttons[1] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.options"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, optionsAction);
-		_buttons[2] = ButtonManager.createMenuButtonByScreenPercentage(app.getAssetManager(), LanguageManager.get("menu.quit_to_menu"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, quitAction);
+		_buttons[0] = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.resume"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, resumeAction);
+		_buttons[1] = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.options"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, optionsAction);
+		_buttons[2] = ButtonManager.createMenuButtonByScreenPercentage(assetManager, LanguageManager.get("menu.quit_to_menu"), BUTTON_WIDTH_PERCENT, BUTTON_HEIGHT_PERCENT, quitAction);
 		
 		// Position buttons centered below the title.
 		final float buttonHeight = screenHeight * BUTTON_HEIGHT_PERCENT;
 		final float spacing = screenHeight * BUTTON_SPACING_PERCENT;
-		final float totalHeight = (BUTTON_COUNT * buttonHeight) + ((BUTTON_COUNT - 1) * spacing);
-		final float startY = (screenHeight + totalHeight) / 2f + (screenHeight * 0.02f);
+		final float startY = (screenHeight + ((BUTTON_COUNT * buttonHeight) + ((BUTTON_COUNT - 1) * spacing))) / 2f + (screenHeight * 0.02f);
 		
 		// --- Navigation ---
 		_navigation = new MenuNavigationManager();
@@ -199,18 +200,15 @@ public class PauseMenuState extends FadeableAppState
 		
 		for (int i = 0; i < BUTTON_COUNT; i++)
 		{
-			final float buttonWidth = _buttons[i].getPreferredSize().x;
-			final float x = centerX - (buttonWidth / 2f);
-			final float y = startY - (i * (buttonHeight + spacing));
-			_buttons[i].setLocalTranslation(x, y, 1);
-			app.getGuiNode().attachChild(_buttons[i]);
+			_buttons[i].setLocalTranslation((centerX - (_buttons[i].getPreferredSize().x / 2f)), (startY - (i * (buttonHeight + spacing))), 1);
+			guiNode.attachChild(_buttons[i]);
 			
 			_navigation.addSlot(MenuNavigationManager.buttonSlot(_buttons[i], actions[i]));
 		}
 		
 		_navigation.setBackAction(() ->
 		{
-			app.getAudioManager().playSfx(AudioManager.UI_CLICK_SFX_PATH);
+			audioManager.playSfx(AudioManager.UI_CLICK_SFX_PATH);
 			resumeGame();
 		});
 		_navigation.register();
@@ -221,23 +219,23 @@ public class PauseMenuState extends FadeableAppState
 	 */
 	private void detachAllGui()
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
+		final Node guiNode = SimpleCraft.getInstance().getGuiNode();
 		
 		if (_background != null)
 		{
-			app.getGuiNode().detachChild(_background);
+			guiNode.detachChild(_background);
 			_background = null;
 		}
 		
 		if (_titleLabel != null)
 		{
-			app.getGuiNode().detachChild(_titleLabel);
+			guiNode.detachChild(_titleLabel);
 			_titleLabel = null;
 		}
 		
 		if (_logo != null)
 		{
-			app.getGuiNode().detachChild(_logo);
+			guiNode.detachChild(_logo);
 			_logo = null;
 		}
 		
@@ -247,7 +245,7 @@ public class PauseMenuState extends FadeableAppState
 			{
 				if (_buttons[i] != null)
 				{
-					app.getGuiNode().detachChild(_buttons[i]);
+					guiNode.detachChild(_buttons[i]);
 					_buttons[i] = null;
 				}
 			}

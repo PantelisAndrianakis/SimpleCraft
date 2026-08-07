@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.jme3.asset.AssetManager;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 
 import com.simsilica.lemur.HAlignment;
@@ -71,8 +72,7 @@ public class ButtonManager
 	 */
 	public static Panel createMenuButton(AssetManager assetManager, String text, float xSize, float ySize, Runnable action)
 	{
-		final int fontSize = Math.max(10, (int) (ySize * FONT_HEIGHT_RATIO));
-		return createMenuButtonInternal(assetManager, text, fontSize, xSize, ySize, action);
+		return createMenuButtonInternal(assetManager, text, Math.max(10, (int) (ySize * FONT_HEIGHT_RATIO)), xSize, ySize, action);
 	}
 	
 	/**
@@ -86,11 +86,10 @@ public class ButtonManager
 	 */
 	public static Panel createMenuButtonByScreenPercentage(AssetManager assetManager, String text, float xPercentage, float yPercentage, Runnable action)
 	{
-		final SimpleCraft app = SimpleCraft.getInstance();
-		final float xSize = app.getCamera().getWidth() * xPercentage;
-		final float ySize = app.getCamera().getHeight() * yPercentage;
-		final int fontSize = Math.max(10, (int) (ySize * FONT_HEIGHT_RATIO));
-		return createMenuButtonInternal(assetManager, text, fontSize, xSize, ySize, action);
+		final Camera camera = SimpleCraft.getInstance().getCamera();
+		final float xSize = camera.getWidth() * xPercentage;
+		final float ySize = camera.getHeight() * yPercentage;
+		return createMenuButtonInternal(assetManager, text, Math.max(10, (int) (ySize * FONT_HEIGHT_RATIO)), xSize, ySize, action);
 	}
 	
 	/**
@@ -131,8 +130,7 @@ public class ButtonManager
 		final AtomicLong lastClickTime = new AtomicLong(0);
 		
 		// Add hover, press and click handling through cursor listener.
-		// Fresh TbtQuadBackgroundComponent instances are created each time because
-		// Lemur components cannot be reattached after being detached from a spatial.
+		// Fresh TbtQuadBackgroundComponent instances are created each time, because Lemur components cannot be reattached after being detached from a spatial.
 		CursorEventControl.addListenersToSpatial(button, new DefaultCursorListener()
 		{
 			@Override

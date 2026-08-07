@@ -2,6 +2,7 @@ package simplecraft.player;
 
 import java.awt.Font;
 
+import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.material.Material;
@@ -22,15 +23,15 @@ import simplecraft.ui.FontManager;
  * Help UI opened by pressing F1.<br>
  * Displays a numbered list of gameplay progression steps in a scrollable panel.<br>
  * While open, player movement and block interaction input are unregistered<br>
- * (same pattern as {@link CraftingScreen}). Close with Escape or F1.
+ * (same pattern as {@link simplecraft.player.CraftingScreen}). Close with Escape or F1.
  * @author Pantelis Andrianakis
  * @since March 26th 2026
  */
 public class HelpScreen
 {
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constants.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/** Font size for step text. */
 	private static final int FONT_SIZE = 18;
@@ -79,31 +80,9 @@ public class HelpScreen
 	/** Number of tips. */
 	private static final int TIPS_COUNT = 2;
 	
-	private static String[] getHelpSteps()
-	{
-		final String[] steps = new String[HELP_STEP_COUNT];
-		for (int i = 0; i < HELP_STEP_COUNT; i++)
-		{
-			steps[i] = LanguageManager.get("help.step." + (i + 1));
-		}
-		
-		return steps;
-	}
-	
-	private static String[] getTips()
-	{
-		final String[] tips = new String[TIPS_COUNT];
-		for (int i = 0; i < TIPS_COUNT; i++)
-		{
-			tips[i] = LanguageManager.get("help.tip." + (i + 1));
-		}
-		
-		return tips;
-	}
-	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Fields.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	private final PlayerController _playerController;
 	private final BlockInteraction _blockInteraction;
@@ -114,9 +93,9 @@ public class HelpScreen
 	/** Root node holding all help UI elements. Attached to guiNode when open. */
 	private Node _rootNode;
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Constructor.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Creates a new help screen (initially hidden).
@@ -129,9 +108,9 @@ public class HelpScreen
 		_blockInteraction = blockInteraction;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Open / Close.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Opens the help screen: builds the UI, disables player input, shows cursor.
@@ -198,9 +177,9 @@ public class HelpScreen
 		return _open;
 	}
 	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// UI Construction.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Builds all UI elements for the help screen.
@@ -214,13 +193,16 @@ public class HelpScreen
 		final float screenH = cam.getHeight();
 		
 		// Load fonts.
-		final BitmapFont stepFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, FONT_SIZE);
-		final BitmapFont titleFont = FontManager.getFont(app.getAssetManager(), FontManager.getTitlePath(), Font.PLAIN, TITLE_FONT_SIZE);
+		final AssetManager assetManager = app.getAssetManager();
+		final String titleFontPath = FontManager.getTitlePath();
+		final BitmapFont stepFont = FontManager.getFont(assetManager, titleFontPath, Font.PLAIN, FONT_SIZE);
+		final BitmapFont titleFont = FontManager.getFont(assetManager, titleFontPath, Font.PLAIN, TITLE_FONT_SIZE);
+		final float stepFontSize = stepFont.getCharSet().getRenderedSize();
+		final float titleFontSize = titleFont.getCharSet().getRenderedSize();
 		
 		// ---- Full-screen dark overlay ----
-		final Quad overlayQuad = new Quad(screenW, screenH);
-		final Geometry overlay = new Geometry("HelpOverlay", overlayQuad);
-		final Material overlayMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		final Geometry overlay = new Geometry("HelpOverlay", new Quad(screenW, screenH));
+		final Material overlayMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		overlayMat.setColor("Color", new ColorRGBA(0, 0, 0, OVERLAY_ALPHA));
 		overlayMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		overlay.setMaterial(overlayMat);
@@ -234,9 +216,8 @@ public class HelpScreen
 		final float panelX = (screenW - panelWidth) / 2;
 		final float panelY = (screenH - panelHeight) / 2;
 		
-		final Quad panelQuad = new Quad(panelWidth, panelHeight);
-		final Geometry panelBg = new Geometry("HelpPanel", panelQuad);
-		final Material panelMat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+		final Geometry panelBg = new Geometry("HelpPanel", new Quad(panelWidth, panelHeight));
+		final Material panelMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
 		panelMat.setColor("Color", new ColorRGBA(0.1f, 0.1f, 0.12f, PANEL_ALPHA));
 		panelMat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
 		panelBg.setMaterial(panelMat);
@@ -248,12 +229,12 @@ public class HelpScreen
 		final BitmapText titleShadow = new BitmapText(titleFont);
 		titleShadow.setText(LanguageManager.get("screen.help_title"));
 		titleShadow.setColor(COLOR_TEXT_SHADOW);
-		titleShadow.setSize(titleFont.getCharSet().getRenderedSize());
+		titleShadow.setSize(titleFontSize);
 		
 		final BitmapText titleText = new BitmapText(titleFont);
 		titleText.setText(LanguageManager.get("screen.help_title"));
 		titleText.setColor(COLOR_TITLE);
-		titleText.setSize(titleFont.getCharSet().getRenderedSize());
+		titleText.setSize(titleFontSize);
 		
 		final float titleX = panelX + (panelWidth - titleText.getLineWidth()) / 2;
 		final float titleY = panelY + panelHeight - PANEL_PADDING;
@@ -266,10 +247,8 @@ public class HelpScreen
 		final BitmapText hintText = new BitmapText(stepFont);
 		hintText.setText(LanguageManager.get("screen.help_hint"));
 		hintText.setColor(COLOR_HINT);
-		hintText.setSize(stepFont.getCharSet().getRenderedSize());
-		final float hintX = panelX + (panelWidth - hintText.getLineWidth()) / 2;
-		final float hintY = panelY + PANEL_PADDING + hintText.getLineHeight();
-		hintText.setLocalTranslation(hintX, hintY, Z_TEXT);
+		hintText.setSize(stepFontSize);
+		hintText.setLocalTranslation(panelX + ((panelWidth - hintText.getLineWidth()) / 2), panelY + PANEL_PADDING + hintText.getLineHeight(), Z_TEXT);
 		_rootNode.attachChild(hintText);
 		
 		// ---- Flowing Y cursor (top-down from title) ----
@@ -279,10 +258,15 @@ public class HelpScreen
 		final float leftX = panelX + PANEL_PADDING;
 		
 		// Measure the widest number string to right-align all numbers.
+		final String[] helpSteps = new String[HELP_STEP_COUNT];
+		for (int i = 0; i < HELP_STEP_COUNT; i++)
+		{
+			helpSteps[i] = LanguageManager.get("help.step." + (i + 1));
+		}
+		
 		final BitmapText widestNumber = new BitmapText(stepFont);
-		final String[] helpSteps = getHelpSteps();
 		widestNumber.setText(helpSteps.length + ". ");
-		widestNumber.setSize(stepFont.getCharSet().getRenderedSize());
+		widestNumber.setSize(stepFontSize);
 		final float numberColumnWidth = widestNumber.getLineWidth();
 		
 		// Fixed X where all step descriptions start (after the number column).
@@ -290,23 +274,21 @@ public class HelpScreen
 		
 		for (int i = 0; i < helpSteps.length; i++)
 		{
-			final float rowY = cursorY - i * ROW_HEIGHT;
-			final String numberStr = (i + 1) + ". ";
+			final float rowY = cursorY - (i * ROW_HEIGHT);
 			
 			// Step number (green) - right-aligned within the number column.
 			final BitmapText numberText = new BitmapText(stepFont);
-			numberText.setText(numberStr);
+			numberText.setText((i + 1) + ". ");
 			numberText.setColor(COLOR_STEP_NUMBER);
-			numberText.setSize(stepFont.getCharSet().getRenderedSize());
-			final float numberX = leftX + numberColumnWidth - numberText.getLineWidth();
-			numberText.setLocalTranslation(numberX, rowY, Z_TEXT);
+			numberText.setSize(stepFontSize);
+			numberText.setLocalTranslation(leftX + numberColumnWidth - numberText.getLineWidth(), rowY, Z_TEXT);
 			_rootNode.attachChild(numberText);
 			
 			// Shadow.
 			final BitmapText stepShadow = new BitmapText(stepFont);
 			stepShadow.setText(helpSteps[i]);
 			stepShadow.setColor(COLOR_TEXT_SHADOW);
-			stepShadow.setSize(stepFont.getCharSet().getRenderedSize());
+			stepShadow.setSize(stepFontSize);
 			stepShadow.setLocalTranslation(descriptionX + 1, rowY - 1, Z_TEXT - 0.1f);
 			_rootNode.attachChild(stepShadow);
 			
@@ -314,7 +296,7 @@ public class HelpScreen
 			final BitmapText stepText = new BitmapText(stepFont);
 			stepText.setText(helpSteps[i]);
 			stepText.setColor(COLOR_STEP_TEXT);
-			stepText.setSize(stepFont.getCharSet().getRenderedSize());
+			stepText.setSize(stepFontSize);
 			stepText.setLocalTranslation(descriptionX, rowY, Z_TEXT);
 			_rootNode.attachChild(stepText);
 		}
@@ -356,12 +338,12 @@ public class HelpScreen
 		final BitmapText controlsTitleShadow = new BitmapText(titleFont);
 		controlsTitleShadow.setText(LanguageManager.get("screen.controls"));
 		controlsTitleShadow.setColor(COLOR_TEXT_SHADOW);
-		controlsTitleShadow.setSize(titleFont.getCharSet().getRenderedSize());
+		controlsTitleShadow.setSize(titleFontSize);
 		
 		final BitmapText controlsTitleText = new BitmapText(titleFont);
 		controlsTitleText.setText(LanguageManager.get("screen.controls"));
 		controlsTitleText.setColor(COLOR_TITLE);
-		controlsTitleText.setSize(titleFont.getCharSet().getRenderedSize());
+		controlsTitleText.setSize(titleFontSize);
 		
 		final float controlsTitleX = panelX + (panelWidth - controlsTitleText.getLineWidth()) / 2;
 		controlsTitleText.setLocalTranslation(controlsTitleX, cursorY, Z_TEXT);
@@ -373,15 +355,12 @@ public class HelpScreen
 		
 		// Find the widest "Label: Value" combination to center the block.
 		float maxEntryWidth = 0;
+		final BitmapText measure = new BitmapText(stepFont);
+		measure.setSize(stepFontSize);
 		for (String[] entry : controlEntries)
 		{
-			final BitmapText measure = new BitmapText(stepFont);
 			measure.setText(entry[0] + ":  " + entry[1]);
-			measure.setSize(stepFont.getCharSet().getRenderedSize());
-			if (measure.getLineWidth() > maxEntryWidth)
-			{
-				maxEntryWidth = measure.getLineWidth();
-			}
+			maxEntryWidth = Math.max(maxEntryWidth, measure.getLineWidth());
 		}
 		
 		// Center the control entries block within the panel.
@@ -395,7 +374,7 @@ public class HelpScreen
 			final BitmapText labelText = new BitmapText(stepFont);
 			labelText.setText(entry[0] + ":  ");
 			labelText.setColor(COLOR_KEY_LABEL);
-			labelText.setSize(stepFont.getCharSet().getRenderedSize());
+			labelText.setSize(stepFontSize);
 			labelText.setLocalTranslation(controlBlockX, cursorY, Z_TEXT);
 			_rootNode.attachChild(labelText);
 			
@@ -405,14 +384,14 @@ public class HelpScreen
 			final BitmapText valueShadow = new BitmapText(stepFont);
 			valueShadow.setText(entry[1]);
 			valueShadow.setColor(COLOR_TEXT_SHADOW);
-			valueShadow.setSize(stepFont.getCharSet().getRenderedSize());
+			valueShadow.setSize(stepFontSize);
 			valueShadow.setLocalTranslation(valueX + 1, cursorY - 1, Z_TEXT - 0.1f);
 			_rootNode.attachChild(valueShadow);
 			
 			final BitmapText valueText = new BitmapText(stepFont);
 			valueText.setText(entry[1]);
 			valueText.setColor(COLOR_KEY_VALUE);
-			valueText.setSize(stepFont.getCharSet().getRenderedSize());
+			valueText.setSize(stepFontSize);
 			valueText.setLocalTranslation(valueX, cursorY, Z_TEXT);
 			_rootNode.attachChild(valueText);
 			
@@ -426,12 +405,12 @@ public class HelpScreen
 		final BitmapText tipsTitleShadow = new BitmapText(titleFont);
 		tipsTitleShadow.setText(LanguageManager.get("screen.game_tips"));
 		tipsTitleShadow.setColor(COLOR_TEXT_SHADOW);
-		tipsTitleShadow.setSize(titleFont.getCharSet().getRenderedSize());
+		tipsTitleShadow.setSize(titleFontSize);
 		
 		final BitmapText tipsTitleText = new BitmapText(titleFont);
 		tipsTitleText.setText(LanguageManager.get("screen.game_tips"));
 		tipsTitleText.setColor(COLOR_TITLE);
-		tipsTitleText.setSize(titleFont.getCharSet().getRenderedSize());
+		tipsTitleText.setSize(titleFontSize);
 		
 		final float tipsTitleX = panelX + (panelWidth - tipsTitleText.getLineWidth()) / 2;
 		tipsTitleText.setLocalTranslation(tipsTitleX, cursorY, Z_TEXT);
@@ -442,17 +421,23 @@ public class HelpScreen
 		cursorY -= tipsTitleText.getLineHeight() + PANEL_PADDING * 0.3f;
 		
 		// Tip lines - white text (same color as step text), centered, no numbers.
-		for (String tip : getTips())
+		final String[] tips = new String[TIPS_COUNT];
+		for (int i = 0; i < TIPS_COUNT; i++)
+		{
+			tips[i] = LanguageManager.get("help.tip." + (i + 1));
+		}
+		
+		for (String tip : tips)
 		{
 			final BitmapText tipShadow = new BitmapText(stepFont);
 			tipShadow.setText(tip);
 			tipShadow.setColor(COLOR_TEXT_SHADOW);
-			tipShadow.setSize(stepFont.getCharSet().getRenderedSize());
+			tipShadow.setSize(stepFontSize);
 			
 			final BitmapText tipText = new BitmapText(stepFont);
 			tipText.setText(tip);
 			tipText.setColor(COLOR_STEP_TEXT);
-			tipText.setSize(stepFont.getCharSet().getRenderedSize());
+			tipText.setSize(stepFontSize);
 			
 			final float tipX = panelX + (panelWidth - tipText.getLineWidth()) / 2;
 			tipText.setLocalTranslation(tipX, cursorY, Z_TEXT);
@@ -460,26 +445,13 @@ public class HelpScreen
 			_rootNode.attachChild(tipShadow);
 			_rootNode.attachChild(tipText);
 			
-			cursorY -= controlRowHeight + stepFont.getCharSet().getRenderedSize() * 0.5f;
+			cursorY -= controlRowHeight + stepFontSize * 0.5f;
 		}
 	}
 	
-	// ========================================================
-	// Update.
-	// ========================================================
-	
-	/**
-	 * Per-frame update. Currently a no-op.
-	 * @param tpf time per frame in seconds
-	 */
-	public void update(float tpf)
-	{
-		// No per-frame work needed.
-	}
-	
-	// ========================================================
+	// ------------------------------------------------------------------
 	// Cleanup.
-	// ========================================================
+	// ------------------------------------------------------------------
 	
 	/**
 	 * Full teardown: closes the screen and releases resources.

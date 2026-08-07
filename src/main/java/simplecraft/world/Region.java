@@ -17,9 +17,7 @@ import java.util.Set;
  */
 public class Region
 {
-	// ========================================================
-	// Constants.
-	// ========================================================
+	// ========== CONSTANTS ==========
 	
 	public static final int SIZE_XZ = 16;
 	public static final int SIZE_Y = 128;
@@ -30,9 +28,7 @@ public class Region
 	/** Minimum sky light level for deep underground blocks. */
 	private static final float SKY_LIGHT_MINIMUM = 0.001f;
 	
-	// ========================================================
-	// Fields.
-	// ========================================================
+	// ========== FIELDS ==========
 	
 	private final byte[][][] _blocks = new byte[SIZE_XZ][SIZE_Y][SIZE_XZ];
 	private final int _regionX;
@@ -88,9 +84,7 @@ public class Region
 	/** True if this region has been modified by the player (block placed/removed). */
 	private boolean _modified = false;
 	
-	// ========================================================
-	// Constructor.
-	// ========================================================
+	// ========== CONSTRUCTOR ==========
 	
 	public Region(int regionX, int regionZ)
 	{
@@ -98,9 +92,7 @@ public class Region
 		_regionZ = regionZ;
 	}
 	
-	// ========================================================
-	// Position.
-	// ========================================================
+	// ========== POSITION ==========
 	
 	public int getRegionX()
 	{
@@ -128,9 +120,7 @@ public class Region
 		return _regionZ * SIZE_XZ;
 	}
 	
-	// ========================================================
-	// Mesh Dirty Flag.
-	// ========================================================
+	// ========== MESH DIRTY FLAG ==========
 	
 	/**
 	 * Marks the region's mesh as dirty, requiring a rebuild. Called when blocks in this region change.
@@ -177,9 +167,7 @@ public class Region
 		return _lastMeshBuildTime;
 	}
 	
-	// ========================================================
-	// Modified Flag (player changes tracking for save system).
-	// ========================================================
+	// ========== MODIFIED FLAG (PLAYER CHANGES TRACKING FOR SAVE SYSTEM) ==========
 	
 	/**
 	 * Marks this region as modified by the player.<br>
@@ -198,9 +186,7 @@ public class Region
 		return _modified;
 	}
 	
-	// ========================================================
-	// Raw Block Data (for save/load).
-	// ========================================================
+	// ========== RAW BLOCK DATA (FOR SAVE/LOAD) ==========
 	
 	/** Total number of bytes in a flat copy of the blocks array. */
 	public static final int RAW_DATA_SIZE = SIZE_XZ * SIZE_Y * SIZE_XZ;
@@ -210,7 +196,7 @@ public class Region
 	 * Layout: x varies slowest, z varies fastest.<br>
 	 * Index = (x * SIZE_Y * SIZE_XZ) + (y * SIZE_XZ) + z.<br>
 	 * Used for serialization (save system).
-	 * @return a new byte array of length {@link #RAW_DATA_SIZE}
+	 * @return a new byte array of length {@code RAW_DATA_SIZE}
 	 */
 	public byte[] getRawBlockData()
 	{
@@ -232,10 +218,10 @@ public class Region
 	
 	/**
 	 * Overwrites the entire block data from a flat byte array.<br>
-	 * Layout must match {@link #getRawBlockData()} - x slowest, z fastest.<br>
+	 * Layout must match {@code getRawBlockData()} - x slowest, z fastest.<br>
 	 * Automatically marks mesh and sky light as dirty.<br>
 	 * Used for deserialization (load system).
-	 * @param flat a byte array of length {@link #RAW_DATA_SIZE}
+	 * @param flat a byte array of length {@code RAW_DATA_SIZE}
 	 */
 	public void setRawBlockData(byte[] flat)
 	{
@@ -289,9 +275,7 @@ public class Region
 		}
 	}
 	
-	// ========================================================
-	// Block Access.
-	// ========================================================
+	// ========== BLOCK ACCESS ==========
 	
 	/**
 	 * Returns the block at the given local coordinates.<br>
@@ -354,9 +338,7 @@ public class Region
 		return x >= 0 && x < SIZE_XZ && y >= 0 && y < SIZE_Y && z >= 0 && z < SIZE_XZ;
 	}
 	
-	// ========================================================
-	// Sky Light System.
-	// ========================================================
+	// ========== SKY LIGHT SYSTEM ==========
 	
 	/**
 	 * Computes the sky light ceiling height for every (x, z) column in this region.<br>
@@ -450,14 +432,10 @@ public class Region
 		}
 		
 		// Underground: progressive darkness based on depth below ceiling.
-		final int depth = ceilingY - y;
-		final float light = 1.0f - (depth * SKY_LIGHT_FALLOFF);
-		return Math.max(light, SKY_LIGHT_MINIMUM);
+		return Math.max((1.0f - ((ceilingY - y) * SKY_LIGHT_FALLOFF)), SKY_LIGHT_MINIMUM);
 	}
 	
-	// ========================================================
-	// Block Light System (artificial light sources).
-	// ========================================================
+	// ========== BLOCK LIGHT SYSTEM (ARTIFICIAL LIGHT SOURCES) ==========
 	
 	/**
 	 * Sets the block light level at the given local coordinates.
@@ -492,9 +470,7 @@ public class Region
 		return _blockLight[x][y][z] & 0xFF;
 	}
 	
-	// ========================================================
-	// Player-Placed Block Tracking.
-	// ========================================================
+	// ========== PLAYER-PLACED BLOCK TRACKING ==========
 	
 	/**
 	 * Packs local region coordinates into a single long key for the player-placed set.
@@ -548,9 +524,7 @@ public class Region
 		return _playerPlacedBlocks;
 	}
 	
-	// ========================================================
-	// Player-Removed Block Tracking.
-	// ========================================================
+	// ========== PLAYER-REMOVED BLOCK TRACKING ==========
 	
 	/**
 	 * Marks the block at the given local coordinates as player-removed.<br>
@@ -597,9 +571,7 @@ public class Region
 		return _playerRemovedBlocks;
 	}
 	
-	// ========================================================
-	// Berry Bush Respawn Tracking.
-	// ========================================================
+	// ========== BERRY BUSH RESPAWN TRACKING ==========
 	
 	/**
 	 * Records a pending berry bush respawn at the given local coordinates.<br>
@@ -640,9 +612,7 @@ public class Region
 		}
 	}
 	
-	// ========================================================
-	// Utilities.
-	// ========================================================
+	// ========== UTILITIES ==========
 	
 	/**
 	 * Fills the region with a flat terrain for testing.<br>

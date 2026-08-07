@@ -47,10 +47,10 @@ public class WindowDisplayManager
 				return null;
 			}
 			
-			final long monitor = GLFW.glfwGetPrimaryMonitor();
-			final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(monitor);
-			final int monitorWidth = (vidMode != null) ? vidMode.width() : app.getSettingsManager().getScreenWidth();
-			final int monitorHeight = (vidMode != null) ? vidMode.height() : app.getSettingsManager().getScreenHeight();
+			final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(GLFW.glfwGetPrimaryMonitor());
+			final SettingsManager settingsManager = app.getSettingsManager();
+			final int monitorWidth = (vidMode != null) ? vidMode.width() : settingsManager.getScreenWidth();
+			final int monitorHeight = (vidMode != null) ? vidMode.height() : settingsManager.getScreenHeight();
 			final int windowHeight = IS_WINDOWS ? monitorHeight + 1 : monitorHeight;
 			
 			GLFW.glfwSetWindowAttrib(windowHandle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
@@ -81,7 +81,7 @@ public class WindowDisplayManager
 	 * @param width the desired window width
 	 * @param height the desired window height
 	 */
-	public static void applyWindowed(int width, int height)
+	private static void applyWindowed(int width, int height)
 	{
 		final SimpleCraft app = SimpleCraft.getInstance();
 		logWaylandNoticeIfNeeded();
@@ -95,8 +95,7 @@ public class WindowDisplayManager
 				return null;
 			}
 			
-			final long monitor = GLFW.glfwGetPrimaryMonitor();
-			final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(monitor);
+			final GLFWVidMode vidMode = GLFW.glfwGetVideoMode(GLFW.glfwGetPrimaryMonitor());
 			
 			if (!IS_WAYLAND)
 			{
@@ -108,9 +107,7 @@ public class WindowDisplayManager
 			
 			if (vidMode != null && !IS_WAYLAND)
 			{
-				final int posX = (vidMode.width() - width) / 2;
-				final int posY = (vidMode.height() - height) / 2;
-				GLFW.glfwSetWindowPos(windowHandle, posX, posY);
+				GLFW.glfwSetWindowPos(windowHandle, ((vidMode.width() - width) / 2), ((vidMode.height() - height) / 2));
 			}
 			
 			final AppSettings appSettings = app.getContext().getSettings();
